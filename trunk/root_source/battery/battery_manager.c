@@ -171,7 +171,6 @@ static void polling_battery_status(void *user_data)
         if (thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
             thiz->priv.battery_state == BATTERY_STATE_EMPTY) {
             window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-            servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
             if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && 
                 wm->is_current_window(wm, ID_WINDOW_LOGO) == 0 &&
                 wm->is_current_window(wm, ID_WINDOW_POWER_OFF) == 0) {
@@ -181,14 +180,6 @@ static void polling_battery_status(void *user_data)
                 msg.union_body.extra.popup_exit_time = 3000;
                 msg.union_body.extra.forbid_short_press_exit_popup = true;
                 wm->dispatch_new_window_args(wm, &msg);
-                if (servers_ctx) {
-                    servers_publish_data_args_t args_temp = {
-                        .arg1 = OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON,
-                        .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
-                        .val = NULL,
-                    };
-                    servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
-                }
             } else {
                 LOG_MISC("in charge or logo window, ignore popup window.");
             }
@@ -221,29 +212,6 @@ static void polling_charge_status(void *user_data)
     }
     uint8_t charge_status = local_get_charge_status();
     if (thiz->priv.charge_status != charge_status) {
-        if (charge_status == CHARGE_STATE_ERROR) {
-            servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-            if (servers_ctx) {
-                servers_publish_data_args_t args_temp = {
-                    .arg1 = OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR,
-                    .arg2 =  OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
-                    .val = NULL,
-                };  
-                servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
-            }
-        }
-
-        if (thiz->priv.charge_status == CHARGE_STATE_ERROR) {
-            servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-            if (servers_ctx) {
-                servers_publish_data_args_t args_temp = {
-                    .arg1 = OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR,
-                    .arg2 = OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
-                    .val = NULL,
-                };  
-                servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
-            }
-        }
         thiz->priv.charge_status = charge_status;
         LOG_MISC("charge status change:%d", charge_status);
         polling_battery_status(user_data);

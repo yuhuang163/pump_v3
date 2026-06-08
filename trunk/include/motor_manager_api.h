@@ -89,6 +89,35 @@ typedef struct motor_task_para {
     uint8_t action_id;
 } motor_task_para_t;
 
+/// 马达状态事件类型
+typedef enum {
+    MOTOR_STATUS_EVT_TASTE_START = 0,
+    MOTOR_STATUS_EVT_TASTE_STOP,
+    MOTOR_STATUS_EVT_PUMP_STEP_ALL_PARAM_CHANGE,
+    MOTOR_STATUS_EVT_MAX,
+} motor_status_evt_type_e;
+
+/// 马达状态事件回调函数类型
+typedef void (*on_motor_status_evt_cb_fptr)(void *user_data, motor_status_evt_type_e evt_type);
+
+#define ADD_MOTOR_STATUS_EVT_CB(ctx, user_data, cb) \
+do { \
+    if (ctx) { \
+        ctx->add_motor_status_evt_listener(user_data, cb); \
+    } else { \
+        LOG_MOTOR("param error, ignore."); \
+    } \
+} while (0)
+
+#define REMOVE_MOTOR_STATUS_EVT_CB(ctx, cb) \
+do { \
+    if (ctx) { \
+        ctx->remove_motor_status_evt_listener(cb); \
+    } else { \
+        LOG_MOTOR("param error, ignore."); \
+    } \
+} while (0)
+
 #define MOTOR_WRITE_DATA(m, cmd0, cmd1, cmd2) \
     do { \
         uint32_t __wbuf[] = { (uint32_t)cmd0, (uint32_t)cmd1, (uint32_t)cmd2 }; \
@@ -109,6 +138,8 @@ typedef struct motor_manager_context {
         motor_policy_runtime_t runtime; /// 马达各种策略状态.
         motor_policy_manager_t *user_debug_policy; /// 用户调试策略.
         list_head_t policy_handler_list; /// 马达各种策略处理.
+        list_head_t status_evt_client_list; /// 马达状态事件回调链表.
+        os_mutex_id status_evt_lock;
         char *interrupt_play_reason;  /// 中断播放标记原因.     
         uint8_t motor_state;          /// 马达状态
         uint8_t is_user_stoped;       /// 用户停止
@@ -141,6 +172,12 @@ typedef struct motor_manager_context {
     uint32_t (*get_policy_running_time)(uint8_t mode);
     /// 获取所有定时策略执行完毕标志
     uint8_t (*get_timed_policy_finish_flag)(void);
+    /// 注册马达状态事件回调
+    void (*add_motor_status_evt_listener)(void *user_data, on_motor_status_evt_cb_fptr cb);
+    /// 移除马达状态事件回调
+    void (*remove_motor_status_evt_listener)(on_motor_status_evt_cb_fptr cb);
+    /// 分发马达状态事件
+    void (*notify_motor_status_change)(motor_status_evt_type_e evt_type);
     /// 外部钩子函数.
     struct __motor_manager_hook {
         int (*on_post_init_route)(struct motor_manager_context *ctx);

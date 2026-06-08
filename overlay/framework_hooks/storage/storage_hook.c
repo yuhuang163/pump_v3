@@ -91,6 +91,9 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_FACTORY_SUCTION_TABLE, read_factory_suction_table_from_ram},
     {STORE_ID_FACTORY_MOTOR_TYPE, read_factory_motor_type_from_ram},
     {STORE_ID_FACTORY_BATTERY_TYPE, read_factory_battery_type_from_ram},
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    {STORE_ID_FACTORY_LIGHT_SENSOR_CALIB_DATA, read_factory_light_sensor_calib_data_from_ram},
+#endif
 #if IS_SUPPORT_DEVICE_FSENSOR
     {STORE_ID_FACTORY_FSENSOR_CALI_FLAG, read_factory_fsensor_cali_flag_from_ram},
 #endif

@@ -30,6 +30,21 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void led_hook_notify_state(led_manager_context_t *thiz, led_broadcast_id_e evt)
+{
+    led_state_info_t info = {0};
+
+    EXCEPTION_CHECK_VOID(thiz);
+    info.evt_id = (uint8_t)evt;
+    info.night_light_onoff = thiz->priv.night_light_onoff;
+    info.night_light_level = thiz->priv.night_light_level;
+    info.night_light_adaptive_switch = thiz->priv.night_light_adaptive_switch;
+    info.night_light_adaptive_dimming = thiz->priv.night_light_adaptive_dimming;
+    if (thiz->notify_led_state_change) {
+        thiz->notify_led_state_change(&info);
+    }
+}
+
 static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
 {
     EXCEPTION_CHECK_VOID(thiz);
@@ -176,6 +191,7 @@ static int toggle_night_light(led_manager_context_t *thiz)
     LOG_MISC("toggle night light, onoff: %d, level: %d/%d", 
         thiz->priv.night_light_onoff, thiz->priv.night_light_adaptive_level, thiz->priv.night_light_level);
     set_night_light_level_internal(thiz, level);
+    led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_ONOFF);
     return thiz->priv.night_light_onoff ? 1 : 0;
 }
 

@@ -74,28 +74,6 @@ static void app_pump_safe_start_key_sim_task(void)
     }
 }
 
-static uint8_t app_old_comm_get_night_light_level(void)
-{
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_night_light_level);
-    return led->hook->get_night_light_level(led);
-}
-
-static uint8_t app_old_comm_get_night_light_onoff(void)
-{
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_night_light_onoff);
-    return led->hook->get_night_light_onoff(led);
-}
-
-static uint8_t app_old_comm_get_screen_key_light_level(void)
-{
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    //TODO:
-    //EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_key_backlight_level);
-    return 10; //TODO:
-}
-
 static uint8_t app_old_comm_get_sys_status(servers_old_protocol_publish_data_id_e id, void *user_data)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
@@ -120,12 +98,18 @@ static uint8_t app_old_comm_get_sys_status(servers_old_protocol_publish_data_id_
 
     /// 强制上报系统状态复位
     if (id == OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET) {
+        LOG_SRV("APP_OLD_COMM_SYS_RESET");
         return APP_OLD_COMM_SYS_RESET;
     }
 
     /// 强制上报泵状态结束
     if (id == OLD_PUBLISH_DATA_PUMP_STATUS_FINISH || motor_ctx->get_timed_policy_finish_flag() == 1) {
         USB_IS_PLUGIN(chage_state) ? sys_status = APP_OLD_COMM_PUMP_FINISH_IN_CHARGE : APP_OLD_COMM_SYS_FINISH;
+       if (sys_status == APP_OLD_COMM_PUMP_FINISH_IN_CHARGE) {
+            LOG_SRV("APP_OLD_COMM_PUMP_FINISH_IN_CHARGE");
+       } else {
+            LOG_SRV("APP_OLD_COMM_SYS_FINISH");
+       } 
         return sys_status;
     }
 
@@ -1031,11 +1015,11 @@ void app_old_comm_report_device_status(app_old_commd_l_r_ctrl_e lr_ct, servers_o
     report_data[data_len++] = 0x00; //预留
     report_data[data_len++] = app_old_comm_get_current_running_mode_step();
     app_old_comm_append_u16_le(report_data, &data_len, mode_step_time);
-    report_data[data_len++] = app_old_comm_get_night_light_onoff();
-    report_data[data_len++] = app_old_comm_get_night_light_level();
-    report_data[data_len++] = app_old_comm_get_adaptive_dimming_switch();
+    report_data[data_len++] = 0;
+    report_data[data_len++] = 0;
+    report_data[data_len++] = 0;
     report_data[data_len++] = app_old_comm_get_pump_control_type();
-    report_data[data_len++] = app_old_comm_get_screen_key_light_level();
+    report_data[data_len++] = 0;
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_STATUS, data_len, report_data);
 }
 
@@ -1088,16 +1072,16 @@ void app_old_comm_handle_get_status_req(app_old_commd_l_r_ctrl_e lr_ct)
     ack_data[data_len++] = 0x00; //预留
     ack_data[data_len++] = app_old_comm_get_current_running_mode_step();
     app_old_comm_append_u16_le(ack_data, &data_len, mode_step_time);
-    ack_data[data_len++] = app_old_comm_get_night_light_onoff();
-    ack_data[data_len++] = app_old_comm_get_night_light_level();
-    ack_data[data_len++] = app_old_comm_get_adaptive_dimming_switch();
+    ack_data[data_len++] = 0;
+    ack_data[data_len++] = 0;
+    ack_data[data_len++] = 0;
     ack_data[data_len++] = app_old_comm_get_pump_control_type();
-    ack_data[data_len++] = app_old_comm_get_screen_key_light_level();
+    ack_data[data_len++] = 0;
     LOG_SRV(" Sending device status ACK (data len: %d)", data_len);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_STATUS, data_len, ack_data);
 }
 
-//0xc0
+//0xc00
 void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
 {
     LOG_SRV(" Handling device control request");
@@ -1518,8 +1502,6 @@ void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab)
     /// 先重置pump，再将pump状态设置为空闲
     WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_RESET, 1);
     app_broadcast_pump_status_to_window(BREAST_PUMP_RESET,OLD_BROADCAST_ALL_CT);
-    WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_IDLE, 1);
-    app_broadcast_pump_status_to_window(BREAST_PUMP_IDLE,OLD_BROADCAST_ALL_CT);
     /// 延时发送APP强制完成广播
     POST_TASK_HANDLER_DELAYED_ARG0(app_pump_broadcast_app_completed_delay_task_handler, PUMP_CTRL_TASK_DELAY_TIME,
                                     "app_pump_broadcast_app_completed_delay_task");

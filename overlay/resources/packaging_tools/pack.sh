@@ -374,6 +374,75 @@ apply_device_prefix_if_needed() {
     esac
 }
 
+print_pack_log_for_display() {
+    local pack_log="$1"
+    echo "$pack_log" | grep -Ev '^(MISSING_RESOURCE_FILE=|MISSING_RESOURCE_FILES_COUNT=|⚠️  警告: 资源文件不存在:)'
+}
+
+collect_missing_files_from_log() {
+    local pack_log="$1"
+    local resource_root="${2:-}"
+    local line rel_path abs_path
+
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        case "$line" in
+            MISSING_RESOURCE_FILE=*)
+                rel_path="${line#MISSING_RESOURCE_FILE=}"
+                printf '%s\n' "$rel_path"
+                ;;
+            *"⚠️  警告: 资源文件不存在:"*)
+                abs_path="${line#*⚠️  警告: 资源文件不存在: }"
+                abs_path="${abs_path#"${abs_path%%[![:space:]]*}"}"
+                if [ -n "$resource_root" ] && [[ "$abs_path" == "$resource_root"/* ]]; then
+                    rel_path="${abs_path#"$resource_root"/}"
+                else
+                    rel_path="$abs_path"
+                fi
+                printf '%s\n' "$rel_path"
+                ;;
+        esac
+    done <<< "$pack_log"
+}
+
+print_missing_files_summary() {
+    local -a all_missing=()
+    local -A seen_missing=()
+    local -a unique_missing=()
+    local pack_log item
+
+    MISSING_FILES_TOTAL=0
+    for pack_log in "${ALL_PACK_LOGS[@]}"; do
+        while IFS= read -r item; do
+            [ -z "$item" ] && continue
+            all_missing+=("$item")
+        done < <(collect_missing_files_from_log "$pack_log" "${RESOURCE_ROOT:-}")
+    done
+
+    for item in "${all_missing[@]}"; do
+        if [ -z "${seen_missing[$item]:-}" ]; then
+            seen_missing[$item]=1
+            unique_missing+=("$item")
+        fi
+    done
+
+    MISSING_FILES_TOTAL=${#unique_missing[@]}
+    if [ "$MISSING_FILES_TOTAL" -eq 0 ]; then
+        return 0
+    fi
+
+    echo ""
+    echo "=================================================="
+    echo "⚠️  资源文件缺失汇总"
+    echo "=================================================="
+    echo "缺失文件数: $MISSING_FILES_TOTAL"
+    echo "缺失文件列表:"
+    for item in "${unique_missing[@]}"; do
+        echo "  - $item"
+    done
+    echo "=================================================="
+}
+
 apply_pack_suffix_if_needed() {
     local file_path="$1"
     local suffix="$2"
@@ -425,7 +494,8 @@ run_pack_resources_for_mode() {
     pack_exit_code=$?
     set -e
 
-    echo "$pack_log"
+    ALL_PACK_LOGS+=("$pack_log")
+    print_pack_log_for_display "$pack_log"
 
     if [ $pack_exit_code -ne 0 ]; then
         return $pack_exit_code
@@ -588,13 +658,14 @@ collect_product_info_cpp_flags() {
         return 0
     fi
 
-    local root_ui_token root_ui_v2 root_ui_v3 root_ui_v4 resolved_ui=""
+    local root_ui_token root_ui_v2 root_ui_v3 root_ui_v4 root_ui_v5 resolved_ui=""
     local v3_id v3pro_id product_id_token product_id_value=""
 
     root_ui_token="$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     root_ui_v2="$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     root_ui_v3="$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     root_ui_v4="$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    root_ui_v5="$(awk '/^ROOT_UI_V5[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     v3_id="$(awk '/^ROOT_PRODUCT_V3_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     v3pro_id="$(awk '/^ROOT_PRODUCT_V3PRO_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     product_id_token="$(awk '/^ROOT_PRODUCT_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
@@ -609,12 +680,14 @@ collect_product_info_cpp_flags() {
         '$(ROOT_UI_V2)') resolved_ui="$root_ui_v2" ;;
         '$(ROOT_UI_V3)') resolved_ui="$root_ui_v3" ;;
         '$(ROOT_UI_V4)') resolved_ui="$root_ui_v4" ;;
+        '$(ROOT_UI_V5)') resolved_ui="$root_ui_v5" ;;
         *) resolved_ui="$root_ui_token" ;;
     esac
 
     [ -n "${root_ui_v2:-}" ] && printf '%s\n' "-DROOT_UI_V2=${root_ui_v2}"
     [ -n "${root_ui_v3:-}" ] && printf '%s\n' "-DROOT_UI_V3=${root_ui_v3}"
     [ -n "${root_ui_v4:-}" ] && printf '%s\n' "-DROOT_UI_V4=${root_ui_v4}"
+    [ -n "${root_ui_v5:-}" ] && printf '%s\n' "-DROOT_UI_V5=${root_ui_v5}"
     [ -n "${resolved_ui:-}" ] && printf '%s\n' "-DROOT_UI_VERSION=${resolved_ui}"
     [ -n "${product_id_value:-}" ] && printf '%s\n' "-DROOT_PRODUCT_ID=${product_id_value}"
     [ -n "${v3_id:-}" ] && printf '%s\n' "-DROOT_PRODUCT_V3_ID=${v3_id}"
@@ -655,16 +728,18 @@ resolve_root_res_path() {
     # 与 product_info.h / GNUmakefile 中 ROOT_UI_VERSION 分支一致
     local makefile="$PROJECT_DIR/GNUmakefile"
     if [ -f "$makefile" ]; then
-        local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value
+        local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value root_ui_v5_value
         root_ui_token="$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v2_value="$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v3_value="$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v4_value="$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+        root_ui_v5_value="$(awk '/^ROOT_UI_V5[[:space:]]*\?=/{print $3; exit}' "$makefile")"
 
         case "$root_ui_token" in
             '$(ROOT_UI_V2)') printf "%s" "V2"; return 0 ;;
             '$(ROOT_UI_V3)') printf "%s" "V3"; return 0 ;;
             '$(ROOT_UI_V4)') printf "%s" "V4"; return 0 ;;
+            '$(ROOT_UI_V5)') printf "%s" "V5"; return 0 ;;
             "$root_ui_v2_value")
                 if [ -n "${root_ui_token:-}" ]; then
                     printf "%s" "V2"
@@ -683,6 +758,12 @@ resolve_root_res_path() {
                     return 0
                 fi
                 ;;
+            "$root_ui_v5_value")
+                if [ -n "${root_ui_token:-}" ]; then
+                    printf "%s" "V5"
+                    return 0
+                fi
+                ;;
         esac
     fi
 
@@ -690,7 +771,7 @@ resolve_root_res_path() {
     out="$(product_info_preprocess_macro "ROOT_RES_PATH")"
     out="${out#\"}"
     out="${out%\"}"
-    if [[ "$out" =~ ^V[234]$ ]]; then
+    if [[ "$out" =~ ^V[2345]$ ]]; then
         printf "%s" "$out"
         return 0
     fi
@@ -699,13 +780,14 @@ resolve_root_res_path() {
 }
 
 resolve_root_res_version() {
-    # ROOT_RES_VERSION = major*100 + minor，随 UI：V2->102, V3->103, V4->104
+    # ROOT_RES_VERSION = major*100 + minor，随 UI：V2->102, V3->103, V4->104, V5->105
     local res_path out
     res_path="$(resolve_root_res_path)"
     case "$res_path" in
         V2) printf "%s" "102"; return 0 ;;
         V3) printf "%s" "103"; return 0 ;;
         V4) printf "%s" "104"; return 0 ;;
+        V5) printf "%s" "105"; return 0 ;;
     esac
 
     out="$(product_info_preprocess_macro "ROOT_RES_VERSION")"
@@ -1028,6 +1110,8 @@ echo "CRC策略: 打包时按单个资源计算 CRC16 并写入 obj_info"
 PACK_EXIT_CODE=0
 OUTPUT_FILE=""
 PACK_STEP_CODE=0
+ALL_PACK_LOGS=()
+MISSING_FILES_TOTAL=0
 
 case "$RESOLVED_PACK_MODE" in
     legacy|base|custom)
@@ -1126,10 +1210,15 @@ case "$RESOLVED_PACK_MODE" in
 esac
 
 ### 显示结果
+print_missing_files_summary
 if [ $PACK_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "=================================================="
-    echo "✅ 打包成功！"
+    if [ "$MISSING_FILES_TOTAL" -gt 0 ]; then
+        echo "✅ 打包完成（存在缺失资源文件，见上方汇总）"
+    else
+        echo "✅ 打包成功！"
+    fi
     echo "=================================================="
     if [ ${#GENERATED_OUTPUTS[@]} -gt 1 ]; then
         echo "生成文件:"

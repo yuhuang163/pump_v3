@@ -33,6 +33,9 @@ static void ble_event_fac_send_data(void *context, void *data, int data_len);
 static void ble_event_fac_recive_data(void *context, void *data, int data_len);
 static void ble_event_remot_send_data(void *context, void *data, int data_len);
 static void ble_event_remot_recive_data(void *context, void *data, int data_len);
+static void ble_event_data_bury_send_data(void *context, void *data, int data_len);
+static void ble_event_data_bury_recive_data(void *context, void *data, int data_len);
+static void ble_event_tx_ccc_enabled(void *context, void *data, int data_len);
 static ble_msg_process_handle_t s_ble_msg_process_list[] = {
     {BLE_MSG_SET_ADV_UPDATE,                 ble_event_opt_adv_param_update},
     {BLE_MSG_SET_ADV_START,                  ble_event_opt_adv_start},
@@ -42,6 +45,7 @@ static ble_msg_process_handle_t s_ble_msg_process_list[] = {
     {BLE_MSG_RESUME,                         ble_event_resume},
     {BLE_MSG_PERIPH_DISCONN,                 ble_event_periph_disconnect},
     {BLE_MSG_PERIPH_CONNECT_SUC,             ble_event_periph_connect_suc},
+    {BLE_MSG_TX_CCC_ENABLED,                 ble_event_tx_ccc_enabled},
     {BLE_MSG_PERIPH_DISCONN_SUC,             ble_event_periph_disconnect_suc},
     {BLE_MSG_MASTER_SEND_DATA,               ble_event_master_send_data},
     {BLE_MSG_MASTER_RECIVE_DATA,             ble_event_master_recive_data},
@@ -49,6 +53,8 @@ static ble_msg_process_handle_t s_ble_msg_process_list[] = {
     {BLE_MSG_FAC_RECIVE_DATA,                ble_event_fac_recive_data},
     {BLE_MSG_REMOT_SEND_DATA,                ble_event_remot_send_data},
     {BLE_MSG_REMOT_RECIVE_DATA,              ble_event_remot_recive_data},
+    {BLE_MSG_DATA_BURY_SEND_DATA,            ble_event_data_bury_send_data},
+    {BLE_MSG_DATA_BURY_RECIVE_DATA,          ble_event_data_bury_recive_data},
 };
 
 /*
@@ -187,6 +193,10 @@ static void ble_event_periph_disconnect_suc(void *context, void *data, int data_
             DEVICE_IOCTL(pble->priv.ble_dev, OP_CODE_BLE_ADV_CLOSE);
         }
     }
+    ///app要求主动调用一次sdk断开的接口，让sdk主动断开连接
+    uint32_t args[] = {pble->priv.connect_idx};
+    DEVICE_IOCTL_ARGS(pble->priv.ble_dev, OP_CODE_BLE_DISCONNECT, args);
+    
     pble->on_connect_status_change(pble, pble->priv.ble_connect_state, 0);
 }
 
@@ -260,6 +270,42 @@ static void ble_event_remot_recive_data(void *context, void *data, int data_len)
         .data_type = BLE_SRV_DATA_TYPE_RAW,
     };
     ble_remot_srv_recv_data(pble, &srv_data);
+}
+
+static void ble_event_tx_ccc_enabled(void *context, void *data, int data_len)
+{
+    (void)context;
+    if (!data || data_len <= 0) {
+        LOG_BLE("ble tx ccc enabled, invalid param");
+        return;
+    }
+
+    uint16_t conn_id = *(uint16_t *)data;
+    LOG_BLE("ble tx ccc enabled, conn_id: %d", conn_id);
+}
+
+static void ble_event_data_bury_send_data(void *context, void *data, int data_len)
+{
+    EXCEPTION_CHECK_VOID(context);
+    ble_service_send_data_t send_data = {
+        .srv_id       = BLE_SRV_ID_DATA_BURY,
+        .bind_state   = BLE_BIND_STATE_COMPLETE,
+        .p_data       = data,
+    };
+    ble_manager_context_t *pble = context;
+    pble->priv.ble_dev->write(pble->priv.ble_dev, &send_data, data_len);
+}
+
+static void ble_event_data_bury_recive_data(void *context, void *data, int data_len)
+{
+    ble_manager_context_t *pble = context;
+    ble_service_data_t srv_data = {
+        .p_data = data,
+        .size = data_len,
+        .protocol_version = 0,
+        .data_type = BLE_SRV_DATA_TYPE_RAW,
+    };
+    ble_data_bury_srv_recv_data(pble, &srv_data);
 }
 
 void ble_message_process_handler(ble_manager_context_t *ctx, ble_event_type_t *msg)

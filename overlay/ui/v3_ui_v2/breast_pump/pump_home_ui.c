@@ -131,7 +131,7 @@ static const char *bf_mode_name[HOME_BF_MODE_COUNT] = {
 const static uint16_t home_speed_icon_ids[HOME_SPEED_MAX_COUNT] = {
     RESOURCE_ID_PUMP_SPEED_SLOW_ICON,
     RESOURCE_ID_PUMP_SPEED_REGULAR_ICON,
-    RESOURCE_ID_PUMP_SPEED_BOOST_ICON,
+    RESOURCE_ID_PUMP_SPEED_FAST_ICON,
 };
 
 static pump_display_info_t *pump_info;

@@ -46,11 +46,6 @@ void ui_display_home_pump_normal_mode_prepare(ui_manager_context_t *thiz);
 void ui_display_home_pump_normal_mode_remove(ui_manager_context_t *thiz);
 int ui_display_home_pump_normal_mode_process(ui_manager_context_t *thiz);
 
-/// 泵奶速度界面
-void ui_display_home_pump_speed_prepare(ui_manager_context_t *thiz);
-void ui_display_home_pump_speed_remove(ui_manager_context_t *thiz);
-int ui_display_home_pump_speed_process(ui_manager_context_t *thiz);
-
 /// 泵奶档位调节界面
 void ui_display_home_pump_level_prepare(ui_manager_context_t *thiz);
 void ui_display_home_pump_level_remove(ui_manager_context_t *thiz);

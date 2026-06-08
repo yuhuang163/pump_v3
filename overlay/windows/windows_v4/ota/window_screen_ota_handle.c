@@ -1,0 +1,210 @@
+/*
+* INCLUDE FILES
+*****************************************************************************************
+*/
+#include "input_key_code.h" // IWYU pragma: keep
+#include "root_common_api.h" // IWYU pragma: keep
+#include "windows_manager.h" 
+#include "windows_map_define.h" // IWYU pragma: keep
+#include "window_screen_ota.h" // IWYU pragma: keep
+
+/*
+* DEFINES
+*****************************************************************************************
+*/
+#define PAGE_STATIC_NAME                            ota
+#define PAGE_NAME_STR                               "ota"
+#define OTA_UI_KEY_CODE                             KEY_CODE_POWER
+#define OTA_UI_KEY_TYPE                             KEY_EVENT_CLICK
+#define OTA_UI_START_TASK_NAME                      "ota_ui_task_exit"
+#define OTA_BROADCAST_TASK_NAME                     "ota_broadcast_task"
+
+#define REMOVE_ALL_HANDER_TASK() \
+do { \
+    LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
+    REMOVE_TASK_HANDLER_DIRECTLY(OTA_UI_START_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(OTA_BROADCAST_TASK_NAME); \
+} while (0)
+
+/*
+* LOCAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+INIT_WINDOW_CONTEXT();
+
+/*
+* GLOBAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+
+/*
+* LOCAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+static void ota_ui_switch_cb(hdr_post_args_t *args)
+{
+    ui_proc_ota_t *proc = args->user_data;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    multi_func_msg_data_t msg = {0};
+    LOG_WM("goto home window.");
+    msg.union_body.extra.window_id = ID_WINDOW_HOME;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
+}
+
+static int on_ota_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
+{
+    ui_proc_ota_t *proc = user_data;
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_OTA_UPGRADE, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
+    if (proc->ota_status != OTA_UI_STATUS_DOWNLOADING) {
+        return 0;
+    }
+
+    if (keycode == KEY_CODE_POWER) {
+        POST_WM_TASK_HANDLER_NO_DELAY(ota_ui_switch_cb, proc, OTA_UI_START_TASK_NAME);
+    }
+    return 0;
+}
+
+static void ota_wm_broadcast_receive_hdr(hdr_post_args_t *args)
+{
+    window_broadcast_args_t *bcd_args = (window_broadcast_args_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(bcd_args);
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)bcd_args->context;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    switch (bcd_args->code) {
+        case ID_BROADCAST_OTA_STATE_CHANGE:
+            LOG_WM("OTA_STATE_CHANGE: %d", bcd_args->arg1);
+            if (bcd_args->arg1 == OTA_UPGRADE_STATE_START) {
+                proc->ota_status = OTA_UI_STATUS_DOWNLOADING;
+            } else if (bcd_args->arg1 == OTA_UPGRADE_STATE_SUCCESS) {
+                proc->ota_status = OTA_UI_STATUS_COMPLETE;
+            } else if (bcd_args->arg1 == OTA_UPGRADE_STATE_FAIL) {
+                proc->ota_status = OTA_UI_STATUS_ERROR;
+            }
+            break;
+        default:
+            break;
+   }
+}
+
+static void on_ota_wm_broadcast_receive_cb(broadcast_mask_id_t id, void *context, int arg1, int arg2,
+    broadcast_priv_data_t *pdata)
+{
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)context;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    proc->broadcast_args.context = proc;
+    proc->broadcast_args.code = id.code;
+    proc->broadcast_args.arg1 = arg1;
+    proc->broadcast_args.arg2 = arg2;
+    if (pdata != NULL && pdata->size > 0) {
+        memcpy(&proc->broadcast_args.priv_data, pdata, sizeof(broadcast_priv_data_t));
+    } else {
+        memset(&proc->broadcast_args.priv_data, 0, sizeof(proc->broadcast_args.priv_data));
+    }
+    POST_WM_TASK_HANDLER_NO_DELAY(ota_wm_broadcast_receive_hdr, &proc->broadcast_args, OTA_BROADCAST_TASK_NAME);
+}
+
+static int entry_event_cb(window_lift_cycle_e new_state,
+    const struct window_context *thiz, const struct window_context *old_scr)
+{
+    ui_proc_ota_t *proc = CONTAINER_OF(thiz, ui_proc_ota_t, w_ctx);
+    window_manager_context_t *wm = proc->wm;
+    ui_manager_context_t *ui = proc->ui;
+    if (new_state == ID_SCR_STATE_ON_RESUME) {
+        ADD_KEYEVENT_CB(proc->key, "ota_wm", proc, OTA_UI_KEY_CODE, OTA_UI_KEY_TYPE,
+            on_ota_ui_keyevent_hdr);
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, 100);
+        }
+        proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
+    } else if (new_state == ID_SCR_STATE_ON_CREATE) {
+        LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        start_ota_ui_animation(proc);
+    }
+    return 0;
+}
+
+static int exit_event_cb(window_lift_cycle_e new_state,
+                         const struct window_context *thiz, const struct window_context *new_scr)
+{
+    ui_proc_ota_t *proc = CONTAINER_OF(thiz, ui_proc_ota_t, w_ctx);
+    switch (new_state) {
+        case ID_SCR_STATE_ON_PAUSE:
+            proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
+            LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            stop_ota_ui_animation(proc);
+            break;
+        case ID_SCR_STATE_ON_DESTORY:
+            LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
+            SET_WINDOW_CONTEXT(NULL);
+            proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
+            REMOVE_ALL_HANDER_TASK();
+            unregister_broadcast_receiver(&proc->receiver);
+            REMOVE_KEYEVENT_CB(proc->key, on_ota_ui_keyevent_hdr);
+            u_free(proc);
+            proc = NULL;
+            LOG_WM("%s window exit--end", PAGE_NAME_STR);
+            break;
+        default:
+            break;
+    }
+
+    return 0;
+}
+
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_t *wm, uint8_t window_id)
+{
+    LOG_WM("%s window enter, time: %ld.", PAGE_NAME_STR, get_timestamp());
+    ui_proc_ota_t *proc = u_malloz(sizeof(ui_proc_ota_t));
+    SET_WINDOW_CONTEXT(proc);
+    proc->margic = UI_WINDOW_MARGIC_CODE;
+    proc->current_ui_type = OTA_UI_TYPE_NONE;
+    proc->wm = wm;
+    proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    proc->ota = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
+    proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
+    /// 注册广播监听.
+    proc->receiver.context = proc;
+    proc->receiver.name = "ota_screen";
+    proc->receiver.id.code |= ID_BROADCAST_OTA_STATE_CHANGE;
+    proc->receiver.receiver_cb = on_ota_wm_broadcast_receive_cb;
+    register_broadcast_receiver(&proc->receiver);
+    proc->ota_status = OTA_UI_STATUS_DOWNLOADING;
+    /// 配置窗口上下文.
+    window_context_t *w_ctx = &proc->w_ctx;
+    w_ctx->new_window_id = window_id;
+    w_ctx->evt_cb_entry = entry_event_cb;
+    w_ctx->evt_cb_exit = exit_event_cb;
+    w_ctx->not_push_history = 1;
+    w_ctx->is_popup_window = 0;
+    wm->dispatch_new_window(w_ctx);
+    
+    return ID_WINDOW_DISPLAY_OK;
+}
+

@@ -91,16 +91,7 @@ static int enter_airplane_mode_route(struct airplane_mode_context *ctx, int ente
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
     wm->dispatch_new_window_args(wm, &msg);
-
-    ///通知app层进入飞行模式
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_INT(servers_ctx);
-    servers_publish_data_args_t args_temp = {
-        .arg1 = OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK,
-        .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
-        .val = NULL,
-    };
-    servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE, 1);
     return 0;
 }
 
@@ -110,16 +101,7 @@ static int exit_airplane_mode_route(struct airplane_mode_context *ctx, int exit_
     if (st) {
         st->put_store_ram_val(STORE_ID_SYS_AIRPLANE_MODE_STATE, 0, 0, NULL);
     }
-
-    ///通知app层退出飞行模式
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_INT(servers_ctx);
-    servers_publish_data_args_t args_temp = {
-        .arg1 = OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK,
-        .arg2 = OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
-        .val = NULL,
-    };
-    servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE, 0);
     return 0;
 }
 

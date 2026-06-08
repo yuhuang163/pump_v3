@@ -139,6 +139,9 @@ void app_old_comm_handle_request_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, uin
         case APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL:
             app_old_comm_handle_pump_ble_rgb_set_ctrl_req(cal, cab);
             break;
+        case APP_OLD_COMM_CID_GET_LIGHT_STATUS:
+            app_old_comm_handle_get_light_status_req(cal, cab);
+            break;
         case APP_OLD_COMM_CID_CLEAR_CUSTOM_MODE:
             app_old_comm_handle_clear_trail_custom_mode_req(cal, cab);
             break;
@@ -190,6 +193,13 @@ void app_old_comm_handle_response_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, vo
             EXCEPTION_CHECK_VOID(ble_ctx);
             if (ble_ctx->ble_is_connected() == true) {
                 app_old_comm_report_custom_mode_id(args_temp->arg1);
+            }
+        } break;
+        case APP_OLD_COMM_CID_NOTIFY_LIGHT_STATUS: {
+            ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+            EXCEPTION_CHECK_VOID(ble_ctx);
+            if (ble_ctx->ble_is_connected() == true) {
+                app_old_comm_report_light_status(args_temp->arg1, args_temp->val);
             }
         } break;
         case APP_OLD_COMM_CID_NOTIFY_DISCON: {

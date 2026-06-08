@@ -13,6 +13,7 @@ extern "C" {
 #include "master_service.h"  // IWYU pragma: keep
 #include "factory_service.h" // IWYU pragma: keep
 #include "remot_service.h" // IWYU pragma: keep
+#include "data_bury_service.h" // IWYU pragma: keep
 #include "ble_service.h" // IWYU pragma: keep
 #include "ble_advs.h" // IWYU pragma: keep
 #include "ble_connect.h" // IWYU pragma: keep

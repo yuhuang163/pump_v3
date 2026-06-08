@@ -125,9 +125,32 @@ typedef enum {
 #define WRITE_PUMP_IS_START_FROM_APP(ctx, is_start_from_app) \
     ctx->set_pump_composite_state(BREAST_PUMP_IS_START_FROM_APP, is_start_from_app, 0, 0, NULL)
 
+#define ADD_BREAST_PUMP_RESULT_CB(ctx, user_data, cb) \
+do { \
+    if (ctx) { \
+        ctx->add_breast_pump_result_listener(user_data, cb); \
+    } else { \
+        LOG_MISC("param error, ignore."); \
+    } \
+} while (0)
+
+#define REMOVE_BREAST_PUMP_RESULT_CB(ctx, cb) \
+do { \
+    if (ctx) { \
+        ctx->remove_breast_pump_result_listener(cb); \
+    } else { \
+        LOG_MISC("param error, ignore."); \
+    } \
+} while (0)
+
 typedef struct {
-    uint8_t breast_pump_state;
-    uint32_t work_total_time;
+    uint8_t status;
+    uint8_t setting_mode;
+    uint8_t working_mode;
+    uint8_t control_type;
+    pump_setting_t setting;
+    uint32_t work_valid_time;
+    uint32_t total_valid_time;
 } breast_pump_result_t;
 
 /// 泵奶数据
@@ -208,9 +231,8 @@ typedef struct breast_pump_manager_context {
         os_mutex_id breast_pump_state_lock;
         os_mutex_id breast_pump_mode_lock;
         os_timer_id breast_pump_work_timer;
-        os_timer_id pump_level_notify_debounce_timer;
-        breast_pump_result_t m_result;
         breast_pump_info_t m_info;
+        breast_pump_result_t m_result;
         pump_setting_t setting[ROOT_BREAST_PUMP_STEP_MAX];
         thread_context_t breast_pump_thd;
         list_head_t client_list;
@@ -220,6 +242,7 @@ typedef struct breast_pump_manager_context {
         struct motor_manager_context *motor;
         struct battery_manager_context *battery;
         pump_result_info_t result_info[BREAST_PUMP_RESULT_MAX];  
+        uint32_t notify_time;
     } priv;
 
     ///  public

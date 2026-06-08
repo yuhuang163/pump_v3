@@ -4,6 +4,10 @@
 */
 #include "root_common_api.h" // IWYU pragma: keep
 #include "adaptive_dimming.h" // IWYU pragma: keep
+#include "light_sensor_module.h" // IWYU pragma: keep
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+#include "storage_manager_api.h" // IWYU pragma: keep
+#endif
 #if ADAP_DIM_USE_ENCODER_KNOB_SHIELD
 #include "input_key_code.h" // IWYU pragma: keep
 #include "key_input_manager_api.h" // IWYU pragma: keep
@@ -21,7 +25,13 @@
 *****************************************************************************************
 */
 static uint16_t last_lux_for_duty = 0;           /// 上一次计算duty时的lux值
+static uint16_t s_lux_thr_vdark = ADAP_DIM_LUX_THR_VDARK;
+static uint16_t s_lux_thr_dark = ADAP_DIM_LUX_THR_DARK;
+static uint16_t s_lux_thr_medium = ADAP_DIM_LUX_THR_MEDIUM;
+static uint16_t s_lux_thr_bright = ADAP_DIM_LUX_THR_BRIGHT;
 static adaptive_dimming_info_t *adaptive = NULL;
+
+#define ADAP_DIM_LUX_CALIB_THR_POINTS           4   /// calib[0..3] 为分段阈值，calib[4] 预留
 static uint16_t light_sensor_data[10] = {0};
 static uint8_t s_light_report_batch_count = 0;
 static uint16_t s_lux_filtered = 0;
@@ -94,35 +104,30 @@ static int adaptive_dimming_duty_calculate(uint16_t lux_avg, uint8_t *out_duty)
                                          (lux_avg / ADAP_DIM_HYST_THR_RATIO) : 
                                          ADAP_DIM_HYST_THR_MIN;
     
-    /// 根据 lux 值分段计算 duty（环境越亮，LED 越暗）
-    if (lux_avg < ADAP_DIM_LUX_THR_VDARK) {
+    /// 根据 lux 值分段计算 duty（环境越亮，LED 越暗）；阈值来自工厂 calib_tbl[0..3]
+    if (lux_avg < s_lux_thr_vdark) {
         new_duty = ADAP_DIM_LED_LVL_VDARK;
-    } else if (lux_avg < ADAP_DIM_LUX_THR_DARK) {
-        /// 线性映射: lux 10->100, lux 50->80
+    } else if (lux_avg < s_lux_thr_dark) {
         new_duty = ADAP_DIM_LED_LVL_VDARK + 
-                   (lux_avg - ADAP_DIM_LUX_THR_VDARK) * 
+                   (lux_avg - s_lux_thr_vdark) * 
                    (ADAP_DIM_LED_LVL_DARK_MIN - ADAP_DIM_LED_LVL_VDARK) / 
-                   (ADAP_DIM_LUX_THR_DARK - ADAP_DIM_LUX_THR_VDARK);
+                   (s_lux_thr_dark - s_lux_thr_vdark);
         if (new_duty > ADAP_DIM_LED_LVL_DARK_MIN) {
             new_duty = ADAP_DIM_LED_LVL_DARK_MIN;
         }
-    // if (lux_avg < ADAP_DIM_LUX_THR_DARK) {
-    //     new_duty = ADAP_DIM_LED_LVL_DARK_MIN;
-    } else if (lux_avg < ADAP_DIM_LUX_THR_MEDIUM) {
-        /// 线性映射: lux 50->80, lux 200->50
+    } else if (lux_avg < s_lux_thr_medium) {
         new_duty = ADAP_DIM_LED_LVL_DARK_MIN + 
-                   (lux_avg - ADAP_DIM_LUX_THR_DARK) * 
+                   (lux_avg - s_lux_thr_dark) * 
                    (ADAP_DIM_LED_LVL_MEDIUM_MIN - ADAP_DIM_LED_LVL_DARK_MIN) / 
-                   (ADAP_DIM_LUX_THR_MEDIUM - ADAP_DIM_LUX_THR_DARK);
+                   (s_lux_thr_medium - s_lux_thr_dark);
         if (new_duty > ADAP_DIM_LED_LVL_MEDIUM_MIN) {
             new_duty = ADAP_DIM_LED_LVL_MEDIUM_MIN;
         }
-    } else if (lux_avg < ADAP_DIM_LUX_THR_BRIGHT) {
-        /// 线性映射: lux 200->50, lux 500->20
+    } else if (lux_avg < s_lux_thr_bright) {
         new_duty = ADAP_DIM_LED_LVL_MEDIUM_MIN + 
-                   (lux_avg - ADAP_DIM_LUX_THR_MEDIUM) * 
+                   (lux_avg - s_lux_thr_medium) * 
                    (ADAP_DIM_LED_LVL_BRIGHT_MIN - ADAP_DIM_LED_LVL_MEDIUM_MIN) / 
-                   (ADAP_DIM_LUX_THR_BRIGHT - ADAP_DIM_LUX_THR_MEDIUM);
+                   (s_lux_thr_bright - s_lux_thr_medium);
         if (new_duty < ADAP_DIM_LED_LVL_BRIGHT_MIN) {
             new_duty = ADAP_DIM_LED_LVL_BRIGHT_MIN;
         }
@@ -332,6 +337,60 @@ static void adaptive_dimming_polling_thread(void *user_data)
 #endif
 }
 
+#define LIGHT_SENSOR_USER_CALIB_INVALID_MARK      ((int32_t)0xFFFFFFFF)
+
+static int light_sensor_calib_thr_in_range(int32_t v)
+{
+    return (v > 0) && (v <= (int32_t)ADAP_DIM_LUX_MAX);
+}
+
+static int light_sensor_calib_tbl_is_invalid(const int32_t *tbl, uint8_t num)
+{
+    for (uint8_t i = 0; i < num; i++) {
+        if (tbl[i] == 0 || tbl[i] == LIGHT_SENSOR_USER_CALIB_INVALID_MARK ||
+            !light_sensor_calib_thr_in_range(tbl[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int adaptive_dimming_lux_thr_is_monotonic(void)
+{
+    return (s_lux_thr_vdark < s_lux_thr_dark) &&
+           (s_lux_thr_dark < s_lux_thr_medium) &&
+           (s_lux_thr_medium < s_lux_thr_bright) &&
+           (s_lux_thr_bright <= ADAP_DIM_LUX_MAX);
+}
+
+static void adaptive_dimming_lux_thr_load_defaults(void)
+{
+    s_lux_thr_vdark = ADAP_DIM_LUX_THR_VDARK;
+    s_lux_thr_dark = ADAP_DIM_LUX_THR_DARK;
+    s_lux_thr_medium = ADAP_DIM_LUX_THR_MEDIUM;
+    s_lux_thr_bright = ADAP_DIM_LUX_THR_BRIGHT;
+}
+
+static void adaptive_dimming_lux_thr_apply(const int32_t *calib)
+{
+    if (calib == NULL ||
+        light_sensor_calib_tbl_is_invalid(calib, ADAP_DIM_LUX_CALIB_THR_POINTS)) {
+        adaptive_dimming_lux_thr_load_defaults();
+        LOG_MISC("light sensor calib invalid, use default lux thr");
+        return;
+    }
+    s_lux_thr_vdark = (uint16_t)calib[0];
+    s_lux_thr_dark = (uint16_t)calib[1];
+    s_lux_thr_medium = (uint16_t)calib[2];
+    s_lux_thr_bright = (uint16_t)calib[3];
+    if (!adaptive_dimming_lux_thr_is_monotonic()) {
+        adaptive_dimming_lux_thr_load_defaults();
+        LOG_MISC("light sensor calib not monotonic, use default lux thr");
+        return;
+    }
+    LOG_MISC("lux thr from factory: vdark=%u dark=%u medium=%u bright=%u",
+             s_lux_thr_vdark, s_lux_thr_dark, s_lux_thr_medium, s_lux_thr_bright);
+}
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -361,6 +420,17 @@ void adaptive_dimming_init(void)
                         adaptive_dimming_polling_thread);
     sensor_manager_context_t *sensor = (sensor_manager_context_t *)find_module(ID_MODULE_SENSOR);
     EXCEPTION_CHECK_VOID(sensor);
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    /// calib[0..3] 分段 lux 阈值（1..ADAP_DIM_LUX_MAX），calib[4] 预留
+    light_sensor_context_t *light_sensor = (light_sensor_context_t *)sensor->find_sensor(ID_SENSOR_LIGHT_SENSOR);
+    EXCEPTION_CHECK_VOID(light_sensor);
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(st);
+    st->get_store_ram_val(STORE_ID_FACTORY_LIGHT_SENSOR_CALIB_DATA, 0, 0, light_sensor->priv.calib_tbl);
+    adaptive_dimming_lux_thr_apply(light_sensor->priv.calib_tbl);
+#else
+    adaptive_dimming_lux_thr_load_defaults();
+#endif
     sensor->add_sensor_evt_lisenser(sensor, LIGHT_SENSOR_EVT_POLLING, 1, on_light_sensor_data_cb);
 #if ADAP_DIM_USE_ENCODER_KNOB_SHIELD
     key_input_context_t *input_key_ctx = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);

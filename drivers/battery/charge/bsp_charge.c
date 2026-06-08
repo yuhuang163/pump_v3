@@ -582,6 +582,7 @@ int bsp_charge_init(void)
     bsp_i2c_init(CHARGE_I2C_ID);
     ret = charge_chip_init();
     if (ret == BSP_OK) {
+        msleep(50);
         ret = charge_status_poll(&s_charge_status);
     }
     s_charge_is_ready = (ret == BSP_OK);

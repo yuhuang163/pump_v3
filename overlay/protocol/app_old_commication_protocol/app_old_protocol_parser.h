@@ -66,8 +66,9 @@ typedef enum {
 
     APP_OLD_COMM_CID_CTRL_DEV = 0xC0, // 功能控制
     APP_OLD_COMM_CID_SET_BIND = 0xC1, // 设置绑定
-    APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL = 0xC2, // 小夜灯灯控制
+    APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL = 0xC2, // APP 灯光控制
     APP_OLD_COMM_CID_CTRL_DEV_STATUS = 0xC3, // 设备状态控制 主要屏幕亮度，夜灯亮度
+    APP_OLD_COMM_CID_GET_LIGHT_STATUS = 0xBE,  // APP 获取灯光状态
 
     APP_OLD_COMM_CID_USER_DEFINE = 0xC4,     // 自定义模式设置
     APP_OLD_COMM_CID_PARA_DOWNLOAD = 0xC5,   // 自定义参数下载写入flash
@@ -83,6 +84,7 @@ typedef enum {
     APP_OLD_COMM_CID_RESET_STATUS = 0xCF,  // 重置吸奶器状态
     
     APP_OLD_COMM_CID_NOTIFY_STATUS = 0xD0,     // 设备主动上报状态变化
+    APP_OLD_COMM_CID_NOTIFY_LIGHT_STATUS = 0xDE, // 设备主动上报灯光状态
     APP_OLD_COMM_CID_NOTIFY_BIND = 0xD1,       // 设备主动上报绑定
     APP_OLD_COMM_CID_NOTIFY_DISCON = 0xD2,     // 设备强制断开BLE上报
     APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL = 0xEB, // V3设备异常状态上报(CAL=2)

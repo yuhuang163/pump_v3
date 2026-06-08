@@ -198,7 +198,6 @@ static int on_post_ota_init(void *ptr)
     ctx->priv.ota_bcd->context = ctx;
     ctx->priv.ota_bcd->name = "ota_manager";
     ctx->priv.ota_bcd->id.code |= ID_BROADCAST_BLE_STATE_CHANGE;
-    ctx->priv.ota_bcd->id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     ctx->priv.ota_bcd->receiver_cb = on_ota_broadcast_receive;
     register_broadcast_receiver(ctx->priv.ota_bcd);
     RUN_NEW_THREAD(&ctx->priv.ota_work_thd, "ota_work_thd", 

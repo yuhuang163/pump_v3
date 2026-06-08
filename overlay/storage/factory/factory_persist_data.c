@@ -9,6 +9,7 @@
 #include "storage_manager_internal.h" // IWYU pragma: keep
 #include "factory_persist_data.h" // IWYU pragma: keep
 #include "pump_parameters_table.h" // IWYU pragma: keep
+#include "light_sensor_module.h" // IWYU pragma: keep
 /*
  * DEFINES
  *****************************************************************************************
@@ -442,6 +443,21 @@ int read_factory_battery_type_from_ram(store_func_args_t args)
     #endif
     return 0;
 }
+///读取光感校准数据 目前只用到5个点位
+/// calib[0..3] 分段 lux 阈值，calib[4] 预留
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+int read_factory_light_sensor_calib_data_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    factory_dev_info_t *device_info = &args.ctx->priv.factory_data.dev_info;
+    int32_t *dst = (int32_t *)args.val;
+    EXCEPTION_CHECK_INT(dst);
+
+    memcpy(dst, device_info->light_sensor_calib_tbl,
+           LIGHT_SENSOR_USER_CALIB_POINT_NUM * sizeof(int32_t));
+    return 0;
+}
+#endif
 
 #if IS_SUPPORT_DEVICE_FSENSOR
 int read_factory_fsensor_cali_flag_from_ram(store_func_args_t args)

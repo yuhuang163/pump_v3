@@ -536,7 +536,7 @@ static const char *wake_up_reason_name(pm_wakeup_reason_e reason)
         case PM_WAKEUP_REASON_CHARGE_PLUG_IN:
             return "wakeup:CHARGE_PLUG_IN";
         case PM_WAKEUP_REASON_CHARGE_PLUG_OUT:
-            return "wakeup:CHARGE_PLUG_OUI";
+            return "wakeup:CHARGE_PLUG_OUT";
         case PM_WAKEUP_REASON_BACKGROUND_TASK:
             return "wakeup:BACKGROUND_TASK";
         case PM_WAKEUP_REASON_FACTORY_RESUME:
@@ -579,7 +579,7 @@ static void pm_wakeup(pm_wakeup_reason_e reason)
 
     set_suspend_counter("pm_wakeup", get_suspend_timeout(thiz), true);
     if (reason == PM_WAKEUP_REASON_CHARGE_PLUG_OUT) {
-        LOG_PM("CHARGE_PLUG_OUI blocked");
+        LOG_PM("CHARGE_PLUG_OUT blocked");
         return;
     }
 

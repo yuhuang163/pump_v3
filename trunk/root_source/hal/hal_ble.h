@@ -55,7 +55,8 @@ typedef enum {
 typedef enum {
     BLE_SRV_ID_MASTER = 0,  /**< 主服务 */
     BLE_SRV_ID_FACTORY,     /**< 工厂配置服务 */
-    BLE_SRV_ID_REMOTE,       /**< 远程服务 */
+    BLE_SRV_ID_REMOTE,      /**< 远程服务 */
+    BLE_SRV_ID_DATA_BURY,   /**< Momcozy 数据埋点服务 9F6B1A20 */
     BLE_SRV_ID_MAX,
 } ble_service_id_e;
 
@@ -74,6 +75,7 @@ typedef enum {
     BLE_EVENT_CONN_UPDATE_REQ,
     BLE_EVENT_CONN_PARAMS_UPDATE,
     BLE_EVENT_TX_CCC_ENABLED,
+    BLE_EVENT_TX_CCC_DISABLED,
 } ble_event_e;
 
 typedef struct {

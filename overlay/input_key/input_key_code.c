@@ -38,18 +38,28 @@ const char *get_input_key_code_name(uint16_t keycode)
             return "@power";
         case KEY_CODE_START:
             return "@start";
+    #if V3_UX_VERSION == V3_UX_V3
+        case KEY_CODE_STIMULATION_MODE:
+            return "@stimulation";
+        case KEY_CODE_LACTATION_MODE:
+            return "@lactation";
+        case KEY_CODE_MIX_MODE:
+            return "@mix";    
+    #elif (V3_UX_VERSION == V3_UX_V2 || V3_UX_VERSION == V3_UX_V4)
         case KEY_CODE_MODE:
             return "@mode";
-#if IS_SUPPORT_FREQUENCY_KEY
-        case KEY_CODE_FREQUENCY:
-            return "@frequency";
-#endif
-#if IS_SUPPORT_CANCEL_KEY
-        case KEY_CODE_CANCEL:
-            return "@cancel";
-#endif
         case KEY_CODE_BREASTFEEDING:
             return "@breastfeeding";
+        case KEY_CODE_CANCEL:
+            return "@cancel";
+    #else
+        case KEY_CODE_MODE:
+            return "@mode";
+        case KEY_CODE_BREASTFEEDING:
+            return "@breastfeeding";
+        case KEY_CODE_FREQUENCY:
+            return "@frequency";
+    #endif
         case KEY_CODE_FACTORY_RESET:
             return "@factory_reset";
         case KEY_CODE_TRAVEL_LOCK:

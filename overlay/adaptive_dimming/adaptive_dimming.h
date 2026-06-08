@@ -19,13 +19,13 @@ extern "C" {
 #define ADAP_DIM_LUX_EMA_DEN              8
 #define ADAP_DIM_LUX_FAST_TRACK_DIFF      180  /// |raw - filt| 超过此值则跳过 EMA，直接采用 raw
 
-/// 自适应背光lux 阈值定义
+/// 自适应背光 lux 阈值默认值（IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB 时由工厂 calib[0..3] 覆盖）
 #if 1
-#define ADAP_DIM_LUX_MAX                  1500    /// lux 最大值
-#define ADAP_DIM_LUX_THR_VDARK            30      /// 非常暗环境阈值 (lux < 30)
-#define ADAP_DIM_LUX_THR_DARK             145      /// 较暗环境阈值 (30 <= lux < 145)
-#define ADAP_DIM_LUX_THR_MEDIUM           312     /// 中等亮度环境阈值 (145 <= lux < 312)
-#define ADAP_DIM_LUX_THR_BRIGHT           839     /// 较亮环境阈值 (312 <= lux < 839)
+#define ADAP_DIM_LUX_MAX                  1500    /// lux 最大值（固定宏，calib[4] 预留未用）
+#define ADAP_DIM_LUX_THR_VDARK            30      /// 非常暗环境阈值（默认，工厂 calib[0]）
+#define ADAP_DIM_LUX_THR_DARK             145     /// 较暗环境阈值（默认，工厂 calib[1]）
+#define ADAP_DIM_LUX_THR_MEDIUM           312     /// 中等亮度环境阈值（默认，工厂 calib[2]）
+#define ADAP_DIM_LUX_THR_BRIGHT           839     /// 较亮环境阈值（默认，工厂 calib[3]）
 // #define ADAP_DIM_LUX_THR_VBRIGHT          1200    /// 很亮环境阈值 (839 <= lux < 1200)
 #else
 #define ADAP_DIM_LUX_MAX                  100     /// lux 最大值

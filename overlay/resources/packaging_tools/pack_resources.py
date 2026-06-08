@@ -130,10 +130,15 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
         "ROOT_UI_V2",
         "ROOT_UI_V3",
         "ROOT_UI_V4",
+        "ROOT_UI_V5",
         "V3_UI_V2",
         "V3PRO_UI_V2",
         "V3_UI_V3",
         "V3PRO_UI_V3",
+        "V3_UI_V4",
+        "V3PRO_UI_V4",
+        "V3_UI_V5",
+        "V3PRO_UI_V5",
     ]:
         value = _extract_make_assignment(raw, key)
         if value:
@@ -154,6 +159,7 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
     in_product_select = False
     in_v3pro_branch = False
     in_else_branch = False
+    product_if_nesting = 0
     cond_re = re.compile(r'^\s*ifeq\s*\(\s*\$\(ROOT_PRODUCT_ID\)\s*,\s*\$\(ROOT_PRODUCT_V3PRO_ID\)\s*\)\s*$')
     ui_assign_re = re.compile(r'^\s*V3_UI_VERSION\s*\?=\s*(.+?)\s*$')
     for line in raw.splitlines():
@@ -161,16 +167,24 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
             in_product_select = True
             in_v3pro_branch = True
             in_else_branch = False
+            product_if_nesting = 1
             continue
         if not in_product_select:
             continue
         stripped = line.strip()
+        if stripped.startswith("ifeq") or stripped.startswith("else ifeq"):
+            product_if_nesting += 1
+            continue
         if stripped == "else":
-            in_v3pro_branch = False
-            in_else_branch = True
+            if product_if_nesting == 1:
+                in_v3pro_branch = False
+                in_else_branch = True
             continue
         if stripped == "endif":
-            break
+            product_if_nesting -= 1
+            if product_if_nesting == 0:
+                break
+            continue
         m = ui_assign_re.match(line)
         if not m:
             continue
@@ -490,6 +504,21 @@ class ResourcePacker:
         self.header_fixed_size: int = IMG_RES_HEADER_FIXED_SIZE
         self.name_prefix: str = IMG_RES_NAME_PREFIX_DEFAULT
         self.version_current: int = IMG_RES_VERSION_CURRENT
+        self.missing_files: List[str] = []
+
+    def _record_missing_file(self, relative_path: str):
+        """记录缺失的资源文件（相对 base_dir），避免逐条刷屏。"""
+        rel = relative_path.replace("\\", "/").lstrip("./")
+        if rel and rel not in self.missing_files:
+            self.missing_files.append(rel)
+
+    def _emit_missing_files_summary(self):
+        """输出供 pack.sh 解析的缺失文件汇总行。"""
+        if not self.missing_files:
+            return
+        print(f"MISSING_RESOURCE_FILES_COUNT={len(self.missing_files)}")
+        for rel in self.missing_files:
+            print(f"MISSING_RESOURCE_FILE={rel}")
         
     def load_config(self):
         """加载配置文件"""
@@ -624,7 +653,7 @@ class ResourcePacker:
                     file_path = os.path.join(self.base_dir, range_res['file'])
                     
                     if not os.path.exists(file_path):
-                        print(f"⚠️  警告: 资源文件不存在: {file_path}")
+                        self._record_missing_file(range_res['file'])
                         continue
                     
                     with open(file_path, 'rb') as f:
@@ -676,7 +705,7 @@ class ResourcePacker:
             file_path = os.path.join(self.base_dir, res['file'])
             
             if not os.path.exists(file_path):
-                print(f"⚠️  警告: 资源文件不存在: {file_path}")
+                self._record_missing_file(res['file'])
                 continue
             
             # 读取资源数据
@@ -711,7 +740,10 @@ class ResourcePacker:
             self.resources.append(resource_info)
             print(f"  ✓ [{res_id:02d}] {res_name}: {width}x{height}, {len(data)} bytes, crc16=0x{crc16:04X}")
         
+        self._emit_missing_files_summary()
         print(f"\n✅ 共加载 {len(self.resources)} 个资源")
+        if self.missing_files:
+            print(f"⚠️  跳过 {len(self.missing_files)} 个缺失资源文件（详见脚本结束汇总）")
         return True
         
     def calculate_offsets(self):

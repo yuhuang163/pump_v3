@@ -163,29 +163,6 @@ static void on_motor_timer_event_cb(uint8_t pump_id, motor_pump_status_e action)
     MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0);
 }
 
-static void notify_app_motor_status_change(uint16_t report_type)
-{
-    servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-    EXCEPTION_CHECK_VOID(servers_ctx && servers_ctx->hook);
-    servers_publish_data_args_t args = {0};
-    switch (report_type) {
-        case OLD_PUBLISH_DATA_TASTE_STOP_REPORT:
-            args.arg1 = report_type;
-            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_TASTE_REPORT, &args);
-            break;
-        case OLD_PUBLISH_DATA_TASTE_START_REPORT:
-            args.arg1 = report_type;
-            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_TASTE_REPORT, &args);
-            break;
-        case OLD_PUBLISH_DATA_PUMP_STEP_ALL_PARAM_CHANGE:
-            args.arg1 = OLD_PUBLISH_DATA_PUMP_STEP_ALL_PARAM_CHANGE;
-            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
-            break;
-        default:
-            break;
-    }
-}
-
 static void breast_pump_start_prepare(struct motor_manager_context *thiz, const motor_policy_manager_t *policy_obj)
 {
     motor_policy_runtime_t *body = &thiz->priv.runtime;
@@ -303,7 +280,7 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     }
     breast_pump_start_prepare(thiz, policy_obj);
     if (body->taste_run_flag) {
-        notify_app_motor_status_change(OLD_PUBLISH_DATA_TASTE_START_REPORT);
+        thiz->notify_motor_status_change(MOTOR_STATUS_EVT_TASTE_START);
     }
 }
 
@@ -354,7 +331,7 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
     negative_pressure_release(thiz, wait_time_ms == 0 ? 200 : wait_time_ms);
     STOP_TIMER(policy_work_timer);
     if (runtime->taste_run_flag) {
-        notify_app_motor_status_change(OLD_PUBLISH_DATA_TASTE_STOP_REPORT);
+        thiz->notify_motor_status_change(MOTOR_STATUS_EVT_TASTE_STOP);
         runtime->taste_run_flag = 0;
     }
 #if IS_SUPPORT_PUMP_DUTY_ADJUST

@@ -71,6 +71,67 @@ static void set_led_onoff(uint8_t led_index, uint8_t onoff)
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
 }
 
+static void dispatch_led_state_client(led_manager_context_t *obj, led_state_info_t *info)
+{
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    LIST_FOR_EACH(pos, (head)) {
+        led_evt_client_node_t *node = CONTAINER_OF(pos, led_evt_client_node_t, list);
+        if (node->cb) {
+            node->cb(node->user_data, info);
+        }
+    }
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
+static void add_led_state_cb(void *user_data, on_led_state_cb_ptr cb)
+{
+    led_manager_context_t *obj = thiz;
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    LIST_FOR_EACH(pos, (head)) {
+        led_evt_client_node_t *node = CONTAINER_OF(pos, led_evt_client_node_t, list);
+        if (node->cb == cb && node->user_data == user_data) {
+            LOGW("ignore dumplicate add.");
+            MUTEX_UNLOCK(obj->priv.m_lock);
+            return;
+        }
+    }
+    led_evt_client_node_t *node = u_malloz(sizeof(led_evt_client_node_t));
+    node->cb = cb;
+    node->user_data = user_data;
+    __list_add(&node->list, head);
+    LOG_MISC("add: user_data: %lx, cb: %lx", user_data, cb);
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
+static void *list_del_led_state_condition_cb(void *data, list_head_t *pos)
+{
+    on_led_state_cb_ptr cb = (on_led_state_cb_ptr)data;
+    led_evt_client_node_t *node = CONTAINER_OF(pos, led_evt_client_node_t, list);
+    if (node->cb == cb) {
+        LOG_MISC("del: user_data: %lx, cb: %lx", node->user_data, node->cb);
+        return node;
+    }
+    return NULL;
+}
+
+static void remove_led_state_cb(on_led_state_cb_ptr cb)
+{
+    led_manager_context_t *obj = thiz;
+    list_head_t *head = &obj->priv.client_list;
+    MUTEX_LOCK(obj->priv.m_lock);
+    __list_del(head, cb, list_del_led_state_condition_cb);
+    MUTEX_UNLOCK(obj->priv.m_lock);
+}
+
+static void notify_led_state_change(led_state_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_VOID(info);
+    dispatch_led_state_client(thiz, info);
+}
+
 static void on_led_broadcast_receiver(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
 {
     LOG_MISC("broadcast id: %d, arg1: %d, arg2: %d", id.code, arg1, arg2);
@@ -106,9 +167,14 @@ static int on_post_led_manager_init(void *ptr)
 void *register_module_for_led_manager_new(list_head_t *list_head)
 {
     MALLOC_FOR_PTR(ptr, led_manager_context_t);
+    MUTEX_INIT(&ptr->priv.m_lock, led_state_mutex);
+    USE_INIT_LIST_HEAD(&ptr->priv.client_list);
     ptr->set_led_blink = set_led_blink;
     ptr->set_led_level = set_led_level;
     ptr->set_led_onoff = set_led_onoff;
+    ptr->add_led_state_cb = add_led_state_cb;
+    ptr->remove_led_state_cb = remove_led_state_cb;
+    ptr->notify_led_state_change = notify_led_state_change;
     thiz = ptr;
     return ADD_MODULE("led", ID_MODULE_LED, NULL, on_post_led_manager_init, 
         ptr, list_head, sizeof(led_manager_context_t));

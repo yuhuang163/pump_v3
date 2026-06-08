@@ -16,8 +16,38 @@ extern "C" {
 typedef enum {
     LED_BROADCAST_NIGHT_LIGHT_ONOFF = 100, /// 夜灯开关.
     LED_BROADCAST_NIGHT_LIGHT_LEVEL,      /// 夜灯亮度.
+    LED_BROADCAST_NIGHT_LIGHT_ADAPTIVE,   /// 夜灯自适应开关/调光.
     LED_BROADCAST_ID_MAX,
 } led_broadcast_id_e;
+
+#define ADD_LED_STATE_CB(ctx, user_data, cb) \
+do { \
+    if (ctx) { \
+        ctx->add_led_state_cb(user_data, cb); \
+    } else { \
+        LOG_MISC("param error, ignore."); \
+    } \
+} while (0)
+
+#define REMOVE_LED_STATE_CB(ctx, cb) \
+do { \
+    if (ctx) { \
+        ctx->remove_led_state_cb(cb); \
+    } else { \
+        LOG_MISC("param error, ignore."); \
+    } \
+} while (0)
+
+/// LED 状态快照（注册回调分发载荷）
+typedef struct {
+    uint8_t evt_id;                       /// led_broadcast_id_e
+    uint8_t night_light_onoff;            /// 夜灯开关
+    uint8_t night_light_level;            /// 夜灯当前亮度
+    uint8_t night_light_adaptive_switch;  /// 夜灯自适应开关
+    uint8_t night_light_adaptive_dimming; /// 夜灯自适应调光
+} led_state_info_t;
+
+typedef void (*on_led_state_cb_ptr)(void *user_data, led_state_info_t *info);
 
 typedef enum {
     LED_OP_CODE_SET_UI_KEY_BACKLIGHT = 100, /// 设置UI按键背光.
@@ -41,6 +71,9 @@ typedef struct led_manager_context {
     void (*set_led_blink)(uint8_t led_index, uint16_t period, uint16_t blink_times, uint8_t finish_status);
     void (*set_led_level)(uint8_t led_index, uint8_t level);
     void (*set_led_onoff)(uint8_t led_index, uint8_t onoff);
+    void (*add_led_state_cb)(void *user_data, on_led_state_cb_ptr cb);
+    void (*remove_led_state_cb)(on_led_state_cb_ptr cb);
+    void (*notify_led_state_change)(led_state_info_t *info);
     /// 外部hook点.
     struct __led_manager_hook {
         int (*on_post_init_route)(struct led_manager_context *ctx);
@@ -65,6 +98,8 @@ typedef struct led_manager_context {
         struct rt_device_node  *led_dev;
         broadcast_obj_t m_bcd;
         struct power_manager_context *power;
+        list_head_t client_list;
+        os_mutex_id m_lock;
         uint8_t night_light_onoff; /// 夜灯背光开关.
         uint8_t night_light_adaptive_level;   /// 夜灯自适应亮度.
         uint8_t night_light_setting_level;    /// 夜灯设置亮度.

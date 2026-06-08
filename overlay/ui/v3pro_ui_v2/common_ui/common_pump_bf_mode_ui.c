@@ -433,7 +433,7 @@ static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_ci
 
     /// 新模式未确认图标资源
     if (bf_mode_info->unconfirmed_icon_info.data == NULL) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_NEW_MODE_STEPS_PROMPT_ICON, &bf_mode_info->unconfirmed_icon_info);
+        common_ui_img_resource_init(thiz, RESOURCE_ID_NEW_MODE_STEPS_ICON, &bf_mode_info->unconfirmed_icon_info);
         EXCEPTION_CHECK_VOID(bf_mode_info->unconfirmed_icon_info.data);
     }
     

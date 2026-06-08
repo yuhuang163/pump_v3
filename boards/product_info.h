@@ -46,8 +46,8 @@ extern "C" {
 #define ROOT_FIRMWARE_VERSION                          212
 #define ROOT_FW_VERSION_STR                            "212"
 #else
-#define ROOT_FIRMWARE_VERSION                          330
-#define ROOT_FW_VERSION_STR                            "330"
+#define ROOT_FIRMWARE_VERSION                          332
+#define ROOT_FW_VERSION_STR                            "332"
 #endif
 
 /**
@@ -57,16 +57,19 @@ extern "C" {
 */
 #if (ROOT_UI_VERSION == ROOT_UI_V2)
 #define ROOT_RES_PATH                                  "V2" /// 资源路径
-#define ROOT_RES_VERSION                               (102)
+#define ROOT_RES_VERSION                               (103)
 #elif (ROOT_UI_VERSION == ROOT_UI_V3)   
 #define ROOT_RES_PATH                                  "V3" /// 资源路径
-#define ROOT_RES_VERSION                               (103)
+#define ROOT_RES_VERSION                               (104)
 #elif (ROOT_UI_VERSION == ROOT_UI_V4)
 #define ROOT_RES_PATH                                  "V4" /// 资源路径
-#define ROOT_RES_VERSION                               (104)
+#define ROOT_RES_VERSION                               (105)
+#elif (ROOT_UI_VERSION == ROOT_UI_V5)
+#define ROOT_RES_PATH                                  "V5" /// 资源路径
+#define ROOT_RES_VERSION                               (105)
 #else
 #define ROOT_RES_PATH                                  "V4" /// 资源路径
-#define ROOT_RES_VERSION                               (104)
+#define ROOT_RES_VERSION                               (105)
 #endif
 
 #define ROOT_RES_MAJOR_VERSION                         (ROOT_RES_VERSION / 100)

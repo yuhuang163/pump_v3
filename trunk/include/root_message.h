@@ -23,6 +23,7 @@ typedef enum {
     MSG_TYPE_WIN_EVENT, /// 窗口事件.
     MSG_TYPE_WIN_FLUSH, /// 窗口刷新.
     MSG_TYPE_INPUT_KEY_EVENT, /// 按键事件.
+    MSG_TYPE_CLOSE_POPUP_OVERLAY, /// 异步关闭 overlay 弹窗（避免与 UI 绘制锁死锁）.
     MSG_TYPE_HANDLER_POST_EVENT, /// 处理事件.
     MSG_TYPE_BROADCAST_EVENT, /// 广播事件.
     MSG_TYPE_MAX
@@ -219,6 +220,7 @@ typedef enum {
     DEVICE_BLE_FAC_MSG_CHANNEL = 0, /// 蓝牙工厂通道
     DEVICE_BLE_MASTER_MSG_CHANNEL,  /// 蓝牙主通道
     DEVICE_BLE_REMOTE_MSG_CHANNEL,  /// 蓝牙远程通道
+    DEVICE_BLE_DATA_BURY_MSG_CHANNEL, /// Momcozy 数据埋点通道
     DEVICE_UART_MSG_CHANNEL,        /// 串口通道
     DEVICE_MSG_CHANNEL_ID_MAX
 } device_message_channel_id_e;

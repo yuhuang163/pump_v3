@@ -160,15 +160,7 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 if (thiz->priv.pump_ctx) {
                     thiz->priv.pump_ctx->priv.m_info.step_index = runtime->current_timed_policy_index;
                 }
-                servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-                if (servers_ctx && servers_ctx->hook) {
-                    servers_publish_data_args_t args = {
-                        .arg1 = OLD_PUBLISH_DATA_PUMP_STEP_ALL_PARAM_CHANGE,
-                        .arg2 = 0,
-                        .val = NULL,
-                    };
-                    servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
-                }
+                thiz->notify_motor_status_change(MOTOR_STATUS_EVT_PUMP_STEP_ALL_PARAM_CHANGE);
             }
         } else {
             runtime->all_timed_policy_finish_flag = 1; /// 所有定时策略执行完毕

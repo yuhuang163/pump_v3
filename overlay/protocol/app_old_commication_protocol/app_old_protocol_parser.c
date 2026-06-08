@@ -98,6 +98,9 @@ const char* app_old_comm_get_cmd_id_str(app_old_comm_cmd_id_e cid)
         case APP_OLD_COMM_CID_SYS_CTRL: return "SYS_CTRL";
         case APP_OLD_COMM_CID_GET_ENCRYPT: return "GET_ENCRYPT";
         case APP_OLD_COMM_CID_GET_ABNORMAL_INFOR: return "GET_ABNORMAL_INFOR";
+        case APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL: return "LIGHT_CTRL";
+        case APP_OLD_COMM_CID_GET_LIGHT_STATUS: return "GET_LIGHT_STATUS";
+        case APP_OLD_COMM_CID_NOTIFY_LIGHT_STATUS: return "NOTIFY_LIGHT_STATUS";
         default: return "UNKNOWN";
     }
 }
