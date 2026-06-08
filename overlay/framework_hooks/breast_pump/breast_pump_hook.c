@@ -134,6 +134,7 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
         PUMP_TIME_TO_SECOND(result_info->hostory_work_time),
         PUMP_TIME_TO_SECOND(result_info->target_valid_time));
     result_info->current_mode_work_time = 0;
+
     result_info->mode = m_info->mode;
     result_info->start_time = get_timestamp();
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
@@ -145,6 +146,17 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     static uint8_t log_timer = 0;
     int ret = RESULT_PUMP_NORMAL;
     log_timer++;
+    /// 更新模式和力度.
+    if (result_info->mode != ctx->priv.m_info.mode) {
+        breast_pump_mode_update(ctx, result_info);
+        ctx->priv.m_result.working_mode = ctx->priv.m_info.mode;
+        return RESULT_PUMP_NORMAL;
+    }
+    memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
+    result_info->current_mode_work_time = ctx->priv.motor->get_policy_running_time(ctx->priv.m_info.mode);
+    result_info->work_valid_time = result_info->hostory_work_time + result_info->current_mode_work_time;
+    ctx->priv.m_result.work_valid_time = result_info->work_valid_time;
+    
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
     if ((result_info->work_valid_time >= result_info->target_valid_time  || 
         result_info->work_valid_time >= SINGLE_PUMP_TIME_MAX)  && 
@@ -164,28 +176,20 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
         return RESULT_PUMP_FINISH;
     }
 #endif
-
-    /// 更新模式和力度.
-    if (result_info->mode != ctx->priv.m_info.mode) {
-        breast_pump_mode_update(ctx, result_info);
-        ctx->priv.m_result.working_mode = ctx->priv.m_info.mode;
-        return RESULT_PUMP_NORMAL;
-    }
-    memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
-    result_info->current_mode_work_time = ctx->priv.motor->get_policy_running_time(ctx->priv.m_info.mode);
-    result_info->work_valid_time = result_info->hostory_work_time + result_info->current_mode_work_time;
-    ctx->priv.m_result.work_valid_time = result_info->work_valid_time;
-    /// 判断是否需要自动暂停
+    
+/// 判断是否需要自动暂停
     if (ctx->priv.m_info.auto_pause_onoff && result_info->work_valid_time >= PUMP_AUTO_PAUSE_TIME_MS) {
         ctx->priv.m_info.auto_pause_onoff = false;
         if (PUMP_IS_COMMON_MODE(ctx->priv.m_info.mode)) {
             ret = RESULT_PUMP_AUTO_PAUSE;
         }
     }
+    
     /// 判断是否即将结束
     if ((result_info->work_valid_time + PUMP_WILL_FINISH_TIME_MS) >= result_info->target_valid_time) {
         ret = RESULT_PUMP_WILL_FINISH;
     }
+
     /// 状态输出
     if (log_timer > PUMP_INFO_LOG_INTERVAL) {
         int time_index = 0;
