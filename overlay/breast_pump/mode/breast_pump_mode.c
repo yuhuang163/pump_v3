@@ -206,7 +206,7 @@ int breast_pump_mode_work_time_get(int mode)
             }
             return work_time;
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
-            return MILK_TRACK_MODE_DEFAULT_WORK_TIME;
+            return POWER_PUMPING_MODE_WORK_TIME;
         case BREAST_PUMP_REGULAR_PUMPING_MODE:
             return REGULAR_PUMPING_MODE_WORK_TIME;
         case BREAST_PUMP_EMPTYING_BOOST_MODE:
