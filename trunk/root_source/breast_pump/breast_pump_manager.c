@@ -803,7 +803,7 @@ static int on_post_breast_pump_init(void *ptr)
         /// 读取存储器中的追奶模式
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_MODE_TYPE_BREASTFEEDING, 0, &store_value);
         if (store_value > BREAST_PUMP_EXPERT_MODE_UPPER) {
-            m_info->breastfeeding_mode = BREAST_PUMP_EXPERT_MODE_DEFAULT;
+            m_info->breastfeeding_mode = BREAST_PUMP_MODE_INVALID;
         } else {
             m_info->breastfeeding_mode = store_value;
         }

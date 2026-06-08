@@ -143,11 +143,8 @@ void home_pump_bf_mode_key_click_handler(ui_proc_home_t *proc)
     } 
     int mode_index = 0;
     READ_PUMP_EXPERT_MODE(proc->pump, false, mode_index);
-    proc->ui_bf_mode_index = mode_index;
-    if (PUMP_IS_BREASTFEEDING_MODE(mode_index) == 0) {
-        proc->ui_bf_mode_index = BREAST_PUMP_EXPERT_MODE_DEFAULT;
-    } 
-    
+    proc->ui_bf_mode_index = PUMP_IS_BREASTFEEDING_MODE(mode_index) == 0 ? 
+        BREAST_PUMP_EXPERT_MODE_DEFAULT : mode_index;
     if (proc->pump_priming == 0) {
         proc->pump_priming = true;
         if (proc->led)  {
