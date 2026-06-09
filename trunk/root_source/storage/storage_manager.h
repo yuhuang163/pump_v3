@@ -43,6 +43,7 @@ typedef enum {
     PERSIST_KEY_AUDIO_PACKET_DATA,
     PERSIST_KEY_THEME_PACKET_DATA,
     PERSIST_KEY_BATTERY_HEALTH_COEFF,
+    PERSIST_KEY_IMG_RES_OTA_INFO,
 
     PERSIST_KEY_UTC_TIMESTEMP = 150,             /// 系统时间戳
 
@@ -65,13 +66,6 @@ typedef struct {
     user_bind_info_t bind_info;
     uint16_t crc;
 } user_bind_storage_t;
-
-/// 描述主题包信息
-typedef struct {
-    uint32_t magic;
-    theme_packet_info_t theme_packet;
-    uint16_t crc;
-} theme_packet_storage_t;
 
 /// 描述泵奶信息
 typedef struct {
@@ -149,6 +143,13 @@ typedef struct {
     uint32_t utc_timestamp;
     uint16_t crc;
 } utc_timestamp_storage_t;
+
+/// 描述图片资源OTA状态信息
+typedef struct {
+    uint32_t magic;
+    img_res_ota_info_t res_ota_info;
+    uint16_t crc;
+} img_res_ota_storage_t;
 
 #ifdef __cplusplus
 }

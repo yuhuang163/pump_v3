@@ -24,6 +24,7 @@ const static comm_protocol_subscribe_handle_t comm_protocol_subscribe_list[] = {
     {COMM_PROTOCOL_SYSTEM_CONFIG_SERVICE, sys_config_subscribe_service_handle},
     {COMM_PROTOCOL_SYSTEM_STATE_SERVICE, sys_state_subscribe_service_handle},
     {COMM_PROTOCOL_TESTS_SERVICE, tests_subscribe_service_handle},
+    {COMM_PROTOCOL_OTA_SERVICE, ota_subscribe_service_handle}
 };
 
 /// 按照servers_publish_data_id_e升序添加，否则查找不到（使用二分法查找）
@@ -32,7 +33,6 @@ const static comm_protocol_publish_handle_t comm_protocol_publish_list[] = {
     {SERVERS_PUBLISH_DATA_TESTS_KEY_STATUS, tests_key_status_publish},
     {SERVERS_PUBLISH_DATA_TESTS_ENCODER_STATUS, tests_encoder_status_publish},
     {SERVERS_PUBLISH_DATA_LIGHT_SENSOR_SAMPLING, algo_light_sensor_data_publish}
-
 };
 
 /*
@@ -44,6 +44,18 @@ const static comm_protocol_publish_handle_t comm_protocol_publish_list[] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static comm_protocol_subscribe_cb_t s_subscribe_assemble_cb = NULL;
+
+static void on_assemble_complete_frame_cb(const uint8_t *frame_data, uint16_t frame_len)
+{
+    comm_protocol_subscribe_context_t ctx = {
+        .buffer = frame_data,
+        .size = frame_len,
+        .cb = s_subscribe_assemble_cb,
+    };
+    comm_protocol_subscribe_handler(&ctx);
+}
+
 static comm_protocol_subscribe_func get_comm_protocol_subscribe_func(uint16_t service_id)
 {
     const comm_protocol_subscribe_handle_t *list = comm_protocol_subscribe_list;
@@ -144,6 +156,15 @@ ERROR_LABEL:
     }
     u_free(frame);
     return -1;
+}
+
+int comm_protocol_subscribe_assemble_handler(comm_protocol_subscribe_context_t *ctx)
+{
+    EXCEPTION_CHECK_INT(ctx);
+    protocol_manager_context_t *protocol_ctx = (protocol_manager_context_t *)find_module(ID_MODULE_PROTOCOL);
+    EXCEPTION_CHECK_INT(protocol_ctx);
+    s_subscribe_assemble_cb = ctx->cb;
+    return protocol_ctx->comm_protocol_assemble_packet(ctx->buffer, ctx->size, on_assemble_complete_frame_cb);
 }
 
 comm_protocol_publish_func get_comm_protocol_publish_func(servers_publish_data_id_e id)

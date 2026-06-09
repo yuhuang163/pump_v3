@@ -7,6 +7,7 @@
 #include "factory_persist_data.h"
 #include "system_persist_data.h"
 #include "breast_pump_persist_data.h"
+#include "resource_persist_data.h"
 
 /*
 * DEFINES
@@ -38,6 +39,7 @@ const static put_store_process_handle_t put_store_process_list[] = {
     {STORE_ID_FACTORY_DEV_INFO, write_factory_dev_info_to_flash},
     {STORE_ID_BREAST_PUMP_DATA_HEAD, write_pump_data_head_to_flash},
     {STORE_ID_BREAST_PUMP_DATA_BODY, write_pump_data_body_to_flash},
+    {STORE_ID_IMG_RES_OTA_INFO, write_img_res_ota_info_to_flash},
 };
 
 const static get_store_process_handle_t get_store_process_list[] = {
@@ -52,6 +54,7 @@ const static get_store_process_handle_t get_store_process_list[] = {
     {STORE_ID_USER_BIND_INFO, read_user_bind_info_from_flash},
     {STORE_ID_BREAST_PUMP_DATA_HEAD, read_pump_data_head_from_flash},
     {STORE_ID_BREAST_PUMP_DATA_BODY, read_pump_data_body_from_flash},   
+    {STORE_ID_IMG_RES_OTA_INFO, read_img_res_ota_info_from_flash},
 };
 
 const static del_store_process_handle_t del_store_process_list[] = {
@@ -86,6 +89,7 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_MODE_NEW_STEP_INFO_FLAG, write_mode_new_step_info_flag_to_ram},
     {STORE_ID_SYS_BIND_STATUS, write_bind_status_to_ram},
     {STORE_ID_PUMP_MODE_ACTIVATE_STATUS, write_pump_mode_activate_to_ram},
+    {STORE_ID_IMG_RES_OTA_INFO, write_img_res_ota_info_to_ram},
 };
 
 const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
@@ -129,6 +133,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_SYS_BIND_STATUS, read_bind_status_from_ram},
     {STORE_ID_PUMP_MODE_ACTIVATE_STATUS, read_pump_mode_activate_from_ram},
     {STORE_ID_PUMP_MODE_STEPS_INFO_ID, read_pump_mode_steps_info_id_from_ram},
+    {STORE_ID_IMG_RES_OTA_INFO, read_img_res_ota_info_from_ram},
 };
 
 static storage_manager_context_t *thiz = NULL;
@@ -189,12 +194,15 @@ static int init_system_persist_info(storage_manager_context_t *ctx)
     args.val = pump_data_head;
     read_pump_data_head_from_flash(args);  /// 读取泵奶数据头
     msleep(10);
+    args.val = &ctx->priv.img_res_ota_info;
+    read_img_res_ota_info_from_flash(args);  /// 读取图片资源OTA信息
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_CONFIG] = CRC16(&sys_info->config, sizeof(sys_config_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_STATE]  = CRC16(&sys_info->state, sizeof(sys_state_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_INFO]  = CRC16(&sys_info->pump_info, sizeof(sys_pump_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_MODE_STEPS_INFO]  = CRC16(&sys_info->mode_info, sizeof(sys_pump_mode_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_BURY_INFO]  = CRC16(&sys_info->buried_info_list, sizeof(sys_buried_info_list_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_USER_DATA_HEAD]  = CRC16(pump_data_head, sizeof(breast_pump_data_head_t));
+    ctx->priv.sys_info_crc[STORE_CRC_TYPE_IMG_RES_OTA_INFO]  = CRC16(&ctx->priv.img_res_ota_info, sizeof(img_res_ota_info_t));
     return 0;
 }
 
@@ -254,6 +262,15 @@ static int system_persist_info_sync_flash(storage_manager_context_t *ctx)
         }
         LOG_STORE("-->pump buried info sync flash");
     }
+    ///  图片资源OTA信息
+    info_crc = CRC16(&ctx->priv.img_res_ota_info, sizeof(img_res_ota_info_t));
+    if (info_crc != ctx->priv.sys_info_crc[STORE_CRC_TYPE_IMG_RES_OTA_INFO]) {
+        args.val = &ctx->priv.img_res_ota_info;
+        if (write_img_res_ota_info_to_flash(args) == 0) {
+            ctx->priv.sys_info_crc[STORE_CRC_TYPE_IMG_RES_OTA_INFO] = info_crc;
+        }
+        LOG_STORE("-->img res ota info sync flash");
+    }
     return 0;
 }
 
@@ -273,6 +290,8 @@ static int user_database_reset(void)
     reset_pump_data_head(thiz, &thiz->priv.pump_data_head);  /// 重置泵奶数据头
     msleep(10);
     reset_pump_buried_info(thiz, &thiz->priv.sys_info.buried_info_list);  /// 重置泵奶埋点信息
+    msleep(10);
+    reset_img_res_ota_info(thiz, &thiz->priv.img_res_ota_info);  /// 重置图片资源OTA信息
     LOGE("==> user database reset !!!!!!!!!!!!!!!");
     return 0;
 }

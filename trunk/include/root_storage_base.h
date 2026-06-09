@@ -119,6 +119,10 @@ extern "C" {
 #define STORAGE_BREAST_PUMP_BURY_INFO_MAGIC_NUM                                (0xAFFA5891)
 #endif
 
+#ifndef STORAGE_IMG_RES_OTA_MAGIC_NUM
+#define STORAGE_IMG_RES_OTA_MAGIC_NUM                                          (0xAFFA5892)
+#endif
+
 /*
  * GLOBAL FUNCTION DECLARATION
  *****************************************************************************************

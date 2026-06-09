@@ -9,8 +9,7 @@ extern "C" {
 /*******************************************************************************
 * Include files
 ******************************************************************************/
-#include <stdio.h> // IWYU pragma: keep
-#include <stdlib.h> // IWYU pragma: keep
+#include "root_common_api.h" // IWYU pragma: keep
 
 /*
 * GLOBAL FUNCTION DECLARATION

@@ -125,7 +125,7 @@ CFG_BT_CALIB ?= 1
 # 产品型号
 ROOT_PRODUCT_V3_ID ?= 0x08
 ROOT_PRODUCT_V3PRO_ID ?= 0x09
-ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3PRO_ID)
+ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3_ID)
 
 # 产品UI版本
 ROOT_UI_V2 ?= 0x02
@@ -305,6 +305,15 @@ DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_FLAGS := $(patsubst %,-I%,$(DATA_BURY_PROTO
 DATA_BURY_PROTOCOL_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client
 # 数据埋点协议 Server Client 源码文件
 DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS := $(call rwildcard,$(DATA_BURY_PROTOCOL_SERVER_CLIENT_DIR))
+
+# OTA Server Client 头文件子目录
+OTA_SERVER_CLIENT_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/servers/ota_server_client -type d)
+# OTA Server Client 头文件
+OTA_SERVER_CLIENT_INC_FLAGS := $(patsubst %,-I%,$(OTA_SERVER_CLIENT_INC_DIRS))
+# OTA Server Client 源码目录
+OTA_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/ota_server_client
+# OTA Server Client 源码文件
+OTA_SERVER_CLIENT_SRCS := $(call rwildcard,$(OTA_SERVER_CLIENT_DIR))
 
 # -------------- SDK 头文件路径（按功能模块拆分）--------------
 
@@ -637,6 +646,7 @@ SERVERS_INC_FLAGS := \
 	$(APP_OLD_PROTOCOL_SERVERS_INC_FLAGS) \
 	$(MASTER_SERVER_CLIENT_INC_FLAGS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_FLAGS) \
+	$(OTA_SERVER_CLIENT_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/servers
 
 # 存储模块头文件
@@ -1251,6 +1261,7 @@ SERVERS_MODULE_SRCS := \
 	$(MASTER_SERVER_CLIENT_SRCS) \
 	$(APP_OLD_PROTOCOL_SERVERS_SRCS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS) \
+	$(OTA_SERVER_CLIENT_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/servers/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/servers/*.c)
 

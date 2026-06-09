@@ -18,6 +18,7 @@ extern "C" {
 #include "sys_state_tlvs_protocol.h" // IWYU pragma: keep
 #include "tests_tlvs_protocol.h" // IWYU pragma: keep
 #include "tracking_data_tlvs_protocol.h" // IWYU pragma: keep
+#include "ota_tlvs_protocol.h" // IWYU pragma: keep
 
 /// TLVS处理接口.
 typedef int (*protocol_service_tlv_func)(comm_protocol_builder_t *builder, comm_protocol_service_t *service,

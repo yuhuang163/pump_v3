@@ -101,9 +101,10 @@ typedef struct {
 
 /// 帧类型
 typedef enum {
-    COMM_PROTOCOL_FRAME_TYPE_REQUEST = 0,       ///< 请求帧
+    COMM_PROTOCOL_FRAME_TYPE_REQUEST = 0,   ///< 请求帧
     COMM_PROTOCOL_FRAME_TYPE_RESPONSE,      ///< 响应帧
     COMM_PROTOCOL_FRAME_TYPE_NOTIFY,        ///< 通知帧
+    COMM_PROTOCOL_FRAME_TYPE_WRITE_NO_RSP,  ///< 写无应答帧
     COMM_PROTOCOL_FRAME_TYPE_MAX,
 } comm_protocol_frame_type_e;
 
@@ -118,6 +119,7 @@ typedef enum {
     COMM_PROTOCOL_SYSTEM_STATE_SERVICE = 6,
     COMM_PROTOCOL_TESTS_SERVICE = 7,
     COMM_PROTOCOL_TRACKING_DATA_SERVICE = 8,
+    COMM_PROTOCOL_OTA_SERVICE = 9,
 } comm_protocol_service_id_e;
 
 /// 错误码
