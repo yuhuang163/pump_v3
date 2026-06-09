@@ -682,6 +682,12 @@ PRODUCT_TESTS_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/product_tests \
 	-I$(PROJECT_ROOT)/trunk/root_source/tests
 
+# 数据埋点 Manager 模块头文件
+DATA_BURY_MODULE_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/trunk/root_source/data_bury \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/data_bury \
+	$(DATA_BURY_SERVER_INC_FLAGS)
+
 # 资源模块头文件
 RESOURCE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/root_source/resource \
@@ -752,6 +758,7 @@ SDK_INCLUDE_PATHS := \
 	$(NETWORK_INC_FLAGS) \
 	$(OTA_INC_FLAGS) \
 	$(PRODUCT_TESTS_INC_FLAGS) \
+	$(DATA_BURY_MODULE_INC_FLAGS) \
 	$(RESOURCE_INC_FLAGS) \
 	$(LED_MODULE_INC_FLAGS) 
 
@@ -1287,6 +1294,11 @@ PRODUCT_TESTS_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/product_tests/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/tests/*.c)
 
+# 数据埋点 Manager 模块源码
+DATA_BURY_MODULE_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/data_bury/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/data_bury/*.c)
+
 # 框架钩子基础源码
 FRAMEWORK_HOOKS_BASE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/*.c)
@@ -1327,6 +1339,7 @@ EXTRA_SRCS := \
 	$(NETWORK_MODULE_SRCS) \
 	$(OTA_MODULE_SRCS) \
 	$(PRODUCT_TESTS_MODULE_SRCS) \
+	$(DATA_BURY_MODULE_SRCS) \
 	$(FRAMEWORK_HOOKS_BASE_SRCS) \
 	$(LED_MODULE_SRCS)
 

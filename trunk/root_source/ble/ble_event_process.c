@@ -275,7 +275,7 @@ static void ble_event_tx_ccc_enabled(void *context, void *data, int data_len)
         LOG_BLE("ble tx ccc enabled, invalid param");
         return;
     }
-
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_BLE_STATE_CHANGE, BLE_BROADCAST_NOTIFY_ENABLED);
     uint16_t conn_id = *(uint16_t *)data;
     LOG_BLE("ble tx ccc enabled, conn_id: %d", conn_id);
 }

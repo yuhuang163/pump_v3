@@ -2,7 +2,7 @@
 * @Author: Owen
 * @Date: 2026-06-05
 * @Description: Momcozy 数据埋点事件 Flash 环存储，根据埋点事件类型，存储到pram环，关机前存入flash
-                后续扩展成异步存储，扩大flash存储，将pram环数据满后存入flash，后续数据从flash中读取
+                现在我希望扩大flash存储，关机前将pram环数据满后存入flash，flash最多能存4份，ble连接后数据从flash中读取
  */
 #include "root_common.h"
 #include "root_common_api.h"
@@ -341,8 +341,10 @@ int data_bury_ring_storage_reset(storage_manager_context_t *ctx)
     return 0;
 }
 
-int data_bury_ring_storage_init(storage_manager_context_t *ctx)
+static int data_bury_ring_storage_init_internal(storage_manager_context_t *ctx)
 {
+    store_func_args_t args;
+
     EXCEPTION_CHECK_INT(ctx);
     if (s_ring_inited && s_bury_ctx == ctx) {
         return 0;
@@ -351,12 +353,10 @@ int data_bury_ring_storage_init(storage_manager_context_t *ctx)
         return -1;
     }
     s_bury_ctx = ctx;
-    store_func_args_t args = {
-        .ctx  = ctx,
-        .arg1 = 0,
-        .arg2 = 0,
-        .val  = &s_ring_meta,
-    };
+    args.ctx  = ctx;
+    args.arg1 = 0;
+    args.arg2 = 0;
+    args.val  = &s_ring_meta;
     if (read_data_bury_ring_meta_from_flash(args) != 0) {
         data_bury_ring_reset_ram();
     }
@@ -370,6 +370,26 @@ int data_bury_ring_storage_init(storage_manager_context_t *ctx)
     s_ring_inited = 1;
     s_ring_dirty  = 0;
     return 0;
+}
+
+int data_bury_infor_storage_init(store_func_args_t args)
+{
+    data_bury_info_t *info;
+    store_func_args_t boot_args;
+
+    EXCEPTION_CHECK_INT(args.ctx);
+    info = (data_bury_info_t *)args.val;
+    EXCEPTION_CHECK_INT(info);
+    memset(info, 0, sizeof(*info));
+    boot_args        = args;
+    boot_args.val    = &info->boot_seq;
+    (void)read_data_bury_use_session_boot_seq_from_flash(boot_args);
+    return data_bury_ring_storage_init_internal(args.ctx);
+}
+
+int data_bury_ring_storage_init(storage_manager_context_t *ctx)
+{
+    return data_bury_ring_storage_init_internal(ctx);
 }
 
 int data_bury_ring_sync_to_flash(storage_manager_context_t *ctx)
@@ -467,6 +487,73 @@ int data_bury_ring_is_empty(storage_manager_context_t *ctx)
     return (s_ring_meta.head == s_ring_meta.tail) ? 1 : 0;
 }
 
+int write_data_bury_use_session_boot_seq_to_flash(store_func_args_t args)
+{
+    int ret = 0;
+
+    EXCEPTION_CHECK_INT(args.ctx);
+    uint16_t *boot_seq = (uint16_t *)args.val;
+    EXCEPTION_CHECK_INT(boot_seq);
+    data_bury_use_session_boot_seq_storage_t *store_boot_seq =
+        u_malloz(sizeof(data_bury_use_session_boot_seq_storage_t));
+    EXCEPTION_CHECK_INT(store_boot_seq);
+    store_boot_seq->magic = STORAGE_DATA_BURY_USE_SESSION_BOOT_SEQ_MAGIC_NUM;
+    store_boot_seq->boot_seq = *boot_seq;
+    store_boot_seq->crc = CRC16(&store_boot_seq->boot_seq, sizeof(store_boot_seq->boot_seq));
+    ret = user_database_put(args.ctx, PERSIST_KEY_DATA_BURY_USE_SESSION_BOOT_SEQ, (uint8_t *)store_boot_seq,
+                            sizeof(data_bury_use_session_boot_seq_storage_t));
+    if (ret != 0) {
+        LOGE("write data bury use_session boot_seq failure! ret: %d", ret);
+    }
+    u_free(store_boot_seq);
+
+    return ret;
+}
+
+void reset_data_bury_use_session_boot_seq(storage_manager_context_t *ctx, uint16_t *boot_seq)
+{
+    if (boot_seq) {
+        *boot_seq = 0u;
+    }
+    EXCEPTION_CHECK_VOID(ctx);
+    store_func_args_t args = {
+        .ctx  = ctx,
+        .arg1 = 0,
+        .arg2 = 0,
+        .val  = boot_seq,
+    };
+    LOG_STORE_WRAP("==> reset data bury use_session boot_seq");
+    write_data_bury_use_session_boot_seq_to_flash(args);
+}
+
+int read_data_bury_use_session_boot_seq_from_flash(store_func_args_t args)
+{
+    int ret = 0;
+
+    EXCEPTION_CHECK_INT(args.ctx);
+    uint16_t *boot_seq = (uint16_t *)args.val;
+    EXCEPTION_CHECK_INT(boot_seq);
+    data_bury_use_session_boot_seq_storage_t *store_boot_seq =
+        u_malloz(sizeof(data_bury_use_session_boot_seq_storage_t));
+    EXCEPTION_CHECK_INT(store_boot_seq);
+    ret = user_database_get(args.ctx, PERSIST_KEY_DATA_BURY_USE_SESSION_BOOT_SEQ, (uint8_t *)store_boot_seq,
+                            sizeof(data_bury_use_session_boot_seq_storage_t));
+    uint16_t crc = CRC16(&store_boot_seq->boot_seq, sizeof(store_boot_seq->boot_seq));
+    if (ret == 0 && store_boot_seq->magic == STORAGE_DATA_BURY_USE_SESSION_BOOT_SEQ_MAGIC_NUM
+        && store_boot_seq->crc == crc) {
+        *boot_seq = store_boot_seq->boot_seq;
+    } else {
+        if (ret == 0) {
+            ret = -1;
+        }
+        reset_data_bury_use_session_boot_seq(args.ctx, boot_seq);
+        LOGE("read data bury use_session boot_seq failure! ret: %d, magic: 0x%x, crc: 0x%x, expect_crc: 0x%x",
+             ret, store_boot_seq->magic, store_boot_seq->crc, crc);
+    }
+    u_free(store_boot_seq);
+    return ret;
+}
+
 static uint16_t data_bury_ring_pending_count(storage_manager_context_t *ctx)
 {
     (void)ctx;
@@ -536,6 +623,9 @@ static int data_bury_ring_pop_oldest(storage_manager_context_t *ctx)
     uint16_t total = (uint16_t)(sizeof(hdr) + hdr.payload_len);
     s_ring_meta.tail = data_bury_ring_advance(s_ring_meta.tail, total);
     s_ring_dirty     = 1;
+    LOG_STORE_WRAP("-->data bury pop cmd=0x%02x len=%u head=%u tail=%u pending=%u",
+                   hdr.cmd_id, (unsigned)hdr.payload_len, (unsigned)s_ring_meta.head,
+                   (unsigned)s_ring_meta.tail, (unsigned)data_bury_ring_pending_count(ctx));
     return 0;
 }
 

@@ -71,6 +71,20 @@ typedef enum {
  * TLV 上报时 type 从 0x01 起，由协议层转换
  *============================================================================*/
 
+/* 协议公共头：各 EVT packed 载荷前两字段固定为 use_session_id + evt_timestamp */
+typedef struct __attribute__((packed)) {
+    uint32_t use_session_id;
+    uint32_t evt_timestamp;
+} data_bury_evt_common_hdr_t;
+
+/* 含 pump_session_id 的事件在公共头后偏移 8 字节处为 pump_session_id(2) */
+#define DATA_BURY_EVT_COMMON_HDR_LEN            ((uint16_t)sizeof(data_bury_evt_common_hdr_t))
+#define DATA_BURY_EVT_PUMP_SESSION_ID_OFF       8u
+
+#define DATA_BURY_EVT_USE_SESSION_PLACEHOLDER   0xFFFFFFFFu
+#define DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER     0xFFFFFFFFu
+#define DATA_BURY_EVT_PUMP_SESSION_ID_PLACEHOLDER 0xFFFFu
+
 /* CMD:0x01 EVT_001 pump_startup */
 typedef struct __attribute__((packed)) {
     uint32_t use_session_id;
@@ -314,6 +328,16 @@ typedef struct {
     uint8_t  chunk[DATA_BURY_RING_CHUNK_SIZE];
     uint16_t crc;
 } data_bury_ring_chunk_storage_t;
+
+typedef struct {
+    uint32_t magic;
+    uint16_t boot_seq;
+    uint16_t crc;
+} data_bury_use_session_boot_seq_storage_t;
+
+typedef struct {
+    uint16_t boot_seq;
+} data_bury_info_t;
 
 /** 返回该 CMD 允许写入环的最大 payload 字节数；非法 cmd 返回 0 */
 uint16_t data_bury_event_payload_max_len(uint8_t cmd_id);

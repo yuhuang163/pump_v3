@@ -32,6 +32,7 @@ extern "C" {
 #include "airplane_mode_api.h" // IWYU pragma: keep
 #include "sensor_manager_api.h" // IWYU pragma: keep
 #include "tests_manager_api.h" // IWYU pragma: keep
+#include "data_bury_manager_api.h" // IWYU pragma: keep
 #include "motor_manager_api.h" // IWYU pragma: keep
 #include "breast_pump_manager_api.h" // IWYU pragma: keep
 #include "algorithm_manager_api.h" // IWYU pragma: keep

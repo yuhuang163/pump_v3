@@ -14,13 +14,12 @@ void data_bury_server_protocol_init(void);
 void data_bury_server_protocol_on_frame(const app_data_bury_protocol_frame_node_t *frame);
 
 /**
- * 推送一条埋点事件（packed 载荷）
- * BLE 已连接则 TLV 组包发送；否则写入 RAM 环
+ * 推送一条埋点事件（packed 载荷），TLV 组包后经 BLE 发送
  */
 int data_bury_server_push_event(uint8_t cmd_id, const void *packed, uint16_t packed_len);
 
-/** 将 RAM 环中 pending 事件逐条 TLV 组包发送，成功一条 pop 一条；返回本次发送条数 */
-int data_bury_server_flush_pending(void);
+/** TLV 组包并发送 packed 载荷 */
+int data_bury_server_send_packed(uint8_t svc_id, uint8_t cmd_id, const void *packed, uint16_t packed_len);
 
 #ifdef __cplusplus
 }

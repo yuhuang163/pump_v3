@@ -127,6 +127,10 @@ extern "C" {
 #define STORAGE_DATA_BURY_RING_CHUNK_MAGIC_NUM                               (0xAFFA5893)
 #endif
 
+#ifndef STORAGE_DATA_BURY_USE_SESSION_BOOT_SEQ_MAGIC_NUM
+#define STORAGE_DATA_BURY_USE_SESSION_BOOT_SEQ_MAGIC_NUM                     (0xAFFA5894)
+#endif
+
 /*
  * GLOBAL FUNCTION DECLARATION
  *****************************************************************************************

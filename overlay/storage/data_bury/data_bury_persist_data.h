@@ -14,10 +14,16 @@ void reset_data_bury_ring_meta(storage_manager_context_t *ctx, data_bury_ring_me
 int write_data_bury_ring_meta_to_flash(store_func_args_t args);
 int read_data_bury_ring_meta_from_flash(store_func_args_t args);
 
+void reset_data_bury_use_session_boot_seq(storage_manager_context_t *ctx, uint16_t *boot_seq);
+int write_data_bury_use_session_boot_seq_to_flash(store_func_args_t args);
+int read_data_bury_use_session_boot_seq_from_flash(store_func_args_t args);
+
 int write_data_bury_ring_chunk_to_flash(store_func_args_t args);
 int read_data_bury_ring_chunk_from_flash(store_func_args_t args);
 
-/* RAM 环：启动加载、整环落盘、清空 */
+/* 埋点持久化信息 + RAM 环：启动加载（val: data_bury_info_t *） */
+int data_bury_infor_storage_init(store_func_args_t args);
+/* RAM 环惰性初始化（仅环区，不读 boot_seq） */
 int data_bury_ring_storage_init(storage_manager_context_t *ctx);
 int data_bury_ring_storage_reset(storage_manager_context_t *ctx);
 int data_bury_ring_sync_to_flash(storage_manager_context_t *ctx);
@@ -36,18 +42,6 @@ int write_data_bury_ring_pop_oldest_to_ram(store_func_args_t args);
 int read_data_bury_ring_peek_oldest_from_ram(store_func_args_t args);
 
 int data_bury_ring_is_empty(storage_manager_context_t *ctx);
-
-#define WRITE_DATA_BURY_RING_APPEND(ctx, append_args) \
-    (ctx)->put_store_ram_val(STORE_ID_DATA_BURY_RING_APPEND, 0, 0, (void *)(append_args))
-
-#define READ_DATA_BURY_RING_PENDING_COUNT(ctx, count_ptr) \
-    (ctx)->get_store_ram_val(STORE_ID_DATA_BURY_RING_PENDING_COUNT, 0, 0, (void *)(count_ptr))
-
-#define WRITE_DATA_BURY_RING_POP_OLDEST(ctx) \
-    (ctx)->put_store_ram_val(STORE_ID_DATA_BURY_RING_POP_OLDEST, 0, 0, NULL)
-
-#define READ_DATA_BURY_RING_PEEK_OLDEST(ctx, peek_args) \
-    (ctx)->get_store_ram_val(STORE_ID_DATA_BURY_RING_PEEK_OLDEST, 0, 0, (void *)(peek_args))
 
 #ifdef __cplusplus
 }

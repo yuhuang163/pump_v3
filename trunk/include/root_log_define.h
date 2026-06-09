@@ -92,6 +92,7 @@ typedef enum{
     FILTER_SRV = 1 << 23,
     FILTER_STEP = 1 << 24,
     FILTER_TEST = 1 << 25,
+    FILTER_BURY = 1 << 26,
     FILTER_FULL = -1,
 } log_filter_enum_t;
 
@@ -138,6 +139,7 @@ typedef enum{
 #define LOG_MOTOR(...)      do { IS_FILTER(FILTER_MOTOR)    { LOGI_TAG("LOG_MOTOR", __VA_ARGS__); } } while(0)
 #define LOG_SENSOR(...)     do { IS_FILTER(FILTER_SENSOR)   { LOGI_TAG("LOG_SENSOR", __VA_ARGS__); } } while(0)
 #define LOG_DB(...)         do { IS_FILTER(FILTER_DB)       { LOGW_TAG("LOG_DB", __VA_ARGS__); } } while(0)
+#define LOG_BURY(...)       do { IS_FILTER(FILTER_BURY)     { LOGI_TAG("LOG_BURY", __VA_ARGS__); } } while(0)
 #define LOG_BCR(...)        do { IS_FILTER(FILTER_BCR)      { LOGI_TAG("LOG_BCR", __VA_ARGS__); } } while(0)
 #define LOG_HDR(...)        do { IS_FILTER(FILTER_HDR)      { LOGI_TAG("LOG_HDR", __VA_ARGS__); } } while(0)
 #define LOG_BLE(...)        do { IS_FILTER(FILTER_BLE)      { LOGW_TAG("LOG_BLE", __VA_ARGS__); } } while(0)
@@ -201,6 +203,7 @@ do { \
 #define LOG_MOTOR(...)      do { } while(0)
 #define LOG_SENSOR(...)     do { } while(0)
 #define LOG_DB(...)         do { } while(0)
+#define LOG_BURY(...)       do { } while(0)
 #define LOG_BCR(...)        do { } while(0)
 #define LOG_HDR(...)        do { } while(0)
 #define LOG_BLE(...)        do { } while(0)

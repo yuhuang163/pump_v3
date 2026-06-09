@@ -135,10 +135,10 @@ static int get_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *va
     return ret;
 }
 
-static void put_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *val_in)
+static int put_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *val_in)
 {
     int ret = -2;
-    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_INT(thiz);
     store_func_args_t args = {
         .ctx = thiz,
         .arg1 = arg1,
@@ -147,7 +147,7 @@ static void put_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *v
     };
     const put_store_ram_val_handle_t *list = thiz->priv.put_store_ram_val_list;
     uint16_t list_len = thiz->priv.put_store_ram_val_list_len;
-    EXCEPTION_CHECK_VOID(list);
+    EXCEPTION_CHECK_INT(list);
     MUTEX_LOCK(thiz->priv.storage_rw_lock);
     for (int i = 0; i < list_len; i++) {
         if (list[i].store_id == id) {
@@ -159,6 +159,7 @@ static void put_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *v
     if (ret != 0) {
         LOGE("==> put store ram val failed: %d", id);
     }
+    return ret;
 }
 
 static void on_storage_broadcast_receive(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)

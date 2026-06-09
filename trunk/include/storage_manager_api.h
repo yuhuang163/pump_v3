@@ -12,6 +12,7 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "persist_storage.h"
 #include "broadcast_manager_api.h"
+#include "data_bury_persist_defs.h"
 
 #define ADDR_FACTORY_DATA_OFFSET                          (0)
 
@@ -170,7 +171,7 @@ typedef struct storage_manager_context {
     int (*put_store_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
     int (*get_store_val)(persist_store_id_e id, int arg1, int arg2, void *val_out);
     int (*del_store_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
-    void (*put_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
+    int (*put_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
     int (*get_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_out);
     int (*user_database_reset)(void);
     int (*flash_protect)(int protect_enable);  /// 保护flash读写操作.
@@ -200,6 +201,8 @@ typedef struct storage_manager_context {
         /// 工厂数据集合.
         factory_data_store_t factory_data;
         breast_pump_data_head_t pump_data_head;
+        /// 埋点信息.
+        data_bury_info_t data_bury_info;
         /// 存储处理列表.
         const put_store_process_handle_t *put_store_process_list;
         const get_store_process_handle_t *get_store_process_list;

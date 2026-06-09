@@ -20,6 +20,8 @@ extern "C" {
 typedef enum {
     BLE_BROADCAST_CONNECTED = 100, /// 连接成功
     BLE_BROADCAST_DISCONNECT, /// 断开连接 
+    BLE_BROADCAST_NOTIFY_ENABLED, /// BLE NOTIFY 使能
+    BLE_BROADCAST_NOTIFY_DISABLED, /// BLE NOTIFY 禁用
     BLE_BROADCAST_ID_MAX,
 } ble_broadcast_id_e;
 

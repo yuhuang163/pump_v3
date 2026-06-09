@@ -74,6 +74,11 @@ void framework_extra_hook(void)
     CHECK_IF_VALID(product_tests_ctx, {
         register_product_tests_hook(product_tests_ctx);
     });
+    /// 注册数据埋点钩子.
+    data_bury_manager_context_t *data_bury_ctx = (data_bury_manager_context_t *)find_module(ID_MODULE_DATA_BURIAL);
+    CHECK_IF_VALID(data_bury_ctx, {
+        register_data_bury_hook(data_bury_ctx);
+    });
     /// 注册服务器管理钩子.
     servers_manager_context_t *servers_manager_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
     CHECK_IF_VALID(servers_manager_ctx, {

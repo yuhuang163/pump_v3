@@ -189,7 +189,8 @@ static int init_system_persist_info(storage_manager_context_t *ctx)
     read_pump_buried_info_from_flash(args);  /// 读取泵奶埋点信息
     args.val = pump_data_head;
     read_pump_data_head_from_flash(args);  /// 读取泵奶数据头
-    data_bury_ring_storage_init(ctx);      /// 读取 Momcozy 埋点环
+    args.val = &ctx->priv.data_bury_info;
+    data_bury_infor_storage_init(args);    /// 读取 Momcozy 埋点信息 + 环
     msleep(10);
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_CONFIG] = CRC16(&sys_info->config, sizeof(sys_config_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_STATE]  = CRC16(&sys_info->state, sizeof(sys_state_info_t));

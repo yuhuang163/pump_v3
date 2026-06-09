@@ -63,6 +63,9 @@ static const module_register_fptr s_module_register[] = {
     #if IS_SUPPORT_MODULE_TESTS
     register_module_for_tests_manager_new,
     #endif
+    #if IS_SUPPORT_MODULE_DATA_BURIAL
+    register_module_for_data_burial_new,
+    #endif
     #if IS_SUPPORT_MODULE_US_ALGO
     register_module_for_algo_fusion_new,
     #endif
