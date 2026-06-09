@@ -43,6 +43,12 @@ typedef struct {
 *****************************************************************************************
 */
 int comm_protocol_subscribe_handler(comm_protocol_subscribe_context_t *ctx);
+/**
+ * @brief 组包订阅处理 - 适配 BLE MTU 分片，组装完整帧后调用 subscribe_handler
+ * @param ctx 数据片段及回调（buffer/size 为本次接收的分片）
+ * @return 0-成功处理, 1-需要更多数据, <0-错误
+ */
+int comm_protocol_subscribe_assemble_handler(comm_protocol_subscribe_context_t *ctx);
 comm_protocol_publish_func get_comm_protocol_publish_func(servers_publish_data_id_e id);
 #ifdef __cplusplus
 }

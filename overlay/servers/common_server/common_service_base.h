@@ -23,6 +23,7 @@ int sys_config_subscribe_service_handle(comm_protocol_builder_t *builder, comm_p
 int sys_state_subscribe_service_handle(comm_protocol_builder_t *builder, comm_protocol_service_node_t *srv_node);
 int tests_subscribe_service_handle(comm_protocol_builder_t *builder, comm_protocol_service_node_t *srv_node);
 int tracking_data_subscribe_service_handle(comm_protocol_builder_t *builder, comm_protocol_service_node_t *srv_node);
+int ota_subscribe_service_handle(comm_protocol_builder_t *builder, comm_protocol_service_node_t *srv_node);
 
 #ifdef __cplusplus
 }

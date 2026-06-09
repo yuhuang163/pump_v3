@@ -74,6 +74,7 @@ typedef enum {
     STORE_ID_SYS_BACK_LIGHT_LEVEL,          /// LCD+按键背光亮度
     STORE_ID_USER_BIND_INFO = 600,          /// 用户绑定信息
     STORE_ID_SYS_BIND_STATUS,               /// 绑定状态
+    STORE_ID_IMG_RES_OTA_INFO = 700,        /// 图片资源OTA信息
     STORE_ID_MAX
 } persist_store_id_e;
 
@@ -84,6 +85,7 @@ typedef enum {
     STORE_CRC_TYPE_PUMP_MODE_STEPS_INFO,
     STORE_CRC_TYPE_PUMP_BURY_INFO,
     STORE_CRC_TYPE_PUMP_USER_DATA_HEAD,
+    STORE_CRC_TYPE_IMG_RES_OTA_INFO,
     STORE_CRC_TYPE_MAX
 } store_crc_type_id_e;
 
@@ -197,6 +199,7 @@ typedef struct storage_manager_context {
         /// 工厂数据集合.
         factory_data_store_t factory_data;
         breast_pump_data_head_t pump_data_head;
+        img_res_ota_info_t img_res_ota_info;
         /// 存储处理列表.
         const put_store_process_handle_t *put_store_process_list;
         const get_store_process_handle_t *get_store_process_list;
