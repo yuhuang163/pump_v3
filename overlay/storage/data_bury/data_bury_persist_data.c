@@ -11,18 +11,42 @@
 #include "data_bury_persist_data.h"
 #include "resource_manager_api.h"
 
-static storage_manager_context_t *s_bury_ctx;
-static uint8_t                      s_ring_inited;
-static uint8_t                      s_ring_dirty;
-static data_bury_ring_meta_t        s_ring_meta;
-static data_bury_flash_bank_t       s_flash_bank;
-static uint8_t                      s_flash_bank_loaded;
-static uint8_t                     *s_ring_data;
-static uint8_t                     *s_flash_slot_data;
-static uint8_t                      s_ring_data_in_psram;
-static uint8_t                      s_flash_flush_loaded;
-static uint8_t                      s_flash_flush_phys_slot;
-static data_bury_ring_meta_t        s_flash_flush_meta;
+typedef struct {
+    storage_manager_context_t *ctx;
+    uint8_t inited;
+} data_bury_store_ctx_t;
+
+typedef struct {
+    uint8_t *ring;
+    uint8_t *flash_slot;
+    uint8_t ring_in_psram;
+} data_bury_store_bufs_t;
+
+typedef struct {
+    data_bury_ring_meta_t meta;
+    uint8_t dirty;
+} data_bury_ram_ring_t;
+
+typedef struct {
+    data_bury_flash_bank_t bank;
+    uint8_t loaded;
+} data_bury_flash_bank_state_t;
+
+typedef struct {
+    uint8_t loaded;
+    uint8_t phys_slot;
+    data_bury_ring_meta_t meta;
+} data_bury_flash_flush_t;
+
+typedef struct {
+    data_bury_store_ctx_t        store_ctx;
+    data_bury_store_bufs_t       bufs;
+    data_bury_ram_ring_t         ram;
+    data_bury_flash_bank_state_t flash;
+    data_bury_flash_flush_t      flush;
+} data_bury_persist_state_t;
+
+static data_bury_persist_state_t s_bury;
 
 static uint16_t data_bury_ring_meta_storage_crc(const data_bury_ring_meta_storage_t *store)
 {
@@ -34,35 +58,35 @@ static uint16_t data_bury_ring_meta_storage_crc(const data_bury_ring_meta_storag
 
 static int data_bury_ring_buf_alloc(void)
 {
-    if (s_ring_data && s_flash_slot_data) {
+    if (s_bury.bufs.ring && s_bury.bufs.flash_slot) {
         return 0;
     }
 #if PSRAM_ENABLE
-    if (!s_ring_data) {
-        s_ring_data = (uint8_t *)u_malloz_psram(DATA_BURY_RING_DATA_SIZE, RES_PSRAM_TYPE);
-        if (s_ring_data) {
-            s_ring_data_in_psram = 1;
+    if (!s_bury.bufs.ring) {
+        s_bury.bufs.ring = (uint8_t *)u_malloz_psram(DATA_BURY_RING_DATA_SIZE, RES_PSRAM_TYPE);
+        if (s_bury.bufs.ring) {
+            s_bury.bufs.ring_in_psram = 1;
             LOG_STORE_WRAP("-->data bury ring psram alloc ok size=%u", (unsigned)DATA_BURY_RING_DATA_SIZE);
         } else {
             LOGE("data bury ring u_malloz_psram(%u) fail, try sram heap", (unsigned)DATA_BURY_RING_DATA_SIZE);
         }
     }
-    if (!s_flash_slot_data) {
-        s_flash_slot_data = (uint8_t *)u_malloz_psram(DATA_BURY_RING_DATA_SIZE, RES_PSRAM_TYPE);
-        if (!s_flash_slot_data) {
+    if (!s_bury.bufs.flash_slot) {
+        s_bury.bufs.flash_slot = (uint8_t *)u_malloz_psram(DATA_BURY_RING_DATA_SIZE, RES_PSRAM_TYPE);
+        if (!s_bury.bufs.flash_slot) {
             LOGE("data bury flash slot u_malloz_psram(%u) fail", (unsigned)DATA_BURY_RING_DATA_SIZE);
         }
     }
 #endif
-    if (!s_ring_data) {
-        s_ring_data = (uint8_t *)u_malloz(DATA_BURY_RING_DATA_SIZE);
-        s_ring_data_in_psram = 0;
+    if (!s_bury.bufs.ring) {
+        s_bury.bufs.ring = (uint8_t *)u_malloz(DATA_BURY_RING_DATA_SIZE);
+        s_bury.bufs.ring_in_psram = 0;
     }
-    if (!s_flash_slot_data) {
-        s_flash_slot_data = (uint8_t *)u_malloz(DATA_BURY_RING_DATA_SIZE);
+    if (!s_bury.bufs.flash_slot) {
+        s_bury.bufs.flash_slot = (uint8_t *)u_malloz(DATA_BURY_RING_DATA_SIZE);
     }
-    if (!s_ring_data || !s_flash_slot_data) {
-        LOGE("data bury ring alloc failed ring=%p flash=%p", s_ring_data, s_flash_slot_data);
+    if (!s_bury.bufs.ring || !s_bury.bufs.flash_slot) {
+        LOGE("data bury ring alloc failed ring=%p flash=%p", s_bury.bufs.ring, s_bury.bufs.flash_slot);
         return -1;
     }
     return 0;
@@ -156,17 +180,17 @@ static int data_bury_flash_bank_ensure_loaded(storage_manager_context_t *ctx)
 {
     store_func_args_t args;
 
-    if (s_flash_bank_loaded) {
+    if (s_bury.flash.loaded) {
         return 0;
     }
     args.ctx  = ctx;
     args.arg1 = 0;
     args.arg2 = 0;
-    args.val  = &s_flash_bank;
+    args.val  = &s_bury.flash.bank;
     if (read_data_bury_flash_bank_from_flash(args) != 0) {
-        memset(&s_flash_bank, 0, sizeof(s_flash_bank));
+        memset(&s_bury.flash.bank, 0, sizeof(s_bury.flash.bank));
     }
-    s_flash_bank_loaded = 1;
+    s_bury.flash.loaded = 1;
     return 0;
 }
 
@@ -176,7 +200,7 @@ static int data_bury_flash_bank_save(storage_manager_context_t *ctx)
         .ctx  = ctx,
         .arg1 = 0,
         .arg2 = 0,
-        .val  = &s_flash_bank,
+        .val  = &s_bury.flash.bank,
     };
     return write_data_bury_flash_bank_to_flash(args);
 }
@@ -199,82 +223,39 @@ static int data_bury_ring_meta_slot_key(uint8_t slot)
 
 static int data_bury_ring_load_slot_chunks(storage_manager_context_t *ctx, uint8_t slot, uint8_t *dst)
 {
-    uint8_t *chunk_buf;
     store_func_args_t args;
-    uint16_t i;
 
     if (!dst) {
-        LOGE("data bury load chunks dst null slot=%u", (unsigned)slot);
-        return -1;
-    }
-    chunk_buf = (uint8_t *)u_malloz(DATA_BURY_RING_CHUNK_SIZE);
-    if (!chunk_buf) {
-        LOGE("data bury load chunks alloc fail slot=%u", (unsigned)slot);
+        LOGE("data bury load slot dst null slot=%u", (unsigned)slot);
         return -1;
     }
     args.ctx  = ctx;
+    args.arg1 = 0;
     args.arg2 = (int)slot;
-    args.val  = chunk_buf;
-    for (i = 0; i < DATA_BURY_RING_CHUNK_NUM; i++) {
-        uint32_t off;
-        uint32_t copy_len;
-
-        args.arg1 = (int)i;
-        if (read_data_bury_ring_chunk_from_flash(args) != 0) {
-            LOGE("data bury load chunks read fail slot=%u chunk=%u", (unsigned)slot, (unsigned)i);
-            u_free(chunk_buf);
-            return -1;
-        }
-        off = (uint32_t)i * DATA_BURY_RING_CHUNK_SIZE;
-        copy_len = DATA_BURY_RING_CHUNK_SIZE;
-        if (off + copy_len > DATA_BURY_RING_DATA_SIZE) {
-            copy_len = DATA_BURY_RING_DATA_SIZE - off;
-        }
-        memcpy(dst + off, chunk_buf, copy_len);
+    args.val  = dst;
+    if (read_data_bury_ring_chunk_from_flash(args) != 0) {
+        LOGE("data bury load slot fail slot=%u", (unsigned)slot);
+        return -1;
     }
-    u_free(chunk_buf);
     return 0;
 }
 
 static int data_bury_ring_save_slot_chunks(storage_manager_context_t *ctx, uint8_t slot, const uint8_t *src)
 {
-    uint8_t *chunk_buf;
     store_func_args_t args;
-    uint16_t i;
 
     if (!src) {
-        LOGE("data bury save chunks src null slot=%u", (unsigned)slot);
-        return -1;
-    }
-    chunk_buf = (uint8_t *)u_malloz(DATA_BURY_RING_CHUNK_SIZE);
-    if (!chunk_buf) {
-        LOGE("data bury save chunks alloc fail slot=%u", (unsigned)slot);
+        LOGE("data bury save slot src null slot=%u", (unsigned)slot);
         return -1;
     }
     args.ctx  = ctx;
+    args.arg1 = 0;
     args.arg2 = (int)slot;
-    args.val  = chunk_buf;
-    for (i = 0; i < DATA_BURY_RING_CHUNK_NUM; i++) {
-        uint32_t off;
-        uint32_t copy_len;
-
-        off = (uint32_t)i * DATA_BURY_RING_CHUNK_SIZE;
-        copy_len = DATA_BURY_RING_CHUNK_SIZE;
-        if (off + copy_len > DATA_BURY_RING_DATA_SIZE) {
-            copy_len = DATA_BURY_RING_DATA_SIZE - off;
-        }
-        memcpy(chunk_buf, src + off, copy_len);
-        if (off + DATA_BURY_RING_CHUNK_SIZE > DATA_BURY_RING_DATA_SIZE) {
-            memset(chunk_buf + copy_len, 0, DATA_BURY_RING_CHUNK_SIZE - copy_len);
-        }
-        args.arg1 = (int)i;
-        if (write_data_bury_ring_chunk_to_flash(args) != 0) {
-            LOGE("data bury save chunks write fail slot=%u chunk=%u", (unsigned)slot, (unsigned)i);
-            u_free(chunk_buf);
-            return -1;
-        }
+    args.val  = (void *)src;
+    if (write_data_bury_ring_chunk_to_flash(args) != 0) {
+        LOGE("data bury save slot fail slot=%u", (unsigned)slot);
+        return -1;
     }
-    u_free(chunk_buf);
     return 0;
 }
 
@@ -334,9 +315,9 @@ static int data_bury_ring_flash_slot_pending_count(storage_manager_context_t *ct
     uint8_t *tmp_buf = NULL;
     int cnt;
 
-    if (s_flash_flush_loaded && s_flash_flush_phys_slot == slot) {
-        active_meta = &s_flash_flush_meta;
-        ring_src    = s_flash_slot_data;
+    if (s_bury.flush.loaded && s_bury.flush.phys_slot == slot) {
+        active_meta = &s_bury.flush.meta;
+        ring_src    = s_bury.bufs.flash_slot;
     } else {
         if (data_bury_ring_read_slot_meta(ctx, slot, &meta, NULL) != 0) {
             return 0;
@@ -348,13 +329,13 @@ static int data_bury_ring_flash_slot_pending_count(storage_manager_context_t *ct
         return 0;
     }
     if (!ring_src) {
-        uint8_t *load_dst = s_flash_slot_data;
-        /* 正在 flush 某槽时，统计其它槽不得覆盖 s_flash_slot_data */
-        if (s_flash_flush_loaded && slot != s_flash_flush_phys_slot) {
+        uint8_t *load_dst = s_bury.bufs.flash_slot;
+        /* 正在 flush 某槽时，统计其它槽不得覆盖 flash_slot 缓冲 */
+        if (s_bury.flush.loaded && slot != s_bury.flush.phys_slot) {
             tmp_buf = (uint8_t *)u_malloz(DATA_BURY_RING_DATA_SIZE);
             if (!tmp_buf) {
                 LOGE("data bury flash slot pending tmp alloc fail slot=%u flush_slot=%u",
-                     (unsigned)slot, (unsigned)s_flash_flush_phys_slot);
+                     (unsigned)slot, (unsigned)s_bury.flush.phys_slot);
                 return 0;
             }
             load_dst = tmp_buf;
@@ -375,30 +356,30 @@ static int data_bury_ring_ensure_flash_flush_slot(storage_manager_context_t *ctx
 {
     uint8_t phys;
 
-    if (s_flash_bank.count == 0) {
+    if (s_bury.flash.bank.count == 0) {
         LOGE("data bury ensure flash flush no pending slots");
         return -1;
     }
-    phys = s_flash_bank.read_slot;
-    if (s_flash_flush_loaded && s_flash_flush_phys_slot == phys) {
-        /* 槽数据已在 s_flash_slot_data，仅刷新 meta（pop 后 tail 以内存为准） */
+    phys = s_bury.flash.bank.read_slot;
+    if (s_bury.flush.loaded && s_bury.flush.phys_slot == phys) {
+        /* 槽数据已在 s_bury.bufs.flash_slot，仅刷新 meta（pop 后 tail 以内存为准） */
         return 0;
     }
-    s_flash_flush_loaded = 0;
-    if (data_bury_ring_read_slot_meta(ctx, phys, &s_flash_flush_meta, NULL) != 0) {
+    s_bury.flush.loaded = 0;
+    if (data_bury_ring_read_slot_meta(ctx, phys, &s_bury.flush.meta, NULL) != 0) {
         LOGE("data bury ensure flash flush read meta fail slot=%u", (unsigned)phys);
         return -1;
     }
-    if (s_flash_flush_meta.head == s_flash_flush_meta.tail) {
+    if (s_bury.flush.meta.head == s_bury.flush.meta.tail) {
         LOGE("data bury ensure flash flush empty slot=%u", (unsigned)phys);
         return -1;
     }
-    if (data_bury_ring_load_slot_chunks(ctx, phys, s_flash_slot_data) != 0) {
+    if (data_bury_ring_load_slot_chunks(ctx, phys, s_bury.bufs.flash_slot) != 0) {
         LOGE("data bury ensure flash flush load chunks fail slot=%u", (unsigned)phys);
         return -1;
     }
-    s_flash_flush_loaded     = 1;
-    s_flash_flush_phys_slot  = phys;
+    s_bury.flush.loaded     = 1;
+    s_bury.flush.phys_slot  = phys;
     return 0;
 }
 
@@ -551,12 +532,12 @@ int write_data_bury_ring_meta_to_flash(store_func_args_t args)
     EXCEPTION_CHECK_INT(meta);
     store = u_malloz(sizeof(data_bury_ring_meta_storage_t));
     EXCEPTION_CHECK_INT(store);
-    const uint8_t *ring_src = s_ring_data;
+    const uint8_t *ring_src = s_bury.bufs.ring;
 
     store->magic = STORAGE_DATA_BURY_RING_META_MAGIC_NUM;
     memcpy(&store->meta, meta, sizeof(data_bury_ring_meta_t));
-    if (s_flash_slot_data && s_flash_flush_loaded && s_flash_flush_phys_slot == slot) {
-        ring_src = s_flash_slot_data;
+    if (s_bury.bufs.flash_slot && s_bury.flush.loaded && s_bury.flush.phys_slot == slot) {
+        ring_src = s_bury.bufs.flash_slot;
     }
     store->event_count = data_bury_ring_count_records(meta, ring_src);
     store->crc = data_bury_ring_meta_storage_crc(store);
@@ -685,12 +666,12 @@ int read_data_bury_ring_chunk_from_flash(store_func_args_t args)
 
 static void data_bury_ring_reset_ram(void)
 {
-    memset(&s_ring_meta, 0, sizeof(s_ring_meta));
-    if (s_ring_data) {
-        memset(s_ring_data, 0, DATA_BURY_RING_DATA_SIZE);
+    memset(&s_bury.ram.meta, 0, sizeof(s_bury.ram.meta));
+    if (s_bury.bufs.ring) {
+        memset(s_bury.bufs.ring, 0, DATA_BURY_RING_DATA_SIZE);
     }
-    s_ring_dirty         = 0;
-    s_flash_flush_loaded = 0;
+    s_bury.ram.dirty         = 0;
+    s_bury.flush.loaded = 0;
 }
 
 int data_bury_ring_storage_reset(storage_manager_context_t *ctx)
@@ -703,38 +684,38 @@ int data_bury_ring_storage_reset(storage_manager_context_t *ctx)
         return -1;
     }
     data_bury_ring_reset_ram();
-    memset(&s_flash_bank, 0, sizeof(s_flash_bank));
-    s_flash_bank_loaded = 1;
-    reset_data_bury_flash_bank(ctx, &s_flash_bank);
+    memset(&s_bury.flash.bank, 0, sizeof(s_bury.flash.bank));
+    s_bury.flash.loaded = 1;
+    reset_data_bury_flash_bank(ctx, &s_bury.flash.bank);
     for (slot = 0; slot < DATA_BURY_FLASH_SLOT_NUM; slot++) {
         data_bury_ring_meta_t empty_meta;
         reset_data_bury_ring_meta(ctx, slot, &empty_meta);
-        if (data_bury_ring_save_slot_chunks(ctx, slot, s_ring_data) != 0) {
+        if (data_bury_ring_save_slot_chunks(ctx, slot, s_bury.bufs.ring) != 0) {
             LOGE("data bury storage reset clear slot=%u fail", (unsigned)slot);
             return -1;
         }
     }
-    s_ring_inited = 1;
-    s_bury_ctx    = ctx;
+    s_bury.store_ctx.inited = 1;
+    s_bury.store_ctx.ctx    = ctx;
     return 0;
 }
 
 static int data_bury_ring_storage_init_internal(storage_manager_context_t *ctx)
 {
     EXCEPTION_CHECK_INT(ctx);
-    if (s_ring_inited && s_bury_ctx == ctx) {
+    if (s_bury.store_ctx.inited && s_bury.store_ctx.ctx == ctx) {
         return 0;
     }
     if (data_bury_ring_buf_alloc() != 0) {
         LOGE("data bury storage init alloc fail");
         return -1;
     }
-    s_bury_ctx = ctx;
+    s_bury.store_ctx.ctx = ctx;
     data_bury_ring_reset_ram();
-    s_flash_bank_loaded = 0;
+    s_bury.flash.loaded = 0;
     (void)data_bury_flash_bank_ensure_loaded(ctx);
-    s_ring_inited = 1;
-    s_ring_dirty  = 0;
+    s_bury.store_ctx.inited = 1;
+    s_bury.ram.dirty  = 0;
     return 0;
 }
 
@@ -765,41 +746,41 @@ int data_bury_ring_sync_to_flash(storage_manager_context_t *ctx)
     store_func_args_t args;
 
     EXCEPTION_CHECK_INT(ctx);
-    if (!s_ring_inited) {
+    if (!s_bury.store_ctx.inited) {
         data_bury_ring_storage_init(ctx);
     }
-    if (s_ring_meta.head == s_ring_meta.tail) {
+    if (s_bury.ram.meta.head == s_bury.ram.meta.tail) {
         return 0;
     }
     if (data_bury_flash_bank_ensure_loaded(ctx) != 0) {
         LOGE("data bury sync flash bank load fail");
         return -1;
     }
-    s_flash_flush_loaded = 0;
+    s_bury.flush.loaded = 0;
 
-    phys = s_flash_bank.write_slot;
-    event_count = data_bury_ring_count_records(&s_ring_meta, s_ring_data);
+    phys = s_bury.flash.bank.write_slot;
+    event_count = data_bury_ring_count_records(&s_bury.ram.meta, s_bury.bufs.ring);
     args.ctx  = ctx;
     args.arg1 = (int)phys;
     args.arg2 = 0;
-    args.val  = &s_ring_meta;
+    args.val  = &s_bury.ram.meta;
     if (write_data_bury_ring_meta_to_flash(args) != 0) {
         LOGE("data bury sync write meta fail slot=%u", (unsigned)phys);
         return -1;
     }
-    if (data_bury_ring_save_slot_chunks(ctx, phys, s_ring_data) != 0) {
+    if (data_bury_ring_save_slot_chunks(ctx, phys, s_bury.bufs.ring) != 0) {
         LOGE("data bury sync save chunks fail slot=%u", (unsigned)phys);
         return -1;
     }
     LOG_STORE_WRAP("-->data bury sync slot=%u events=%u count=%u",
-                   (unsigned)phys, (unsigned)event_count, (unsigned)s_flash_bank.count);
+                   (unsigned)phys, (unsigned)event_count, (unsigned)s_bury.flash.bank.count);
 
-    if (s_flash_bank.count >= DATA_BURY_FLASH_SLOT_NUM) {
-        s_flash_bank.read_slot = (uint8_t)((s_flash_bank.read_slot + 1u) % DATA_BURY_FLASH_SLOT_NUM);
+    if (s_bury.flash.bank.count >= DATA_BURY_FLASH_SLOT_NUM) {
+        s_bury.flash.bank.read_slot = (uint8_t)((s_bury.flash.bank.read_slot + 1u) % DATA_BURY_FLASH_SLOT_NUM);
     } else {
-        s_flash_bank.count++;
+        s_bury.flash.bank.count++;
     }
-    s_flash_bank.write_slot = (uint8_t)((s_flash_bank.write_slot + 1u) % DATA_BURY_FLASH_SLOT_NUM);
+    s_bury.flash.bank.write_slot = (uint8_t)((s_bury.flash.bank.write_slot + 1u) % DATA_BURY_FLASH_SLOT_NUM);
     if (data_bury_flash_bank_save(ctx) != 0) {
         LOGE("data bury sync save flash bank fail slot=%u", (unsigned)phys);
         return -1;
@@ -828,13 +809,13 @@ static int data_bury_ring_append_event(storage_manager_context_t *ctx, uint8_t s
             return -2;
         }
     }
-    if (!s_ring_inited || s_bury_ctx != ctx) {
+    if (!s_bury.store_ctx.inited || s_bury.store_ctx.ctx != ctx) {
         if (data_bury_ring_storage_init(ctx) != 0) {
             LOGE("data bury append init fail cmd=0x%02x", cmd_id);
             return -4;
         }
     }
-    if (!s_ring_data) {
+    if (!s_bury.bufs.ring) {
         LOGE("data bury append ring buf null cmd=0x%02x", cmd_id);
         return -4;
     }
@@ -847,28 +828,28 @@ static int data_bury_ring_append_event(storage_manager_context_t *ctx, uint8_t s
     }
 
     for (;;) {
-        uint16_t used = data_bury_ring_used(s_ring_meta.head, s_ring_meta.tail);
+        uint16_t used = data_bury_ring_used(s_bury.ram.meta.head, s_bury.ram.meta.tail);
         uint16_t free_bytes = (uint16_t)(DATA_BURY_RING_DATA_SIZE - used);
         if (free_bytes >= needed) {
             break;
         }
-        if (data_bury_ring_drop_oldest(&s_ring_meta, s_ring_data) != 0) {
+        if (data_bury_ring_drop_oldest(&s_bury.ram.meta, s_bury.bufs.ring) != 0) {
             break;
         }
     }
 
-    head = s_ring_meta.head;
+    head = s_bury.ram.meta.head;
     if (head + needed > DATA_BURY_RING_DATA_SIZE) {
-        if (s_ring_meta.tail > 0) {
-            uint16_t used = data_bury_ring_used(s_ring_meta.head, s_ring_meta.tail);
-            memmove(s_ring_data, s_ring_data + s_ring_meta.tail, used);
-            s_ring_meta.head = used;
-            s_ring_meta.tail = 0;
-            head             = s_ring_meta.head;
+        if (s_bury.ram.meta.tail > 0) {
+            uint16_t used = data_bury_ring_used(s_bury.ram.meta.head, s_bury.ram.meta.tail);
+            memmove(s_bury.bufs.ring, s_bury.bufs.ring + s_bury.ram.meta.tail, used);
+            s_bury.ram.meta.head = used;
+            s_bury.ram.meta.tail = 0;
+            head             = s_bury.ram.meta.head;
         }
         if (head + needed > DATA_BURY_RING_DATA_SIZE) {
             LOGE("data bury append ring full cmd=0x%02x needed=%u head=%u tail=%u",
-                 cmd_id, (unsigned)needed, (unsigned)head, (unsigned)s_ring_meta.tail);
+                 cmd_id, (unsigned)needed, (unsigned)head, (unsigned)s_bury.ram.meta.tail);
             return -3;
         }
     }
@@ -879,14 +860,14 @@ static int data_bury_ring_append_event(storage_manager_context_t *ctx, uint8_t s
             .cmd_id      = cmd_id,
             .payload_len = len,
         };
-        memcpy(s_ring_data + head, &hdr, sizeof(hdr));
-        memcpy(s_ring_data + head + sizeof(hdr), payload, len);
-        s_ring_meta.head = (uint16_t)(head + needed);
-        s_ring_dirty     = 1;
+        memcpy(s_bury.bufs.ring + head, &hdr, sizeof(hdr));
+        memcpy(s_bury.bufs.ring + head + sizeof(hdr), payload, len);
+        s_bury.ram.meta.head = (uint16_t)(head + needed);
+        s_bury.ram.dirty     = 1;
     }
 
     LOG_STORE_WRAP("-->data bury append cmd=0x%02x len=%u head=%u tail=%u",
-                   cmd_id, (unsigned)len, (unsigned)s_ring_meta.head, (unsigned)s_ring_meta.tail);
+                   cmd_id, (unsigned)len, (unsigned)s_bury.ram.meta.head, (unsigned)s_bury.ram.meta.tail);
     return 0;
 }
 
@@ -970,7 +951,7 @@ int read_data_bury_use_session_boot_seq_from_flash(store_func_args_t args)
 
 static uint16_t data_bury_ring_pending_count_ram(void)
 {
-    return data_bury_ring_count_records(&s_ring_meta, s_ring_data);
+    return data_bury_ring_count_records(&s_bury.ram.meta, s_bury.bufs.ring);
 }
 
 static int data_bury_ring_peek_from_meta(const data_bury_ring_meta_t *meta, const uint8_t *ring_buf,
@@ -1012,56 +993,56 @@ static int data_bury_ring_peek_oldest(storage_manager_context_t *ctx, data_bury_
 {
     EXCEPTION_CHECK_INT(ctx);
     EXCEPTION_CHECK_INT(hdr);
-    if (!s_ring_inited || s_bury_ctx != ctx) {
+    if (!s_bury.store_ctx.inited || s_bury.store_ctx.ctx != ctx) {
         if (data_bury_ring_storage_init(ctx) != 0) {
             LOGE("data bury peek oldest init fail");
             return -4;
         }
     }
-    if (!s_ring_data) {
+    if (!s_bury.bufs.ring) {
         LOGE("data bury peek oldest ring buf null");
         return -4;
     }
-    if (s_ring_meta.head != s_ring_meta.tail) {
-        int ret = data_bury_ring_peek_from_meta(&s_ring_meta, s_ring_data, hdr, out_payload, out_buf_len);
-        if (ret != 0 && data_bury_ring_drop_oldest(&s_ring_meta, s_ring_data) == 0) {
+    if (s_bury.ram.meta.head != s_bury.ram.meta.tail) {
+        int ret = data_bury_ring_peek_from_meta(&s_bury.ram.meta, s_bury.bufs.ring, hdr, out_payload, out_buf_len);
+        if (ret != 0 && data_bury_ring_drop_oldest(&s_bury.ram.meta, s_bury.bufs.ring) == 0) {
             LOGW("data bury peek ram recover head=%u tail=%u",
-                 (unsigned)s_ring_meta.head, (unsigned)s_ring_meta.tail);
-            s_ring_dirty = 1;
-            ret = data_bury_ring_peek_from_meta(&s_ring_meta, s_ring_data, hdr, out_payload, out_buf_len);
+                 (unsigned)s_bury.ram.meta.head, (unsigned)s_bury.ram.meta.tail);
+            s_bury.ram.dirty = 1;
+            ret = data_bury_ring_peek_from_meta(&s_bury.ram.meta, s_bury.bufs.ring, hdr, out_payload, out_buf_len);
         }
         return ret;
     }
-    if (data_bury_flash_bank_ensure_loaded(ctx) != 0 || s_flash_bank.count == 0) {
+    if (data_bury_flash_bank_ensure_loaded(ctx) != 0 || s_bury.flash.bank.count == 0) {
         LOGE("data bury peek oldest no flash pending bank_loaded=%u count=%u",
-             (unsigned)s_flash_bank_loaded, (unsigned)s_flash_bank.count);
+             (unsigned)s_bury.flash.loaded, (unsigned)s_bury.flash.bank.count);
         return -1;
     }
     if (data_bury_ring_ensure_flash_flush_slot(ctx) != 0) {
         LOGE("data bury peek oldest ensure flash slot fail read_slot=%u",
-             (unsigned)s_flash_bank.read_slot);
+             (unsigned)s_bury.flash.bank.read_slot);
         return -1;
     }
     {
-        int ret = data_bury_ring_peek_from_meta(&s_flash_flush_meta, s_flash_slot_data, hdr,
+        int ret = data_bury_ring_peek_from_meta(&s_bury.flush.meta, s_bury.bufs.flash_slot, hdr,
                                                 out_payload, out_buf_len);
-        if (ret != 0 && data_bury_ring_drop_oldest(&s_flash_flush_meta, s_flash_slot_data) == 0) {
+        if (ret != 0 && data_bury_ring_drop_oldest(&s_bury.flush.meta, s_bury.bufs.flash_slot) == 0) {
             LOGW("data bury peek flash recover slot=%u head=%u tail=%u",
-                 (unsigned)s_flash_flush_phys_slot,
-                 (unsigned)s_flash_flush_meta.head, (unsigned)s_flash_flush_meta.tail);
-            (void)data_bury_ring_write_slot_meta(ctx, s_flash_flush_phys_slot, &s_flash_flush_meta, 0);
-            if (s_flash_flush_meta.head == s_flash_flush_meta.tail) {
+                 (unsigned)s_bury.flush.phys_slot,
+                 (unsigned)s_bury.flush.meta.head, (unsigned)s_bury.flush.meta.tail);
+            (void)data_bury_ring_write_slot_meta(ctx, s_bury.flush.phys_slot, &s_bury.flush.meta, 0);
+            if (s_bury.flush.meta.head == s_bury.flush.meta.tail) {
                 data_bury_ring_meta_t empty_meta;
-                reset_data_bury_ring_meta(ctx, s_flash_flush_phys_slot, &empty_meta);
-                s_flash_bank.count--;
-                if (s_flash_bank.count > 0) {
-                    s_flash_bank.read_slot =
-                        (uint8_t)((s_flash_bank.read_slot + 1u) % DATA_BURY_FLASH_SLOT_NUM);
+                reset_data_bury_ring_meta(ctx, s_bury.flush.phys_slot, &empty_meta);
+                s_bury.flash.bank.count--;
+                if (s_bury.flash.bank.count > 0) {
+                    s_bury.flash.bank.read_slot =
+                        (uint8_t)((s_bury.flash.bank.read_slot + 1u) % DATA_BURY_FLASH_SLOT_NUM);
                 } else {
-                    s_flash_bank.read_slot = s_flash_bank.write_slot;
+                    s_bury.flash.bank.read_slot = s_bury.flash.bank.write_slot;
                 }
                 (void)data_bury_flash_bank_save(ctx);
-                s_flash_flush_loaded = 0;
+                s_bury.flush.loaded = 0;
             }
             ret = data_bury_ring_peek_oldest(ctx, hdr, out_payload, out_buf_len);
         }
@@ -1075,63 +1056,63 @@ static int data_bury_ring_pop_oldest(storage_manager_context_t *ctx)
     int ret;
 
     EXCEPTION_CHECK_INT(ctx);
-    if (s_ring_meta.head != s_ring_meta.tail) {
-        ret = data_bury_ring_peek_from_meta(&s_ring_meta, s_ring_data, &hdr, NULL, 0);
+    if (s_bury.ram.meta.head != s_bury.ram.meta.tail) {
+        ret = data_bury_ring_peek_from_meta(&s_bury.ram.meta, s_bury.bufs.ring, &hdr, NULL, 0);
         if (ret != 0) {
             LOGE("data bury pop ram peek fail ret=%d head=%u tail=%u",
-                 ret, (unsigned)s_ring_meta.head, (unsigned)s_ring_meta.tail);
+                 ret, (unsigned)s_bury.ram.meta.head, (unsigned)s_bury.ram.meta.tail);
             return -1;
         }
         {
             uint16_t total = (uint16_t)(sizeof(hdr) + hdr.payload_len);
-            s_ring_meta.tail = data_bury_ring_advance(s_ring_meta.tail, total);
-            s_ring_dirty     = 1;
+            s_bury.ram.meta.tail = data_bury_ring_advance(s_bury.ram.meta.tail, total);
+            s_bury.ram.dirty     = 1;
         }
         LOG_STORE_WRAP("-->data bury pop ram cmd=0x%02x len=%u pending=%u",
                        hdr.cmd_id, (unsigned)hdr.payload_len, (unsigned)data_bury_ring_pending_count_ram());
         return 0;
     }
 
-    if (data_bury_flash_bank_ensure_loaded(ctx) != 0 || s_flash_bank.count == 0) {
+    if (data_bury_flash_bank_ensure_loaded(ctx) != 0 || s_bury.flash.bank.count == 0) {
         LOGE("data bury pop no flash pending bank_loaded=%u count=%u",
-             (unsigned)s_flash_bank_loaded, (unsigned)s_flash_bank.count);
+             (unsigned)s_bury.flash.loaded, (unsigned)s_bury.flash.bank.count);
         return -1;
     }
     if (data_bury_ring_ensure_flash_flush_slot(ctx) != 0) {
-        LOGE("data bury pop ensure flash slot fail read_slot=%u", (unsigned)s_flash_bank.read_slot);
+        LOGE("data bury pop ensure flash slot fail read_slot=%u", (unsigned)s_bury.flash.bank.read_slot);
         return -1;
     }
-    ret = data_bury_ring_peek_from_meta(&s_flash_flush_meta, s_flash_slot_data, &hdr, NULL, 0);
+    ret = data_bury_ring_peek_from_meta(&s_bury.flush.meta, s_bury.bufs.flash_slot, &hdr, NULL, 0);
     if (ret != 0) {
         LOGE("data bury pop flash peek fail slot=%u ret=%d",
-             (unsigned)s_flash_flush_phys_slot, ret);
+             (unsigned)s_bury.flush.phys_slot, ret);
         return -1;
     }
     {
         uint16_t total = (uint16_t)(sizeof(hdr) + hdr.payload_len);
-        s_flash_flush_meta.tail = data_bury_ring_advance(s_flash_flush_meta.tail, total);
+        s_bury.flush.meta.tail = data_bury_ring_advance(s_bury.flush.meta.tail, total);
     }
-    if (data_bury_ring_write_slot_meta(ctx, s_flash_flush_phys_slot, &s_flash_flush_meta, 0) != 0) {
-        LOGE("data bury pop flash write meta fail slot=%u", (unsigned)s_flash_flush_phys_slot);
+    if (data_bury_ring_write_slot_meta(ctx, s_bury.flush.phys_slot, &s_bury.flush.meta, 0) != 0) {
+        LOGE("data bury pop flash write meta fail slot=%u", (unsigned)s_bury.flush.phys_slot);
         return -1;
     }
 
-    if (s_flash_flush_meta.head == s_flash_flush_meta.tail) {
+    if (s_bury.flush.meta.head == s_bury.flush.meta.tail) {
         data_bury_ring_meta_t empty_meta;
-        reset_data_bury_ring_meta(ctx, s_flash_flush_phys_slot, &empty_meta);
-        s_flash_bank.count--;
-        if (s_flash_bank.count > 0) {
-            s_flash_bank.read_slot = (uint8_t)((s_flash_bank.read_slot + 1u) % DATA_BURY_FLASH_SLOT_NUM);
+        reset_data_bury_ring_meta(ctx, s_bury.flush.phys_slot, &empty_meta);
+        s_bury.flash.bank.count--;
+        if (s_bury.flash.bank.count > 0) {
+            s_bury.flash.bank.read_slot = (uint8_t)((s_bury.flash.bank.read_slot + 1u) % DATA_BURY_FLASH_SLOT_NUM);
         } else {
-            s_flash_bank.read_slot = s_flash_bank.write_slot;
+            s_bury.flash.bank.read_slot = s_bury.flash.bank.write_slot;
         }
         (void)data_bury_flash_bank_save(ctx);
-        s_flash_flush_loaded = 0;
+        s_bury.flush.loaded = 0;
         LOG_STORE_WRAP("-->data bury flash slot %u drained, left=%u",
-                       (unsigned)s_flash_flush_phys_slot, (unsigned)s_flash_bank.count);
+                       (unsigned)s_bury.flush.phys_slot, (unsigned)s_bury.flash.bank.count);
     } else {
         LOG_STORE_WRAP("-->data bury pop flash slot=%u cmd=0x%02x len=%u",
-                       (unsigned)s_flash_flush_phys_slot, hdr.cmd_id, (unsigned)hdr.payload_len);
+                       (unsigned)s_bury.flush.phys_slot, hdr.cmd_id, (unsigned)hdr.payload_len);
     }
     return 0;
 }
@@ -1159,14 +1140,14 @@ int read_data_bury_ring_pending_count_from_ram(store_func_args_t args)
     uint16_t *pending_count = (uint16_t *)args.val;
     EXCEPTION_CHECK_INT(pending_count);
 
-    if (!s_ring_inited || s_bury_ctx != args.ctx) {
+    if (!s_bury.store_ctx.inited || s_bury.store_ctx.ctx != args.ctx) {
         (void)data_bury_ring_storage_init(args.ctx);
     }
 
     cnt = data_bury_ring_pending_count_ram();
-    if (data_bury_flash_bank_ensure_loaded(args.ctx) == 0 && s_flash_bank.count > 0) {
-        for (i = 0; i < s_flash_bank.count; i++) {
-            uint8_t phys = (uint8_t)((s_flash_bank.read_slot + i) % DATA_BURY_FLASH_SLOT_NUM);
+    if (data_bury_flash_bank_ensure_loaded(args.ctx) == 0 && s_bury.flash.bank.count > 0) {
+        for (i = 0; i < s_bury.flash.bank.count; i++) {
+            uint8_t phys = (uint8_t)((s_bury.flash.bank.read_slot + i) % DATA_BURY_FLASH_SLOT_NUM);
             cnt = (uint16_t)(cnt + (uint16_t)data_bury_ring_flash_slot_pending_count(args.ctx, phys));
         }
     }

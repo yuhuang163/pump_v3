@@ -10,12 +10,12 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
-/* Momcozy 埋点 Flash：8 槽 × 每槽 4 分片（须与 data_bury_persist_defs.h 一致） */
+/* Momcozy 埋点 Flash：8 槽 × 每槽 1 块 2048B（与 PSRAM 环对齐，须与 data_bury_persist_defs.h 一致） */
 #ifndef PERSIST_DATA_BURY_FLASH_SLOT_NUM
 #define PERSIST_DATA_BURY_FLASH_SLOT_NUM  8u
 #endif
 #ifndef PERSIST_DATA_BURY_RING_CHUNK_PER_SLOT
-#define PERSIST_DATA_BURY_RING_CHUNK_PER_SLOT  4u
+#define PERSIST_DATA_BURY_RING_CHUNK_PER_SLOT  1u
 #endif
 #ifndef PERSIST_DATA_BURY_RING_CHUNK_NUM
 #define PERSIST_DATA_BURY_RING_CHUNK_NUM  (PERSIST_DATA_BURY_FLASH_SLOT_NUM * PERSIST_DATA_BURY_RING_CHUNK_PER_SLOT)

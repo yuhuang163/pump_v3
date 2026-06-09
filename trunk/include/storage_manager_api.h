@@ -56,7 +56,7 @@ typedef enum {
     STORE_ID_PUMP_MODE_STEPS_INFO_ID,       /// 模式配置ID
     STORE_ID_DATA_BURY_FLASH_BANK,          /// Momcozy 埋点 Flash 槽位索引
     STORE_ID_DATA_BURY_RING_META,           /// Momcozy 埋点环 meta arg1=slot_index
-    STORE_ID_DATA_BURY_RING_CHUNK,          /// Momcozy 埋点环数据分片 arg1=chunk_index arg2=slot_index
+    STORE_ID_DATA_BURY_RING_CHUNK,          /// Momcozy 埋点环数据块(2048B) arg1=0 arg2=slot_index
     STORE_ID_DATA_BURY_RING_APPEND,         /// 埋点环追加 val=data_bury_ring_append_args_t*
     STORE_ID_DATA_BURY_RING_PENDING_COUNT,  /// 埋点环待上报条数 val=uint16_t*
     STORE_ID_DATA_BURY_RING_POP_OLDEST,       /// 埋点环 pop 最旧一条
