@@ -8,6 +8,7 @@
 #include "data_bury_persist_data.h"
 #include "app_data_bury_protocol_defs.h"
 
+#define DATA_BURY_LOG_DEBUG 1
 
 static int on_data_bury_br_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2,
                                           broadcast_priv_data_t *pdata)
@@ -131,6 +132,52 @@ static servers_publish_data_id_e data_bury_hook_cmd_to_publish_id(uint8_t cmd_id
     }
 }
 
+static const char *data_bury_hook_cmd_to_str(uint8_t cmd_id)
+{
+    switch (cmd_id) {
+    case APP_BURY_CMD_PUMP_STARTUP:
+        return "PUMP_STARTUP";
+    case APP_BURY_CMD_PUMP_SHUTDOWN:
+        return "PUMP_SHUTDOWN";
+    case APP_BURY_CMD_BT_CONNECT_EVENT:
+        return "BT_CONNECT_EVENT";
+    case APP_BURY_CMD_PUMP_SESSION_START:
+        return "PUMP_SESSION_START";
+    case APP_BURY_CMD_PUMP_SESSION_END:
+        return "PUMP_SESSION_END";
+    case APP_BURY_CMD_PUMP_MANUAL_ADJUST:
+        return "PUMP_MANUAL_ADJUST";
+    case APP_BURY_CMD_PUMP_USER_EVENT:
+        return "PUMP_USER_EVENT";
+    case APP_BURY_CMD_MILK_EJECTION:
+        return "MILK_EJECTION";
+    case APP_BURY_CMD_BAT_CHARGE_START:
+        return "BAT_CHARGE_START";
+    case APP_BURY_CMD_BAT_CHARGE_END:
+        return "BAT_CHARGE_END";
+    case APP_BURY_CMD_EXCEPTION:
+        return "EXCEPTION";
+    case APP_BURY_CMD_FIRMWARE_UPDATE:
+        return "FIRMWARE_UPDATE";
+    case APP_BURY_CMD_OVERFLOW:
+        return "OVERFLOW";
+    case APP_BURY_CMD_MILK_VOLUME:
+        return "MILK_VOLUME";
+    case APP_BURY_CMD_HEAT_SESSION_START:
+        return "HEAT_SESSION_START";
+    case APP_BURY_CMD_HEAT_SESSION_END:
+        return "HEAT_SESSION_END";
+    case APP_BURY_CMD_MASSAGE_SESSION_START:
+        return "MASSAGE_SESSION_START";
+    case APP_BURY_CMD_MASSAGE_SESSION_END:
+        return "MASSAGE_SESSION_END";
+    case APP_BURY_CMD_WEAR_DETECTION:
+        return "WEAR_DETECTION";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 static int data_bury_hook_append_to_ring(data_bury_manager_context_t *ctx, uint8_t cmd_id,
                                          const void *packed, uint16_t packed_len)
 {
@@ -186,6 +233,14 @@ static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_b
         return -2;
     }
 
+#if DATA_BURY_LOG_DEBUG
+    {
+        const uint8_t *payload = (const uint8_t *)extra->val;
+        LOG_BURY("data bury publish cmd=%s len=%d", data_bury_hook_cmd_to_str(cmd_id), extra->arg1);
+        LOG_HEX("data bury publish data", payload, (size_t)extra->arg1);
+    }
+#endif
+
     ble = ctx->priv.ble_ctx;
     if (!ble) {
         ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
@@ -203,8 +258,8 @@ static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_b
         }
         ret = ctx->priv.servers_ctx->hook->data_bury_server_data_publish(extra->publish_id, &pub_args);
         if (ret == 0) {
-            LOG_BURY("data bury online sent id=%d cmd=0x%02x len=%d",
-                    (int)extra->publish_id, cmd_id, extra->arg1);
+            LOG_BURY("data bury online sent cmd=%s len=%d",
+                     data_bury_hook_cmd_to_str(cmd_id), extra->arg1);
             return 0;
         }
         /* 发送过程中 BLE 断开，回落写环 */
@@ -291,6 +346,14 @@ static int data_bury_hook_flush_pending(data_bury_manager_context_t *ctx)
         return -5;
     }
 
+    #if DATA_BURY_LOG_DEBUG
+    LOG_BURY("data bury flush peek cmd=%s id=%d len=%u pending=%u",
+             data_bury_hook_cmd_to_str(hdr.cmd_id),
+             (int)publish_id, (unsigned)hdr.payload_len, (unsigned)pending);
+    if (hdr.payload_len > 0u) {
+        LOG_HEX("data bury flush packed", packed, hdr.payload_len);
+    }
+    #endif
     pub_args.arg1 = (int)hdr.payload_len;
     pub_args.val = packed;
     ret = servers->hook->data_bury_server_data_publish(publish_id, &pub_args);

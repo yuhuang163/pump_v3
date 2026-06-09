@@ -9,8 +9,12 @@ extern "C" {
 #include "storage_manager.h"
 #include "data_bury_persist_defs.h"
 
-/* Flash 元数据 / 环区分片（模式同 breast_pump_persist_data head/body） */
-void reset_data_bury_ring_meta(storage_manager_context_t *ctx, data_bury_ring_meta_t *meta);
+/* Flash 槽位索引 / 元数据 / 环区分片 */
+void reset_data_bury_flash_bank(storage_manager_context_t *ctx, data_bury_flash_bank_t *bank);
+int write_data_bury_flash_bank_to_flash(store_func_args_t args);
+int read_data_bury_flash_bank_from_flash(store_func_args_t args);
+
+void reset_data_bury_ring_meta(storage_manager_context_t *ctx, uint8_t slot, data_bury_ring_meta_t *meta);
 int write_data_bury_ring_meta_to_flash(store_func_args_t args);
 int read_data_bury_ring_meta_from_flash(store_func_args_t args);
 

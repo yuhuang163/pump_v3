@@ -9,6 +9,8 @@
 #include "data_bury_persist_data.h"
 
 static data_bury_manager_context_t *thiz = NULL;
+/* 合并 50ms 定时 LOOP 投递，避免 bury 线程繁忙时队列被重复 tick 塞满 */
+static volatile uint8_t s_msg_loop_queued;
 
 static void data_bury_use_session_boot_seq_once(void)
 {
@@ -366,8 +368,13 @@ static void data_bury_msg_timer_handler(void *handle)
     if (!obj || !obj->priv.enabled || !obj->priv.bury_thd.msg_id) {
         return;
     }
+    if (s_msg_loop_queued) {
+        return;
+    }
     msg.union_body.data_bury_extra.event_type = DATA_BURY_EVT_MSG_POOL_LOOP;
-    if (MSG_QUEUE_SEND(obj->priv.bury_thd.msg_id, &msg, 0) != osOK) {
+    if (MSG_QUEUE_SEND(obj->priv.bury_thd.msg_id, &msg, 0) == osOK) {
+        s_msg_loop_queued = 1u;
+    } else {
         LOGW("data bury msg loop queue full");
     }
 }
@@ -400,6 +407,7 @@ static void data_bury_manager_internal_dispatch_thread(const void *args)
     for (;;) {
         MSG_QUEUE_RECV(thd->msg_id, &msg, OS_WAIT_FOREVER);
         if (msg.union_body.data_bury_extra.event_type == DATA_BURY_EVT_MSG_POOL_LOOP) {
+            s_msg_loop_queued = 0u;
             data_bury_msg_mgr_process_due(obj, 1u);
             continue;
         }

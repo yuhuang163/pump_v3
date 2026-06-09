@@ -131,6 +131,10 @@ extern "C" {
 #define STORAGE_DATA_BURY_USE_SESSION_BOOT_SEQ_MAGIC_NUM                     (0xAFFA5894)
 #endif
 
+#ifndef STORAGE_DATA_BURY_FLASH_BANK_MAGIC_NUM
+#define STORAGE_DATA_BURY_FLASH_BANK_MAGIC_NUM                               (0xAFFA5895)
+#endif
+
 /*
  * GLOBAL FUNCTION DECLARATION
  *****************************************************************************************

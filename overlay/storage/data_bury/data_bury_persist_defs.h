@@ -8,10 +8,11 @@ extern "C" {
 #include <stdint.h>
 #include "app_data_bury_protocol_defs.h"
 
-/* Momcozy 数据埋点 Flash 环区（对齐 pump_m5pro BLE_DATA_BURY_RING_DATA_SIZE） */
-#define DATA_BURY_RING_DATA_SIZE           4038u
+/* Momcozy 数据埋点：PSRAM 环临时缓冲 + Flash 关机快照（8 槽 × 2048B ≈ 16KB） */
+#define DATA_BURY_RING_DATA_SIZE           2048u
 #define DATA_BURY_RING_CHUNK_SIZE          512u
 #define DATA_BURY_RING_CHUNK_NUM           ((DATA_BURY_RING_DATA_SIZE + DATA_BURY_RING_CHUNK_SIZE - 1u) / DATA_BURY_RING_CHUNK_SIZE)
+#define DATA_BURY_FLASH_SLOT_NUM           8u
 
 /* 单条环记录 payload 上限（与 m5 7.5 变长 cap 一致: 22 + 58*4 = 254） */
 #define DATA_BURY_EVENT_PAYLOAD_MAX        256u
@@ -318,8 +319,22 @@ typedef struct {
 } data_bury_ring_peek_args_t;
 
 typedef struct {
+    uint8_t count;      /* 0~DATA_BURY_FLASH_SLOT_NUM 有效快照数 */
+    uint8_t read_slot;  /* 最旧待上报快照的物理槽号 */
+    uint8_t write_slot; /* 下次关机写入的物理槽号 */
+    uint8_t reserved;
+} data_bury_flash_bank_t;
+
+typedef struct {
+    uint32_t magic;
+    data_bury_flash_bank_t bank;
+    uint16_t crc;
+} data_bury_flash_bank_storage_t;
+
+typedef struct {
     uint32_t magic;
     data_bury_ring_meta_t meta;
+    uint16_t event_count;
     uint16_t crc;
 } data_bury_ring_meta_storage_t;
 

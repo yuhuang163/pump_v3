@@ -39,6 +39,7 @@ const static put_store_process_handle_t put_store_process_list[] = {
     {STORE_ID_FACTORY_DEV_INFO, write_factory_dev_info_to_flash},
     {STORE_ID_BREAST_PUMP_DATA_HEAD, write_pump_data_head_to_flash},
     {STORE_ID_BREAST_PUMP_DATA_BODY, write_pump_data_body_to_flash},
+    {STORE_ID_DATA_BURY_FLASH_BANK, write_data_bury_flash_bank_to_flash},
     {STORE_ID_DATA_BURY_RING_META, write_data_bury_ring_meta_to_flash},
     {STORE_ID_DATA_BURY_RING_CHUNK, write_data_bury_ring_chunk_to_flash},
 };
@@ -55,6 +56,7 @@ const static get_store_process_handle_t get_store_process_list[] = {
     {STORE_ID_USER_BIND_INFO, read_user_bind_info_from_flash},
     {STORE_ID_BREAST_PUMP_DATA_HEAD, read_pump_data_head_from_flash},
     {STORE_ID_BREAST_PUMP_DATA_BODY, read_pump_data_body_from_flash},
+    {STORE_ID_DATA_BURY_FLASH_BANK, read_data_bury_flash_bank_from_flash},
     {STORE_ID_DATA_BURY_RING_META, read_data_bury_ring_meta_from_flash},
     {STORE_ID_DATA_BURY_RING_CHUNK, read_data_bury_ring_chunk_from_flash},
 };
