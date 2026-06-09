@@ -61,12 +61,15 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
 
     memset(status, 0, sizeof(*status));
     if (led && led->hook) {
+#if NIGHT_LIGHT_ENABLE
         if (led->hook->get_night_light_switch) {
             status->night_light_switch = led->hook->get_night_light_switch(led) > 0 ? 1 : 0;
         }
         if (led->hook->get_night_light_gear) {
             status->night_light_gear = (uint8_t)led->hook->get_night_light_gear(led);
         }
+#endif
+
         if (led->hook->get_global_adaptive_dimming_switch) {
             status->adaptive_switch = led->hook->get_global_adaptive_dimming_switch(led) > 0 ? 1 : 0;
         }
@@ -98,6 +101,7 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
         }
     }
 
+#if NIGHT_LIGHT_ENABLE
     if (led->hook->get_night_light_switch &&
         status->night_light_switch != (uint8_t)led->hook->get_night_light_switch(led)) {
         if (led->hook->set_night_light_switch) {
@@ -109,6 +113,7 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
             led->hook->set_night_light_gear(led, status->night_light_gear);
         }
     }
+#endif
 
     if (led->hook->get_key_backlight_level &&
         status->screen_key_level != (uint8_t)led->hook->get_key_backlight_level(led)) {

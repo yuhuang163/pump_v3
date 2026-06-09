@@ -61,8 +61,10 @@ static void led_hook_fill_state_snapshot(led_manager_context_t *thiz, led_broadc
                                          led_state_info_t *info)
 {
     info->evt_id = (uint8_t)evt;
+#if NIGHT_LIGHT_ENABLE
     info->night_light_switch = thiz->priv.night_light_switch;
     info->night_light_gear = thiz->priv.night_light_gear;
+#endif
     info->global_adaptive_dimming_switch = thiz->priv.global_adaptive_dimming_switch;
     info->screen_key_level = thiz->priv.key_light_level_max;
 }
@@ -414,56 +416,6 @@ static int get_night_light_switch(led_manager_context_t *thiz)
     return thiz->priv.night_light_switch ? 1 : 0;
 }
 
-static int get_ui_backlight_adaptive_dimming_switch(led_manager_context_t *thiz)
-{
-    if (s_factory_als_suppress) {
-        return 0;
-    }
-    if (!thiz->priv.global_adaptive_dimming_switch) {
-        return 0;
-    }
-    return thiz->priv.ui_backlight_adaptive_dimming_switch ? 1 : 0;
-}
-
-static int get_key_backlight_adaptive_dimming_switch(led_manager_context_t *thiz)
-{
-    if (s_factory_als_suppress) {
-        return 0;
-    }
-    if (!thiz->priv.global_adaptive_dimming_switch) {
-        return 0;
-    }
-    return thiz->priv.key_backlight_adaptive_dimming_switch ? 1 : 0;
-}
-
-/// App 设置总开关：写 Flash global_adaptive_switch，并同步三路 ALS 子开关（RAM）
-static void set_global_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    if (onoff !=thiz->priv.global_adaptive_dimming_switch)
-    {
-        thiz->priv.global_adaptive_dimming_switch = onoff ? 1u : 0u;
-        LOG_MISC("global_adaptive_dimming_switch (ram): %d", thiz->priv.global_adaptive_dimming_switch);
-        storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-        if (st) {
-            st->put_store_ram_val(STORE_ID_SYS_ADAPTIVE_SWITCH, thiz->priv.global_adaptive_dimming_switch, 0, NULL);
-        }
-        adaptive_dimming_sync_sub_switches(thiz, thiz->priv.global_adaptive_dimming_switch);
-        led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_ADAPTIVE);
-    }
-}
-
-static int get_global_adaptive_dimming_switch(led_manager_context_t *thiz)
-{
-    return thiz->priv.global_adaptive_dimming_switch;
-}
-
-/// 工厂模式下,屏/键/夜灯子 ALS 开关抑制
-static void set_adaptive_dimming_fct_suppress(led_manager_context_t *thiz, uint8_t onoff)
-{
-    s_factory_als_suppress = onoff ? 1u : 0u;
-}
-
 static int get_night_light_level(led_manager_context_t *thiz)
 {
     return thiz->priv.night_light_level;
@@ -518,6 +470,56 @@ static int night_light_on_post_init(led_manager_context_t *thiz)
 }
 #endif /* IS_SUPPORT_NIGHT_LIGHT */
 
+static int get_ui_backlight_adaptive_dimming_switch(led_manager_context_t *thiz)
+{
+    if (s_factory_als_suppress) {
+        return 0;
+    }
+    if (!thiz->priv.global_adaptive_dimming_switch) {
+        return 0;
+    }
+    return thiz->priv.ui_backlight_adaptive_dimming_switch ? 1 : 0;
+}
+
+static int get_key_backlight_adaptive_dimming_switch(led_manager_context_t *thiz)
+{
+    if (s_factory_als_suppress) {
+        return 0;
+    }
+    if (!thiz->priv.global_adaptive_dimming_switch) {
+        return 0;
+    }
+    return thiz->priv.key_backlight_adaptive_dimming_switch ? 1 : 0;
+}
+
+/// App 设置总开关：写 Flash global_adaptive_switch，并同步三路 ALS 子开关（RAM）
+static void set_global_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    if (onoff !=thiz->priv.global_adaptive_dimming_switch)
+    {
+        thiz->priv.global_adaptive_dimming_switch = onoff ? 1u : 0u;
+        LOG_MISC("global_adaptive_dimming_switch (ram): %d", thiz->priv.global_adaptive_dimming_switch);
+        storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+        if (st) {
+            st->put_store_ram_val(STORE_ID_SYS_ADAPTIVE_SWITCH, thiz->priv.global_adaptive_dimming_switch, 0, NULL);
+        }
+        adaptive_dimming_sync_sub_switches(thiz, thiz->priv.global_adaptive_dimming_switch);
+        led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_ADAPTIVE);
+    }
+}
+
+static int get_global_adaptive_dimming_switch(led_manager_context_t *thiz)
+{
+    return thiz->priv.global_adaptive_dimming_switch;
+}
+
+/// 工厂模式下,屏/键/夜灯子 ALS 开关抑制
+static void set_adaptive_dimming_fct_suppress(led_manager_context_t *thiz, uint8_t onoff)
+{
+    s_factory_als_suppress = onoff ? 1u : 0u;
+}
+
 static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
 {
     led_manager_context_t *thiz = context;
@@ -563,9 +565,11 @@ static void on_led_battery_state_change_cb(void *user_data, battery_state_info_t
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
         info->battery_state == BATTERY_STATE_FORBID_START ||
         info->battery_state == BATTERY_STATE_LOW_POWER_RUN) {
+#if NIGHT_LIGHT_ENABLE
         if (get_night_light_onoff(thiz) > 0) {
             toggle_night_light(thiz);
         }
+#endif
         set_key_backlight_level_rate(thiz, 50);
     } else {
         power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);

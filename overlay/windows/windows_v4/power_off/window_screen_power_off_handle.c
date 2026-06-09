@@ -177,10 +177,11 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             proc->led->hook->set_key_backlight(proc->led, 0);
         }
 
+#if NIGHT_LIGHT_ENABLE
         if (proc->led->hook->set_night_light_level) {   
             proc->led->hook->set_night_light_level(proc->led, 0);
         }
-
+#endif
         if (proc->pm) {
             proc->pm->acquire_wakelock("power_off_screen", -1); /// 永久持有锁.
         }

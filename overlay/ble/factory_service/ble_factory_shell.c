@@ -282,26 +282,30 @@ static void ble_shell_night_light_adaptive(const uint8_t *param, uint16_t len)
     LOG_BLE("shell night light adaptive %d", adaptive);
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_VOID(led && led->hook);
+#if NIGHT_LIGHT_ENABLE
     if (led->hook->set_night_light_adaptive_dimming_switch) {
         led->hook->set_night_light_adaptive_dimming_switch(led, adaptive); /// 设置夜灯自适应开关.
     }
+#endif
 }
 
 static void ble_shell_night_light_switch(const uint8_t *param, uint16_t len)
 {
-    uint8_t data = 0;
+    int data = 0;
     sscanf((const char *)param, "%d", &data);
     LOG_BLE("shell night light switch %d", data);
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_VOID(led && led->hook);
+#if IS_SUPPORT_NIGHT_LIGHT
     if (led->hook->set_night_light_switch) {
         led->hook->set_night_light_switch(led, data); /// 设置夜灯开关.
     }
+#endif
 }
 
 static void ble_shell_global_adaptive_dimming_switch(const uint8_t *param, uint16_t len)
 {
-    uint8_t data = 0;
+    int data = 0;
     sscanf((const char *)param, "%d", &data);
     LOG_BLE("shell global adaptive dimming switch %d", data);
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
@@ -313,31 +317,35 @@ static void ble_shell_global_adaptive_dimming_switch(const uint8_t *param, uint1
 
 static void ble_shell_night_light_gear(const uint8_t *param, uint16_t len)
 {
-    uint8_t gear = 0;
+    int gear = 0;
     sscanf((const char *)param, "%d", &gear);
     LOG_BLE("shell night light gear %d", gear);
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_VOID(led && led->hook);
+#if IS_SUPPORT_NIGHT_LIGHT
     if (led->hook->set_night_light_gear) {
         led->hook->set_night_light_gear(led, gear); /// 设置夜灯档位.
     }   
+#endif
 }
 
 static void ble_shell_night_light_level(const uint8_t *param, uint16_t len)
 {
-    uint8_t level = 0;
+    int level = 0;
     sscanf((const char *)param, "%d", &level);
     LOG_BLE("shell night light level %d", level);
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_VOID(led && led->hook);
+#if IS_SUPPORT_NIGHT_LIGHT
     if (led->hook->set_night_light_level) {
         led->hook->set_night_light_level(led, level); /// 设置夜灯亮度.
-    }
+    }   
+#endif
 }
 
 static void ble_shell_back_light_level(const uint8_t *param, uint16_t len)
 {
-    uint8_t level = 0;
+    int level = 0;
     sscanf((const char *)param, "%d", &level);
     LOG_BLE("shell back light level %d", level);
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
@@ -377,7 +385,7 @@ static void ble_shell_led_night_light(const uint8_t *param, uint16_t len)
 
     if (led->hook->set_night_light_level) {
         led->hook->set_night_light_level(led, night_light); /// 设置夜灯亮度.
-    }
+    }   
 #endif
 }
 
