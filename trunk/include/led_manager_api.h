@@ -85,6 +85,8 @@ typedef struct led_manager_context {
         int (*get_night_light_switch)(struct led_manager_context *ctx);
         void (*set_night_light_adaptive_dimming_switch)(struct led_manager_context *ctx, uint8_t onoff);
         int (*get_night_light_adaptive_dimming_switch)(struct led_manager_context *ctx);
+        /// 电源键开启夜灯接口
+        int (*sync_night_light_power_key)(struct led_manager_context *ctx);
 #endif
         void (*set_key_backlight)(struct led_manager_context *ctx, uint8_t level);
         void (*set_key_backlight_level)(struct led_manager_context *ctx, uint8_t level);
@@ -120,6 +122,11 @@ typedef struct led_manager_context {
         uint8_t key_backlight_adaptive_dimming_switch;  /// 按键背光 ALS 开关（RAM，随 global）
     } priv;
 } led_manager_context_t;
+
+#if IS_SUPPORT_NIGHT_LIGHT
+/// App 手动关闭夜灯（关 ALS 子开关并 turn_off）
+void night_light_on_app_manual_off(led_manager_context_t *led);
+#endif
 
 #ifdef __cplusplus
 }

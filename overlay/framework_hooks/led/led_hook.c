@@ -9,7 +9,6 @@
 #endif
 #if IS_SUPPORT_NIGHT_LIGHT
 #include "night_light_policy.h" // IWYU pragma: keep
-#include "bsp_led_internal.h" // IWYU pragma: keep
 #endif
 
 
@@ -53,15 +52,6 @@ static void adaptive_dimming_restore_sub_switches(led_manager_context_t *thiz)
 }
 #if IS_SUPPORT_ADAPTIVE_DIMMING
 
-/// 手动选夜灯 L1~L3 后关闭夜灯 ALS（RAM，不写 Flash）
-static void adaptive_dimming_night_light_mark_manual_gear(void)
-{
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-
-    if (led) {
-        led->priv.night_light_adaptive_dimming_switch = 0;
-    }
-}
 #endif
 
 static led_state_info_t s_last_reported_led_state;
@@ -196,7 +186,7 @@ static void set_key_backlight_adaptive_dimming_switch(led_manager_context_t *thi
     }
 }
 
-#if 0//IS_SUPPORT_ADAPTIVE_DIMMING
+#if IS_SUPPORT_ADAPTIVE_DIMMING
 void panel_backlight_apply_app_rate(uint8_t rate)
 {
     if (rate < PANEL_BACKLIGHT_APP_RATE_MIN) {
@@ -223,6 +213,11 @@ void panel_backlight_apply_app_rate(uint8_t rate)
 #if IS_SUPPORT_NIGHT_LIGHT
 static void night_light_turn_off(led_manager_context_t *thiz);
 static void night_light_turn_on(led_manager_context_t *thiz);
+static void set_night_light_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff);
+static int get_night_light_switch(led_manager_context_t *thiz);
+static void set_night_light_switch(led_manager_context_t *thiz, uint8_t onoff);
+static int get_night_light_onoff(led_manager_context_t *thiz);
+static int toggle_night_light(led_manager_context_t *thiz);
 
 static void set_night_light_level_internal(led_manager_context_t *thiz, uint8_t level)
 {
@@ -269,7 +264,8 @@ static void set_night_light_level(led_manager_context_t *thiz, uint8_t level)
 
     thiz->priv.night_light_onoff = 1;
     if (thiz->priv.night_light_level == level) {
-        LOG_MISC("nl set2 skip: req=%u, priv=%u (no bsp)", (unsigned)level, (unsigned)thiz->priv.night_light_level);
+        set_night_light_level_internal(thiz, level);
+        LOG_MISC("nl set2 skip: req=%u, priv=%u (bsp refresh)", (unsigned)level, (unsigned)thiz->priv.night_light_level);
         return;
     }
     set_night_light_level_internal(thiz, level);
@@ -288,7 +284,7 @@ static void night_light_turn_off(led_manager_context_t *thiz)
     thiz->priv.night_light_onoff = 0;
     thiz->priv.night_light_level = 0;
 #if IS_SUPPORT_ADAPTIVE_DIMMING
-    adaptive_dimming_night_light_invalidate_pushed();
+    adaptive_dimming_on_night_light_close();
 #endif
     set_night_light_level_internal(thiz, 0);
 }
@@ -298,7 +294,7 @@ void night_light_on_app_manual_off(led_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
 #if IS_SUPPORT_ADAPTIVE_DIMMING
-    adaptive_dimming_night_light_mark_manual_gear();
+    set_night_light_adaptive_dimming_switch(thiz, 0);
 #endif
     night_light_turn_off(thiz);
 }
@@ -313,8 +309,7 @@ static void night_light_turn_on(led_manager_context_t *thiz)
 
 #if IS_SUPPORT_ADAPTIVE_DIMMING
     if (thiz->priv.night_light_adaptive_dimming_switch) {
-        adaptive_dimming_night_light_invalidate_pushed();
-        adaptive_dimming_night_light_apply_now(thiz);
+        adaptive_dimming_on_night_light_open(thiz);
         return;
     }
 #endif
@@ -346,7 +341,7 @@ static void set_night_light_gear(led_manager_context_t *thiz, uint8_t gear)
         st->put_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_GEAR, thiz->priv.night_light_gear, 0, NULL);
     }
 #if IS_SUPPORT_ADAPTIVE_DIMMING
-    adaptive_dimming_night_light_mark_manual_gear();
+    set_night_light_adaptive_dimming_switch(thiz, 0);
 #endif
     set_night_light_level(thiz, night_light_policy_gear_to_level(gear));
     led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_LEVEL);
@@ -371,26 +366,6 @@ static int toggle_night_light(led_manager_context_t *thiz)
     }
     led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_ONOFF);
     return thiz->priv.night_light_onoff ? 1 : 0;
-}
-
-static int night_light_is_open_blocked_low_battery(void)
-{
-    battery_manager_context_t *batt = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    if (!batt) {
-        return 0;
-    }
-    if (batt->get_battery_state) {
-        uint8_t state = batt->get_battery_state();
-        if (state == BATTERY_STATE_EMPTY ||
-            state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-            state == BATTERY_STATE_FORBID_START) {
-            return 1;
-        }
-    }
-    if (batt->get_battery_percent && batt->get_battery_percent() < 10) {
-        return 1;
-    }
-    return 0;
 }
 
 static void set_night_light_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
@@ -426,6 +401,11 @@ static void set_night_light_switch(led_manager_context_t *thiz, uint8_t onoff)
     }
     thiz->priv.night_light_switch = v;
     LOG_MISC("set_night_light_switch (ram): %d", thiz->priv.night_light_switch);
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+    if (v) {
+        adaptive_dimming_on_night_light_switch_restored(thiz);
+    }
+#endif
     led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_ONOFF);
 }
 
@@ -492,6 +472,24 @@ static int get_night_light_level(led_manager_context_t *thiz)
 static int get_night_light_onoff(led_manager_context_t *thiz)
 {
     return thiz->priv.night_light_onoff;
+}
+
+/// 吸乳页电源键：先改 switch，再按需 toggle 亮灭
+static int sync_night_light_power_key(led_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_INT(thiz);
+    if (get_night_light_switch(thiz)) {
+        set_night_light_switch(thiz, 0);
+        if (get_night_light_onoff(thiz)) {
+            return toggle_night_light(thiz);
+        }
+        return 0;
+    }
+    set_night_light_switch(thiz, 1);
+    if (!get_night_light_onoff(thiz)) {
+        return toggle_night_light(thiz);
+    }
+    return get_night_light_onoff(thiz) ? 1 : 0;
 }
 
 static int night_light_on_post_init(led_manager_context_t *thiz)
@@ -595,7 +593,7 @@ static int on_post_init_route(led_manager_context_t *thiz)
         if (tmp < (int)PANEL_BACKLIGHT_APP_RATE_MIN || tmp > (int)PANEL_BACKLIGHT_APP_RATE_MAX) {
             tmp = PANEL_BACKLIGHT_APP_RATE_DEFAULT;
         }
-        // panel_backlight_apply_app_rate((uint8_t)tmp);
+        panel_backlight_apply_app_rate((uint8_t)tmp);
 
         /// 获取全局自适应开关
         st->get_store_ram_val(STORE_ID_SYS_ADAPTIVE_SWITCH, 0, 0, &tmp);
@@ -639,6 +637,7 @@ void register_led_hook(led_manager_context_t *ctx)
     ctx->hook->get_night_light_switch = get_night_light_switch;
     ctx->hook->set_night_light_adaptive_dimming_switch = set_night_light_adaptive_dimming_switch;
     ctx->hook->get_night_light_adaptive_dimming_switch = get_night_light_adaptive_dimming_switch;
+    ctx->hook->sync_night_light_power_key = sync_night_light_power_key;
 #endif
     ctx->hook->set_key_backlight = set_key_backlight;
     ctx->hook->set_key_backlight_level = set_key_backlight_level;

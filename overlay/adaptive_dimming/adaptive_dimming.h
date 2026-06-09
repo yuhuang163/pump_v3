@@ -121,21 +121,23 @@ uint16_t adaptive_dimming_get_filtered_lux(void);
 
 #if IS_SUPPORT_NIGHT_LIGHT
 
-/// 夜灯 L1/L2/L3 → pwm_table[] 索引（产品 5%/10%/18%，与 BSP 屏/夜灯同一 LUT）
-#define ADAP_DIM_NL_PWM_IDX_L1                     35//26u  /// 对应PWM表5%位置
-#define ADAP_DIM_NL_PWM_IDX_L2                     75//35u  /// 对应PWM表10%位置
-#define ADAP_DIM_NL_PWM_IDX_L3                     90//45u  /// 对应PWM表18%位置
-/// pwm_table[] 关断索引；须为 0。ALS 推 0 时仅关 PWM（见 set_night_light_level），勿与 gear L0 混淆
+/// 夜灯 ALS 曲线 pwm_table[] 索引
 #define ADAP_DIM_NL_PWM_IDX_OFF                    0
+#define ADAP_DIM_NL_PWM_IDX_L1                     35u
+#define ADAP_DIM_NL_PWM_IDX_L2                     75u
+#define ADAP_DIM_NL_PWM_IDX_L3                     90u
 
 /// adc(mV) → pwm_table[] 索引（s_nl_adc_duty_knots 插值；adc >= ADAP_DIM_LUX_THR_MEDIUM 返回 OFF）
 uint8_t adaptive_dimming_night_light_duty_from_lux(uint16_t lux_avg);
 
-/// 关灯后失效已推送档位，避免再次开灯时 ALS 误判无需写 BSP
-void adaptive_dimming_night_light_invalidate_pushed(void);
+/// 夜灯 ALS 路径开启（由 led_hook 在 turn_on 时调用，内部处理缓存失效与立即推送）
+void adaptive_dimming_on_night_light_open(led_manager_context_t *led);
 
-/// switch/onoff 已开时立即按当前 target 写夜灯（跳过 slew 轮询等待）
-void adaptive_dimming_night_light_apply_now(led_manager_context_t *led);
+/// 夜灯关闭（由 led_hook 在 turn_off 时调用）
+void adaptive_dimming_on_night_light_close(void);
+
+/// 夜灯已亮时 switch 从关恢复（由 led_hook 在 set_night_light_switch(1) 时调用）
+void adaptive_dimming_on_night_light_switch_restored(led_manager_context_t *led);
 
 #endif
 

@@ -3,9 +3,6 @@
 *****************************************************************************************
 */
 #include "window_screen_pump.h"
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-#include "adaptive_dimming.h" // IWYU pragma: keep
-#endif
 
 /*
 * DEFINES
@@ -68,26 +65,8 @@ void pump_power_key_handler(ui_proc_pump_t *proc)
         }
         
 #if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
-        if (proc->led && proc->led->hook && proc->led->hook->get_night_light_switch &&
-            proc->led->hook->set_night_light_switch && proc->led->hook->get_night_light_onoff &&
-            proc->led->hook->toggle_night_light) {
-            uint8_t switch_on = proc->led->hook->get_night_light_switch(proc->led);
-
-            if (switch_on) {
-                proc->led->hook->set_night_light_switch(proc->led, 0);
-                if (proc->led->hook->get_night_light_onoff(proc->led)) {
-                    proc->led->hook->toggle_night_light(proc->led);
-                }
-            } else {
-                proc->led->hook->set_night_light_switch(proc->led, 1);
-                if (!proc->led->hook->get_night_light_onoff(proc->led)) {
-                    proc->led->hook->toggle_night_light(proc->led);
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-                } else {
-                    adaptive_dimming_night_light_invalidate_pushed();
-#endif
-                }
-            }
+        if (proc->led && proc->led->hook && proc->led->hook->sync_night_light_power_key) {
+            proc->led->hook->sync_night_light_power_key(proc->led);
         }
         return;
 #endif

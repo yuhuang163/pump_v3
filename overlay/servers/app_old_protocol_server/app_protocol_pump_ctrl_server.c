@@ -1,9 +1,6 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
 #include "app_protocol_pump_ctrl_server.h"
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-#include "adaptive_dimming.h"
-#endif
 #include "app_protocol_broadcast_to_window.h"
 #include "app_protocol_key_simulation.h"
 

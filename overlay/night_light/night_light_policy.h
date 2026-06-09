@@ -8,14 +8,13 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include "adaptive_dimming.h" // IWYU pragma: keep
 
-/// 手动/App 档位 → pwm_table[] 索引（与 ALS ADAP_DIM_NL_PWM_IDX_* 一致）
-#define NIGHT_LIGHT_LEVEL_OFF                ADAP_DIM_NL_PWM_IDX_OFF
+/// 手动/App 档位 → pwm_table[] 索引
+#define NIGHT_LIGHT_LEVEL_OFF                0
 #define NIGHT_LIGHT_LEVEL_MAX                100u
-#define NIGHT_LIGHT_LEVEL_GEAR_L1            ADAP_DIM_NL_PWM_IDX_L1
-#define NIGHT_LIGHT_LEVEL_GEAR_L2            ADAP_DIM_NL_PWM_IDX_L2
-#define NIGHT_LIGHT_LEVEL_GEAR_L3            ADAP_DIM_NL_PWM_IDX_L3
+#define NIGHT_LIGHT_LEVEL_GEAR_L1            35u
+#define NIGHT_LIGHT_LEVEL_GEAR_L2            75u
+#define NIGHT_LIGHT_LEVEL_GEAR_L3            90u
 
 /// App / 协议档位（L0 关，L1~L3 亮）；ALS 曲线不在此文件
 typedef enum {

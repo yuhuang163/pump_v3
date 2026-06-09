@@ -323,12 +323,12 @@ static void adaptive_dimming_apply_outputs(led_manager_context_t *led)
 }
 
 #if IS_SUPPORT_NIGHT_LIGHT
-void adaptive_dimming_night_light_invalidate_pushed(void)
+static void adaptive_dimming_night_light_invalidate_pushed(void)
 {
     s_nl_duty_pushed = ADAP_DIM_INVALID_DUTY;
 }
 
-void adaptive_dimming_night_light_apply_now(led_manager_context_t *led)
+static void adaptive_dimming_night_light_push_now(led_manager_context_t *led)
 {
     if (!led || !led->hook) {
         return;
@@ -351,6 +351,23 @@ void adaptive_dimming_night_light_apply_now(led_manager_context_t *led)
     s_nl_duty_pushed = ADAP_DIM_INVALID_DUTY;
     led->hook->set_night_light_level(led, duty);
     s_nl_duty_pushed = duty;
+}
+
+void adaptive_dimming_on_night_light_open(led_manager_context_t *led)
+{
+    adaptive_dimming_night_light_invalidate_pushed();
+    adaptive_dimming_night_light_push_now(led);
+}
+
+void adaptive_dimming_on_night_light_close(void)
+{
+    adaptive_dimming_night_light_invalidate_pushed();
+}
+
+void adaptive_dimming_on_night_light_switch_restored(led_manager_context_t *led)
+{
+    adaptive_dimming_night_light_invalidate_pushed();
+    adaptive_dimming_night_light_push_now(led);
 }
 #endif
 

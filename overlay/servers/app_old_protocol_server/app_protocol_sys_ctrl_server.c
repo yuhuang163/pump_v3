@@ -90,25 +90,29 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
         return 0;
     }
 
-    // 如果状态与当前状态不一致，则设置
-    if (status->adaptive_switch != led->priv.global_adaptive_dimming_switch) {  
+    // 如果状态与当前状态不一致，则设置（比对统一走 get_* hook）
+    if (led->hook->get_global_adaptive_dimming_switch &&
+        status->adaptive_switch != (uint8_t)led->hook->get_global_adaptive_dimming_switch(led)) {
         if (led->hook->set_global_adaptive_dimming_switch) {
             led->hook->set_global_adaptive_dimming_switch(led, status->adaptive_switch);
         }
     }
 
-    if (status->night_light_switch != led->priv.night_light_switch) {
+    if (led->hook->get_night_light_switch &&
+        status->night_light_switch != (uint8_t)led->hook->get_night_light_switch(led)) {
         if (led->hook->set_night_light_switch) {
             led->hook->set_night_light_switch(led, status->night_light_switch);
         }
-    } else if (status->night_light_gear != led->priv.night_light_gear) {
+    } else if (led->hook->get_night_light_gear &&
+               status->night_light_gear != (uint8_t)led->hook->get_night_light_gear(led)) {
         if (led->hook->set_night_light_gear) {
             led->hook->set_night_light_gear(led, status->night_light_gear);
         }
     }
 
-    if (status->screen_key_level != ui->priv.ui_backlight_level) {
-        if (ui->hook->set_ui_backlight_level) {
+    if (led->hook->get_key_backlight_level &&
+        status->screen_key_level != (uint8_t)led->hook->get_key_backlight_level(led)) {
+        if (ui && ui->hook && ui->hook->set_ui_backlight_level) {
             ui->hook->set_ui_backlight_level(ui, status->screen_key_level);
         }
         if (led->hook->set_key_backlight_level) {
