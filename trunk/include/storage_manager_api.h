@@ -65,10 +65,13 @@ typedef enum {
     STORE_ID_SYS_GUIDE_DEPLOYED,            /// 向导部署标志
     STORE_ID_SYS_BATTERY_HEALTH,            /// 电池健康
     STORE_ID_SYS_BREAST_PUMP_HEADER_LIFE,   /// 吸嘴寿命
-    STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, /// 夜灯自适应开关
+    STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, /// 夜灯自适应开关 @deprecated
     STORE_ID_SYS_AIRPLANE_MODE_STATE,       /// 飞行模式状态
     STORE_ID_SYS_SYNC_SYS_TIME,             /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算吸奶记录的差值.
     STORE_ID_SYS_LOG_FILTER,                /// 系统日志过滤
+    STORE_ID_SYS_ADAPTIVE_SWITCH,           /// global_adaptive_switch（Flash sys_state）
+    STORE_ID_SYS_NIGHT_LIGHT_GEAR,          /// 夜灯档位 L0~L3
+    STORE_ID_SYS_BACK_LIGHT_LEVEL,          /// LCD+按键背光亮度
     STORE_ID_USER_BIND_INFO = 600,          /// 用户绑定信息
     STORE_ID_SYS_BIND_STATUS,               /// 绑定状态
     STORE_ID_MAX

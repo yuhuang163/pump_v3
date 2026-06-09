@@ -30,8 +30,8 @@ typedef struct {
 
 /// 灯光状态（0xC2 / 0xBE / 0xDE，CAL=4）
 typedef struct __attribute__((packed)) {
-    uint8_t night_light_switch;  /// 夜灯开关：0-关，1-开
-    uint8_t night_light_level;   /// 夜灯亮度 0-100，关时填 0
+    uint8_t night_light_switch;  /// 夜灯功能开关
+    uint8_t night_light_gear;   /// 夜灯档位
     uint8_t adaptive_switch;     /// 自适应开关：0-关，1-开
     uint8_t screen_key_level;    /// 屏幕/按键亮度 0-100
 } app_old_comm_light_status_t;

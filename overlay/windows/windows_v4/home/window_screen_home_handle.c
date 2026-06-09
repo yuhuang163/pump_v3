@@ -80,7 +80,7 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
         return;
     }
 
-#if IS_SUPPORT_NIGHT_LIGHT_ADJUST
+#if IS_SUPPORT_NIGHT_LIGHT
     if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         switch_home_night_light_adjust(proc, false);
         return;
@@ -104,7 +104,7 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
         return;
     }
 
-#if IS_SUPPORT_NIGHT_LIGHT_ADJUST
+#if IS_SUPPORT_NIGHT_LIGHT
     if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         switch_home_night_light_adjust(proc, true);
         return;
@@ -124,15 +124,14 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
             return;
         }
         
+#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
         if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-            int ret = proc->led->hook->toggle_night_light(proc->led);
-            #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
+            proc->led->hook->toggle_night_light(proc->led);
             show_home_night_light_adjust_ui(proc);
-            #endif
         }
         return;
-
-    } 
+#endif
+    }
 #endif
 
     if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {

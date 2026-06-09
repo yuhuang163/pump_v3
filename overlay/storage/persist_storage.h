@@ -322,11 +322,14 @@ typedef struct {
     uint8_t guide_deployed;       /// 向导部署标志
     uint8_t battery_health;       /// 电池健康
     uint8_t airplane_mode_state;  /// 飞行模式状态
-    uint8_t night_light_adaptive_switch; /// 夜灯自适应开关
+    uint8_t night_light_adaptive_switch; /// 夜灯自适应开关 @deprecated
     uint32_t log_filter;          /// 日志过滤
     uint32_t sync_sys_time;       /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算泵奶记录的差值.
     uint8_t battery_percent;      /// 电池电量
-    uint8_t rsv[31];              /// 保留
+    uint8_t global_adaptive_switch;             /// App 自动调光总开关（Flash 唯一 ALS 持久化）
+    uint8_t night_light_gear;                   /// 夜灯档位
+    uint8_t back_light_level;                   /// LCD+按键背光系数 0~100，App 钳 5~80
+    uint8_t rsv[28];              /// 保留
 } sys_state_info_t;
 
 /// 描述埋点数据
