@@ -172,7 +172,7 @@ do { \
     if (get_log_output_level() < US_LOG_LEVEL_INFO) { \
         break; \
     } \
-    PRINT_LOG("%s:\r\n", tag); \
+    PRINT_LOG("%s size=%d\r\n", tag, size); \
     for (int i = 0; i < size; i++) { \
         PRINT_LOG("%02X ", (unsigned)data[i]); \
         if ((i + 1) % 32 == 0) { \

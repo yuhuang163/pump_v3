@@ -38,7 +38,6 @@ int ble_remot_srv_recv_data(void *context, ble_service_data_t *srv_data)
         LOGE("recv data is NULL or size is 0");
         return -1;
     }
-    LOG_BLE("ble_remot_recv_data[%d]", srv_data->size);
     LOG_HEX("recv_data hex", srv_data->p_data, srv_data->size);
     ctx->dispatch_ble_client(ctx, DEVICE_BLE_REMOTE_MSG_CHANNEL, srv_data->p_data, srv_data->size);
     return 0;
