@@ -11,8 +11,8 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PACKET_ASSEMBLY_BUFFER_SIZE  2048   ///< 环形缓冲区大小
-#define PACKET_ASSEMBLY_TIMEOUT_MS   1000   ///< 组包超时时间(毫秒)
+#define PACKET_ASSEMBLY_BUFFER_SIZE         (COMM_PROTOCOL_MAX_PAYLOAD_SIZE * 2)   ///< 环形缓冲区大小
+#define PACKET_ASSEMBLY_TIMEOUT_MS          1000   ///< 组包超时时间(毫秒)
 
 /*
 * LOCAL VARIABLE DEFINITIONS

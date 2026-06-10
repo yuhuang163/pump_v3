@@ -20,7 +20,7 @@ extern "C" {
                         COMM_PROTOCOL_TLV_HEADER_SIZE)       ///< 单个Service最小长度
 #define COMM_PROTOCOL_PAYLOAD_SIZE_MIN    (COMM_PROTOCOL_HEADER_SIZE + \
                         COMM_PROTOCOL_FOOTER_SIZE)           ///< Payload最小长度
-#define COMM_PROTOCOL_MAX_PAYLOAD_SIZE    1024               ///< 最大Payload长度
+#define COMM_PROTOCOL_MAX_PAYLOAD_SIZE    (1024 + 64)       ///< 最大Payload长度
 #define COMM_PROTOCOL_FRAME_SIZE_MAX      (COMM_PROTOCOL_MAX_PAYLOAD_SIZE + \
                         COMM_PROTOCOL_HEADER_SIZE +\
                         COMM_PROTOCOL_FOOTER_SIZE)           ///< 帧最大长度

@@ -15,6 +15,12 @@
 *****************************************************************************************
 */
 const static protocol_service_tlvs_handle_t protocol_service_tlvs_list[] = {
+    {OTA_TLV_IMG_ID, ota_tlvs_img_id},
+    {OTA_TLV_VERSION, ota_tlvs_version},
+    {OTA_TLV_CRC32, ota_tlvs_crc32},
+    {OTA_TLV_TOTAL_SIZE, ota_tlvs_total_size},
+    {OTA_TLV_TYPE, ota_tlvs_type},
+    {OTA_TLV_IMG_OFFSET_ADDR, ota_tlvs_write_img_offset_addr},
     {OTA_TLV_WRITE_IMG_DATA, ota_tlvs_write_img_data},
     {OTA_TLV_START_UPGRADE_REQUEST, ota_tlvs_start_upgrade_request},
     {OTA_TLV_END_UPGRADE_REQUEST, ota_tlvs_end_upgrade_request},
