@@ -306,6 +306,15 @@ DATA_BURY_PROTOCOL_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/data_bur
 # 数据埋点协议 Server Client 源码文件
 DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS := $(call rwildcard,$(DATA_BURY_PROTOCOL_SERVER_CLIENT_DIR))
 
+# 数据埋点业务 Server 头文件子目录
+DATA_BURY_SERVER_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/servers/data_bury_server -type d)
+# 数据埋点业务 Server 头文件
+DATA_BURY_SERVER_INC_FLAGS := $(patsubst %,-I%,$(DATA_BURY_SERVER_INC_DIRS))
+# 数据埋点业务 Server 源码目录
+DATA_BURY_SERVER_DIR := $(PROJECT_ROOT)/overlay/servers/data_bury_server
+# 数据埋点业务 Server 源码文件
+DATA_BURY_SERVER_SRCS := $(call rwildcard,$(DATA_BURY_SERVER_DIR))
+
 # OTA Server Client 头文件子目录
 OTA_SERVER_CLIENT_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/servers/ota_server_client -type d)
 # OTA Server Client 头文件
@@ -314,6 +323,7 @@ OTA_SERVER_CLIENT_INC_FLAGS := $(patsubst %,-I%,$(OTA_SERVER_CLIENT_INC_DIRS))
 OTA_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/ota_server_client
 # OTA Server Client 源码文件
 OTA_SERVER_CLIENT_SRCS := $(call rwildcard,$(OTA_SERVER_CLIENT_DIR))
+
 
 # -------------- SDK 头文件路径（按功能模块拆分）--------------
 
@@ -646,6 +656,7 @@ SERVERS_INC_FLAGS := \
 	$(APP_OLD_PROTOCOL_SERVERS_INC_FLAGS) \
 	$(MASTER_SERVER_CLIENT_INC_FLAGS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_FLAGS) \
+	$(DATA_BURY_SERVER_INC_FLAGS) \
 	$(OTA_SERVER_CLIENT_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/servers
 
@@ -656,6 +667,8 @@ STORAGE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/storage/breast_pump \
 	-I$(PROJECT_ROOT)/overlay/storage/resource \
 	-I$(PROJECT_ROOT)/overlay/storage/system \
+	-I$(PROJECT_ROOT)/overlay/storage/data_bury \
+	-I$(PROJECT_ROOT)/overlay/protocol/app_data_bury_protocol \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/storage \
 	-I$(PROJECT_ROOT)/trunk/root_source/storage
 
@@ -680,6 +693,12 @@ PRODUCT_TESTS_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/product_tests \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/product_tests \
 	-I$(PROJECT_ROOT)/trunk/root_source/tests
+
+# 数据埋点 Manager 模块头文件
+DATA_BURY_MODULE_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/trunk/root_source/data_bury \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/data_bury \
+	$(DATA_BURY_SERVER_INC_FLAGS)
 
 # 资源模块头文件
 RESOURCE_INC_FLAGS := \
@@ -763,6 +782,7 @@ SDK_INCLUDE_PATHS := \
 	$(NETWORK_INC_FLAGS) \
 	$(OTA_INC_FLAGS) \
 	$(PRODUCT_TESTS_INC_FLAGS) \
+	$(DATA_BURY_MODULE_INC_FLAGS) \
 	$(RESOURCE_INC_FLAGS) \
 	$(LED_MODULE_INC_FLAGS) 
 
@@ -1261,6 +1281,7 @@ SERVERS_MODULE_SRCS := \
 	$(MASTER_SERVER_CLIENT_SRCS) \
 	$(APP_OLD_PROTOCOL_SERVERS_SRCS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS) \
+	$(DATA_BURY_SERVER_SRCS) \
 	$(OTA_SERVER_CLIENT_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/servers/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/servers/*.c)
@@ -1272,6 +1293,7 @@ STORAGE_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/resource/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/system/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/data_bury/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/storage/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/storage/*.c)
 
@@ -1297,6 +1319,11 @@ PRODUCT_TESTS_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/product_tests/stress_tests/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/product_tests/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/tests/*.c)
+
+# 数据埋点 Manager 模块源码
+DATA_BURY_MODULE_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/data_bury/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/data_bury/*.c)
 
 # 框架钩子基础源码
 FRAMEWORK_HOOKS_BASE_SRCS := \
@@ -1339,6 +1366,7 @@ EXTRA_SRCS := \
 	$(NETWORK_MODULE_SRCS) \
 	$(OTA_MODULE_SRCS) \
 	$(PRODUCT_TESTS_MODULE_SRCS) \
+	$(DATA_BURY_MODULE_SRCS) \
 	$(FRAMEWORK_HOOKS_BASE_SRCS) \
 	$(LED_MODULE_SRCS)
 

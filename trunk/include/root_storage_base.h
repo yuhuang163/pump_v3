@@ -119,8 +119,24 @@ extern "C" {
 #define STORAGE_BREAST_PUMP_BURY_INFO_MAGIC_NUM                                (0xAFFA5891)
 #endif
 
+#ifndef STORAGE_DATA_BURY_RING_META_MAGIC_NUM
+#define STORAGE_DATA_BURY_RING_META_MAGIC_NUM                                (0xAFFA5892)
+#endif
+
+#ifndef STORAGE_DATA_BURY_RING_CHUNK_MAGIC_NUM
+#define STORAGE_DATA_BURY_RING_CHUNK_MAGIC_NUM                               (0xAFFA5893)
+#endif
+
+#ifndef STORAGE_DATA_BURY_USE_SESSION_BOOT_SEQ_MAGIC_NUM
+#define STORAGE_DATA_BURY_USE_SESSION_BOOT_SEQ_MAGIC_NUM                     (0xAFFA5894)
+#endif
+
+#ifndef STORAGE_DATA_BURY_FLASH_BANK_MAGIC_NUM
+#define STORAGE_DATA_BURY_FLASH_BANK_MAGIC_NUM                               (0xAFFA5895)
+
 #ifndef STORAGE_IMG_RES_OTA_MAGIC_NUM
-#define STORAGE_IMG_RES_OTA_MAGIC_NUM                                          (0xAFFA5892)
+#define STORAGE_IMG_RES_OTA_MAGIC_NUM                                          (0xAFFA5896)
+
 #endif
 
 /*

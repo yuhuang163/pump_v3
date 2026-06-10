@@ -9,14 +9,19 @@ extern "C" {
 #include "app_data_bury_protocol_defs.h"
 
 /*
- * @brief 发送应用层数据：自动组装链路层 + ACK 置位
- * @param svc_id Service ID (0x01/0x07 等)
- * @param cmd_id Command ID
- * @param payload 业务 TLV bytes（不包含 svc_id/cmd_id）
- * @param payload_len 业务 TLV 长度
+ * @brief 单帧发送（默认）：SVC+CMD+TLV 整包装入一条 FSN_COMPLETE 链路帧
+ * @return 0 成功；-1 参数/长度非法；-2 BLE 不可用；-3 未连接；-4 组帧失败
  */
 int app_data_bury_protocol_frame_builder_send(uint8_t svc_id, uint8_t cmd_id,
                                               const uint8_t *payload, uint16_t payload_len);
+
+/*
+ * @brief MFS 分帧发送：应用层按 MFS(默认64B) 切 START/MID/END 多链路帧
+ * @param mfs 分片阈值，0 表示使用 APP_DATA_BURY_PROTOCOL_MFS_DEFAULT
+ */
+int app_data_bury_protocol_frame_builder_send_split(uint8_t svc_id, uint8_t cmd_id,
+                                                    const uint8_t *payload, uint16_t payload_len,
+                                                    uint16_t mfs);
 
 /*============================================================================
  * TLV 编码辅助（Type(1) + Length(1) + Value）- 大端/端序由业务自行定义

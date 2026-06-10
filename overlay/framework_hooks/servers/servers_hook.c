@@ -321,6 +321,7 @@ static void on_servers_led_state_cb(void *user_data, led_state_info_t *info)
     EXCEPTION_CHECK_VOID(servers_sys_info && info);
     light = &servers_sys_info->light;
     if (memcmp(light, info, sizeof(led_state_info_t)) == 0) {
+        //LOG_SRV("led state is the same");
         return;
     }
     LOG_SRV("led state change: evt=%d onoff=%d level=%d adaptive=%d/%d",
@@ -382,6 +383,8 @@ static int on_post_servers_init_route(struct servers_manager_context *ctx)
 
 static int app_server_data_publish(servers_publish_data_id_e id, servers_publish_data_args_t *args)
 {
+    (void)id;
+    (void)args;
     return 0;
 }
 
@@ -397,5 +400,6 @@ void register_servers_manager_hook(servers_manager_context_t *ctx)
     ctx->hook->factory_server_data_publish = factory_server_data_publish;
     ctx->hook->ota_server_data_publish = ota_server_data_publish;
     ctx->hook->app_server_data_publish = app_server_data_publish;
+    ctx->hook->data_bury_server_data_publish = data_bury_server_data_publish;
     ctx->hook->servers_work_thread_route = servers_work_thread_route;
 }
