@@ -5,17 +5,19 @@
 #include "root_common_api.h"
 #include "resource_manager_api.h"
 #include "data_bury_server_protocol.h"
+#include "data_bury_tlvs_parser_protocol.h"
 #include "data_bury_tlvs_protocol.h"
 #include "app_data_bury_protocol_builder.h"
 #include "data_bury_persist_defs.h"
 
 static int data_bury_server_send_tlv(uint8_t svc_id, uint8_t cmd_id,
-                                       const uint8_t *tlv, uint16_t tlv_len)
+                                     const uint8_t *tlv, uint16_t tlv_len)
 {
+    uint16_t mfs = data_bury_tlvs_parser_get_negotiated_mfs();
     uint16_t app_len = (uint16_t)(2u + tlv_len);
 
-    if (app_len > APP_DATA_BURY_PROTOCOL_MFS_DEFAULT) {
-        //return app_data_bury_protocol_frame_builder_send_split(svc_id, cmd_id, tlv, tlv_len, 0);
+    if (app_len > mfs) {
+        return app_data_bury_protocol_frame_builder_send_split(svc_id, cmd_id, tlv, tlv_len, mfs);
     }
     return app_data_bury_protocol_frame_builder_send(svc_id, cmd_id, tlv, tlv_len);
 }
@@ -72,6 +74,7 @@ int data_bury_server_send_packed(uint8_t svc_id, uint8_t cmd_id,
 
 void data_bury_server_protocol_init(void)
 {
+    data_bury_tlvs_parser_protocol_init();
     LOG_BURY("data bury server protocol init");
 }
 
@@ -80,10 +83,22 @@ void data_bury_server_protocol_on_frame(const app_data_bury_protocol_frame_node_
     if (!frame) {
         return;
     }
-    if (frame->svc_id != APP_DATA_BURY_PROTOCOL_SVC_DATA) {
-        LOG_BLE("data bury skip non-data svc=0x%02x cmd=0x%02x", frame->svc_id, frame->cmd_id);
+
+    if (frame->svc_id == APP_DATA_BURY_PROTOCOL_SVC_DEVICE_MGMT) {
+        LOG_BURY("data bury rx dev mgmt cmd=0x%02x payload_len=%u",
+                 frame->cmd_id, (unsigned)frame->payload_len);
+        if (frame->payload && frame->payload_len > 0u) {
+            LOG_HEX("data bury rx dev tlv", frame->payload, frame->payload_len);
+        }
+        data_bury_tlvs_parser_handle_frame(frame);
         return;
     }
+
+    if (frame->svc_id != APP_DATA_BURY_PROTOCOL_SVC_DATA) {
+        LOG_BLE("data bury skip svc=0x%02x cmd=0x%02x", frame->svc_id, frame->cmd_id);
+        return;
+    }
+
     LOG_BURY("data bury rx svc=0x%02x cmd=0x%02x payload_len=%u",
             frame->svc_id, frame->cmd_id, (unsigned)frame->payload_len);
     if (frame->payload && frame->payload_len > 0u) {
@@ -96,8 +111,9 @@ int data_bury_server_push_event(uint8_t cmd_id, const void *packed, uint16_t pac
     if (!packed || packed_len == 0u) {
         return -1;
     }
-    if (data_bury_event_payload_max_len(cmd_id) == 0u || packed_len > data_bury_event_payload_max_len(cmd_id)) {
-        LOGE("data bury event payload max len error cmd=0x%02x packed_len=%u", cmd_id, (unsigned)packed_len);
+    if (packed_len > DATA_BURY_EVENT_PAYLOAD_MAX) {
+        LOGE("data bury event payload max len error cmd=0x%02x packed_len=%u max=%u",
+             cmd_id, (unsigned)packed_len, (unsigned)DATA_BURY_EVENT_PAYLOAD_MAX);
         return -2;
     }
 

@@ -81,6 +81,8 @@ typedef struct data_bury_manager_context {
     void (*data_bury_sys_msg_remove)(uint16_t event);
     uint32_t (*data_bury_get_use_session_id)(void);
     uint32_t (*data_bury_get_evt_timestamp)(void);
+    uint8_t (*data_bury_get_device_side)(void);
+    uint8_t (*data_bury_get_pump_side)(void);
     uint16_t (*data_bury_get_current_pump_session_id)(void);
     uint16_t (*data_bury_alloc_pump_session_id)(void);
     void (*data_bury_pump_session_begin)(void);

@@ -221,20 +221,29 @@ static void data_bury_pressure_test_init_payloads(
     data_bury_evt_milk_volume_fixed_t *milk_volume;
     uint32_t *mode_durations;
     uint16_t *volume_samples;
+    data_bury_manager_context_t *bury_ctx;
+    uint8_t device_side;
+    bury_ctx = (data_bury_manager_context_t *)find_module(ID_MODULE_DATA_BURIAL);
+    EXCEPTION_CHECK_VOID(bury_ctx);
+    EXCEPTION_CHECK_VOID(bury_ctx->data_bury_get_device_side);
+    device_side = bury_ctx->data_bury_get_device_side();
 
     memset(startup, 0, sizeof(*startup));
+    startup->device_side = device_side;
     startup->use_session_id = sid;
     startup->evt_timestamp = ts;
     startup->firmware_version = 0x0102u;
     startup->battery_level_startup = 85u;
 
     memset(shutdown, 0, sizeof(*shutdown));
+    shutdown->device_side = device_side;
     shutdown->use_session_id = sid;
     shutdown->evt_timestamp = ts;
     shutdown->battery_level_shutdown = 80u;
     shutdown->shutdown_reason = DATA_BURY_SHUTDOWN_USER_MANUAL;
 
     memset(bt_connect, 0, sizeof(*bt_connect));
+    bt_connect->device_side = device_side;
     bt_connect->use_session_id = sid;
     bt_connect->evt_timestamp = ts;
     bt_connect->connect_result = 1u;
@@ -244,6 +253,7 @@ static void data_bury_pressure_test_init_payloads(
     bt_connect->disconnect_reason = 0u;
 
     memset(session_start, 0, sizeof(*session_start));
+    session_start->device_side = device_side;
     session_start->use_session_id = sid;
     session_start->evt_timestamp = ts;
     session_start->pump_session_id = 1001u;
@@ -255,6 +265,7 @@ static void data_bury_pressure_test_init_payloads(
 
     memset(session_end_buf, 0, DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN + 8u);
     session_end = (data_bury_evt_pump_session_end_fixed_t *)session_end_buf;
+    session_end->device_side = device_side;
     session_end->use_session_id = sid;
     session_end->evt_timestamp = ts;
     session_end->pump_session_id = 1001u;
@@ -266,11 +277,15 @@ static void data_bury_pressure_test_init_payloads(
     session_end->end_reason = DATA_BURY_END_REASON_MANUAL;
     session_end->milk_drop_count = 2u;
     session_end->used_mode_count = 2u;
-    mode_durations = (uint32_t *)(session_end_buf + DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN);
+    session_end->pump_side = bury_ctx->data_bury_get_pump_side();
+    session_end->initial_program_id = 0u;
+    session_end->initial_program_type = 0u;
+    mode_durations = (uint32_t *)(session_end_buf + DATA_BURY_EVT_PUMP_SESSION_END_MODE_OFF);
     mode_durations[0] = 60u;
     mode_durations[1] = 120u;
 
     memset(manual_adjust, 0, sizeof(*manual_adjust));
+    manual_adjust->device_side = device_side;
     manual_adjust->use_session_id = sid;
     manual_adjust->evt_timestamp = ts;
     manual_adjust->pump_session_id = 1001u;
@@ -280,6 +295,7 @@ static void data_bury_pressure_test_init_payloads(
     manual_adjust->adjust_to = 4u;
 
     memset(user_evt, 0, sizeof(*user_evt));
+    user_evt->device_side = device_side;
     user_evt->use_session_id = sid;
     user_evt->evt_timestamp = ts;
     user_evt->pump_session_id = 1001u;
@@ -287,6 +303,7 @@ static void data_bury_pressure_test_init_payloads(
     user_evt->evt_type = DATA_BURY_USER_EVT_START;
 
     memset(milk_ejection, 0, sizeof(*milk_ejection));
+    milk_ejection->device_side = device_side;
     milk_ejection->use_session_id = sid;
     milk_ejection->evt_timestamp = ts;
     milk_ejection->pump_session_id = 1001u;
@@ -297,6 +314,7 @@ static void data_bury_pressure_test_init_payloads(
     milk_ejection->end_timestamp = ts + 5000u;
 
     memset(charge_start, 0, sizeof(*charge_start));
+    charge_start->device_side = device_side;
     charge_start->use_session_id = sid;
     charge_start->evt_timestamp = ts;
     charge_start->start_battery_percent = 20u;
@@ -305,6 +323,7 @@ static void data_bury_pressure_test_init_payloads(
     charge_start->start_battery_temp = 25;
 
     memset(charge_end, 0, sizeof(*charge_end));
+    charge_end->device_side = device_side;
     charge_end->use_session_id = sid;
     charge_end->evt_timestamp = ts;
     charge_end->end_battery_percent = 100u;
@@ -314,12 +333,14 @@ static void data_bury_pressure_test_init_payloads(
     charge_end->end_reason = DATA_BURY_BAT_CHARGE_END_REASON_FULL;
 
     memset(exception, 0, sizeof(*exception));
+    exception->device_side = device_side;
     exception->use_session_id = sid;
     exception->evt_timestamp = ts;
     exception->error_code = 0x1001u;
     exception->error_data = 0xDEADBEEFu;
 
     memset(fw_update, 0, sizeof(*fw_update));
+    fw_update->device_side = device_side;
     fw_update->use_session_id = sid;
     fw_update->evt_timestamp = ts;
     fw_update->update_from = 0x0100u;
@@ -327,6 +348,7 @@ static void data_bury_pressure_test_init_payloads(
     fw_update->update_err = 0u;
 
     memset(overflow, 0, sizeof(*overflow));
+    overflow->device_side = device_side;
     overflow->use_session_id = sid;
     overflow->evt_timestamp = ts;
     overflow->pump_session_id = 1001u;
@@ -335,6 +357,7 @@ static void data_bury_pressure_test_init_payloads(
 
     memset(milk_volume_buf, 0, DATA_BURY_EVT_MILK_VOLUME_FIXED_LEN + 6u);
     milk_volume = (data_bury_evt_milk_volume_fixed_t *)milk_volume_buf;
+    milk_volume->device_side = device_side;
     milk_volume->use_session_id = sid;
     milk_volume->evt_timestamp = ts;
     milk_volume->pump_session_id = 1001u;
@@ -345,6 +368,7 @@ static void data_bury_pressure_test_init_payloads(
     volume_samples[2] = 40u;
 
     memset(heat_start, 0, sizeof(*heat_start));
+    heat_start->device_side = device_side;
     heat_start->use_session_id = sid;
     heat_start->evt_timestamp = ts;
     heat_start->heat_session_id = 2001u;
@@ -352,6 +376,7 @@ static void data_bury_pressure_test_init_payloads(
     heat_start->initial_temp = 36u;
 
     memset(heat_end, 0, sizeof(*heat_end));
+    heat_end->device_side = device_side;
     heat_end->use_session_id = sid;
     heat_end->evt_timestamp = ts;
     heat_end->heat_session_id = 2001u;
@@ -359,18 +384,21 @@ static void data_bury_pressure_test_init_payloads(
     heat_end->final_temp = 38u;
 
     memset(massage_start, 0, sizeof(*massage_start));
+    massage_start->device_side = device_side;
     massage_start->use_session_id = sid;
     massage_start->evt_timestamp = ts;
     massage_start->massage_session_id = 3001u;
     massage_start->initial_level = 1u;
 
     memset(massage_end, 0, sizeof(*massage_end));
+    massage_end->device_side = device_side;
     massage_end->use_session_id = sid;
     massage_end->evt_timestamp = ts;
     massage_end->massage_session_id = 3001u;
     massage_end->final_level = 2u;
 
     memset(wear, 0, sizeof(*wear));
+    wear->device_side = device_side;
     wear->use_session_id = sid;
     wear->evt_timestamp = ts;
     wear->detection_type = 1u;
@@ -503,7 +531,7 @@ static void hdr_run_pressure_test_cb(hdr_post_args_t *args)
 int run_user_thread_dispatch(void)
 {
 #if IS_SUPPORT_PRESSURE_TEST  
-     //POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 5000, "pressure_test");
+    //POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 5000, "pressure_test");
 #endif
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     if (wm) {

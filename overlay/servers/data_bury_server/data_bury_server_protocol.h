@@ -10,7 +10,7 @@ extern "C" {
 
 void data_bury_server_protocol_init(void);
 
-/** 链路层帧解析完成后调用：Data Service 接收日志（设备侧仅上报，不做 TLV 解包） */
+/** 链路层帧解析完成后调用：Device Management 下行命令处理 + Data Service 接收日志 */
 void data_bury_server_protocol_on_frame(const app_data_bury_protocol_frame_node_t *frame);
 
 /**

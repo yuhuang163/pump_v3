@@ -106,6 +106,16 @@ static uint32_t data_bury_get_evt_timestamp(void)
     return platform_get_utc_time();
 }
 
+uint8_t data_bury_get_device_side(void)
+{
+    return (uint8_t)DATA_BURY_DEVICE_SIDE_DEFAULT;
+}
+
+uint8_t data_bury_get_pump_side(void)
+{
+    return (uint8_t)DATA_BURY_PUMP_SIDE_LEFT;
+}
+
 static uint16_t data_bury_get_current_pump_session_id(void)
 {
     return thiz ? thiz->priv.current_pump_session_id : 0u;
@@ -476,6 +486,8 @@ void *register_module_for_data_burial_new(list_head_t *list_head)
     ptr->data_bury_sys_msg_remove = data_bury_sys_msg_remove_wrapper;
     ptr->data_bury_get_use_session_id = data_bury_get_use_session_id;
     ptr->data_bury_get_evt_timestamp = data_bury_get_evt_timestamp;
+    ptr->data_bury_get_device_side = data_bury_get_device_side;
+    ptr->data_bury_get_pump_side = data_bury_get_pump_side;
     ptr->data_bury_get_current_pump_session_id = data_bury_get_current_pump_session_id;
     ptr->data_bury_alloc_pump_session_id = data_bury_alloc_pump_session_id;
     ptr->data_bury_pump_session_begin = data_bury_pump_session_begin;

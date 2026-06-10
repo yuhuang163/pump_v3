@@ -15,22 +15,41 @@ extern "C" {
 #define DATA_BURY_RING_CHUNK_NUM           1u
 #define DATA_BURY_FLASH_SLOT_NUM           8u
 
-/* 单条环记录 payload 上限（与 m5 7.5 变长 cap 一致: 22 + 58*4 = 254） */
-#define DATA_BURY_EVENT_PAYLOAD_MAX        256u
+/* 单条环记录 payload 上限（v1.0.2 EVT_005: 25 + 58*4 = 257） */
+#define DATA_BURY_EVENT_PAYLOAD_MAX        260u
 #define DATA_BURY_PUMP_SESSION_MAX_MODES    58u
 
 #define DATA_BURY_SVC_DATA                 APP_DATA_BURY_PROTOCOL_SVC_DATA
 
 /*============================================================================
- * 业务枚举（协议 7.x，Flash 存 packed 数值）
+ * 业务枚举（协议 7.x / v1.0.2，Flash 存 packed 数值）
  *============================================================================*/
+typedef enum {
+    DATA_BURY_DEVICE_SIDE_LEFT = 0,
+    DATA_BURY_DEVICE_SIDE_RIGHT,
+    DATA_BURY_DEVICE_SIDE_INDEPENDENCE,
+} data_bury_device_side_e;
+
+#ifndef DATA_BURY_DEVICE_SIDE_DEFAULT
+#define DATA_BURY_DEVICE_SIDE_DEFAULT    DATA_BURY_DEVICE_SIDE_INDEPENDENCE
+#endif
+
+typedef enum {
+    DATA_BURY_PUMP_SIDE_LEFT = 0,
+    DATA_BURY_PUMP_SIDE_RIGHT,
+} data_bury_pump_side_e;
+
 typedef enum {
     DATA_BURY_SHUTDOWN_USER_MANUAL = 0,
     DATA_BURY_SHUTDOWN_LOW_BATTERY,
     DATA_BURY_SHUTDOWN_AUTO_SLEEP,
     DATA_BURY_SHUTDOWN_ABNORMAL,
     DATA_BURY_SHUTDOWN_FW_UPDATE,
+    DATA_BURY_SHUTDOWN_OVERHEAT,
 } data_bury_shutdown_reason_e;
+
+/** 韵律模式（initial_mode_type=0x03 时附带 program TLV） */
+#define DATA_BURY_PUMP_MODE_RHYTHM              0x03u
 
 typedef enum {
     DATA_BURY_END_REASON_MANUAL = 0,
@@ -69,19 +88,19 @@ typedef enum {
 #define DATA_BURY_FIRMWARE_UPDATE_RESULT_FAILURE  0x01u
 
 /*============================================================================
- * Data Service 事件载荷（协议 7.1~7.19，packed 小端写入 Flash 环）
- * TLV 上报时 type 从 0x01 起，由协议层转换
+ * Data Service 事件载荷（协议 7.1~7.19 / v1.0.2，packed 小端写入 Flash 环）
+ * device_side 由应用层填写；pump_side 仅 EVT_005 业务字段 TLV Type 0x0D
  *============================================================================*/
 
-/* 协议公共头：各 EVT packed 载荷前两字段固定为 use_session_id + evt_timestamp */
+/* 协议公共头：device_side + use_session_id + evt_timestamp */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
 } data_bury_evt_common_hdr_t;
 
-/* 含 pump_session_id 的事件在公共头后偏移 8 字节处为 pump_session_id(2) */
 #define DATA_BURY_EVT_COMMON_HDR_LEN            ((uint16_t)sizeof(data_bury_evt_common_hdr_t))
-#define DATA_BURY_EVT_PUMP_SESSION_ID_OFF       8u
+#define DATA_BURY_EVT_PUMP_SESSION_ID_OFF       9u
 
 #define DATA_BURY_EVT_USE_SESSION_PLACEHOLDER   0xFFFFFFFFu
 #define DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER     0xFFFFFFFFu
@@ -89,6 +108,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x01 EVT_001 pump_startup */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t firmware_version;
@@ -97,6 +117,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x02 EVT_002 pump_shutdown */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint8_t  battery_level_shutdown;
@@ -105,6 +126,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x03 EVT_003 bt_connect */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint8_t  connect_result;
@@ -116,6 +138,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x04 EVT_004 pump_session_start */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t pump_session_id;
@@ -124,10 +147,13 @@ typedef struct __attribute__((packed)) {
     uint32_t initial_attitude_pitch_roll;
     uint16_t initial_volume_ml;
     uint8_t  initial_battery_level;
+    uint8_t  initial_program_id;     /* O；initial_mode_type=韵律(0x03) 时 TLV 0x0A */
+    uint8_t  initial_program_type;   /* O；initial_mode_type=韵律(0x03) 时 TLV 0x0B */
 } data_bury_evt_pump_session_start_t;
 
 /* CMD:0x05 EVT_005 pump_session_end（变长: mode_type_and_duration[used_mode_count]） */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t pump_session_id;
@@ -139,7 +165,13 @@ typedef struct __attribute__((packed)) {
     uint8_t  end_reason;
     uint8_t  milk_drop_count;
     uint8_t  used_mode_count;
+    uint8_t  pump_side;              /* TLV 0x0D */
+    uint8_t  initial_program_id;     /* TLV 0x0E */
+    uint8_t  initial_program_type;   /* TLV 0x0F */
 } data_bury_evt_pump_session_end_fixed_t;
+
+#define DATA_BURY_EVT_PUMP_SESSION_END_MODE_OFF \
+    ((uint16_t)sizeof(data_bury_evt_pump_session_end_fixed_t))
 
 typedef struct __attribute__((packed)) {
     data_bury_evt_pump_session_end_fixed_t fixed;
@@ -153,6 +185,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x06 EVT_006 pump_manual_adjust */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t pump_session_id;
@@ -164,6 +197,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x07 EVT_007 pump_user_evt */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t pump_session_id;
@@ -173,6 +207,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x08 EVT_008 milk_ejection */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t pump_session_id;
@@ -185,6 +220,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x09 EVT_009 bat_charge_start */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint8_t  start_battery_percent;
@@ -195,6 +231,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x0A EVT_010 bat_charge_end */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint8_t  end_battery_percent;
@@ -206,6 +243,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x0B EVT_011 exception */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t error_code;
@@ -214,6 +252,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x0C EVT_012 firmware_update */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t update_from;
@@ -223,6 +262,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x0D EVT_013 overflow */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t pump_session_id;
@@ -232,6 +272,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x0E EVT_014 milk_volume（变长: volume_ml[sampling_count]） */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t pump_session_id;
@@ -250,6 +291,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x0F EVT_015 heat_session_start */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t heat_session_id;
@@ -259,6 +301,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x10 EVT_016 heat_session_end */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t heat_session_id;
@@ -268,6 +311,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x11 EVT_017 massage_session_start */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t massage_session_id;
@@ -276,6 +320,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x12 EVT_018 massage_session_end */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint16_t massage_session_id;
@@ -284,6 +329,7 @@ typedef struct __attribute__((packed)) {
 
 /* CMD:0x13 EVT_019 wear_detection */
 typedef struct __attribute__((packed)) {
+    uint8_t  device_side;
     uint32_t use_session_id;
     uint32_t evt_timestamp;
     uint8_t  detection_type;
@@ -354,9 +400,6 @@ typedef struct {
 typedef struct {
     uint16_t boot_seq;
 } data_bury_info_t;
-
-/** 返回该 CMD 允许写入环的最大 payload 字节数；非法 cmd 返回 0 */
-uint16_t data_bury_event_payload_max_len(uint8_t cmd_id);
 
 #ifdef __cplusplus
 }

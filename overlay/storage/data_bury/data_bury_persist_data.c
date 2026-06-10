@@ -383,7 +383,7 @@ static int data_bury_ring_ensure_flash_flush_slot(storage_manager_context_t *ctx
     return 0;
 }
 
-uint16_t data_bury_event_payload_max_len(uint8_t cmd_id)
+static uint16_t data_bury_event_payload_max_len(uint8_t cmd_id)
 {
     switch (cmd_id) {
     case APP_BURY_CMD_PUMP_STARTUP:

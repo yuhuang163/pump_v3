@@ -3,9 +3,6 @@
  */
 
 #include "root_common_api.h"
-#include "data_bury_manager.h"
-#include "data_bury_msg_manager.h"
-#include "data_bury_persist_data.h"
 #include "app_data_bury_protocol_defs.h"
 
 #define DATA_BURY_LOG_DEBUG 1
@@ -188,8 +185,9 @@ static int data_bury_hook_append_to_ring(data_bury_manager_context_t *ctx, uint8
         LOGE("data bury hook append invalid ctx=%p packed=%p packed_len=%u", ctx, packed, packed_len);
         return -1;
     }
-    if (data_bury_event_payload_max_len(cmd_id) == 0u || packed_len > data_bury_event_payload_max_len(cmd_id)) {
-        LOGE("data bury hook append invalid cmd=0x%02x len=%u", cmd_id, (unsigned)packed_len);
+    if (packed_len > DATA_BURY_EVENT_PAYLOAD_MAX) {
+        LOGE("data bury hook append invalid cmd=0x%02x len=%u max=%u",
+             cmd_id, (unsigned)packed_len, (unsigned)DATA_BURY_EVENT_PAYLOAD_MAX);
         return -2;
     }
 
@@ -277,7 +275,7 @@ static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_b
 static void data_bury_hook_flush_pending_reschedule(data_bury_manager_context_t *ctx)
 {
     if (ctx && ctx->data_bury_sys_msg_put) {
-        (void)ctx->data_bury_sys_msg_put(DATA_BURY_EVT_FLUSH_PENDING, 0u, NULL);
+        (void)ctx->data_bury_sys_msg_put(DATA_BURY_EVT_FLUSH_PENDING, 100u, NULL);
     }
 }
 
