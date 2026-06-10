@@ -76,9 +76,12 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
     EXCEPTION_CHECK_INT(ctx);
     switch (id.code) {
         case ID_BROADCAST_BLE_STATE_CHANGE: {
-            if (arg1 == BLE_BROADCAST_DISCONNECT && ctx->priv.ota_info.is_working &&
-                ctx->priv.ota_info.object == OTA_OBJECT_MAIN_FIRMWARE) {
-                ctx->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, false);
+            if (arg1 == BLE_BROADCAST_DISCONNECT && ctx->priv.ota_info.is_working) {
+                if (ctx->priv.ota_info.object == OTA_OBJECT_MAIN_FIRMWARE) {
+                    ctx->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, false);
+                } else if (ctx->priv.ota_info.object == OTA_OBJECT_IMAGE_RESOURCE) {
+                    ctx->end_ota_upgrade(OTA_OBJECT_IMAGE_RESOURCE, false);
+                }
             }
             break;
         }

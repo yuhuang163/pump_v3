@@ -270,7 +270,7 @@ static void ui_ota_size_update(ui_manager_context_t *thiz, uint32_t total_size, 
         float total_f = total_size / 1048576.0f;
         if (recv_size >= 1048576) {
             float recv_f = recv_size / 1048576.0f;
-            snprintf(ota_percent, sizeof(ota_percent), "%0.1fMB/%0.1fMB", recv_f, total_f);
+            snprintf(ota_percent, sizeof(ota_percent), "%0.3fMB/%0.3fMB", recv_f, total_f);
         } else {
             float recv_f = recv_size / 1024.0f;
             snprintf(ota_percent, sizeof(ota_percent), "%0.1fKB/%0.1fMB", recv_f, total_f);

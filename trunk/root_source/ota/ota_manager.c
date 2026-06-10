@@ -123,8 +123,13 @@ static void end_ota_upgrade(ota_object_e object, uint8_t state)
 
 static int ota_write_image_data(ota_object_e object, uint32_t offset_addr, uint8_t *data, uint16_t data_len)
 {
-    if (ota_obj->priv.write_img_data_cb == NULL || data == NULL) {
-        LOGE("img data cb or data is null");
+    if (ota_obj->priv.write_img_data_cb == NULL) {
+        LOGE("img data cb is null");
+        return -1;
+    }
+    
+    if (data == NULL) {
+        LOGE("img data is null");
         return -1;
     }
     
@@ -161,6 +166,7 @@ static void ota_upgrade_thread(void *args)
         MSG_QUEUE_RECV(thd->msg_id, &img, OS_WAIT_FOREVER);
         if (img != NULL) {
             if (ota_obj->priv.write_img_data_cb && img->data_size > 0) {
+                LOG_OTA("offset_addr: %d, data_size: %d", img->offset_addr, img->data_size);
                 ota_obj->priv.write_img_data_cb(ctx, img->offset_addr, img->data, img->data_size);
             }
             u_free(img);

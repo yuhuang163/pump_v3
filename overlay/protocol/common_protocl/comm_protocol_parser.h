@@ -27,6 +27,11 @@ extern "C" {
 int comm_protocol_assemble_packet(const uint8_t *data, uint16_t len, comm_protocol_frame_callback_t callback);
 
 /**
+ * @brief 重置组包环形缓冲区（OTA 超时/异常时主动清空脏数据）
+ */
+void comm_protocol_assemble_reset(void);
+
+/**
  * @brief 反序列化协议帧
  * @param buffer 帧数据缓冲区
  * @param buffer_size 缓冲区大小

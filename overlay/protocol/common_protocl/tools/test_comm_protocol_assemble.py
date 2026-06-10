@@ -35,6 +35,9 @@ FRAME_TYPE_REQUEST = 0
 FRAME_TYPE_RESPONSE = 1
 
 PACKET_ASSEMBLY_BUFFER_SIZE = COMM_PROTOCOL_MAX_PAYLOAD_SIZE * 2  # 与 comm_protocol_parser.c 一致
+PACKET_ASSEMBLY_MAX_SYNC_STEPS = 256
+PACKET_ASSEMBLY_SOF_BYTE0 = 0xC5
+PACKET_ASSEMBLY_SOF_BYTE1 = 0x5C
 
 VERBOSE = False
 
@@ -272,6 +275,9 @@ class PacketAssemblyBuffer:
     def peek(self, offset: int) -> int:
         return self.buffer[(self.read_pos + offset) % PACKET_ASSEMBLY_BUFFER_SIZE]
 
+    def peek_bytes(self, offset: int, length: int) -> bytes:
+        return bytes(self.peek(offset + i) for i in range(length))
+
     def read(self, length: int) -> bytes:
         out = bytearray(length)
         for i in range(length):
@@ -279,6 +285,16 @@ class PacketAssemblyBuffer:
             self.read_pos = (self.read_pos + 1) % PACKET_ASSEMBLY_BUFFER_SIZE
         self.data_size -= length
         return bytes(out)
+
+
+def packet_assembly_sync_to_sof(asm: PacketAssemblyBuffer) -> None:
+    while asm.data_size > 0:
+        if asm.peek(0) == PACKET_ASSEMBLY_SOF_BYTE0:
+            if asm.data_size < 2:
+                return
+            if asm.peek(1) == PACKET_ASSEMBLY_SOF_BYTE1:
+                return
+        asm.read(1)
 
 
 def comm_protocol_assemble_packet(
@@ -292,31 +308,39 @@ def comm_protocol_assemble_packet(
         asm.reset()
         return -2
 
+    sync_steps = 0
     while asm.data_size > 0:
+        if sync_steps >= PACKET_ASSEMBLY_MAX_SYNC_STEPS:
+            return 1
         if asm.data_size < COMM_PROTOCOL_HEADER_SIZE:
             return 1
 
-        header = bytes(asm.peek(i) for i in range(COMM_PROTOCOL_HEADER_SIZE))
+        header = asm.peek_bytes(0, COMM_PROTOCOL_HEADER_SIZE)
         sof = header[0] | (header[1] << 8)
         if sof != COMM_PROTOCOL_SOF:
-            asm.read(1)
+            packet_assembly_sync_to_sof(asm)
+            sync_steps += 1
             continue
 
         payload_length = header[4] | (header[5] << 8)
         if payload_length < COMM_PROTOCOL_PAYLOAD_SIZE_MIN or payload_length > COMM_PROTOCOL_MAX_PAYLOAD_SIZE:
             asm.read(1)
+            sync_steps += 1
             continue
 
         frame_size = COMM_PROTOCOL_HEADER_SIZE + payload_length + COMM_PROTOCOL_FOOTER_SIZE
         if asm.data_size < frame_size:
             return 1
 
-        frame = asm.read(frame_size)
+        frame = asm.peek_bytes(0, frame_size)
         checksum_expected = crc16_compute(frame[:-COMM_PROTOCOL_FOOTER_SIZE])
         checksum_received = frame[-2] | (frame[-1] << 8)
         if checksum_expected != checksum_received:
+            asm.read(1)
+            sync_steps += 1
             continue
 
+        asm.read(frame_size)
         callback(frame)
 
     return 0
@@ -754,6 +778,26 @@ def test_crc16_invalid_rejected() -> None:
     print("[PASS] CRC16 错误帧被丢弃")
 
 
+def test_checksum_mismatch_then_recover_mtu200() -> None:
+    """CRC 错位后仅滑动 1 字节，后续有效 OTA 写块仍可组包（复现脏数据卡死场景）"""
+    block = bytes((i * 7) & 0xFF for i in range(1024))
+    good_frame = build_ota_write_data_frame(2, 0xAC, block)
+    stale = bytes(900)
+    mtu = 200
+    chunks = split_chunks(good_frame, mtu)
+
+    asm = PacketAssemblyBuffer()
+    asm.write(stale)
+    frames: List[bytes] = []
+    comm_protocol_assemble_packet(asm, chunks[0], lambda f: frames.append(f))
+    for chunk in chunks[1:]:
+        comm_protocol_assemble_packet(asm, chunk, lambda f: frames.append(f))
+
+    assert len(frames) == 1
+    assert frames[0] == good_frame
+    print("[PASS] 缓冲区脏数据 + CRC 错位后可恢复 OTA 写块组包")
+
+
 def hex_dump(data: bytes, label: str = "") -> None:
     prefix = f"{label}: " if label else ""
     print(prefix + data.hex(" "))
@@ -783,6 +827,7 @@ TEST_CATALOG = [
     ("test_dirty_data_between_two_write_frames", "组包", "两帧 WRITE 之间穿插脏数据"),
     ("test_incomplete_then_complete", "组包", "半包等待后补全"),
     ("test_crc16_invalid_rejected", "组包", "CRC16 错误帧丢弃"),
+    ("test_checksum_mismatch_then_recover_mtu200", "组包", "CRC 错位后 OTA 写块恢复"),
     ("test_ota_frame_sizes", "OTA", "各阶段帧长度校验"),
     ("test_ota_parse_start_upgrade", "OTA", "开始升级帧 TLV 解析"),
     ("test_ota_full_flow_small", "OTA", "全流程 2500B 无分片"),
@@ -838,6 +883,7 @@ def main() -> int:
         test_dirty_data_between_two_write_frames,
         test_incomplete_then_complete,
         test_crc16_invalid_rejected,
+        test_checksum_mismatch_then_recover_mtu200,
         test_ota_frame_sizes,
         test_ota_parse_start_upgrade,
         test_ota_full_flow_small,
