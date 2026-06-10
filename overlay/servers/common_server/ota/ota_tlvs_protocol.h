@@ -30,13 +30,14 @@ typedef enum {
 } ota_tlvs_id_e;
 
 typedef struct {
-    uint32_t img_id;
-    uint32_t total_size;
-    uint32_t crc32;
-    uint32_t version;
-    uint16_t type;
-    uint16_t block_size;
-    uint32_t offset_addr;
+    uint8_t  retry_count; /// 重传次数
+    uint32_t img_id;       /// 图片ID
+    uint32_t total_size;   /// 总大小
+    uint32_t crc32;        /// CRC32
+    uint32_t version;      /// 版本
+    uint16_t type;         /// 类型
+    uint16_t block_size;   /// 块大小
+    uint32_t offset_addr;  /// 图片偏移地址
 } ota_img_info_t;
 
 typedef enum {
@@ -52,6 +53,11 @@ typedef enum {
     OTA_STATUS_CODE_DATA_WRITE_ERROR = 0x0009,
     OTA_STATUS_CODE_DATA_BLOCK_TIMEOUT = 0x000A,     /// 块数据接收超时
 } ota_upgrade_status_code_e;
+
+typedef struct {
+    uint16_t tlv_count;
+    comm_protocol_tlv_node_t *tlvs;
+} ota_tlvs_notify_args_t;
 
 /*
 * INTERNAL FUNCTION DECLARATION
