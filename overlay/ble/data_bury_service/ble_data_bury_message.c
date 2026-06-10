@@ -24,7 +24,6 @@ int ble_data_bury_srv_recv_data(void *context, ble_service_data_t *srv_data)
     if (pm && (pm->is_pm_suspend() || pm->is_pm_idle())) {
         pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ);
     }
-    LOG_BLE("ble_data_bury_recv_data[%d]", srv_data->size);
     LOG_HEX("data_bury_rx", srv_data->p_data, srv_data->size);
     ctx->dispatch_ble_client(ctx, DEVICE_BLE_DATA_BURY_MSG_CHANNEL, srv_data->p_data, srv_data->size);
     return 0;

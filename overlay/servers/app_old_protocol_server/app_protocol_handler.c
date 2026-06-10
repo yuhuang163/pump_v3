@@ -52,8 +52,7 @@ void app_old_comm_handle_request_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, uin
 
     // Print command data if available
     if (cal > 0 && cab != NULL) {
-        LOG_SRV(" Command data: ");
-        LOG_HEX("app_recv_data hex", cab, cal);
+        LOG_HEX("Command data:", cab, cal);
     }
 #if 0
     // 对除了传输加密key和测试以外的所有指令数据进行加密

@@ -336,10 +336,10 @@ int factory_flash_put(storage_manager_context_t *ctx, const uint8_t *buf, int bu
                 u_free(tmp_buf);
                 return -1;
             }
-            LOG_STORE("write factory flash, buf_len: %d", buf_len);
-            LOG_HEX("rx buf", buf, buf_len);
-            LOG_STORE("read factory flash, buf_len: %d", buf_len);
-            LOG_HEX("tx buf", tmp_buf, buf_len);
+            // LOG_STORE("write factory flash, buf_len: %d", buf_len);
+            LOG_HEX("factory flash rx", buf, buf_len);
+            // LOG_STORE("read factory flash, buf_len: %d", buf_len);
+            LOG_HEX("factory flash tx", tmp_buf, buf_len);
             if (memcmp(tmp_buf, buf, buf_len) != 0) {
                 LOGE("factory flash write failed, retry write.");
                 erase_ret = DEVICE_IOCTL_ARGS(factory_flash_dev, OP_CODE_FLASH_ERASE, &buf_flash_info_erase);

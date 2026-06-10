@@ -339,7 +339,7 @@ static void ble_event_callback(ble_event_e event, void *param)
 
 static void ble_data_callback(ble_service_id_e service_id, uint8_t *p_data, uint16_t size)
 {
-    LOG_BLE("ble data: %d, size: %d", service_id, size);
+    // LOG_BLE("ble data: %d, size: %d", service_id, size);
     switch (service_id) {
         case BLE_SRV_ID_MASTER:
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_MASTER_RECIVE_DATA, p_data, size);
@@ -397,19 +397,16 @@ static void *list_del_ble_condition_cb(void *data, list_head_t *pos)
 static void dispatch_ble_client(ble_manager_context_t *obj, int msg_channel, uint8_t *data, uint16_t size)
 {
     list_head_t *head = &obj->priv.client_list;
-    LOG_BLE("==> dispatch_ble_client: msg_channel=%d, data=%p, size=%d", msg_channel, data, size);
+    // LOG_BLE("==> dispatch_ble_client: msg_channel=%d, data=%p, size=%d", msg_channel, data, size);
     MUTEX_LOCK(obj->priv.m_lock);
     LIST_FOR_EACH(pos, (head)) { 
         ble_evt_client_node_t *node = CONTAINER_OF(pos, ble_evt_client_node_t, list);
-        LOG_BLE("==> dispatch_ble_client: checking node, node->msg_channel=%d", node->msg_channel);
         if (node->msg_channel == msg_channel) {
-            LOG_BLE("==> dispatch_ble_client: calling callback, node->cb=%p", node->cb);
             node->cb(node->user_data, data, size);
-            LOG_BLE("==> dispatch_ble_client: callback returned");
         }
     }
     MUTEX_UNLOCK(obj->priv.m_lock);
-    LOG_BLE("==> dispatch_ble_client: done");
+    // LOG_BLE("==> dispatch_ble_client: done");
 }
 
 static void remove_ble_evt_lisenser(on_ble_evt_data_cb_fptr cb)

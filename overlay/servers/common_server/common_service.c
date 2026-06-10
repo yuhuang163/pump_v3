@@ -119,17 +119,17 @@ int comm_protocol_subscribe_handler(comm_protocol_subscribe_context_t *ctx)
             goto ERROR_LABEL;
         }
     }
-    LOG_SRV("==> comm protocol subscribe service count: %d", frame->payload.service_count);
+    // LOG_SRV("==> subscribe service count: %d", frame->payload.service_count);
     /// 查找服务处理接口
     for (uint8_t i = 0; i < frame->payload.service_count; i++){
         service = &frame->payload.services[i];
-        LOG_SRV("==> comm protocol subscribe service: %d", service->svr_id);
+        // LOG_SRV("==> comm protocol subscribe service: %d", service->svr_id);
         comm_protocol_subscribe_func func = get_comm_protocol_subscribe_func(service->svr_id);
         if (func == NULL){
             LOGE("==> get comm protocol subscribe func failed: %d", service->svr_id);
             continue;
         }
-        LOG_SRV("==> comm protocol subscribe func: %p", func);
+        // LOG_SRV("==> comm protocol subscribe func: %p", func);
         ret = func(need_response ? &builder : NULL, service);
         if (ret != 0){
             LOGE("==> comm protocol subscribe func error: %d, service_id: %d", ret, service->svr_id);
@@ -138,7 +138,7 @@ int comm_protocol_subscribe_handler(comm_protocol_subscribe_context_t *ctx)
     }
     /// 结束服务
     if (need_response) {
-        LOG_SRV("==> comm protocol subscribe finalize");
+        // LOG_SRV("==> comm protocol subscribe finalize");
         rsp_buffer = protocol_ctx->comm_protocol_builder_finalize(&builder, &rsp_buffer_size);
         if (ctx->cb && rsp_buffer) {
             ctx->cb(err_code, rsp_buffer, rsp_buffer_size); /// 回调函数执行应答操作

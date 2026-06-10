@@ -399,7 +399,6 @@ int tests_tlvs_write_sn(comm_protocol_builder_t *builder, comm_protocol_service_
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_write_sn, data_len: %d", data_len);
     LOG_HEX("write_sn", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -441,7 +440,6 @@ int tests_tlvs_write_product_id(comm_protocol_builder_t *builder, comm_protocol_
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_write_product_id, data_len: %d", data_len);
     LOG_HEX("write_product_id", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -483,7 +481,6 @@ int tests_tlvs_write_device_id(comm_protocol_builder_t *builder, comm_protocol_s
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_write_device_id, data_len: %d", data_len);
     LOG_HEX("write_device_id", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -525,7 +522,6 @@ int tests_tlvs_write_secret_key(comm_protocol_builder_t *builder, comm_protocol_
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_write_secret_key, data_len: %d", data_len);
     LOG_HEX("write_secret_key", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -872,7 +868,6 @@ int tests_tlvs_set_trim_value(comm_protocol_builder_t *builder, comm_protocol_se
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_set_trim_value, data_len: %d", data_len);
     LOG_HEX("set_trim_value", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -924,7 +919,7 @@ int tests_tlvs_get_trim_value(comm_protocol_builder_t *builder, comm_protocol_se
     response[2] = (uint8_t)((trim_value >> 16) & 0xFF);
     response[3] = (uint8_t)((trim_value >> 24) & 0xFF);
 
-    LOG_SRV("tests_tlvs_get_trim_value: trim_value=0x%08X", trim_value);
+    LOG_SRV("trim_value=0x%08X", trim_value);
     LOG_HEX("get_trim_value_response", response, TESTS_TRIM_VALUE_LENGTH);
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1068,7 +1063,6 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
         sensor_count++;
     #endif
 
-    LOG_SRV("tests_tlvs_query_sensor_status: sensor_count=%d", sensor_count);
     LOG_HEX("sensor_status_response", response, sensor_count);
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1126,7 +1120,7 @@ int tests_tlvs_get_rssi(comm_protocol_builder_t *builder, comm_protocol_service_
     response[2] = (uint8_t)((rssi_value >> 16) & 0xFF);
     response[3] = (uint8_t)((rssi_value >> 24) & 0xFF);
 
-    LOG_SRV("tests_tlvs_get_rssi: rssi_type=0x%02X, rssi_value=%d", rssi_type, rssi_value);
+    LOG_SRV("rssi_type=0x%02X, rssi_value=%d", rssi_type, rssi_value);
     LOG_HEX("rssi_response", response, sizeof(response));
 
     comm_protocol_tlv_node_t tlv_node = {

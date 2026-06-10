@@ -114,8 +114,6 @@ int sys_config_tlvs_read_mac_address(comm_protocol_builder_t *builder, comm_prot
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("sys_config_tlvs_read_mac_address");
-
     uint8_t mac_addr[SYS_CONFIG_MAC_ADDRESS_LENGTH] = {0};
 
     ble_manager_context_t *ble_ctx = get_ble_ctx();
@@ -136,12 +134,8 @@ int sys_config_tlvs_write_mac_address(comm_protocol_builder_t *builder, comm_pro
                                       uint16_t data_len)
 {
     EXCEPTION_CHECK_INT(builder && service);
-
-    LOG_SRV("sys_config_tlvs_write_mac_address, data_len: %d", data_len);
-
     if (data && data_len == SYS_CONFIG_MAC_ADDRESS_LENGTH) {
         LOG_HEX("write_mac_address", data, SYS_CONFIG_MAC_ADDRESS_LENGTH);
-
         ble_manager_context_t *ble_ctx = get_ble_ctx();
         if (ble_ctx && ble_ctx->set_mac_addr) {
             ble_ctx->set_mac_addr(data);
