@@ -5,6 +5,7 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "factory_server_client.h"
 #include "master_server_client.h"
+#include "ota_server_client.h"
 #include "app_protocol_handler.h"
 #include "data_bury_protocol_server_client.h"
 
@@ -324,8 +325,8 @@ static void on_servers_led_state_cb(void *user_data, led_state_info_t *info)
         return;
     }
     LOG_SRV("led state change: evt=%d onoff=%d level=%d adaptive=%d/%d",
-            info->evt_id, info->night_light_onoff, info->night_light_level,
-            info->night_light_adaptive_switch, info->night_light_adaptive_dimming);
+            info->evt_id, info->night_light_switch, info->night_light_gear,
+            info->global_adaptive_dimming_switch, info->screen_key_level);
     memcpy(light, info, sizeof(led_state_info_t));
     ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_LIGHT_STATUS_CHANGE);
 }
@@ -364,6 +365,7 @@ static int on_post_servers_init_route(struct servers_manager_context *ctx)
     factory_server_client_init();
     master_server_client_init();
     data_bury_protocol_server_client_init();
+    ota_server_client_init();
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_INT(pump_ctx);
     ADD_BREAST_PUMP_RESULT_CB(pump_ctx, ctx, on_breast_pump_result_cb);
@@ -396,6 +398,7 @@ void register_servers_manager_hook(servers_manager_context_t *ctx)
     ctx->hook->on_post_init_route = on_post_servers_init_route;
     ctx->hook->on_servers_manager_receiver_route = on_servers_manager_receiver_route;
     ctx->hook->factory_server_data_publish = factory_server_data_publish;
+    ctx->hook->ota_server_data_publish = ota_server_data_publish;
     ctx->hook->app_server_data_publish = app_server_data_publish;
     ctx->hook->data_bury_server_data_publish = data_bury_server_data_publish;
     ctx->hook->servers_work_thread_route = servers_work_thread_route;

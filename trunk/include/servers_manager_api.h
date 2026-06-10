@@ -85,6 +85,7 @@ typedef struct servers_manager_context {
         int (*on_perpare_init_route)(struct servers_manager_context *ctx);
         int (*on_post_init_route)(struct servers_manager_context *ctx);
         int (*factory_server_data_publish)(servers_publish_data_id_e id, servers_publish_data_args_t *args);
+        int (*ota_server_data_publish)(servers_publish_data_id_e id, servers_publish_data_args_t *args);
         int (*app_server_data_publish)(servers_publish_data_id_e id, servers_publish_data_args_t *args);
         int (*data_bury_server_data_publish)(servers_publish_data_id_e id, servers_publish_data_args_t *args);
          /// 广播路由

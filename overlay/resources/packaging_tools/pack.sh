@@ -374,6 +374,75 @@ apply_device_prefix_if_needed() {
     esac
 }
 
+print_pack_log_for_display() {
+    local pack_log="$1"
+    echo "$pack_log" | grep -Ev '^(MISSING_RESOURCE_FILE=|MISSING_RESOURCE_FILES_COUNT=|⚠️  警告: 资源文件不存在:)'
+}
+
+collect_missing_files_from_log() {
+    local pack_log="$1"
+    local resource_root="${2:-}"
+    local line rel_path abs_path
+
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        case "$line" in
+            MISSING_RESOURCE_FILE=*)
+                rel_path="${line#MISSING_RESOURCE_FILE=}"
+                printf '%s\n' "$rel_path"
+                ;;
+            *"⚠️  警告: 资源文件不存在:"*)
+                abs_path="${line#*⚠️  警告: 资源文件不存在: }"
+                abs_path="${abs_path#"${abs_path%%[![:space:]]*}"}"
+                if [ -n "$resource_root" ] && [[ "$abs_path" == "$resource_root"/* ]]; then
+                    rel_path="${abs_path#"$resource_root"/}"
+                else
+                    rel_path="$abs_path"
+                fi
+                printf '%s\n' "$rel_path"
+                ;;
+        esac
+    done <<< "$pack_log"
+}
+
+print_missing_files_summary() {
+    local -a all_missing=()
+    local -A seen_missing=()
+    local -a unique_missing=()
+    local pack_log item
+
+    MISSING_FILES_TOTAL=0
+    for pack_log in "${ALL_PACK_LOGS[@]}"; do
+        while IFS= read -r item; do
+            [ -z "$item" ] && continue
+            all_missing+=("$item")
+        done < <(collect_missing_files_from_log "$pack_log" "${RESOURCE_ROOT:-}")
+    done
+
+    for item in "${all_missing[@]}"; do
+        if [ -z "${seen_missing[$item]:-}" ]; then
+            seen_missing[$item]=1
+            unique_missing+=("$item")
+        fi
+    done
+
+    MISSING_FILES_TOTAL=${#unique_missing[@]}
+    if [ "$MISSING_FILES_TOTAL" -eq 0 ]; then
+        return 0
+    fi
+
+    echo ""
+    echo "=================================================="
+    echo "⚠️  资源文件缺失汇总"
+    echo "=================================================="
+    echo "缺失文件数: $MISSING_FILES_TOTAL"
+    echo "缺失文件列表:"
+    for item in "${unique_missing[@]}"; do
+        echo "  - $item"
+    done
+    echo "=================================================="
+}
+
 apply_pack_suffix_if_needed() {
     local file_path="$1"
     local suffix="$2"
@@ -425,7 +494,8 @@ run_pack_resources_for_mode() {
     pack_exit_code=$?
     set -e
 
-    echo "$pack_log"
+    ALL_PACK_LOGS+=("$pack_log")
+    print_pack_log_for_display "$pack_log"
 
     if [ $pack_exit_code -ne 0 ]; then
         return $pack_exit_code
@@ -1040,6 +1110,8 @@ echo "CRC策略: 打包时按单个资源计算 CRC16 并写入 obj_info"
 PACK_EXIT_CODE=0
 OUTPUT_FILE=""
 PACK_STEP_CODE=0
+ALL_PACK_LOGS=()
+MISSING_FILES_TOTAL=0
 
 case "$RESOLVED_PACK_MODE" in
     legacy|base|custom)
@@ -1138,10 +1210,15 @@ case "$RESOLVED_PACK_MODE" in
 esac
 
 ### 显示结果
+print_missing_files_summary
 if [ $PACK_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "=================================================="
-    echo "✅ 打包成功！"
+    if [ "$MISSING_FILES_TOTAL" -gt 0 ]; then
+        echo "✅ 打包完成（存在缺失资源文件，见上方汇总）"
+    else
+        echo "✅ 打包成功！"
+    fi
     echo "=================================================="
     if [ ${#GENERATED_OUTPUTS[@]} -gt 1 ]; then
         echo "生成文件:"

@@ -193,6 +193,10 @@ static void ble_event_periph_disconnect_suc(void *context, void *data, int data_
             DEVICE_IOCTL(pble->priv.ble_dev, OP_CODE_BLE_ADV_CLOSE);
         }
     }
+    ///app要求主动调用一次sdk断开的接口，让sdk主动断开连接
+    uint32_t args[] = {pble->priv.connect_idx};
+    DEVICE_IOCTL_ARGS(pble->priv.ble_dev, OP_CODE_BLE_DISCONNECT, args);
+    
     pble->on_connect_status_change(pble, pble->priv.ble_connect_state, 0);
 }
 

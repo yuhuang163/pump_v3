@@ -309,12 +309,12 @@ static void common_operation_ui_update(ui_manager_context_t *thiz, popup_ui_id_e
         case ID_POPUP_UI_PUMP_PAUSE_TIMEOUT:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, pump_pause_timeout_infos);
-            common_operation_tip_icon_update(thiz, RESOURCE_ID_PUMP_PAUSE_PROMPT_ICON, 118);
+            common_operation_tip_icon_update(thiz, RESOURCE_ID_PUMP_PAUSE_ICON, 118);
             break;
         case ID_POPUP_UI_PUMP_PAUSE_MANUAL:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, pump_pause_manual_infos);
-            common_operation_tip_icon_update(thiz, RESOURCE_ID_PUMP_PAUSE_PROMPT_ICON, 118);
+            common_operation_tip_icon_update(thiz, RESOURCE_ID_PUMP_PAUSE_ICON, 118);
             break;
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
             common_operation_tip_mask_layer_update(thiz);

@@ -339,7 +339,7 @@ static void ble_event_callback(ble_event_e event, void *param)
 
 static void ble_data_callback(ble_service_id_e service_id, uint8_t *p_data, uint16_t size)
 {
-    LOG_BLE("ble data: %d", service_id);
+    LOG_BLE("ble data: %d, size: %d", service_id, size);
     switch (service_id) {
         case BLE_SRV_ID_MASTER:
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_MASTER_RECIVE_DATA, p_data, size);

@@ -71,9 +71,9 @@ typedef struct {
 static speed_display_info_t *speed_info;
 
 static const uint16_t speed_component_ids[SPEED_COUNT] = {
-    RESOURCE_ID_FREQ_PAGE_COMFORT_ICON, /// 舒适
-    RESOURCE_ID_FREQ_PAGE_REGULAR_ICON, /// 常规
-    RESOURCE_ID_FREQ_PAGE_BOOST_ICON, /// 快速
+    RESOURCE_ID_SPEED_PAGE_SLOW_ICON, /// 舒适
+    RESOURCE_ID_SPEED_PAGE_REGULAR_ICON, /// 常规
+    RESOURCE_ID_SPEED_PAGE_FAST_ICON, /// 快速
 };
 
 static const uint16_t dots_img_ids[SPEED_COUNT] = {

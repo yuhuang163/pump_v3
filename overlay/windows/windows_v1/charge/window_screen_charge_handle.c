@@ -149,12 +149,12 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
             if (proc->led->hook->set_key_backlight) {
                 proc->led->hook->set_key_backlight(proc->led, 0);
             }
-
+#if IS_SUPPORT_NIGHT_LIGHT
             if (proc->led->hook->set_night_light_level) {   
                 proc->led->hook->set_night_light_level(proc->led, 0);
             }
+#endif
         }
-
         if (proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
             show_charge_adapter_ui(proc);
         } else {

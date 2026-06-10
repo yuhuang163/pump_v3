@@ -11,8 +11,8 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PACKET_ASSEMBLY_BUFFER_SIZE  1024   ///< 环形缓冲区大小
-#define PACKET_ASSEMBLY_TIMEOUT_MS   1000   ///< 组包超时时间(毫秒)
+#define PACKET_ASSEMBLY_BUFFER_SIZE         (COMM_PROTOCOL_MAX_PAYLOAD_SIZE * 2)   ///< 环形缓冲区大小
+#define PACKET_ASSEMBLY_TIMEOUT_MS          1000   ///< 组包超时时间(毫秒)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -146,8 +146,8 @@ int comm_protocol_assemble_packet(const uint8_t *data, uint16_t len, comm_protoc
             continue;
         }
 
-        /// 解析Payload长度
-        uint16_t payload_length = ((uint16_t)header[3] << 8) | header[2];
+        /// 解析Payload长度（小端序，位于 Header 第 4~5 字节）
+        uint16_t payload_length = header[4] | ((uint16_t)header[5] << 8);
         
         /// 验证Payload长度
         if (payload_length < COMM_PROTOCOL_PAYLOAD_SIZE_MIN || 

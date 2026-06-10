@@ -133,7 +133,7 @@ ROOT_UI_V3 ?= 0x03
 ROOT_UI_V4 ?= 0x04
 ROOT_UI_V5 ?= 0x05
 
-ROOT_UI_VERSION ?= $(ROOT_UI_V4)
+ROOT_UI_VERSION ?= $(ROOT_UI_V5)
 
 # V3 UI版本
 V3_UI_V2 ?= 0x02
@@ -191,7 +191,8 @@ V3_UX_VERSION ?= $(V3_UX_V2)
 PUMP_RHYTHM_MODE_NUM := 3
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V5))
 V3_UI_VERSION ?= $(V3_UI_V5)
-V3_UX_VERSION ?= $(V3_UX_V3)
+# V3_UX_VERSION ?= $(V3_UX_V3)
+V3_UX_VERSION ?= $(V3_UX_V4)
 PUMP_RHYTHM_MODE_NUM := 3
 else
 $(warning Invalid UI version)
@@ -313,6 +314,16 @@ DATA_BURY_SERVER_INC_FLAGS := $(patsubst %,-I%,$(DATA_BURY_SERVER_INC_DIRS))
 DATA_BURY_SERVER_DIR := $(PROJECT_ROOT)/overlay/servers/data_bury_server
 # 数据埋点业务 Server 源码文件
 DATA_BURY_SERVER_SRCS := $(call rwildcard,$(DATA_BURY_SERVER_DIR))
+
+# OTA Server Client 头文件子目录
+OTA_SERVER_CLIENT_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/servers/ota_server_client -type d)
+# OTA Server Client 头文件
+OTA_SERVER_CLIENT_INC_FLAGS := $(patsubst %,-I%,$(OTA_SERVER_CLIENT_INC_DIRS))
+# OTA Server Client 源码目录
+OTA_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/ota_server_client
+# OTA Server Client 源码文件
+OTA_SERVER_CLIENT_SRCS := $(call rwildcard,$(OTA_SERVER_CLIENT_DIR))
+
 
 # -------------- SDK 头文件路径（按功能模块拆分）--------------
 
@@ -646,6 +657,7 @@ SERVERS_INC_FLAGS := \
 	$(MASTER_SERVER_CLIENT_INC_FLAGS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_FLAGS) \
 	$(DATA_BURY_SERVER_INC_FLAGS) \
+	$(OTA_SERVER_CLIENT_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/servers
 
 # 存储模块头文件
@@ -719,9 +731,21 @@ BATTERY_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/battery \
 	-I$(PROJECT_ROOT)/trunk/root_source/battery
 
+# 夜灯（仅 V3PRO）
+ifeq ($(ROOT_PRODUCT_ID),$(ROOT_PRODUCT_V3PRO_ID))
+LED_NIGHT_LIGHT_INC := -I$(PROJECT_ROOT)/overlay/night_light
+LED_NIGHT_LIGHT_DRIVER_SRCS := $(wildcard $(PROJECT_ROOT)/drivers/led/night_light/*.c)
+LED_NIGHT_LIGHT_OVERLAY_SRCS := $(wildcard $(PROJECT_ROOT)/overlay/night_light/*.c)
+else
+LED_NIGHT_LIGHT_INC :=
+LED_NIGHT_LIGHT_DRIVER_SRCS :=
+LED_NIGHT_LIGHT_OVERLAY_SRCS :=
+endif
+
 # 灯模块头文件
 LED_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/adaptive_dimming \
+	$(LED_NIGHT_LIGHT_INC) \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/led \
 	-I$(PROJECT_ROOT)/trunk/root_source/led
 
@@ -838,6 +862,7 @@ CPPFLAGS += -DV3_UX_VERSION=$(V3_UX_VERSION)
 CPPFLAGS += -DV3_UX_V1=$(V3_UX_V1)
 CPPFLAGS += -DV3_UX_V2=$(V3_UX_V2)
 CPPFLAGS += -DV3_UX_V3=$(V3_UX_V3)
+CPPFLAGS += -DV3_UX_V4=$(V3_UX_V4)
 
 # 泵驱动版本
 CPPFLAGS += -DMOTOR_DRIVER_VERSION=$(MOTOR_DRIVER_VERSION)
@@ -1065,7 +1090,7 @@ endif
 # LED 驱动源码
 DRIVERS_LED_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/led/*.c) \
-	$(wildcard $(PROJECT_ROOT)/drivers/led/night_light/*.c)
+	$(LED_NIGHT_LIGHT_DRIVER_SRCS)
 
 ifeq ($(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1))
 DRIVERS_LED_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/led/led_tm1650/*.c)
@@ -1257,6 +1282,7 @@ SERVERS_MODULE_SRCS := \
 	$(APP_OLD_PROTOCOL_SERVERS_SRCS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS) \
 	$(DATA_BURY_SERVER_SRCS) \
+	$(OTA_SERVER_CLIENT_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/servers/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/servers/*.c)
 
@@ -1310,6 +1336,7 @@ BATTERY_MODULE_SRCS := \
 # 灯模块源码
 LED_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/adaptive_dimming/*.c) \
+	$(LED_NIGHT_LIGHT_OVERLAY_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/led/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/led/*.c)
 

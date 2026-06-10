@@ -89,8 +89,10 @@ void show_charging_ui(ui_proc_charge_t *proc)
 int switch_charge_night_light_onoff_ui(ui_proc_charge_t *proc)
 {
     EXCEPTION_CHECK_INT(proc->led && proc->led->hook);
+#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
     if (proc->led->hook->toggle_night_light) {
         proc->led->hook->toggle_night_light(proc->led);
     }
+#endif
     return 0;
 }

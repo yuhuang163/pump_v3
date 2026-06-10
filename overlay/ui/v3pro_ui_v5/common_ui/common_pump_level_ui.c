@@ -46,7 +46,6 @@ typedef enum {
     LEVEL_ANIMATION_TYPE_ZOOM_IN,
 } level_animation_type_e;
 
-
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
