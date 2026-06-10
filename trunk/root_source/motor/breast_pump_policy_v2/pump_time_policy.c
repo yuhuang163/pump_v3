@@ -122,9 +122,13 @@ void policy_remaining_time_update(motor_policy_runtime_t *runtime)
 
     if (get_timestamp_ms(last_log_time) > 2000) {
         last_log_time = get_timestamp();
-        LOG_MOTOR("mode:%d, index:%d, time:%d/%d/%d", 
+        LOG_MOTOR("mode:%d, index:%d, time:%d/%d/%d, mode:%d/%d/%d, state:%d/%d/%d/%d", 
             runtime->breast_pump_mode, runtime->current_timed_policy_index,
-            runtime->policy_running_time_ms, runtime->time_policy_target_time, runtime->time_policy_remaining_time);
+            runtime->policy_running_time_ms, runtime->time_policy_target_time,
+            runtime->time_policy_remaining_time, runtime->breast_pump_mode,
+            runtime->current_mode_type, runtime->next_mode_type,
+            runtime->info[0].state.policy_update_lock, runtime->info[1].state.policy_update_lock,
+            runtime->info[0].state.status, runtime->info[1].state.status);
     }
 }
 
@@ -177,7 +181,7 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
     } else {
 #if IS_SUPPORT_PUMP_SYNC
         runtime->freq_sync_flag = true;   
-#if 0
+        #if 0
         /// 同频同步
         for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
             if (runtime->pump_freq[i] != runtime->pump_freq[0] && runtime->current_mode_type != PUMP_MODE_MIX) {
@@ -185,7 +189,7 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 break;
             }
         }
-#else
+        #else
         /// 同档同步
         for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
             if (runtime->pump_level[i] != runtime->pump_level[0] || runtime->pump_freq[i] != runtime->pump_freq[0]) {
@@ -193,7 +197,8 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 break;
             }
         }
-#endif
+        #endif
+
         if (runtime->freq_sync_flag) {
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
                 if (runtime->info[i].state.policy_update_lock) {
