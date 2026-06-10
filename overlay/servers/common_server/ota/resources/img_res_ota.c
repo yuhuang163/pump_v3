@@ -134,6 +134,7 @@ static int img_res_integrity_check(ota_manager_context_t *ctx)
         return ret;
     }
 
+    crc ^= 0xFFFFFFFF;
     if (crc != ota_info.crc32) {
         LOGE("integrity check failed, crc=0x%x, expect=0x%x", crc, ota_info.crc32);
         if (ctx) {

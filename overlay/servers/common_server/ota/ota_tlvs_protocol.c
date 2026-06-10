@@ -2,8 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "ble_manager_api.h"
-#include "ota_manager_api.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "common_tlvs.h" // IWYU pragma: keep
 #include "img_res_ota.h" // IWYU pragma: keep
@@ -12,6 +10,8 @@
 * DEFINES
 *****************************************************************************************
 */
+#define OTA_IMG_WRITE_TIMEOUT_MS          (500)
+#define __OTA_IMG_WRITE_TIMEOUT_TASK        "__ota_img_write_timeout_task"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -28,66 +28,160 @@ static ota_img_info_t ota_info;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void ota_img_write_timeout_post_task_handler(hdr_post_args_t *args)
+{
+    (void)args;
+    ota_manager_context_t *ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
+    if (ctx == NULL || ctx->is_ota_upgrading == NULL || !ctx->is_ota_upgrading()) {
+        return;
+    }
+
+    ota_info_t progress = {0};
+    ctx->get_ota_info(&progress);
+    if (progress.total_size > 0 && progress.recv_size >= progress.total_size) {
+        return;
+    }
+
+    LOGE("img res ota block data timeout, recv=%u, total=%u",
+         progress.recv_size, progress.total_size);
+    ctx->end_ota_upgrade(OTA_OBJECT_IMAGE_RESOURCE, 0);
+    servers_publish_data_args_t notify_args = {0};
+    notify_args.arg1 = OTA_STATUS_CODE_DATA_BLOCK_TIMEOUT;
+    ota_tlvs_upgrade_status_notify(&notify_args);
+    memset(&ota_info, 0, sizeof(ota_info));
+}
+
+static void ota_img_write_timeout_refresh(void)
+{
+    POST_TASK_HANDLER_DELAYED_EXCLUSIVE(ota_img_write_timeout_post_task_handler,
+        OTA_IMG_WRITE_TIMEOUT_MS, 0, NULL, __OTA_IMG_WRITE_TIMEOUT_TASK);
+}
+
+static void ota_img_write_timeout_cancel(void)
+{
+    remove_task_handler(__OTA_IMG_WRITE_TIMEOUT_TASK);
+}
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+int ota_tlvs_img_id(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len)
+{
+    (void)builder;
+    (void)service;
+    EXCEPTION_CHECK_INT(data && data_len == sizeof(uint32_t));
+    ota_info.img_id = BYTES_TO_UINT32(data, sizeof(uint32_t), true);
+    return 0;
+}
+
+int ota_tlvs_version(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len)
+{
+    (void)builder;
+    (void)service;
+    EXCEPTION_CHECK_INT(data && data_len == sizeof(uint32_t));
+    ota_info.version = BYTES_TO_UINT32(data, sizeof(uint32_t), true);
+    return 0;
+}
+
+int ota_tlvs_crc32(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len)
+{
+    (void)builder;
+    (void)service;
+    EXCEPTION_CHECK_INT(data && data_len == sizeof(uint32_t));
+    ota_info.crc32 = BYTES_TO_UINT32(data, sizeof(uint32_t), true);
+    return 0;
+}
+
+int ota_tlvs_total_size(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len)
+{
+    (void)builder;
+    (void)service;
+    EXCEPTION_CHECK_INT(data && data_len == sizeof(uint32_t));
+    ota_info.total_size = BYTES_TO_UINT32(data, sizeof(uint32_t), true);
+    return 0;
+}
+
+int ota_tlvs_type(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len)
+{
+    (void)builder;
+    (void)service;
+    EXCEPTION_CHECK_INT(data && data_len == 1);
+    ota_info.type = data[0];
+    return 0;
+}
+
 int ota_tlvs_start_upgrade_request(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len)
 {
-    EXCEPTION_CHECK_INT(builder && service && data);
-    ota_info.img_id     = BYTES_TO_UINT32(data, 4, true);
-    ota_info.total_size = BYTES_TO_UINT32(data + 4, 4, true);
-    ota_info.version    = BYTES_TO_UINT32(data + 8, 4, true);
-    ota_info.crc32      = BYTES_TO_UINT32(data + 12, 4, true);
-    ota_info.type       = data[16];
+    (void)data;
+    EXCEPTION_CHECK_INT(builder && service);
+    if (data_len != 0) {
+        return -1;
+    }
     if (ota_info.type != OTA_OBJECT_IMAGE_RESOURCE) {
         return -1;
     }
-    uint32_t offset_addr = 0;
-    start_img_res_upgrade(ota_info, &offset_addr);
-    uint8_t rsp_data[4 + 2] = {0};
-    UINT32_TO_BYTES(offset_addr, rsp_data, true);
-    UINT16_TO_BYTES(OTA_BLOCK_SIZE, rsp_data + 4, true);
-    comm_protocol_tlv_node_t tlv_node = {
-        .type = OTA_TLV_START_UPGRADE_RESPONSE,
-        .length = sizeof(rsp_data),
-        .value = (uint8_t *)rsp_data,
-    };
-    return comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+    ota_info.offset_addr = 0;
+    uint32_t resume_offset = 0;
+    int ret = start_img_res_upgrade(ota_info, &resume_offset);
+    if (ret != 0) {
+        return ret;
+    }
+    /// 添加图片偏移地址
+    ret = common_tlv_add_u32(builder, service, OTA_TLV_IMG_OFFSET_ADDR, resume_offset);
+    if (ret != 0) {
+        return ret;
+    }
+    /// 添加块大小
+    ota_img_write_timeout_cancel();
+    return common_tlv_add_u16(builder, service, OTA_TLV_BLOCK_SIZE, OTA_BLOCK_SIZE);
 }
 
-int ota_tlvs_block_size_negotiation(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
-                    uint8_t *data, uint16_t data_len)
+int ota_tlvs_write_img_offset_addr(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+    uint8_t *data, uint16_t data_len)
 {
-    EXCEPTION_CHECK_INT(builder && service && data);
+    (void)builder;
+    (void)service;
+    EXCEPTION_CHECK_INT(data && data_len == sizeof(uint32_t));
+    ota_info.offset_addr = BYTES_TO_UINT32(data, sizeof(uint32_t), true);
     return 0;
 }
 
 int ota_tlvs_write_img_data(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len)
 {
-    EXCEPTION_CHECK_INT(builder && service && data);
+    (void)builder;
+    (void)service;
+    EXCEPTION_CHECK_INT(data && data_len > 0 && data_len <= OTA_BLOCK_SIZE);
     ota_manager_context_t *ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
     EXCEPTION_CHECK_INT(ctx);
-    uint32_t offset_addr = BYTES_TO_UINT32(data, 4, true);
-    return ctx->write_image_data(OTA_OBJECT_IMAGE_RESOURCE, offset_addr, data + 4, data_len - 4);
+    int ret = ctx->write_image_data(OTA_OBJECT_IMAGE_RESOURCE, ota_info.offset_addr, data, data_len);
+    if (ret == 0) {
+        ota_img_write_timeout_refresh();
+    }
+    return ret;
 }
 
 int ota_tlvs_end_upgrade_request(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
     uint8_t *data, uint16_t data_len)
 {
-    EXCEPTION_CHECK_INT(builder && service && data);
-    uint32_t img_id = BYTES_TO_UINT32(data, 4, true);
-    int ret = end_img_res_upgrade(img_id);
-    uint8_t result = (ret == 0) ? OTA_STATUS_CODE_SUCCESS : OTA_STATUS_CODE_FAIL;
-    comm_protocol_tlv_node_t tlv_node = {
-        .type = OTA_TLV_END_UPGRADE_RESPONSE,
-        .length = 1,
-        .value = (uint8_t *)&result,
-    };
-    return comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+    EXCEPTION_CHECK_INT(builder && service);
+    if (data_len != 0) {
+        return -1;
+    }
+    ota_img_write_timeout_cancel();
+    /// 添加升级结果
+    uint16_t result = (end_img_res_upgrade(ota_info.img_id) == 0) ? OTA_STATUS_CODE_SUCCESS : OTA_STATUS_CODE_FAIL;
+    int ret = common_tlv_add_u16(builder, service, OTA_TLV_UPGRADE_RESULT, result);
+    /// 重置OTA信息
+    memset(&ota_info, 0, sizeof(ota_info));
+    return ret;
 }
 
 int ota_tlvs_upgrade_status_notify(servers_publish_data_args_t *args)
