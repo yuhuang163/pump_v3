@@ -133,10 +133,10 @@ extern "C" {
 
 #ifndef STORAGE_DATA_BURY_FLASH_BANK_MAGIC_NUM
 #define STORAGE_DATA_BURY_FLASH_BANK_MAGIC_NUM                               (0xAFFA5895)
+#endif
 
 #ifndef STORAGE_IMG_RES_OTA_MAGIC_NUM
 #define STORAGE_IMG_RES_OTA_MAGIC_NUM                                          (0xAFFA5896)
-
 #endif
 
 /*
