@@ -140,11 +140,17 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
             }
             break;
         case SUCTION_STATUS_UPDATE_POLICY:
-        
+            if (info->state.policy_update_lock) {
+                info->state.policy_update_lock = 0; /// 释放策略
+                LOG_MOTOR("dev-%d policy update lock release", pump_id);
+            }
             break;
         default:
             LOG_MOTOR("unknown status: %d, action: %d, lock: %d", 
                 info->state.status, info->state.action, info->state.policy_update_lock);
+            if (info->state.policy_update_lock) {
+                info->state.policy_update_lock = 0; /// 释放策略
+            }
             break;
     }
 
