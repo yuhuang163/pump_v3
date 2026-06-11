@@ -240,6 +240,58 @@ static int ble_dev_resume(struct rt_device_node *dev)
     return 0;
 }
 
+static void ble_invoke_event_callback(ble_event_e event, uintptr_t connhdl,
+                                      const gap_adv_callback_param_t *gap_param)
+{
+    ble_hal_event_param_t hal_param = {0};
+
+    if (!s_ble_event_callback) {
+        return;
+    }
+
+    if (gap_param) {
+        if (gap_param->conn_opened) {
+            hal_param.connhdl = gap_param->conn_opened->connhdl;
+            hal_param.error_code = gap_param->conn_opened->error_code;
+            hal_param.con_idx = gap_param->conn_opened->con_idx;
+        } else if (gap_param->conn_closed) {
+            hal_param.connhdl = gap_param->conn_closed->connhdl;
+            hal_param.error_code = gap_param->conn_closed->error_code;
+            hal_param.con_idx = gap_param->conn_closed->con_idx;
+        } else if (gap_param->conn_failed) {
+            hal_param.error_code = gap_param->conn_failed->error_code;
+        } else if (gap_param->mtu_exchanged) {
+            hal_param.connhdl = gap_param->mtu_exchanged->connhdl;
+            hal_param.error_code = gap_param->mtu_exchanged->error_code;
+            hal_param.con_idx = gap_param->mtu_exchanged->con_idx;
+            hal_param.mtu = gap_param->mtu_exchanged->mtu;
+        } else if (gap_param->conn_params_update) {
+            hal_param.connhdl = gap_param->conn_params_update->connhdl;
+            hal_param.error_code = gap_param->conn_params_update->error_code;
+            hal_param.con_idx = gap_param->conn_params_update->con_idx;
+        }
+    }
+    if (hal_param.connhdl == 0u) {
+        hal_param.connhdl = (uint16_t)connhdl;
+    }
+    if (connhdl == 0u) {
+        connhdl = hal_param.connhdl;
+    }
+
+    switch (event) {
+    case BLE_EVENT_ADVERTISE_STARTED:
+    case BLE_EVENT_ADVERTISE_STOPPED:
+    case BLE_EVENT_USER_CONFIRM:
+    case BLE_EVENT_CONN_ENCRYPTED:
+    case BLE_EVENT_CONN_UPDATE_REQ:
+        s_ble_event_callback(event, connhdl, NULL);
+        break;
+    default:
+        s_ble_event_callback(event, connhdl, &hal_param);
+        break;
+    }
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -247,42 +299,41 @@ static int ble_dev_resume(struct rt_device_node *dev)
 int ble_custom_event_callback(uintptr_t connhdl, gap_adv_event_t event, gap_adv_callback_param_t param)
 {
     LOG_PBUS("ble conn index: %d, event: %d", connhdl, event);
-    if (!s_ble_event_callback) {
-        return 0;
-    }
     switch ((int)event) {
         case GAP_ADV_EVENT_STARTED:
-            s_ble_event_callback(BLE_EVENT_ADVERTISE_STARTED, NULL);
+            ble_invoke_event_callback(BLE_EVENT_ADVERTISE_STARTED, connhdl, NULL);
             break;
         case GAP_ADV_EVENT_STOPPED:
-            s_ble_event_callback(BLE_EVENT_ADVERTISE_STOPPED, NULL);
+            ble_invoke_event_callback(BLE_EVENT_ADVERTISE_STOPPED, connhdl, NULL);
             break;
         case GAP_ADV_EVENT_CONN_OPENED:
-            s_ble_event_callback(BLE_EVENT_CONN_OPENED, &connhdl);
+            ble_invoke_event_callback(BLE_EVENT_CONN_OPENED, connhdl, &param);
             break;
         case GAP_ADV_EVENT_CONN_CLOSED:
             s_ble_mtu_size = BLE_MTU_SIZE_DEFAULT;
-            s_ble_event_callback(BLE_EVENT_CONN_CLOSED, &connhdl);
+            ble_invoke_event_callback(BLE_EVENT_CONN_CLOSED, connhdl, &param);
             break;
         case GAP_ADV_EVENT_CONN_FAILED:
-            s_ble_event_callback(BLE_EVENT_CONN_FAILED, &connhdl);
+            ble_invoke_event_callback(BLE_EVENT_CONN_FAILED, connhdl, &param);
             break;
         case GAP_ADV_EVENT_CONN_MTU_EXCHANGED:
-            s_ble_mtu_size = param.mtu_exchanged->mtu;
+            if (param.mtu_exchanged) {
+                s_ble_mtu_size = param.mtu_exchanged->mtu;
+            }
             LOG_PBUS("ble mtu size: %d", s_ble_mtu_size);
-            s_ble_event_callback(BLE_EVENT_CONN_MTU_EXCHANGED, &s_ble_mtu_size);
+            ble_invoke_event_callback(BLE_EVENT_CONN_MTU_EXCHANGED, connhdl, &param);
             break;
         case GAP_ADV_EVENT_USER_CONFIRM:
-            s_ble_event_callback(BLE_EVENT_USER_CONFIRM, NULL);
+            ble_invoke_event_callback(BLE_EVENT_USER_CONFIRM, connhdl, NULL);
             break;
         case GAP_ADV_EVENT_CONN_ENCRYPTED:
-            s_ble_event_callback(BLE_EVENT_CONN_ENCRYPTED, NULL);
+            ble_invoke_event_callback(BLE_EVENT_CONN_ENCRYPTED, connhdl, &param);
             break;
         case GAP_ADV_EVENT_CONN_UPDATE_REQ:
-            s_ble_event_callback(BLE_EVENT_CONN_UPDATE_REQ, NULL);
+            ble_invoke_event_callback(BLE_EVENT_CONN_UPDATE_REQ, connhdl, NULL);
             break;
         case GAP_ADV_EVENT_CONN_PARAMS_UPDATE:
-            s_ble_event_callback(BLE_EVENT_CONN_PARAMS_UPDATE, &connhdl);
+            ble_invoke_event_callback(BLE_EVENT_CONN_PARAMS_UPDATE, connhdl, &param);
             break;
         default:
             break;
@@ -297,10 +348,15 @@ void ble_custom_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, bool notify_ena
         return;
     }
     if (notify_enabled) {
-        s_ble_event_callback(BLE_EVENT_TX_CCC_ENABLED, &connhdl);
-    }
-    else {
-        s_ble_event_callback(BLE_EVENT_TX_CCC_DISABLED, &connhdl);
+        ble_hal_event_param_t hal_param = {
+            .connhdl = connhdl,
+        };
+        s_ble_event_callback(BLE_EVENT_TX_CCC_ENABLED, (uintptr_t)connhdl, &hal_param);
+    } else {
+        ble_hal_event_param_t hal_param = {
+            .connhdl = connhdl,
+        };
+        s_ble_event_callback(BLE_EVENT_TX_CCC_DISABLED, (uintptr_t)connhdl, &hal_param);
     }
 }
 

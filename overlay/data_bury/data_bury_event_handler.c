@@ -4,6 +4,7 @@
 
 #include "root_common_api.h"
 #include "hal_battery.h"
+#include "hal_ble.h"
 #include "data_bury_persist_defs.h"
 #include "data_bury_event_handler.h"
 
@@ -12,6 +13,11 @@ typedef struct {
     uint8_t charge_tracked;
     uint8_t session_start_mode;
     uint8_t session_start_level;
+    uint8_t bt_session_cached;
+    uint8_t bt_remote_initiated;
+    uint32_t bt_connect_timestamp_utc;
+    uint16_t bt_connection_setup_duration;
+    int8_t bt_signal_strength_rssi;
 } data_bury_event_runtime_t;
 
 static data_bury_event_runtime_t s_event_rt;
@@ -77,22 +83,105 @@ static void data_bury_event_publish_pump_shutdown(data_bury_manager_context_t *c
                                     &evt, (uint16_t)sizeof(evt), 0u);
 }
 
-static void data_bury_event_publish_bt_connect(data_bury_manager_context_t *ctx, uint8_t connected)
+static int8_t data_bury_event_sample_ble_rssi(data_bury_manager_context_t *ctx)
+{
+    ble_manager_context_t *ble = ctx->priv.ble_ctx;
+    int32_t rssi = 0;
+
+    if (!ble) {
+        ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+        ctx->priv.ble_ctx = ble;
+    }
+    if (!ble || !ble->priv.ble_dev || !ble->priv.ble_dev->ioctl) {
+        return (int8_t)0xFF;
+    }
+    if (ble->priv.connect_idx == 0u) {
+        return (int8_t)0xFF;
+    }
+    (void)DEVICE_IOCTL_ARGS(ble->priv.ble_dev, OP_CODE_BLE_TEST_GET_RSSI_VALUE, &rssi);
+    return (int8_t)rssi;
+}
+
+static uint8_t data_bury_event_hci_to_app_disconnect_reason(uint8_t hci_reason)
+{
+    switch (hci_reason) {
+    case 0x00:
+    case 0x13: /* Remote User Terminated Connection */
+        return DATA_BURY_BT_DISCONNECT_REASON_USER;
+    case 0x08: /* Connection Timeout */
+        return DATA_BURY_BT_DISCONNECT_REASON_TIMEOUT;
+    default:
+        return DATA_BURY_BT_DISCONNECT_REASON_SKIP;
+    }
+}
+
+static void data_bury_event_bt_session_cache_clear(void)
+{
+    s_event_rt.bt_session_cached = 0u;
+    s_event_rt.bt_remote_initiated = 0u;
+    s_event_rt.bt_connect_timestamp_utc = 0u;
+    s_event_rt.bt_connection_setup_duration = 0u;
+    s_event_rt.bt_signal_strength_rssi = (int8_t)0xFF;
+}
+
+static void data_bury_event_bt_session_cache_save(data_bury_manager_context_t *ctx,
+                                                  const data_bury_trigger_args_t *args)
+{
+    int8_t rssi = (int8_t)(args->arg2 & 0xFF);
+
+    (void)ctx;
+    data_bury_event_bt_session_cache_clear();
+    uint32_t setup_ms = (args->arg1 > 0) ? (uint32_t)args->arg1 : 0u;
+
+    if (setup_ms > 0xFFFFu) {
+        setup_ms = 0xFFFFu;
+    }
+    s_event_rt.bt_session_cached = 1u;
+    s_event_rt.bt_remote_initiated = 1u;
+    s_event_rt.bt_connect_timestamp_utc = platform_get_utc_time();
+    s_event_rt.bt_connection_setup_duration = (uint16_t)setup_ms;
+    if (rssi == 0 || rssi == (int8_t)0xFF) {
+        rssi = data_bury_event_sample_ble_rssi(ctx);
+    }
+    s_event_rt.bt_signal_strength_rssi = rssi;
+    LOG_BURY("bt session cache: ts=%u setup_ms=%u rssi=%d",
+             (unsigned)s_event_rt.bt_connect_timestamp_utc,
+             (unsigned)s_event_rt.bt_connection_setup_duration,
+             (int)s_event_rt.bt_signal_strength_rssi);
+}
+
+static int data_bury_event_publish_bt_session_end(data_bury_manager_context_t *ctx, uint8_t hci_reason)
 {
     data_bury_evt_bt_connect_t evt = {0};
-    uint32_t now = platform_get_utc_time();
+    uint8_t app_reason;
+
+    if (!s_event_rt.bt_session_cached || !s_event_rt.bt_remote_initiated) {
+        return 0;
+    }
+    app_reason = data_bury_event_hci_to_app_disconnect_reason(hci_reason);
+    if (app_reason == DATA_BURY_BT_DISCONNECT_REASON_SKIP) {
+        LOG_BURY("bt session end skip: hci_reason=0x%02x", (unsigned)hci_reason);
+        data_bury_event_bt_session_cache_clear();
+        return 0;
+    }
 
     evt.device_side = ctx->data_bury_get_device_side();
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
-    evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
-    evt.connect_result = connected ? 1u : 0u;
-    evt.connection_setup_duration = 0u;
-    evt.bt_signal_strength_rssi = 0;
-    if (!connected) {
-        evt.disconnect_timestamp = now;
-    }
+    evt.evt_timestamp = s_event_rt.bt_connect_timestamp_utc;
+    evt.connect_result = DATA_BURY_BT_CONNECT_RESULT_SESSION_END;
+    evt.connection_setup_duration = s_event_rt.bt_connection_setup_duration;
+    evt.bt_signal_strength_rssi = s_event_rt.bt_signal_strength_rssi;
+    evt.disconnect_timestamp = platform_get_utc_time();
+    evt.disconnect_reason = app_reason;
+    LOG_BURY("bt session end publish: connect_ts=%u setup_ms=%u rssi=%d reason=0x%02x",
+             (unsigned)evt.evt_timestamp,
+             (unsigned)evt.connection_setup_duration,
+             (int)evt.bt_signal_strength_rssi,
+             (unsigned)evt.disconnect_reason);
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BT_CONNECT_EVENT,
                                     &evt, (uint16_t)sizeof(evt), 0u);
+    data_bury_event_bt_session_cache_clear();
+    return 0;
 }
 
 static void data_bury_event_publish_pump_session_start(data_bury_manager_context_t *ctx)
@@ -232,17 +321,25 @@ static void data_bury_event_flush_pending_if_connected(data_bury_manager_context
 int data_bury_event_process_ble_connected(data_bury_manager_context_t *ctx,
                                                  const data_bury_trigger_args_t *args)
 {
-    (void)args;
-    data_bury_event_publish_bt_connect(ctx, 1u);
+    if (!args) {
+        return -1;
+    }
+    data_bury_event_bt_session_cache_save(ctx, args);
     return 0;
 }
 
 int data_bury_event_process_ble_disconnect(data_bury_manager_context_t *ctx,
                                                   const data_bury_trigger_args_t *args)
 {
-    (void)args;
-    data_bury_event_publish_bt_connect(ctx, 0u);
-    return 0;
+    uint8_t hci_reason = 0x13u;
+
+    if (!args) {
+        return -1;
+    }
+    if (args->arg1 >= 0) {
+        hci_reason = (uint8_t)args->arg1;
+    }
+    return data_bury_event_publish_bt_session_end(ctx, hci_reason);
 }
 
 int data_bury_event_process_pump_session_start(data_bury_manager_context_t *ctx,
@@ -277,6 +374,10 @@ int data_bury_event_process_power_off(data_bury_manager_context_t *ctx,
         reason = DATA_BURY_SHUTDOWN_USER_MANUAL;
     }
     data_bury_event_publish_pump_shutdown(ctx, reason);
+    if (ctx->priv.ble_ctx && ctx->priv.ble_ctx->ble_is_connected
+        && ctx->priv.ble_ctx->ble_is_connected()) {
+        (void)data_bury_event_publish_bt_session_end(ctx, 0x13u);
+    }
     return 0;
 }
 

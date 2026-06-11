@@ -85,9 +85,21 @@ typedef struct {
 } ble_service_send_data_t;
 
 /**
+ * @brief BLE 连接类事件参数（由 driver 从 GAP 回调填充，供 trunk 使用）
+ */
+typedef struct {
+    uint16_t connhdl;
+    uint8_t error_code;
+    uint8_t con_idx;
+    uint16_t mtu;
+} ble_hal_event_param_t;
+
+/**
  * @brief 描述BLE事件回调
-*/
-typedef void (*ble_event_cb_func)(ble_event_e event, void *param);
+ * @param connhdl 连接句柄（无连接上下文时为 0）
+ * @param param   事件扩展参数；连接类事件为 ble_hal_event_param_t*，其余可为 NULL
+ */
+typedef void (*ble_event_cb_func)(ble_event_e event, uintptr_t connhdl, void *param);
 
 /**
  * @brief 描述BLE数据回调

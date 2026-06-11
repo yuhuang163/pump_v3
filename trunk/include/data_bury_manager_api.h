@@ -75,6 +75,23 @@ typedef enum {
 #define DATA_BURY_FIRMWARE_UPDATE_RESULT_SUCCESS  0x00u
 #define DATA_BURY_FIRMWARE_UPDATE_RESULT_FAILURE  0x01u
 
+/** EVT_003 connect_result：0=建链失败(HCI)，1=建链成功后会话结束(断链上报) */
+#define DATA_BURY_BT_CONNECT_RESULT_FAIL          0x00u
+#define DATA_BURY_BT_CONNECT_RESULT_SESSION_END   0x01u
+
+/** EVT_003 disconnect_reason（协议业务码） */
+#define DATA_BURY_BT_DISCONNECT_REASON_USER       0x00u
+#define DATA_BURY_BT_DISCONNECT_REASON_TIMEOUT    0x01u
+/** 映射后跳过上报 */
+#define DATA_BURY_BT_DISCONNECT_REASON_SKIP       0xFFu
+
+/**
+ * DATA_BURY_TRIGGER_EVT_BLE_CONNECTED：
+ *   arg1=建连耗时 setup_ms（广播窗口起点至建连完成，由应用层传入，上限 65535ms）
+ *   arg2=RSSI(int8，低 8 位有效；0/0xFF 时埋点层自动采样)
+ * DATA_BURY_TRIGGER_EVT_BLE_DISCONNECT：arg1=HCI 断开原因，arg2=保留
+ */
+
 typedef enum {
     DATA_BURY_TRIGGER_EVT_NONE = 0,
     DATA_BURY_TRIGGER_EVT_BLE_CONNECTED,
