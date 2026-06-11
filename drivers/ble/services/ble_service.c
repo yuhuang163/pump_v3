@@ -109,7 +109,6 @@ int ble_service_data_send(uint8_t srv_id, uint8_t *p_data, uint16_t size, uint8_
             break;
         }
         BSP_LOG_HEX("ble notify data", pos, data_size);
-        //BSP_LOG("ble", "idx %d, data_size %d, pos_offset %d, total %d", conn_idx, data_size, pos_offset, size);
         pos_offset += data_size;
     }
     return ret;

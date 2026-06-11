@@ -28,7 +28,7 @@ COMM_PROTOCOL_FOOTER_SIZE = 2
 COMM_PROTOCOL_SERVICE_HEADER_SIZE = 4
 COMM_PROTOCOL_TLV_HEADER_SIZE = 4
 COMM_PROTOCOL_PAYLOAD_SIZE_MIN = COMM_PROTOCOL_HEADER_SIZE + COMM_PROTOCOL_FOOTER_SIZE
-COMM_PROTOCOL_MAX_PAYLOAD_SIZE = 1024 + 64  # 与 comm_protocol_defs.h 一致
+COMM_PROTOCOL_MAX_PAYLOAD_SIZE = 4096 + 64  # 与 project_config.h OTA_BLOCK_SIZE + 64 一致
 COMM_PROTOCOL_OTA_SERVICE = 9
 PROTOCOL_SERVICE_ERROR_CODE_TLV_ID = 0xF000
 FRAME_TYPE_REQUEST = 0
@@ -61,7 +61,7 @@ OTA_TLV_UPGRADE_RESULT = 0x000B
 OTA_TLV_UPGRADE_STATUS_NOTIFY = 0x000C
 
 OTA_OBJECT_IMAGE_RESOURCE = 0x02
-OTA_BLOCK_SIZE = 1024
+OTA_BLOCK_SIZE = 4096
 OTA_STATUS_SUCCESS = 0x0000
 OTA_STATUS_FAIL = 0x0001
 
@@ -626,7 +626,7 @@ def test_ota_frame_sizes() -> None:
     assert struct.unpack_from("<H", start, 4)[0] == 45
 
     max_data = ota_max_img_data_per_frame()
-    assert max_data == 1072, f"单帧最大 IMG_DATA 应为 1072, 实际 {max_data}"
+    assert max_data == 4144, f"单帧最大 IMG_DATA 应为 4144, 实际 {max_data}"
 
     write = build_ota_write_data_frame(2, 0, bytes(max_data))
     assert len(write) == 6 + COMM_PROTOCOL_MAX_PAYLOAD_SIZE + 2
@@ -672,7 +672,7 @@ def test_ota_full_flow_mtu200() -> None:
 
 def test_ota_dirty_data_between_write_blocks() -> None:
     """OTA 多块写入：块与块之间穿插脏数据，复用组包缓冲，升级应仍成功"""
-    block1 = bytes((i * 7) & 0xFF for i in range(1024))
+    block1 = bytes((i * 7) & 0xFF for i in range(4096))
     block2 = bytes((i * 3 + 1) & 0xFF for i in range(512))
     file_data = block1 + block2
     device = MockOtaDevice()
@@ -701,7 +701,7 @@ def test_ota_dirty_data_between_write_blocks() -> None:
     seq = 3
     rsp = transceive_via_mtu_persistent(
         asm,
-        build_ota_write_data_frame(seq, 1024, block2),
+        build_ota_write_data_frame(seq, 4096, block2),
         mtu,
         device.handle_request,
         garbage_before=garbage,
@@ -780,7 +780,7 @@ def test_crc16_invalid_rejected() -> None:
 
 def test_checksum_mismatch_then_recover_mtu200() -> None:
     """CRC 错位后仅滑动 1 字节，后续有效 OTA 写块仍可组包（复现脏数据卡死场景）"""
-    block = bytes((i * 7) & 0xFF for i in range(1024))
+    block = bytes((i * 7) & 0xFF for i in range(4096))
     good_frame = build_ota_write_data_frame(2, 0xAC, block)
     stale = bytes(900)
     mtu = 200
@@ -853,7 +853,7 @@ def print_test_catalog() -> None:
     print("  - 0x0009 DATA_WRITE_ERROR（Flash 写入失败）")
     print("  - 断点续传（相同元数据恢复 offset）")
     print("  - NOTIFY 0x000C 主动推送")
-    print("  - Payload 超长 (>1088) 拒绝")
+    print("  - Payload 超长 (>4160) 拒绝")
 
 
 def main() -> int:

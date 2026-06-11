@@ -12,7 +12,10 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "broadcast_manager_api.h" // IWYU pragma: keep
 
-#define OTA_BLOCK_SIZE                    1024
+/// 定义OTA单块原数据大小
+#ifndef OTA_BLOCK_SIZE
+#define OTA_BLOCK_SIZE                   (1024)
+#endif
 
 typedef enum {
     OTA_BROADCAST_UI_ENTER = 100,          /// ui进入.

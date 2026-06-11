@@ -138,6 +138,8 @@ extern "C" {
 #define LED_SLOW_BLINK_TIME                            (500) /// 1000ms
 /// 关机提醒时间
 #define POWER_OFF_REMINDER_TIME                        (3000) /// 3秒
+/// OTA单块原数据大小
+#define OTA_BLOCK_SIZE                                 (4096)
 
 #ifdef __cplusplus
 }
