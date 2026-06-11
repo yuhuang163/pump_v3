@@ -683,6 +683,7 @@ PRODUCT_TESTS_INC_FLAGS := \
 # 数据埋点 Manager 模块头文件
 DATA_BURY_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/root_source/data_bury \
+	-I$(PROJECT_ROOT)/overlay/data_bury \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/data_bury \
 	$(DATA_BURY_SERVER_INC_FLAGS)
 
@@ -1295,6 +1296,7 @@ PRODUCT_TESTS_MODULE_SRCS := \
 
 # 数据埋点 Manager 模块源码
 DATA_BURY_MODULE_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/data_bury/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/data_bury/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/data_bury/*.c)
 

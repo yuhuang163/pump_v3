@@ -46,12 +46,18 @@ static void ota_main_fw_event_callback(ota_event_type_e event, int arg1, int arg
     if (event == OTA_EVENT_START_OTA || event == OTA_EVENT_RESUME_OTA) {
         ota_obj->set_ota_upgrade_progress(OTA_OBJECT_MAIN_FIRMWARE, arg1, arg2);
         ota_obj->start_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, NULL);
+        ///插入固件更新开始
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_OTA_START, 1u, 0u);
     } else if (event == OTA_EVENT_OTA_PROGRESS) {
         ota_obj->set_ota_upgrade_progress(OTA_OBJECT_MAIN_FIRMWARE, arg1, arg2);
     } else if (event == OTA_EVENT_OTA_FAIL) {
         ota_obj->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, false);
+        ///插入固件更新失败
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_OTA_START, 0u, 0u);
     } else if (event == OTA_EVENT_OTA_SUCCESS) {
         ota_obj->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, true);
+        ///插入固件更新完成，重启开机
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, DATA_BURY_SHUTDOWN_FW_UPDATE, 0);
     }
 }
 

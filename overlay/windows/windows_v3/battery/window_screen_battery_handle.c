@@ -81,6 +81,8 @@ static void battery_ui_common_cb(hdr_post_args_t *args)
             LOG_WM("low power power off");
             if (proc->pm) {
                 proc->pm->system_power_control(false);
+                ///插入关机数据埋点 0:手动关机 1:低电量关机 2:自动休眠关机 3:异常关机 4:固件更新关机 5:过热关机
+                DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_LOW_BATTERY, 0);
             }
             break;
         case BATTERY_HDR_ACTION_LOW_POWER_EXIT: 
