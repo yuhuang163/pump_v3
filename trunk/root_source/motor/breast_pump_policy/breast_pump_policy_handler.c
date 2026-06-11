@@ -251,7 +251,6 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     if (action == MOTOR_USER_DEBUG_POLICY_START) {
         body->taste_run_flag = 1;
         policy_obj = thiz->priv.user_debug_policy;
-        body->all_timed_policy_finish_flag = 0; 
         LOG_MOTOR("user debug policy");
     } else if (action == MOTOR_POLICY_CONTINUE) {
         if (body->breast_pump_mode == pump_mode) {
@@ -263,14 +262,12 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
             body->policy_running_time_ms = 0;
             body->breast_pump_mode = pump_mode;
             policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
-            body->all_timed_policy_finish_flag = 0;
             LOG_MOTOR("%s mode policy", mode_name);
         }
     } else {
         body->policy_running_time_ms = 0;
         body->breast_pump_mode = pump_mode;
         policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
-        body->all_timed_policy_finish_flag = 0;
         LOG_MOTOR("%s mode policy", mode_name);
     }
     if (!is_valid_motor_policy_obj(policy_obj)) {
@@ -371,17 +368,30 @@ static void pump_algo_compensation_callback(void *user_data, algo_breast_pump_da
 }
 #endif
 
-void motor_mode_change_handler(struct motor_manager_context *thiz, int breast_pump_mode)
+int change_motor_mode(struct motor_manager_context *thiz, uint8_t mode, uint8_t is_continue)
 {
-    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_INT(thiz);
     motor_policy_runtime_t *body = &thiz->priv.runtime;
-    const motor_policy_manager_t *policy_obj = breast_pump_mode_policy_get(thiz, breast_pump_mode);
+    const motor_policy_manager_t *policy_obj = breast_pump_mode_policy_get(thiz, mode);
     if (!is_valid_motor_policy_obj(policy_obj)) {
-        LOGE("invalid policy obj: %p, breast_pump_mode: %d", policy_obj, breast_pump_mode);
-        return;
+        LOGE("invalid policy obj: %p, pump_mode: %d", policy_obj, mode);
+        return -1;
     }
     body->current_mode_type = pump_policy_type_get(policy_obj->head.policy);
-    LOG_MOTOR("mode change: %d, type: %d", breast_pump_mode, body->current_mode_type);
+    if (policy_obj->head.next) {
+        body->next_mode_type = pump_policy_type_get(policy_obj->head.next->policy);
+    } else {
+        body->next_mode_type = body->current_mode_type;
+    }
+    body->current_timed_policy_index = 0;
+    body->time_policy_remaining_time = body->timed_policy->duration_seconds;
+    body->policy_running_time_ms = 0;
+    if (is_continue) {
+        thiz->start_motor(MOTOR_POLICY_CHANGE_MODE);
+    }
+    LOG_MOTOR("mode change: %d, type: %d, next_type: %d, time: %d", 
+        mode, body->current_mode_type, body->next_mode_type, body->time_policy_remaining_time);
+    return 0;
 }
 
 void motor_policy_init(struct motor_manager_context *thiz)

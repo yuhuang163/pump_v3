@@ -264,7 +264,6 @@ typedef struct {
     uint8_t next_mode_type; /// 下一个模式类型
     uint8_t breast_pump_mode; /// 泵奶模式
     uint8_t current_timed_policy_index; /// 当前定时策略索引
-    uint8_t all_timed_policy_finish_flag; /// 所有定时策略执行完毕标志
 #if IS_SUPPORT_CLIMB_POLICY
     pump_climb_policy_t climb; /// 爬升策略状态
 #endif
