@@ -269,9 +269,9 @@ typedef struct breast_pump_manager_context {
     struct __breast_pump_hook {
         int (*make_progress_route)(struct breast_pump_manager_context *ctx, pump_result_info_t *result_info);
         int (*breast_pump_completed_route)(struct breast_pump_manager_context *ctx);
-        int (*start_breast_pump_work_route)(struct breast_pump_manager_context *ctx, int state);
-        int (*stop_breast_pump_work_route)(struct breast_pump_manager_context *ctx, int state);
-        int (*breast_pump_result_info_app_reset)(struct breast_pump_manager_context *ctx, pump_result_info_t *result_info);
+        void (*start_breast_pump_work_route)(struct breast_pump_manager_context *ctx, int state);
+        void (*stop_breast_pump_work_route)(struct breast_pump_manager_context *ctx, int state);
+        void (*mode_change_route)(struct breast_pump_manager_context *ctx, uint8_t mode); /// 模式切换路由.
     } *hook;
 } breast_pump_manager_context_t;
 

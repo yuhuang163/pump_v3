@@ -87,10 +87,8 @@ static void start_breast_pump_work(uint8_t is_continue_work)
 {
     breast_pump_manager_context_t *ctx = breast_pump_obj;
     if (ctx->hook && ctx->hook->start_breast_pump_work_route) {
-        if (ctx->hook->start_breast_pump_work_route(ctx, 
-            is_continue_work ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START) < 0) {
-            return;
-        }
+        ctx->hook->start_breast_pump_work_route(ctx, 
+            is_continue_work ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START);
     }
 
     /// 启动马达.
@@ -192,6 +190,10 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     m_info->mode = mode;
     if (motor_ctx) {
         motor_ctx->change_motor_mode(m_info->mode, m_info->do_work ? MOTOR_POLICY_CONTINUE : MOTOR_POLICY_STATE_RESET);
+    }
+    
+    if (breast_pump_obj->hook && breast_pump_obj->hook->mode_change_route) {
+        breast_pump_obj->hook->mode_change_route(breast_pump_obj, m_info->mode);
     }
 
     if (st) {

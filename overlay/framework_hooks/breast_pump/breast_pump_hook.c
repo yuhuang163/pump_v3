@@ -136,6 +136,8 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     result_info->current_mode_work_time = 0;
     result_info->mode = m_info->mode;
     result_info->start_time = get_timestamp();
+    result_info->work_valid_time = result_info->current_mode_work_time + result_info->hostory_work_time;
+    ctx->priv.m_result.work_valid_time = result_info->work_valid_time;
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
 }
 #endif
@@ -147,7 +149,6 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     log_timer++;
     /// 更新模式和力度.
     if (result_info->mode != ctx->priv.m_info.mode) {
-        breast_pump_mode_update(ctx, result_info);
         ctx->priv.m_result.working_mode = ctx->priv.m_info.mode;
         return RESULT_PUMP_NORMAL;
     }
@@ -218,10 +219,10 @@ static int make_progress_route(breast_pump_manager_context_t *ctx, pump_result_i
     return notify_id;
 }
 
-static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int status)
+static void start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int status)
 {    
     struct storage_manager_context *st = ctx->priv.st;
-    EXCEPTION_CHECK_INT(st);
+    EXCEPTION_CHECK_VOID(st);
     pump_result_info_t *result_info = &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING];
     struct sys_persist_info *persist = ctx->priv.st->get_persist_sys_info();
     if (status == BREAST_PUMP_START) {
@@ -237,14 +238,23 @@ static int start_breast_pump_work_route(breast_pump_manager_context_t *ctx, int 
         }
         LOG_PMP("mode %d continue", result_info->mode);
     }
-    return 0;
 }
 
-static int stop_breast_pump_work_route(breast_pump_manager_context_t *ctx, int status)
+static void stop_breast_pump_work_route(breast_pump_manager_context_t *ctx, int status)
 {
     pump_result_info_t *result_info = &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING];
     LOG_PMP("stop, work_time=%d", PUMP_TIME_TO_SECOND(result_info->work_valid_time));
-    return 0;
+}
+
+static void mode_change_route(breast_pump_manager_context_t *ctx, uint8_t mode)
+{
+    breast_pump_info_t *m_info = &ctx->priv.m_info;
+    if (m_info->status == BREAST_PUMP_START || m_info->status == BREAST_PUMP_CONTINUE || m_info->status == BREAST_PUMP_PAUSE) {
+        LOG_PMP("mode change: %d", mode);
+        breast_pump_mode_update(ctx, &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING]);
+    } else {
+        LOG_PMP("mode change: %d, ignore", mode);
+    }
 }
 
 /*
@@ -258,6 +268,7 @@ void register_breast_pump_hook(breast_pump_manager_context_t *ctx)
     ctx->hook->make_progress_route = make_progress_route;
     ctx->hook->start_breast_pump_work_route = start_breast_pump_work_route;
     ctx->hook->stop_breast_pump_work_route = stop_breast_pump_work_route;
+    ctx->hook->mode_change_route = mode_change_route;
 }
 
  

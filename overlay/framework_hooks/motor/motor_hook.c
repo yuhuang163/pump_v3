@@ -15,7 +15,7 @@
 #define MOTOR_CUSTOM_POLICY_MONITOR_INTERVAL_MS  1000
 #define MOTOR_DEBUG_SYNC_TIME_THRESHOLD          50   /// 同步时间阈值，单位：毫秒
 #define MOTOR_POLICY_OBJ_MIN_ADDR                0x1000U
-#define IS_SUPPORT_MOTOR_POLICY_MONITOR          1 /// 支持马达策略监控
+#define IS_SUPPORT_MOTOR_POLICY_MONITOR          0 /// 支持马达策略监控
 
 /*
 * LOCAL VARIABLE DEFINITIONS
