@@ -288,8 +288,9 @@ static void adaptive_dimming_slew_one(uint8_t *cur, uint8_t target, uint8_t step
 
 static void adaptive_dimming_slew_step(void)
 {
-    adaptive_dimming_slew_one(&s_key_duty_slew, s_back_duty_target, ADAP_DIM_DUTY_SLEW_STEP_UP,
-                              ADAP_DIM_DUTY_SLEW_STEP_DOWN);
+    //adaptive_dimming_slew_one(&s_key_duty_slew, s_back_duty_target, ADAP_DIM_DUTY_SLEW_STEP_UP,
+    //                          ADAP_DIM_DUTY_SLEW_STEP_DOWN);
+    s_key_duty_slew = s_back_duty_target;
 #if IS_SUPPORT_NIGHT_LIGHT
     s_nl_duty_slew = s_nl_duty_target;
 #endif
