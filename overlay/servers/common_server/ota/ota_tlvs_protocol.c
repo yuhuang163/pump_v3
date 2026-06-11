@@ -10,8 +10,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define OTA_IMG_WRITE_TIMEOUT_MS          (1000)
-#define __OTA_IMG_WRITE_TIMEOUT_TASK        "__ota_img_write_timeout_task"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -28,48 +26,6 @@ static ota_img_info_t ota_info;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void ota_img_write_timeout_post_task_handler(hdr_post_args_t *args)
-{
-    (void)args;
-    ota_manager_context_t *ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
-    if (ctx == NULL || ctx->is_ota_upgrading == NULL || !ctx->is_ota_upgrading()) {
-        return;
-    }
-
-    ota_info_t progress = {0};
-    ctx->get_ota_info(&progress);
-    if (progress.total_size > 0 && progress.recv_size >= progress.total_size) {
-        return;
-    }
-    LOGE("timeout, retry_count: %d, recv=%u, total=%u", ota_info.retry_count,
-         progress.recv_size, progress.total_size);
-    protocol_manager_context_t *protocol_ctx = (protocol_manager_context_t *)find_module(ID_MODULE_PROTOCOL);
-    if (protocol_ctx != NULL && protocol_ctx->comm_protocol_assemble_reset != NULL) {
-        protocol_ctx->comm_protocol_assemble_reset();
-    }
-    servers_publish_data_args_t notify_args = {0};
-    notify_args.arg1 = OTA_STATUS_CODE_DATA_BLOCK_TIMEOUT;
-    ota_tlvs_upgrade_status_notify(&notify_args);
-    ota_info.retry_count++;
-    /// 重传次数超过3次，则结束升级
-    if (ota_info.retry_count < 3) {
-        return;
-    }
-    ctx->end_ota_upgrade(OTA_OBJECT_IMAGE_RESOURCE, 0);
-    memset(&ota_info, 0, sizeof(ota_info));
-}
-
-static void ota_img_write_timeout_refresh(void)
-{
-    ota_info.retry_count = 0; /// 重传次数清零
-    POST_TASK_HANDLER_DELAYED_EXCLUSIVE(ota_img_write_timeout_post_task_handler,
-        OTA_IMG_WRITE_TIMEOUT_MS, 0, NULL, __OTA_IMG_WRITE_TIMEOUT_TASK);
-}
-
-static void ota_img_write_timeout_cancel(void)
-{
-    remove_task_handler(__OTA_IMG_WRITE_TIMEOUT_TASK);
-}
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -152,8 +108,6 @@ int ota_tlvs_start_upgrade_request(comm_protocol_builder_t *builder, comm_protoc
     if (ret != 0) {
         return ret;
     }
-    /// 刷新超时计时
-    ota_img_write_timeout_refresh();
     return ret;
 }
 
@@ -172,13 +126,14 @@ int ota_tlvs_write_img_data(comm_protocol_builder_t *builder, comm_protocol_serv
 {
     (void)builder;
     (void)service;
-    EXCEPTION_CHECK_INT(data && data_len > 0 && data_len <= OTA_BLOCK_SIZE);
+    EXCEPTION_CHECK_INT(data);
+    if (data_len > OTA_BLOCK_SIZE || data_len == 0) {
+        LOGE("invalid data length: %u", data_len);
+        return -1;
+    }
     ota_manager_context_t *ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
     EXCEPTION_CHECK_INT(ctx);
     int ret = ctx->write_image_data(OTA_OBJECT_IMAGE_RESOURCE, ota_info.offset_addr, data, data_len);
-    if (ret == 0) {
-        ota_img_write_timeout_refresh();
-    }
     return ret;
 }
 
@@ -189,7 +144,6 @@ int ota_tlvs_end_upgrade_request(comm_protocol_builder_t *builder, comm_protocol
     if (data_len != 0) {
         return -1;
     }
-    ota_img_write_timeout_cancel();
     protocol_manager_context_t *protocol_ctx = (protocol_manager_context_t *)find_module(ID_MODULE_PROTOCOL);
     if (protocol_ctx != NULL && protocol_ctx->comm_protocol_assemble_reset != NULL) {
         protocol_ctx->comm_protocol_assemble_reset();

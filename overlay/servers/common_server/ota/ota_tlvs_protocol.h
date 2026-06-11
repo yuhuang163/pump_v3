@@ -30,7 +30,6 @@ typedef enum {
 } ota_tlvs_id_e;
 
 typedef struct {
-    uint8_t  retry_count; /// 重传次数
     uint32_t img_id;       /// 图片ID
     uint32_t total_size;   /// 总大小
     uint32_t crc32;        /// CRC32

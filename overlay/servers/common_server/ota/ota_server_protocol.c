@@ -77,7 +77,7 @@ int ota_subscribe_service_handle(comm_protocol_builder_t *builder, comm_protocol
     for (;;) {
         /// 检查是否已处理完所有TLV
         if (tlv_offset >= srv_node->srv_length) {
-            LOG_SRV("==> ota service tlv complete, tlv_offset: %d", tlv_offset);
+            // LOG_SRV("==> ota service tlv complete, tlv_offset: %d", tlv_offset);
             break;
         }
         /// 获取TLV

@@ -32,8 +32,8 @@
 
 **特性：**
 - **原子 TLV 设计**：每个字段独立 TLV，动作 TLV（`START`/`END`）Value 长度为 0
-- 支持断点续传（相同 `img_id/total_size/version/crc32` 时从上次的 `recv_size` 继续）
-- 每次写图片数据块大小固定 **1024 字节**（`OTA_BLOCK_SIZE`），指**资源文件原始数据**长度，不含任何 TLV/帧头开销；最后一块不足时发剩余长度
+- 支持断点续传：进度持久化至 Flash（`STORE_ID_IMG_RES_OTA_INFO`），开始升级时若 `img_id/total_size/version/crc32/recv_size` 与存储记录一致则从上次的 `recv_size` 继续
+- 每次写图片数据块大小固定 **4096 字节**（`OTA_BLOCK_SIZE`，见 `project_config.h`），指**资源文件原始数据**长度，不含任何 TLV/帧头开销；最后一块不足时发剩余长度
 - 结束时设备对全量数据做 **CRC32** 完整性校验
 - 字节序：**小端（Little-Endian）**
 
@@ -77,18 +77,18 @@
 
 | 常量 | 值 | 说明 |
 |------|-----|------|
-| `COMM_PROTOCOL_MAX_PAYLOAD_SIZE` | **1088**（`1024 + 64`） | 单帧 Payload 上限（不含 Header/Footer） |
-| `COMM_PROTOCOL_FRAME_SIZE_MAX` | **1096**（1088 + 6 + 2） | 单帧总长度上限 |
-| `OTA_BLOCK_SIZE` | **1024** | 每块**资源原数据**字节数（写入 Flash 的净荷，**不含** TLV/帧格式开销） |
-| 单帧最大 `WRITE_IMG_DATA` Value | **1072** | 1088 − Service(4) − OFFSET TLV(8) − DATA TLV 头(4)；协议层上限，正常仍按 1024 原数据发块 |
+| `COMM_PROTOCOL_MAX_PAYLOAD_SIZE` | **4160**（`OTA_BLOCK_SIZE + 64`） | 单帧 Payload 上限（不含 Header/Footer） |
+| `COMM_PROTOCOL_FRAME_SIZE_MAX` | **4168**（4160 + 6 + 2） | 单帧总长度上限 |
+| `OTA_BLOCK_SIZE` | **4096**（`project_config.h`） | 每块**资源原数据**字节数（写入 Flash 的净荷，**不含** TLV/帧格式开销） |
+| 单帧最大 `WRITE_IMG_DATA` Value | **4144** | 4160 − Service(4) − OFFSET TLV(8) − DATA TLV 头(4)；协议层上限，正常仍按 4096 原数据发块 |
 
 **各帧典型长度：**
 - 最小 Payload：**8 字节**（`COMM_PROTOCOL_PAYLOAD_SIZE_MIN`，仅含最小 Service）
-- 写数据帧（满块 1024B）：Payload **1040** = Service(4) + OFFSET(8) + IMG_DATA(1028)；帧总长 **1048** = 6 + 1040 + 2
+- 写数据帧（满块 4096B）：Payload **4112** = Service(4) + OFFSET(8) + IMG_DATA(4100)；帧总长 **4120** = 6 + 4112 + 2
 - 开始升级帧：Payload **45**；帧总长 **53**
 - 结束升级帧：Payload **8**；帧总长 **16**
 
-> **说明：** `OTA_BLOCK_SIZE`、`TOTAL_SIZE`、`CRC32`、`IMG_OFFSET_ADDR` 均按**资源文件原始字节**计量，不包含通信协议封装。例如满块 1024B 原数据经 TLV 封装后，写数据帧 Payload 为 **1040** 字节（另加帧头/校验共 **1048** 字节），仍小于 `MAX_PAYLOAD=1088`。固件组包环形缓冲为 `MAX_PAYLOAD × 2`（`comm_protocol_parser.c`）。
+> **说明：** `OTA_BLOCK_SIZE` 由 `boards/project_config.h` 定义（当前 **4096**），`comm_protocol_defs.h` 中 `MAX_PAYLOAD = OTA_BLOCK_SIZE + 64`。满块 4096B 原数据经 TLV 封装后 Payload **4112** 字节（整帧 **4120** 字节），仍小于 `MAX_PAYLOAD=4160`。固件组包环形缓冲为 `MAX_PAYLOAD × 2`（`comm_protocol_parser.c`）。
 
 ### 3.2 CRC16 帧校验（概要）
 
@@ -159,10 +159,10 @@ for each byte b in [Header + Payload]:
 | `0x0003` | CRC32 | Host → Device | 4 | 全量文件 CRC32（uint32） |
 | `0x0004` | TOTAL_SIZE | Host → Device | 4 | 资源总大小（uint32） |
 | `0x0005` | TYPE | Host → Device | 1 | 升级对象类型（uint8） |
-| `0x0006` | BLOCK_SIZE | Device → Host | 2 | 推荐块大小（uint16），固定 1024；指**原数据**块，非 TLV 长度 |
+| `0x0006` | BLOCK_SIZE | Device → Host | 2 | 推荐块大小（uint16），固定 **4096**；指**原数据**块，非 TLV 长度 |
 | `0x0007` | START_UPGRADE_REQUEST | Host → Device | **0** | 触发开始升级 |
 | `0x0008` | IMG_OFFSET_ADDR | 双向 | 4 | 图片偏移地址（uint32）；应答为断点续传偏移 |
-| `0x0009` | WRITE_IMG_DATA | Host → Device | 1~1024 | 资源**原数据**（Value 净荷）；不含 TLV 头/帧头 |
+| `0x0009` | WRITE_IMG_DATA | Host → Device | 1~4096 | 资源**原数据**（Value 净荷）；不含 TLV 头/帧头 |
 | `0x000A` | END_UPGRADE_REQUEST | Host → Device | **0** | 触发结束升级 |
 | `0x000B` | UPGRADE_RESULT | Device → Host | 2 | 升级结果（uint16，见 §4.4） |
 | `0x000C` | UPGRADE_STATUS_NOTIFY | Device → Host | 2 | 异常通知（uint16） |
@@ -200,11 +200,11 @@ for each byte b in [Header + Payload]:
 | `0x0003` | VERSION_ERROR | 版本错误 |
 | `0x0004` | TYPE_ERROR | 类型错误 |
 | `0x0005` | BLOCK_SIZE_ERROR | 块大小错误 |
-| `0x0006` | DATA_SIZE_ERROR | 数据大小不匹配（接收量 ≠ 总量） |
+| `0x0006` | DATA_SIZE_ERROR | 数据大小/范围错误（越界、`recv_size ≠ total_size`、跳写留洞导致校验失败等） |
 | `0x0007` | DATA_CRC_ERROR | 全量 CRC32 校验失败 |
 | `0x0008` | DATA_VERSION_ERROR | 数据版本错误 |
 | `0x0009` | DATA_WRITE_ERROR | Flash 写入/擦除失败 |
-| `0x000A` | DATA_BLOCK_TIMEOUT | 块数据接收超时（500ms 内未收到下一包） |
+| `0x000A` | DATA_BLOCK_TIMEOUT | **连续**块接收超时（见 §5.2）；非累计重传次数 |
 
 ### 4.5 通用服务错误码（0xF000）
 
@@ -219,21 +219,22 @@ for each byte b in [Header + Payload]:
 
 | 概念 | 是否含协议开销 | 说明 |
 |------|----------------|------|
-| `OTA_BLOCK_SIZE`（1024） | **否** | 上位机每次从本地资源文件读取并下发的净荷长度 |
+| `OTA_BLOCK_SIZE`（4096） | **否** | 上位机每次从本地资源文件读取并下发的净荷长度 |
 | `WRITE_IMG_DATA` Value | **否** | TLV 的 Value 字段内容，即资源原数据；TLV 头（Type+Length，4B）另计 |
 | `TOTAL_SIZE` / `CRC32` / `IMG_OFFSET_ADDR` | **否** | 均针对完整资源原文件及其偏移 |
+| `recv_size`（断点进度） | **否** | 已连续覆盖的原数据右边界；`max(recv_size, offset+len)`，见 §5.2 |
 | 写数据帧 Payload / 帧总长 | **是** | 含 Service 头、OFFSET TLV、`WRITE_IMG_DATA` TLV 头及原数据 |
 
 **示例（满块一次写入）：**
 
 ```
-资源原数据：     1024 字节  ← OTA_BLOCK_SIZE / WRITE_IMG_DATA Value 长度
+资源原数据：     4096 字节  ← OTA_BLOCK_SIZE / WRITE_IMG_DATA Value 长度
 通信封装后：
   IMG_OFFSET_ADDR TLV   8 B  (头 4 + 值 4)
-  WRITE_IMG_DATA TLV    1028 B (头 4 + 值 1024)
+  WRITE_IMG_DATA TLV    4100 B (头 4 + 值 4096)
   OTA Service 头        4 B
-  Payload 合计          1040 B
-  整帧（含 Header+CRC） 1048 B
+  Payload 合计          4112 B
+  整帧（含 Header+CRC） 4120 B
 ```
 
 上位机应按 `BLOCK_SIZE` 从文件切分原数据填入 `WRITE_IMG_DATA` Value，**不要**把 TLV 头或帧头长度计入块大小。
@@ -259,15 +260,29 @@ for each byte b in [Header + Payload]:
 
 **设备行为：**
 - `TYPE != 0x02` 时拒绝，响应 `0xF000 = 0x0001`
-- 若 `img_id/total_size/version/crc32` 与上次未完成升级相同 → **断点续传**
-- 否则从偏移 `0` 重新开始
+- 读取 Flash 中 `img_res_ota_info_t`（`img_id/total_size/version/crc32/recv_size`）
+- 若与本次请求元数据**完全一致** → **断点续传**，应答 `IMG_OFFSET_ADDR = recv_size`
+- 否则清零进度，从偏移 `0` 重新开始，并擦除状态按新会话初始化
+- 开始成功后启动 **10ms 周期定时器**，用于块接收超时监测（见 §5.2）
+
+**断点续传存储（`img_res_ota_info_t`，Flash `STORE_ID_IMG_RES_OTA_INFO`）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| img_id | uint32 | 资源包 ID |
+| total_size | uint32 | 资源总大小 |
+| version | uint32 | 版本 |
+| crc32 | uint32 | 全量 CRC32 |
+| recv_size | uint32 | 已成功写入的原数据字节数 |
+
+开始升级时将请求元数据与上述记录 **整结构 memcmp**；一致则 `IMG_OFFSET_ADDR = recv_size`，否则 `recv_size` 清零。每包 Flash 写入成功后按 §5.2 规则更新 `recv_size` 并持久化。
 
 **Device 应答（Response 帧，Seq 与请求相同）：**
 
 | TLV ID | Value | 说明 |
 |--------|-------|------|
 | `0x0008` IMG_OFFSET_ADDR | uint32 小端 | 建议下次写入偏移（断点位置） |
-| `0x0006` BLOCK_SIZE | uint16 小端 | 固定 **1024**（资源原数据块大小，见 §4.6） |
+| `0x0006` BLOCK_SIZE | uint16 小端 | 固定 **4096**（`0x1000`，资源原数据块大小，见 §4.6） |
 | `0xF000` | uint16 | `0x0000`=成功 |
 
 ---
@@ -280,13 +295,28 @@ for each byte b in [Header + Payload]:
 
 | TLV ID | Value | 说明 |
 |--------|-------|------|
-| `0x0008` IMG_OFFSET_ADDR | uint32 小端 | 当前块在文件中的偏移（0, 1024, 2048...） |
-| `0x0009` WRITE_IMG_DATA | byte[] | 资源**原数据**净荷，正常 **1024 字节**（不含 TLV 头，见 §4.6） |
+| `0x0008` IMG_OFFSET_ADDR | uint32 小端 | 当前块在文件中的偏移（0, 4096, 8192...） |
+| `0x0009` WRITE_IMG_DATA | byte[] | 资源**原数据**净荷，正常 **4096 字节**（不含 TLV 头，见 §4.6） |
 
-**约束：**
-- `WRITE_IMG_DATA` **Value 长度**固定 **1024 字节**（最后一块为 `total_size % 1024`）；指原数据，非帧/Payload 总长
+**约束（上位机）：**
+- `WRITE_IMG_DATA` **Value 长度**固定 **4096 字节**（最后一块为 `total_size % 4096`）；指原数据，非帧/Payload 总长
 - `offset + data_len` 不得超过 `total_size`
+- **`IMG_OFFSET_ADDR` 必须等于当前断点**（与 START 应答或 Flash 中 `recv_size` 一致），按 `0 → 4096 → 8192 …` 顺序发送，**禁止跳写/乱序**
 - `IMG_OFFSET_ADDR` 必须在本帧内排在 `WRITE_IMG_DATA` **之前**
+
+**设备侧 `recv_size` 更新（`img_res_ota.c`，Flash 写入成功后）：**
+
+```
+end_offset = offset + data_len
+if (end_offset > recv_size)
+    recv_size = end_offset
+```
+
+| 场景 | 行为 |
+|------|------|
+| 正常顺序写 | `offset == recv_size`，写完后 `recv_size += data_len` |
+| 超时重传同一包 | `offset + len <= recv_size`，Flash 覆盖写，`recv_size` 不变 |
+| 跳写/乱序 | 可能写入 Flash 但留下空洞，`END` 时 `recv_size ≠ total_size` 或 CRC 失败 |
 
 **Device 应答：** 仅 `0xF000`
 
@@ -295,8 +325,26 @@ for each byte b in [Header + Payload]:
 | `0x0000` | 数据已入队，异步写入 Flash |
 | `0x0001` | 参数非法或 OTA 未启动 |
 
-> 写入为**异步**操作；Flash 失败时设备推送 `0x000C` Notify。  
-> **超时监测**：自收到第一个 `WRITE_IMG_DATA` 起，若 **500ms** 内未收到下一包数据，设备推送 `0x000C` Notify（`error_code = 0x000A`）并终止升级；每收到新包会重置计时。数据已全部接收完毕、等待 `END_UPGRADE` 时不触发超时。
+> 写入为**异步**操作（`ota_manager` 工作线程执行 Flash 擦写）：`F000=0` 仅表示数据**已入队**，真正擦写结果在回调中判定；失败时推送 `0x000C` Notify（见 §5.4）并终止升级。  
+> 成功写入后按上表更新 `recv_size` 并持久化至 `STORE_ID_IMG_RES_OTA_INFO`。  
+>
+> **连续超时监测**（`img_res_ota.c`）：
+>
+> | 项目 | 说明 |
+> |------|------|
+> | 检测周期 | 定时器 **10ms** 轮询 |
+> | 单次超时阈值 | 距上次**成功写入 Flash** 超过 **1000ms** 且 `recv_size < total_size` |
+> | 计数变量 | `ota_retry_count`，统计**连续**超时次数（非历史累计） |
+> | 计数清零 | 任意一包数据**成功写入 Flash** 后 `ota_retry_count = 0` |
+> | 终止条件 | **连续 3 次**超时（中间无成功写入） |
+>
+> 每次触发超时：
+> 1. `comm_protocol_assemble_reset()` 清空组包缓冲
+> 2. `ota_retry_count++`
+> 3. 若 `ota_retry_count < 3`：推送 Notify `0x000C`（`0x000A`），**不终止**升级，上位机从当前断点 `offset` 重发
+> 4. 若 `ota_retry_count >= 3`：推送 `0x0001`（FAIL），清空本地 OTA 状态并终止
+>
+> `recv_size >= total_size` 等待 `END_UPGRADE` 期间不触发块超时。
 
 ---
 
@@ -312,8 +360,10 @@ for each byte b in [Header + Payload]:
 | `0x000A` END_UPGRADE_REQUEST | **空**（Length=0） | 触发结束升级（使用会话中缓存的 `img_id` 等元数据） |
 
 **设备行为：**
-1. 调用 `end_img_res_upgrade(ota_info.img_id)` 校验 `img_id`、数据大小及 CRC32
-2. 应答 `UPGRADE_RESULT` 后**立即清空** `ota_info` 会话缓存
+1. 调用 `comm_protocol_assemble_reset()` 清空组包缓冲
+2. 停止 OTA 超时定时器，调用 `end_img_res_upgrade(ota_info.img_id)` 校验 `img_id`、数据大小及 CRC32
+3. CRC/大小校验失败时除应答 `UPGRADE_RESULT=FAIL` 外，可能已推送 Notify（如 `0x0007` DATA_CRC_ERROR）
+4. 应答 `UPGRADE_RESULT` 后**立即清空** TLV 层 `ota_info` 会话缓存；成功时更新 Flash 中 `recv_size = total_size`
 
 **Device 应答：**
 
@@ -328,15 +378,26 @@ for each byte b in [Header + Payload]:
 
 **方向：** Device → Host（**Notify 帧**，无需应答）
 
-**触发条件：** 数据写入失败、大小不匹配、CRC 校验失败等异常
+**Service ID：** **9**（`COMM_PROTOCOL_OTA_SERVICE`，与请求/应答一致）
 
-**Value 格式（2 字节）：**
+**触发条件：**
 
-| 偏移 | 长度 | 字段 | 类型 | 说明 |
-|------|------|------|------|------|
-| 0 | 2 | error_code | uint16 | 见 §4.4 状态码 |
+| 场景 | error_code | 是否终止升级 |
+|------|------------|--------------|
+| 连续块接收超时（第 1、2 次） | `0x000A` | 否；成功写入后连续计数清零 |
+| 连续块接收超时（第 3 次） | `0x0001` | 是 |
+| Flash 擦写失败 | `0x0009` | 是 |
+| 写入越界 / 大小不匹配 | `0x0006` | 是 |
+| 全量 CRC32 校验失败 | `0x0007` | 是（`END` 阶段） |
+| 其它致命错误 | `0x0001` | 是 |
 
-> **注意：** Notify 帧的 Service ID 为 **7**（`COMM_PROTOCOL_TESTS_SERVICE`），而非 OTA Service 9。上位机需监听 Service ID 7 中的 `0x000C` TLV。
+**帧格式：** Notify 帧内可携带**一个或多个** OTA TLV。常见为单条 `0x000C`：
+
+| TLV | Value 长度 | 说明 |
+|-----|------------|------|
+| `0x000C` UPGRADE_STATUS_NOTIFY | 2 | uint16 小端 `error_code`（见 §4.4） |
+
+固件亦支持通过 `ota_tlvs_notify_args_t` 一次推送多条 TLV（扩展用）；上位机至少需解析 `0x000C`。
 
 ---
 
@@ -383,7 +444,7 @@ Host                                          Device
   |--- [REQ] OFFSET(0x0008)+IMG_DATA(0x0009) --->|  (offset=0)
   |<-- [RSP] F000(0) ---------------------------|
   |                                              |
-  |--- [REQ] OFFSET+IMG_DATA -------------------->|  (offset=1024)
+  |--- [REQ] OFFSET+IMG_DATA -------------------->|  (offset=4096)
   |<-- [RSP] F000(0) ---------------------------|
   |                                              |
   |        ... 重复直到所有数据发送完毕 ...        |
@@ -391,7 +452,7 @@ Host                                          Device
   |--- [REQ] IMG_ID+END_UPGRADE(0x000A) -------->|
   |<-- [RSP] UPGRADE_RESULT(0x000B)+F000(0) ----|
   |                                              |
-  |<-- [NTF] UPGRADE_STATUS_NOTIFY (0x000C) ----|  (仅异常时)
+  |<-- [NTF] Svc9 + 0x000C (error_code) --------|  (异常/超时可重试)
 ```
 
 **上位机实现建议：**
@@ -399,8 +460,10 @@ Host                                          Device
 2. 每次 Request 等待对应 Seq 的 Response 后再发下一包（推荐同步模式）
 3. 同一帧内按 §4.2 顺序组装多个原子 TLV
 4. 开始升级后根据应答中 `IMG_OFFSET_ADDR(0x0008)` 决定从哪继续传
-5. 每包写入后检查 `0xF000`；收到 Notify `0x000C` 时中止并重试或重新开始
-6. 结束升级后检查 `UPGRADE_RESULT(0x000B)` 返回值
+5. 每包写入后检查 `0xF000`；监听 **OTA Service 9** 的 Notify `0x000C`
+6. 收到 `0x000A`：**连续超时**提示，从当前 `recv_size`（断点 offset）**原样重发**；允许覆盖已写区域；任意一包写成功后设备清零连续计数；**连续 3 次**超时（中间无成功写入）后设备终止
+7. **禁止** `offset` 跳变；必须始终 `offset == recv_size`（可从 START 应答或本地记录的断点获取）
+8. 结束升级后检查 `UPGRADE_RESULT(0x000B)` 返回值
 
 ---
 
@@ -463,7 +526,7 @@ C5 5C
 00 00 00 00    // offset = 0
 
 06 00 02 00    // BLOCK_SIZE(0x0006), len=2
-00 04          // block_size = 1024
+00 10          // block_size = 4096 (0x1000)
 
 00 F0 02 00    // F000, len=2
 00 00          // success
@@ -485,31 +548,31 @@ C5 5C
 
 ### 8.2 写图片数据
 
-**场景：** 向 offset=0 写入 **1024 字节资源原数据**（两个原子 TLV；帧 Payload 1040B，见 §4.6）
+**场景：** 向 offset=0 写入 **4096 字节资源原数据**（两个原子 TLV；帧 Payload 4112B，见 §4.6）
 
-**Host 请求帧：**
+**Host 请求帧（节选）：**
 
 ```
 C5 5C
 02             // Seq = 2
 00             // REQUEST
-10 04          // PayloadLen = 1040
+10 10          // PayloadLen = 4112 (0x1010)
 09 00          // SvrID = 9
-0C 04          // SrvLength = 1036
+0C 10          // SrvLength = 4108 (0x100C)
 
 08 00 04 00    // IMG_OFFSET_ADDR(0x0008), len=4
 00 00 00 00    // offset = 0
 
-09 00 00 04    // WRITE_IMG_DATA(0x0009), len=1024
-[data 1024 bytes]
+09 00 00 10    // WRITE_IMG_DATA(0x0009), len=4096 (0x1000)
+[data 4096 bytes]
 [CRC16 2B]
 ```
 
-**第二块（offset=1024）：**
+**第二块（offset=4096）：**
 
 ```
-08 00 04 00 00 04 00 00
-09 00 00 04 [data 1024 bytes]
+08 00 04 00 00 00 10 00    // offset = 4096
+09 00 00 10 [data 4096 bytes]
 [CRC16 2B]
 ```
 
@@ -581,11 +644,21 @@ C5 5C
 10             // Seq = 16（设备自增）
 02             // NOTIFY
 09 00          // PayloadLen = 9
-07 00          // SvrID = 7 (TESTS_SERVICE) ← 注意非 OTA Service
+09 00          // SvrID = 9 (OTA_SERVICE)
 05 00          // SrvLength = 5
-0C 00          // TLV Type = 0x000C
-02 00          // TLV Length = 2
+0C 00          // UPGRADE_STATUS_NOTIFY(0x000C), len=2
 09 00          // error_code = 0x0009 (DATA_WRITE_ERROR)
+[CRC16 2B]
+```
+
+**连续超时 Notify（`0x000A`，第 1/2 次，升级不终止）：**
+
+```
+...
+09 00          // SvrID = 9
+05 00          // SrvLength = 5
+0C 00 02 00
+0A 00          // error_code = 0x000A (DATA_BLOCK_TIMEOUT)
 [CRC16 2B]
 ```
 
@@ -597,9 +670,9 @@ C5 5C
 import struct
 import zlib
 
-BLOCK_SIZE = 1024
-COMM_PROTOCOL_MAX_PAYLOAD_SIZE = 1024 + 64   # 1088，与 comm_protocol_defs.h 一致
-COMM_PROTOCOL_FRAME_SIZE_MAX = COMM_PROTOCOL_MAX_PAYLOAD_SIZE + 6 + 2  # 1096
+BLOCK_SIZE = 4096
+COMM_PROTOCOL_MAX_PAYLOAD_SIZE = 4096 + 64   # 4160，与 comm_protocol_defs.h 一致
+COMM_PROTOCOL_FRAME_SIZE_MAX = COMM_PROTOCOL_MAX_PAYLOAD_SIZE + 6 + 2  # 4168
 
 # TLV ID
 OTA_TLV_IMG_ID = 0x0001
@@ -645,7 +718,7 @@ def upgrade_image_resource(file_path, img_id, version):
     offset = get_tlv_u32(rsp, OTA_TLV_IMG_OFFSET_ADDR)
     assert get_tlv_u16(rsp, OTA_TLV_BLOCK_SIZE) == BLOCK_SIZE
 
-    # Step 2: 按 1024 字节原数据逐块传输（chunk 为文件净荷，不含 TLV/帧头）
+    # Step 2: 按 4096 字节原数据逐块传输（chunk 为文件净荷，不含 TLV/帧头）
     seq = 2
     while offset < total_size:
         chunk_len = min(BLOCK_SIZE, total_size - offset)
@@ -671,11 +744,14 @@ def upgrade_image_resource(file_path, img_id, version):
 
 | 场景 | 建议处理 |
 |------|----------|
-| Payload 超过 1088 字节 | 上位机组包前校验 `len(payload) <= COMM_PROTOCOL_MAX_PAYLOAD_SIZE`；设备 `comm_protocol_parser.c` 会滑动丢弃非法 `PayloadLen` |
+| Payload 超过 4160 字节 | 上位机组包前校验 `len(payload) <= COMM_PROTOCOL_MAX_PAYLOAD_SIZE`；设备 `comm_protocol_parser.c` 会滑动丢弃非法 `PayloadLen` |
+| `offset ≠ recv_size`（跳写） | 设备可能仍写入 Flash 但进度异常；`END` 失败。上位机应始终按断点顺序发块 |
 | `0xF000 = 1` | 检查参数、确认 OTA 已正确开始 |
-| 收到 `0x000C` Notify | 记录 error_code，可重新发开始升级（相同元数据将断点续传） |
+| 收到 `0x000C` + `0x000A` | **连续超时**（第 1 或 2 次）：从当前 `offset` 重发；成功写入一包后连续计数清零 |
+| 连续 3 次超时后收到 `0x0001` | 中间无成功写入，设备已终止；需重新 `START`（相同元数据可断点续传） |
+| 收到 `0x000C` + `0x0009/0x0006/0x0007` | 记录 error_code，终止；可重新 `START`（相同元数据将断点续传） |
 | `UPGRADE_RESULT = 0x0001` | 全量 CRC 或大小校验失败，需重新传输 |
-| BLE 断连 | 重连后用相同 `img_id/total_size/version/crc32` 开始升级，设备返回断点 offset |
+| BLE 断连 | 重连后用相同 `img_id/total_size/version/crc32` 开始升级，设备从 Flash 恢复 `recv_size` |
 | `type != 0x02` | 修正 type 字段后重试 |
 
 ---
@@ -750,7 +826,7 @@ def crc16_compute(data: bytes, crc: int = 0xFFFF) -> int:
     return crc & 0xFFFF
 
 
-COMM_PROTOCOL_MAX_PAYLOAD_SIZE = 1024 + 64  # 1088
+COMM_PROTOCOL_MAX_PAYLOAD_SIZE = 4096 + 64  # 4160
 
 
 def build_frame(seq: int, frame_type: int, payload: bytes) -> bytes:
@@ -923,10 +999,10 @@ def compute_crc32(data: bytes) -> int:
     return crc32_compute(data) ^ 0xFFFFFFFF
 ```
 
-**分块计算（模拟设备按 1024 字节分块读取 Flash 校验）：**
+**分块计算（模拟设备按 `OTA_BLOCK_SIZE` 分块读取 Flash 校验）：**
 
 ```python
-def compute_crc32_chunked(data: bytes, chunk_size: int = 1024) -> int:
+def compute_crc32_chunked(data: bytes, chunk_size: int = 4096) -> int:
     crc = 0xFFFFFFFF
     for i in range(0, len(data), chunk_size):
         crc = crc32_compute(data[i:i + chunk_size], crc)
@@ -970,15 +1046,18 @@ python3 -c "import zlib,sys; d=open(sys.argv[1],'rb').read(); print(hex(zlib.crc
 | 文件 | 职责 |
 |------|------|
 | `ota_tlvs_protocol.h` | TLV ID、状态码、数据结构定义 |
-| `ota_tlvs_protocol.c` | 原子 TLV 解析、会话缓存、应答组包 |
+| `ota_tlvs_protocol.c` | 原子 TLV 解析、会话缓存、应答组包、Notify 组包（OTA Service 9） |
 | `ota_server_protocol.c` | OTA Service TLV 分发 |
-| `common_tlvs.c` | `common_tlv_add_u8/u16/u32` 应答辅助函数 |
-| `resources/img_res_ota.c` | Flash 擦写、断点续传、CRC 校验 |
-| `comm_protocol_defs.h` | 帧/Service/TLV 通用格式；`MAX_PAYLOAD=1088`，`FRAME_SIZE_MAX=1096` |
+| `common_tlvs.c` | `common_tlv_add_u8/u16/u32/empty` 应答辅助函数 |
+| `resources/img_res_ota.c` | Flash 擦写、断点续传持久化、**连续超时**监测（1s×3）、CRC 校验 |
+| `persist_storage.h` | `img_res_ota_info_t` 断点结构定义 |
+| `resource_persist_data.c` | OTA 进度读写 Flash |
+| `project_config.h` | **`OTA_BLOCK_SIZE = 4096`**（产品配置） |
+| `comm_protocol_defs.h` | 帧/Service/TLV 通用格式；`MAX_PAYLOAD=OTA_BLOCK_SIZE+64`（**4160**） |
 | `comm_protocol_parser.c` | BLE 分片组包；`PACKET_ASSEMBLY_BUFFER_SIZE = MAX_PAYLOAD × 2` |
 | `gernal_utils.c` | `crc16_compute()` / `crc32_compute()` 实现 |
 | `test_comm_protocol_assemble.py` | CRC16 Python 参考与组包测试 |
-| `ota_manager_api.h` | `OTA_BLOCK_SIZE = 1024` |
+| `ota_manager_api.h` | `OTA_BLOCK_SIZE` 后备默认 1024（`#ifndef`）；实际以 `project_config.h` 为准 |
 | `boards/project_partitions.h` | `THEME_IMG_RES_SIZE = 7MB` |
 
 ---
@@ -997,3 +1076,7 @@ python3 -c "import zlib,sys; d=open(sys.argv[1],'rb').read(); print(hex(zlib.crc
 | 2.3 | 2026-06-10 | 块数据 500ms 接收超时监测（`0x000A`） |
 | 2.4 | 2026-06-10 | `COMM_PROTOCOL_MAX_PAYLOAD_SIZE` 调整为 **1088**（`1024+64`）；满 1024B 数据块可单帧发送 |
 | 2.5 | 2026-06-10 | 明确块数据大小为资源**原数据**长度，不含 TLV/帧格式开销（§4.6） |
+| 2.6 | 2026-06-10 | 超时迁至 `img_res_ota.c`（**1s**）；Notify 改为 **OTA Service 9**；断点持久化 Flash；`END` 时 `assemble_reset` |
+| 2.7 | 2026-06-10 | 超时策略改为**连续超时**：`ota_retry_count` 仅计连续超时，成功写入清零；连续 3 次才终止 |
+| 2.8 | 2026-06-10 | 明确 `recv_size` 更新为 `max(recv_size, offset+len)`；上位机须顺序发块，超时允许同 offset 重传 |
+| 2.9 | 2026-06-10 | `OTA_BLOCK_SIZE` 调整为 **4096**（`project_config.h`）；`MAX_PAYLOAD=4160`，满块写帧 **4120** 字节 |
