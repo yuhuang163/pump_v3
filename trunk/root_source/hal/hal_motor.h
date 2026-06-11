@@ -84,11 +84,7 @@ typedef enum {
     MOTOR_PUMP_DUTY_ADJUST,  /// 泵占空比动态调整
 } motor_pump_status_e;
 
-#if (MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V1)
-#define PUMP_DUTY_SCALE_FACTOR                 (1)  /// 占空比缩放因子
-#else
 #define PUMP_DUTY_SCALE_FACTOR                 (100)  /// 占空比缩放因子
-#endif
 
 /**
  * @brief 描述马达参数

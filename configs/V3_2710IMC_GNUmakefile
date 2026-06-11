@@ -201,11 +201,6 @@ endif
 CFG_POWER_KEY_HW_RESET_ENABLE := 0
 endif
 
-# 泵驱动版本(1:旧版本, 2:新版本)
-MOTOR_DRIVER_V1 ?= 1
-MOTOR_DRIVER_V2 ?= 2
-MOTOR_DRIVER_VERSION ?= $(MOTOR_DRIVER_V2)
-
 # BLE 头文件子目录
 BLE_INC_DIRS := $(shell find $(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/bthost -type d)\
 # BLE 头文件
@@ -314,6 +309,16 @@ DATA_BURY_SERVER_INC_FLAGS := $(patsubst %,-I%,$(DATA_BURY_SERVER_INC_DIRS))
 DATA_BURY_SERVER_DIR := $(PROJECT_ROOT)/overlay/servers/data_bury_server
 # 数据埋点业务 Server 源码文件
 DATA_BURY_SERVER_SRCS := $(call rwildcard,$(DATA_BURY_SERVER_DIR))
+
+# OTA Server Client 头文件子目录
+OTA_SERVER_CLIENT_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/servers/ota_server_client -type d)
+# OTA Server Client 头文件
+OTA_SERVER_CLIENT_INC_FLAGS := $(patsubst %,-I%,$(OTA_SERVER_CLIENT_INC_DIRS))
+# OTA Server Client 源码目录
+OTA_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/ota_server_client
+# OTA Server Client 源码文件
+OTA_SERVER_CLIENT_SRCS := $(call rwildcard,$(OTA_SERVER_CLIENT_DIR))
+
 
 # -------------- SDK 头文件路径（按功能模块拆分）--------------
 
@@ -479,12 +484,7 @@ DRIVERS_LED_INC_FLAGS := \
 # 电机驱动头文件
 DRIVERS_MOTOR_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/motor
-
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
-DRIVERS_MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/motor/chip/motor_pwm
-else
 DRIVERS_MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/motor/chip/motor_pump
-endif
 
 # UART 驱动头文件
 DRIVERS_UART_INC_FLAGS := \
@@ -567,11 +567,7 @@ MOTOR_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/motor \
 	-I$(PROJECT_ROOT)/trunk/root_source/motor
 
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
 MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy
-else
-MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy_v2
-endif
 
 # 传感器模块头文件
 SENSOR_INC_FLAGS := \
@@ -647,6 +643,7 @@ SERVERS_INC_FLAGS := \
 	$(MASTER_SERVER_CLIENT_INC_FLAGS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_FLAGS) \
 	$(DATA_BURY_SERVER_INC_FLAGS) \
+	$(OTA_SERVER_CLIENT_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/servers
 
 # 存储模块头文件
@@ -852,11 +849,6 @@ CPPFLAGS += -DV3_UX_V1=$(V3_UX_V1)
 CPPFLAGS += -DV3_UX_V2=$(V3_UX_V2)
 CPPFLAGS += -DV3_UX_V3=$(V3_UX_V3)
 CPPFLAGS += -DV3_UX_V4=$(V3_UX_V4)
-
-# 泵驱动版本
-CPPFLAGS += -DMOTOR_DRIVER_VERSION=$(MOTOR_DRIVER_VERSION)
-CPPFLAGS += -DMOTOR_DRIVER_V1=$(MOTOR_DRIVER_V1)
-CPPFLAGS += -DMOTOR_DRIVER_V2=$(MOTOR_DRIVER_V2)
 
 # 调试日志相关宏定义
 ifeq ($(REL_TRACE_ENABLE),1)
@@ -1092,11 +1084,7 @@ endif
 # 电机驱动源码C
 DRIVERS_MOTOR_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/motor/*.c)
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
-DRIVERS_MOTOR_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/motor/chip/motor_pwm/*.c)
-else
 DRIVERS_MOTOR_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/motor/chip/motor_pump/*.c)
-endif
 
 # UART 驱动源码
 DRIVERS_UART_SRCS := \
@@ -1189,11 +1177,7 @@ BREAST_PUMP_MODULE_SRCS := \
 MOTOR_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/motor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/*.c) 
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
 MOTOR_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy/*.c)
-else
-MOTOR_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy_v2/*.c)
-endif
 
 # 传感器模块源码
 SENSOR_MODULE_SRCS := \
@@ -1271,6 +1255,7 @@ SERVERS_MODULE_SRCS := \
 	$(APP_OLD_PROTOCOL_SERVERS_SRCS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS) \
 	$(DATA_BURY_SERVER_SRCS) \
+	$(OTA_SERVER_CLIENT_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/servers/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/servers/*.c)
 

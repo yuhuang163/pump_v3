@@ -31,35 +31,33 @@
  */
 int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map) 
 {
-    static uint8_t climb_status = 0;
-    if (thiz->priv.runtime.is_climb_policy == 0) {
+    pump_climb_policy_t *climb = &thiz->priv.runtime.climb;
+    if (climb->onoff == 0) {
         return 0;
     } 
 
-    /// 爬升策略启动3秒内生效
-    uint32_t run_time = get_timestamp_ms(thiz->priv.runtime.manager_start_time);
-    if (run_time < 1000) {
-        map->level = map->level > BREAST_PUMP_LEVEL_4 ? map->level - 3 : BREAST_PUMP_LEVEL_1;
-        if (climb_status != 1) {
-            climb_status = 1;
-            LOG_MOTOR("climb status: %d, level: %d", climb_status, map->level);
+    if (get_timestamp_ms(climb->start_time) > 1000) {
+        climb->count++;
+        if (climb->count > 3) {
+            climb->onoff = 0;
+            climb->count = 0;
+            climb->start_time = 0;
+            return 0;
         }
-    } else if (run_time < 2000) {
-        map->level = map->level > BREAST_PUMP_LEVEL_3 ? map->level - 2 : BREAST_PUMP_LEVEL_1;
-        if (climb_status != 2) {
-            climb_status = 2;
-            LOG_MOTOR("climb status: %d, level: %d", climb_status, map->level);
-        }
-    } else if (run_time < 3000) {
-        map->level = map->level > BREAST_PUMP_LEVEL_2 ? map->level - 1 : BREAST_PUMP_LEVEL_1;
-        if (climb_status != 3) {
-            climb_status = 3;
-            LOG_MOTOR("climb status: %d, level: %d", climb_status, map->level);
-        }
+        LOG_MOTOR("climb count: %d, level: %d", climb->count, map->level);
+        climb->start_time = get_timestamp();
+    }
+
+    if (map->level == 0) {
+        return 0;    /// 如果力度为0，则不进行爬升
+    }
+
+    if (climb->count == 1) {
+        map->level = map->level > BREAST_PUMP_LEVEL_4 ? (map->level - 3) : BREAST_PUMP_LEVEL_1;
+    } else if (climb->count == 2) {
+        map->level = map->level > BREAST_PUMP_LEVEL_3 ? (map->level - 2) : BREAST_PUMP_LEVEL_1;
     } else {
-        thiz->priv.runtime.is_climb_policy = 0;
-        climb_status = 0;
-        return 0;
+        map->level = map->level > BREAST_PUMP_LEVEL_2 ? (map->level - 1) : BREAST_PUMP_LEVEL_1;
     }
     return 0;
 }

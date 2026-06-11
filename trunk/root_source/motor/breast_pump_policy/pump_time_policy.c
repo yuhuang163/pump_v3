@@ -4,7 +4,6 @@
 */
 #include "root_common_api.h" // IWYU pragma: keep
 #include "breast_pump_policy.h"
-#include <stdint.h>
 
 /*
 * DEFINES
@@ -60,6 +59,9 @@ motor_timed_policy_node_t *pump_time_policy_init_by_steps_info(pump_mode_step_pa
     m_para->un.mapping.level = cfg.level;
     m_para->un.mapping.mode_type = cfg.mode_type;
     m_para->config.loop_num = cfg.loop_num;
+    /// 打印定时策略参数
+    //LOG_MOTOR("time policy: duration:%d, freq:%d, level:%d, mode_type:%d, loop_num:%d", 
+    //    policy_obj->duration_seconds, cfg.freq, cfg.level, cfg.mode_type, cfg.loop_num);
 
     return policy_obj;
 }
@@ -103,81 +105,124 @@ uint8_t pump_policy_type_get(motor_policy_node_t policy)
     } else if (mode_type == SUCTION_MODE_MIX_LONG || mode_type == SUCTION_MODE_MIX_SHORT) {
         return PUMP_MODE_MIX;
     }
+    //LOG_MOTOR("mode_type:%d", mode_type);
     return PUMP_MODE_IDLE;
 }
 
+void policy_remaining_time_update(motor_policy_runtime_t *runtime) 
+{
+    static uint32_t last_log_time = 0;
+    EXCEPTION_CHECK_VOID(runtime);
+    uint32_t running_time = runtime->policy_running_time_ms / 1000;
+    if (runtime->time_policy_target_time <= running_time) {
+        runtime->time_policy_remaining_time = 0;
+    } else {
+        runtime->time_policy_remaining_time = runtime->time_policy_target_time - running_time;
+    }  
+
+    if (get_timestamp_ms(last_log_time) > 2000) {
+        last_log_time = get_timestamp();
+        LOG_MOTOR("mode:%d, index:%d, time:%d/%d/%d, mode:%d/%d/%d, state:%d/%d/%d/%d", 
+            runtime->breast_pump_mode, runtime->current_timed_policy_index,
+            runtime->policy_running_time_ms, runtime->time_policy_target_time,
+            runtime->time_policy_remaining_time, runtime->breast_pump_mode,
+            runtime->current_mode_type, runtime->next_mode_type,
+            runtime->info[0].state.policy_update_lock, runtime->info[1].state.policy_update_lock,
+            runtime->info[0].state.status, runtime->info[1].state.status);
+    }
+}
+
 int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_runtime_t *runtime) 
-{ 
-    /// 检测当前时间策略是否执行完毕
-    uint32_t hold_time = (get_timestamp_ms(runtime->timed_policy_start_time) + \
-                          runtime->time_policy_running_time) / 1000; 
-                          
-    if (hold_time >= runtime->timed_policy->duration_seconds) {
-        /// 执行下一个时间策略
+{     
+    policy_remaining_time_update(runtime);
+    if (runtime->time_policy_remaining_time == 0) {
+        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+            if (runtime->info[i].state.policy_update_lock == 1) {
+                return 0; /// 等待所有泵空闲后切换到下一个时间策略
+            }
+        }
+
         if (runtime->timed_policy->next) {
             runtime->current_timed_policy_index++;
             runtime->timed_policy = runtime->timed_policy->next;
-            runtime->time_policy_running_time = 0;
-        } else {
-            runtime->current_timed_policy_index = 0;
-            runtime->timed_policy = &runtime->manager->head;
-            runtime->time_policy_running_time = 0;
-            runtime->all_timed_policy_finish_flag = 1;
-        }
-        runtime->time_policy_remaining_time = runtime->timed_policy->duration_seconds;
-        /// 更新模式类型
-        runtime->current_mode_type = pump_policy_type_get(runtime->timed_policy->policy);
-        if (runtime->timed_policy->next) {  
-            runtime->next_mode_type = pump_policy_type_get(runtime->timed_policy->next->policy);
-        } else {
-            runtime->next_mode_type = pump_policy_type_get(runtime->manager->head.policy);
-        }
-        LOG_MOTOR("mode %d type cur: %d, next: %d, index: %d", runtime->breast_pump_mode,
-             runtime->current_mode_type, runtime->next_mode_type, runtime->current_timed_policy_index);
-        /// 更新步数索引.
-        if (thiz->priv.pump_ctx && (!runtime->taste_run_flag)) {
-            thiz->priv.pump_ctx->priv.m_info.step_index = runtime->current_timed_policy_index;
-        }
-        /// 释放负压
-        negative_pressure_release(thiz);
-        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-            memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t));
-            pump_policy_info_reset(thiz, runtime, i);
-        }
-        runtime->timed_policy_start_time = get_timestamp();
-        LOG_MOTOR("goto next time policy, time:%d type:%d, next:%p, duration:%d, level:%d", 
-            runtime->timed_policy_start_time, runtime->timed_policy->policy.core.un.mapping.mode_type, 
-            runtime->timed_policy->next, runtime->timed_policy->duration_seconds, 
-            runtime->timed_policy->policy.core.un.mapping.level);
-
-        if (!runtime->taste_run_flag) {
-            thiz->notify_motor_status_change(MOTOR_STATUS_EVT_PUMP_STEP_ALL_PARAM_CHANGE);
-        }
-        return 0;
-    } else {
-        runtime->time_policy_remaining_time = runtime->timed_policy->duration_seconds - hold_time;
-    }
-
-    for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-        /// 检测到子策略切换请求
-        if (runtime->info[i].state.policy_update_req) {
-            /// 循环执行当前子策略
-            if (runtime->info[i].state.cycles_count < runtime->info[i].config.loop_num) {
-                runtime->info[i].state.status = SUCTION_STATUS_IDLE;
-                runtime->info[i].state.action = MOTOR_ACTION_IDLE;
-                runtime->info[i].state.policy_update_req = 0;
-                // LOG_MOTOR("dev-%d policy loop", id);
-                return 0;
-            }
-
-            if (runtime->policy[i].next) {
-                memcpy(&runtime->policy[i], runtime->policy[i].next, sizeof(motor_policy_node_t)); /// 切换到下一个子策略
-                // LOG_MOTOR("dev-%d goto next policy", id);
+            runtime->time_policy_target_time += runtime->timed_policy->duration_seconds;
+            runtime->time_policy_remaining_time = runtime->time_policy_target_time - 
+                        (runtime->policy_running_time_ms / 1000);
+            runtime->current_mode_type = pump_policy_type_get(runtime->timed_policy->policy); 
+            if (runtime->timed_policy->next) {
+                runtime->next_mode_type = pump_policy_type_get(runtime->timed_policy->next->policy);
             } else {
-                memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t)); /// 切换到第一个子策略 
-                // LOG_MOTOR("dev-%d goto first policy", id);
+                runtime->next_mode_type = runtime->current_mode_type;
             }
-            pump_policy_info_reset(thiz, runtime, i);
+
+            for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+                memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t));
+                pump_policy_info_reset(thiz, runtime, i);
+            }
+
+            if (!runtime->taste_run_flag) {
+                if (thiz->priv.pump_ctx) {
+                    thiz->priv.pump_ctx->priv.m_info.step_index = runtime->current_timed_policy_index;
+                }
+                thiz->notify_motor_status_change(MOTOR_STATUS_EVT_PUMP_STEP_ALL_PARAM_CHANGE);
+            }
+        } else {
+            runtime->all_timed_policy_finish_flag = 1; /// 所有定时策略执行完毕
+        }
+
+        if (runtime->timed_policy->policy.core.type == MOTOR_PARAM_TABLE) {
+            suction_strategy_mapping_t *mapping = &runtime->timed_policy->policy.core.un.mapping;
+            LOG_MOTOR("mode:%d, index:%d, type:%d/%d, time:%d/%d, mapping:%d(%d/%d)", 
+                runtime->breast_pump_mode, runtime->current_timed_policy_index,
+                runtime->current_mode_type, runtime->next_mode_type,
+                runtime->time_policy_remaining_time, runtime->timed_policy->duration_seconds, 
+                mapping->mode_type, mapping->level, mapping->speed);
+        }
+    } else {
+#if IS_SUPPORT_PUMP_SYNC
+        runtime->freq_sync_flag = true;   
+        #if 0
+        /// 同频同步
+        for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
+            if (runtime->pump_freq[i] != runtime->pump_freq[0] && runtime->current_mode_type != PUMP_MODE_MIX) {
+                runtime->freq_sync_flag = false;
+                break;
+            }
+        }
+        #else
+        /// 同档同步
+        for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
+            if (runtime->pump_level[i] != runtime->pump_level[0] || runtime->pump_freq[i] != runtime->pump_freq[0]) {
+                runtime->freq_sync_flag = false;
+                break;
+            }
+        }
+        #endif
+
+        if (runtime->freq_sync_flag) {
+            for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+                if (runtime->info[i].state.policy_update_lock) {
+                    return 0;
+                }
+            }
+        }
+#endif
+        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+            if (runtime->info[i].state.policy_update_lock == 0) {
+                if (runtime->info[i].state.cycles_count < runtime->info[i].config.loop_num) {
+                    runtime->info[i].state.status = SUCTION_STATUS_IDLE;
+                    runtime->info[i].state.action = MOTOR_ACTION_IDLE;
+                    LOG_MOTOR("dev-%d policy loop, cycles:%d/%d", 
+                        i, runtime->info[i].state.cycles_count, runtime->info[i].config.loop_num);
+                } else {
+                    if (runtime->policy[i].next) {
+                        memcpy(&runtime->policy[i], runtime->policy[i].next, sizeof(motor_policy_node_t)); 
+                    } else {
+                        memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t));  
+                    }
+                    pump_policy_info_reset(thiz, runtime, i);
+                }
+            }
         }
     }
     return 0;
