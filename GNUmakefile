@@ -201,11 +201,6 @@ endif
 CFG_POWER_KEY_HW_RESET_ENABLE := 0
 endif
 
-# 泵驱动版本(1:旧版本, 2:新版本)
-MOTOR_DRIVER_V1 ?= 1
-MOTOR_DRIVER_V2 ?= 2
-MOTOR_DRIVER_VERSION ?= $(MOTOR_DRIVER_V2)
-
 # BLE 头文件子目录
 BLE_INC_DIRS := $(shell find $(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/bthost -type d)\
 # BLE 头文件
@@ -489,12 +484,7 @@ DRIVERS_LED_INC_FLAGS := \
 # 电机驱动头文件
 DRIVERS_MOTOR_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/motor
-
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
-DRIVERS_MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/motor/chip/motor_pwm
-else
 DRIVERS_MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/motor/chip/motor_pump
-endif
 
 # UART 驱动头文件
 DRIVERS_UART_INC_FLAGS := \
@@ -577,11 +567,7 @@ MOTOR_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/motor \
 	-I$(PROJECT_ROOT)/trunk/root_source/motor
 
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
 MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy
-else
-MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy_v2
-endif
 
 # 传感器模块头文件
 SENSOR_INC_FLAGS := \
@@ -864,11 +850,6 @@ CPPFLAGS += -DV3_UX_V2=$(V3_UX_V2)
 CPPFLAGS += -DV3_UX_V3=$(V3_UX_V3)
 CPPFLAGS += -DV3_UX_V4=$(V3_UX_V4)
 
-# 泵驱动版本
-CPPFLAGS += -DMOTOR_DRIVER_VERSION=$(MOTOR_DRIVER_VERSION)
-CPPFLAGS += -DMOTOR_DRIVER_V1=$(MOTOR_DRIVER_V1)
-CPPFLAGS += -DMOTOR_DRIVER_V2=$(MOTOR_DRIVER_V2)
-
 # 调试日志相关宏定义
 ifeq ($(REL_TRACE_ENABLE),1)
 CPPFLAGS += -DREL_TRACE_ENABLE
@@ -1103,11 +1084,7 @@ endif
 # 电机驱动源码C
 DRIVERS_MOTOR_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/motor/*.c)
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
-DRIVERS_MOTOR_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/motor/chip/motor_pwm/*.c)
-else
 DRIVERS_MOTOR_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/motor/chip/motor_pump/*.c)
-endif
 
 # UART 驱动源码
 DRIVERS_UART_SRCS := \
@@ -1200,11 +1177,7 @@ BREAST_PUMP_MODULE_SRCS := \
 MOTOR_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/motor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/*.c) 
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
 MOTOR_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy/*.c)
-else
-MOTOR_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy_v2/*.c)
-endif
 
 # 传感器模块源码
 SENSOR_MODULE_SRCS := \

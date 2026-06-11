@@ -1,7 +1,6 @@
 #ifndef __MOTOR_POLICY_H__
 #define __MOTOR_POLICY_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,8 +12,9 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "root_list_api.h" // IWYU pragma: keep
 
-#define PUMP_POLICY_RUN_TIME_INTERVAL            10  /// 策略运行时间间隔，单位ms
+#define PUMP_POLICY_RUN_TIME_INTERVAL            20  /// 策略运行时间间隔，单位ms
 #define IS_SUPPORT_RELATIVE_RUN_TIME             1 /// 支持相对运行时间
+#define IS_SUPPORT_PUMP_SYNC                     1 /// 支持泵同步
 
 /// 马达调试ID
 typedef enum {
@@ -50,6 +50,7 @@ typedef enum {
     SUCTION_STATUS_HOLD,        /// 保持
     SUCTION_STATUS_RELEASE,     /// 解除
     SUCTION_STATUS_SLEEP,       /// 休眠
+    SUCTION_STATUS_UPDATE_POLICY,      /// 更新策略
 } suction_status_e;
 
 /// 吸力模式类型
@@ -151,7 +152,7 @@ typedef enum {
 
 /// 马达策略原始参数
 typedef struct {
-    uint8_t  pump_level;    /// 泵力度
+    uint16_t pump_level;    /// 泵力度
     uint16_t pumping_time;  /// 抽气时间
     uint16_t valve_on_time; /// 电磁阀动作时间
     uint16_t sleep_time;    /// 循环间隔
@@ -171,24 +172,19 @@ typedef struct {
 /// 马达策略运行状态
 typedef struct {
     uint8_t n_pressure_flag;      /// 负压标志，负压状态下不允许切换策略
-    uint8_t policy_update_req;    /// 策略更新请求
+    uint8_t policy_update_lock;   /// 策略更新锁定标志，0：未锁定，1：锁定
     uint8_t cycles_count;         /// 循环计数
     uint8_t action;               /// 动作 motor_action_type_e
     uint8_t status;               /// 吸力状态 suction_status_e
     uint8_t pump_duty;            /// 泵奶占空比
     uint8_t valve_duty;           /// 电磁阀门占空比
     uint8_t target_pressure;      /// 目标压力
-#if IS_SUPPORT_RELATIVE_RUN_TIME
-    uint32_t run_time;            /// 运行时间，单位ms
-#else
-    uint32_t start_time;          /// 参数启用时间，单位ms
-    uint32_t run_time;            /// 运行时间，单位ms
-#endif
+    uint16_t release_wait_time_ms; /// 负压释放等待时间，单位ms
 } motor_policy_state_t;
 
 /// 马达组件状态, 给算法采集用，顺序与motor_policy_state_t保持一致
 typedef struct {
-    uint8_t state;    /// 吸力状态 suction_status_e
+    uint8_t state;           /// 吸力状态 suction_status_e
     uint8_t pump_duty;       /// 泵奶力度
     uint8_t valve_duty;      /// 吸乳器电磁阀门力度
     uint8_t target_pressure;  /// 目标压力
@@ -217,7 +213,7 @@ typedef enum {
 /// 马达策略配置
 typedef struct {  
     uint8_t policy_type;       /// 策略类型 motor_policy_type_e
-    uint16_t duration;         /// 持续时间，单位s
+    uint32_t duration;         /// 持续时间，单位s
     motor_policy_core_t core;  /// 策略实体
 } motor_policy_cfg_t;
 
@@ -254,24 +250,38 @@ typedef struct motor_policy_manager {
     motor_timed_policy_node_t head;  /// 定时策略实体
 } motor_policy_manager_t;
 
+typedef struct {
+    uint8_t onoff; /// 开关状态
+    uint8_t count; /// 爬升计数
+    uint32_t start_time; /// 爬升策略开始时间，单位ms
+} pump_climb_policy_t;
+
 /// 吸乳马达状态
 typedef struct {
-    uint8_t is_climb_policy; /// 是否启用爬升策略
+    uint8_t freq_sync_flag; /// 泵奶频率同步标志
+    uint8_t taste_run_flag; /// 体验模式运行标志
+    uint8_t current_mode_type; /// 当前模式类型
+    uint8_t next_mode_type; /// 下一个模式类型
     uint8_t breast_pump_mode; /// 泵奶模式
     uint8_t current_timed_policy_index; /// 当前定时策略索引
     uint8_t all_timed_policy_finish_flag; /// 所有定时策略执行完毕标志
+#if IS_SUPPORT_CLIMB_POLICY
+    pump_climb_policy_t climb; /// 爬升策略状态
+#endif
     motor_policy_manager_t *manager; /// 总策略管理器
     motor_timed_policy_node_t *timed_policy; /// 时间策略
     motor_policy_node_t policy[BREAST_PUMP_NUM]; /// 策略
     motor_policy_info_t info[BREAST_PUMP_NUM];    /// 当前吸力信息，由多个策略综合生成
-    uint32_t time_policy_running_time; /// 当前时间策略已运行时间，单位ms
     uint32_t time_policy_remaining_time; /// 时间策略剩余时间，单位s
-    uint32_t timed_policy_start_time;  /// 时间策略开始时间，单位ms
-    uint32_t manager_start_time; /// 总策略开始时间，单位ms
+    uint32_t time_policy_target_time; /// 时间策略目标时间，单位s
+    uint32_t policy_running_time_ms; /// 策略运行时间，单位ms
+#if IS_SUPPORT_PUMP_DUTY_ADJUST
+    int16_t compensation_delta_pwm[BREAST_PUMP_NUM]; /// 气压补偿delta_pwm -10000~-1:PWM减小, 1~10000: PWM增加
+#endif
     taste_setting_t taste_setting; /// 体验模式设置
-    uint8_t taste_run_flag; /// 体验模式运行标志
-    uint8_t current_mode_type; /// 当前模式类型
-    uint8_t next_mode_type; /// 下一个模式类型
+    uint8_t pump_level[BREAST_PUMP_NUM];
+    uint8_t pump_speed[BREAST_PUMP_NUM];
+    uint16_t pump_freq[BREAST_PUMP_NUM];
 } motor_policy_runtime_t;
 
 /// 吸乳策略处理

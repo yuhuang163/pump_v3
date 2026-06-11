@@ -50,11 +50,7 @@ static void motor_power_control(uint8_t status)
 
 static int motor_dev_open(struct rt_device_node *dev)
 { 
-#if (MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V1)
-    bsp_motor_init();
-#else
     bsp_motor_pump_init();
-#endif
     return motor_power_gpio_init();
 }
 
@@ -75,26 +71,6 @@ static int motor_dev_write(struct rt_device_node *dev, const void *buf, uint32_t
 
 static int motor_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *args)
 {
-#if (MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V1)
-    switch (op_code) {
-        case OP_CODE_MOTOR_START_PLAY:
-            if (motor_power_status == 0) {
-                motor_power_control(1);
-            }
-            return bsp_motor_start(args);
-        case OP_CODE_MOTOR_STOP_PLAY:
-            return bsp_motor_stop(args);
-        case OP_CODE_MOTOR_SET_PARAMETER:
-            return bsp_motor_parameter_set(args);
-        case OP_CODE_MOTOR_GET_STATUS:
-            return bsp_motor_is_running(args);
-        case OP_CODE_MOTOR_ADD_STALLED_CALLBACK:
-            return pump_motor_error_check_register_callback(args);
-        default:
-            LOGE("err op_code: %lx", op_code);
-            return -1;
-    }
-#else
     switch (op_code) {
         case OP_CODE_MOTOR_START_PLAY:
         case OP_CODE_MOTOR_STOP_PLAY:
@@ -109,26 +85,17 @@ static int motor_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *a
             return -1;
     }
     return -1;
-#endif
 }
 
 static int motor_dev_suspend(struct rt_device_node *dev)
 {
     motor_power_control(0);
-#if (MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V1)
-    return bsp_motor_deinit();
-#else
     return bsp_motor_pump_deinit();
-#endif
 }
 
 static int motor_dev_resume(struct rt_device_node *dev)
 {
-#if (MOTOR_DRIVER_VERSION == MOTOR_DRIVER_V1)
-    return bsp_motor_init();
-#else
     return bsp_motor_pump_init();
-#endif
 }
 
 /*

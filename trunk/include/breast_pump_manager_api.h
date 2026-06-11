@@ -124,6 +124,15 @@ typedef enum {
 /// 当前是否由APP启动pump控制
 #define WRITE_PUMP_IS_START_FROM_APP(ctx, is_start_from_app) \
     ctx->set_pump_composite_state(BREAST_PUMP_IS_START_FROM_APP, is_start_from_app, 0, 0, NULL)
+/// 当前模式类型
+#define READ_PUMP_CURRENT_MODE_TYPE(ctx, mode_type) \
+    ctx->get_pump_composite_state(BREAST_PUMP_CURRENT_MODE_TYPE, 0, 0, &mode_type)
+/// 下一个模式类型
+#define READ_PUMP_NEXT_MODE_TYPE(ctx, mode_type) \
+    ctx->get_pump_composite_state(BREAST_PUMP_NEXT_MODE_TYPE, 0, 0, &mode_type)
+/// 当前时间策略索引
+#define READ_PUMP_TIME_POLICY_INDEX(ctx, time_policy_index) \
+    ctx->get_pump_composite_state(BREAST_PUMP_TIME_POLICY_INDEX, 0, 0, &time_policy_index)
 
 #define ADD_BREAST_PUMP_RESULT_CB(ctx, user_data, cb) \
 do { \
@@ -203,21 +212,24 @@ typedef enum{
 
 /// 吸奶状态类型
 typedef enum{
-    BREAST_PUMP_WORK_STATE,    /// 泵奶工作状态
-    BREAST_PUMP_WORK_STATE_NAME,    /// 泵奶工作状态
+    BREAST_PUMP_WORK_STATE,           /// 泵奶工作状态
+    BREAST_PUMP_WORK_STATE_NAME,      /// 泵奶工作状态名称
     BREAST_PUMP_MODE_ACTIVATE_STATE,    /// 模式激活状态
     BREAST_PUMP_MODE_STEPS_UPDATE_STATE, /// 参数更新状态
-    BREAST_PUMP_LEVEL_CONTROL_TYPE,    /// 泵奶力度控制类型
+    BREAST_PUMP_LEVEL_CONTROL_TYPE,      /// 泵奶力度控制类型
     BREAST_PUMP_STEP_INDEX,    /// 泵奶策略步骤索引
     BREAST_PUMP_IS_WORKING,    /// 泵奶运行中
-    BREAST_PUMP_WORK_MODE,    /// 泵奶当前模式
+    BREAST_PUMP_WORK_MODE,     /// 泵奶当前模式
     BREAST_PUMP_COMMON_MODE,    /// 常规模式 
     BREAST_PUMP_EXPERT_MODE,    /// 专家模式
     BREAST_PUMP_WORK_MODE_NAME,    /// 泵奶当前模式
-    BREAST_PUMP_MODE_NAME,    /// 泵奶当前模式
-    BREAST_PUMP_RESULT_INFO,    /// 泵奶结果信息
-    BREAST_PUMP_MODE_SETTING_INFO,    /// 
+    BREAST_PUMP_MODE_NAME,         /// 泵奶当前模式
+    BREAST_PUMP_RESULT_INFO,       /// 泵奶结果信息
+    BREAST_PUMP_MODE_SETTING_INFO,    /// 泵奶模式设置信息
     BREAST_PUMP_IS_START_FROM_APP,    /// 当前是否由APP启动pump控制
+    BREAST_PUMP_CURRENT_MODE_TYPE,    /// 当前模式类型
+    BREAST_PUMP_NEXT_MODE_TYPE,       /// 下一个模式类型
+    BREAST_PUMP_TIME_POLICY_INDEX,    /// 当前时间策略索引
 } pump_state_type_e;
 
 struct peripheral_bus_context;
