@@ -32,9 +32,9 @@ static void system_will_power_off_popup_display_complete(ui_manager_context_t *u
     EXCEPTION_CHECK_VOID(proc);
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     EXCEPTION_CHECK_VOID(pm);
-    pm->system_power_control(false);
     ///插入关机数据埋点 0:手动关机 1:低电量关机 2:自动休眠关机 3:异常关机 4:固件更新关机 5:过热关机
     DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_AUTO_SLEEP, 0);
+    pm->system_power_control(false);
 }
 
 static void system_will_power_off_ui_after_policy(ui_manager_context_t *ui, int index)

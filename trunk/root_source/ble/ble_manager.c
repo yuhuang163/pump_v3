@@ -305,9 +305,24 @@ static void ble_manager_dispatch_thread(void *args)
     }
 }
 
-static void ble_event_callback(ble_event_e event, void *param)
+static void ble_event_dispatch_hal_param(uint8_t msg_id, uintptr_t connhdl, void *param)
 {
-    LOG_BLE("ble event: %d", event);
+    ble_hal_event_param_t dispatch_param = {0};
+
+    if (param) {
+        dispatch_param = *(const ble_hal_event_param_t *)param;
+    }
+    if (dispatch_param.connhdl == 0u) {
+        dispatch_param.connhdl = (uint16_t)connhdl;
+    }
+    (void)ble_obj->dispatch_ble_event_wrapper(ble_obj, msg_id,
+                                              (uint8_t *)&dispatch_param,
+                                              (int)sizeof(dispatch_param));
+}
+
+static void ble_event_callback(ble_event_e event, uintptr_t connhdl, void *param)
+{
+    LOG_BLE("ble event: %d connhdl=%u", event, (unsigned)connhdl);
     switch (event) {
         case BLE_EVENT_ADVERTISE_STARTED:
             ble_obj->priv.ble_adv_state = 1;
@@ -316,21 +331,21 @@ static void ble_event_callback(ble_event_e event, void *param)
             ble_obj->priv.ble_adv_state = 0;
             break;
         case BLE_EVENT_TX_CCC_DISABLED:
-            //ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_TX_CCC_DISABLED, param, 1);
             LOG_BLE("ble tx ccc disabled");
             break;
         case BLE_EVENT_TX_CCC_ENABLED:
-            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_TX_CCC_ENABLED, param, 1);
+            ble_event_dispatch_hal_param(BLE_MSG_TX_CCC_ENABLED, connhdl, param);
+            break;
         case BLE_EVENT_CONN_OPENED:
         case BLE_EVENT_CONN_MTU_EXCHANGED:
         case BLE_EVENT_CONN_PARAMS_UPDATE:
-            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_CONNECT_SUC, param, 1);
+            ble_event_dispatch_hal_param(BLE_MSG_PERIPH_CONNECT_SUC, connhdl, param);
             break;
         case BLE_EVENT_CONN_CLOSED:
-            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_DISCONN_SUC, param, 1);
+            ble_event_dispatch_hal_param(BLE_MSG_PERIPH_DISCONN_SUC, connhdl, param);
             break;
         case BLE_EVENT_CONN_FAILED:
-            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_DISCONN, param, 1);
+            ble_event_dispatch_hal_param(BLE_MSG_PERIPH_DISCONN, connhdl, param);
             break;
         default:
             break;

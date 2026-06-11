@@ -137,6 +137,8 @@ typedef struct ble_manager_context {
         uint8_t ble_connect_state;
         uint8_t fac_enter_sleep;
         uint16_t connect_idx;
+        /** 广播窗口起点 tick(get_timestamp)，建连时用于计算 setup_ms */
+        uint32_t connect_timestamp_use;
     } priv;
 /// public
     int (*get_mac_addr)(uint8_t *addr);
