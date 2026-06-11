@@ -166,8 +166,6 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 }
                 thiz->notify_motor_status_change(MOTOR_STATUS_EVT_PUMP_STEP_ALL_PARAM_CHANGE);
             }
-        } else {
-            runtime->all_timed_policy_finish_flag = 1; /// 所有定时策略执行完毕
         }
 
         if (runtime->timed_policy->policy.core.type == MOTOR_PARAM_TABLE) {

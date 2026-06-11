@@ -123,28 +123,6 @@ static void monitor_custom_policy_obj_periodic_cb(hdr_post_args_t *args)
 }
 #endif
 
-static void monitor_all_mode_policy_obj(struct motor_manager_context *ctx, const char *tag)
-{
-#if IS_SUPPORT_MOTOR_POLICY_MONITOR
-    if (ctx == NULL) {
-        return;
-    }
-
-    list_head_t *head = &ctx->priv.policy_list;
-    if (head->next == NULL) {
-        LOGW("[mode_mon] %s: policy list empty", (tag != NULL) ? tag : "?");
-        return;
-    }
-
-    LIST_FOR_EACH(pos, head) {
-        breast_pump_policy_node_t *node = CONTAINER_OF(pos, breast_pump_policy_node_t, list);
-        const motor_policy_manager_t *policy_obj = node->get_policy_cb ?
-            node->get_policy_cb(node->user_data) : NULL;
-        monitor_one_mode_policy_obj(tag, node->name, node->breast_pump_mode, policy_obj);
-    }
-#endif
-}
-
 static int breast_pump_policy_register(struct motor_manager_context *thiz, add_breast_pump_policy_fptr add_policy_cb)
 {
     list_head_t *head = &thiz->priv.policy_list;
@@ -293,14 +271,14 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
     EXCEPTION_CHECK_VOID(ctx);
     uint8_t old_user_debug_status = ctx->priv.user_debug_status;
     if (id == MOTOR_USER_DEBUG_PUMP_OFF || id == MOTOR_USER_DEBUG_VALVE_OFF) {
-        ctx->stop_motor();
+        ctx->stop_motor(MOTOR_POLICY_PAUSE);
         ctx->priv.user_debug_status = 0;
         REMOVE_TASK_HANDLER_DIRECTLY(MOTOR_DEBUG_TASK_NAME);
         LOG_MOTOR("motor debug stop, id: %d", id);
         return;
     }
     if (ctx->priv.user_debug_status) {
-        ctx->stop_motor();
+        ctx->stop_motor(MOTOR_POLICY_PAUSE);
         REMOVE_TASK_HANDLER_DIRECTLY(MOTOR_DEBUG_TASK_NAME);
     }
     ctx->priv.user_debug_status = 1;
@@ -475,5 +453,4 @@ void register_motor_hook(motor_manager_context_t *ctx)
     ctx->hook->motor_policy_prepare = breast_pump_policy_prepare;
     ctx->hook->mode_policy_handler = breast_pump_mode_policy_handler;
     ctx->hook->motor_debug_with_user_para = motor_debug_with_user_para;
-    ctx->hook->monitor_all_mode_policy_obj = monitor_all_mode_policy_obj;
 }

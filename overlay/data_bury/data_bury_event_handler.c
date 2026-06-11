@@ -189,7 +189,7 @@ static void data_bury_event_publish_pump_session_start(data_bury_manager_context
     breast_pump_manager_context_t *pump =
         (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     data_bury_evt_pump_session_start_t evt = {0};
-    uint8_t mode = 0;
+    int mode = 0;
     uint16_t session_id = 0;
 
     if (!pump) {
@@ -224,7 +224,7 @@ static void data_bury_event_publish_pump_session_end(data_bury_manager_context_t
     data_bury_evt_pump_session_end_fixed_t *evt =
         (data_bury_evt_pump_session_end_fixed_t *)buf;
     pump_result_info_t result = {0};
-    uint8_t mode = 0;
+    int mode = 0;
     uint32_t *mode_durations;
     uint16_t session_id = 0;
     uint16_t payload_len;

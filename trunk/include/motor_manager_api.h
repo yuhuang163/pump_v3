@@ -24,8 +24,15 @@ typedef enum {
     MOTOR_POLICY_CONTINUE,          /// 继续运行(同一个模式下)
     MOTOR_POLICY_CHANGE_MODE,       /// 切换模式运行
     MOTOR_USER_DEBUG_POLICY_START,  /// 用户调试策略启动
+    MOTOR_POLICY_STATE_RESET,       /// 策略状态重置
     MOTOR_POLICY_ACTION_MAX
 } motor_policy_action_e;
+
+typedef enum {
+    MOTOR_POLICY_PAUSE = 0,
+    MOTOR_POLICY_FINISH,
+    MOTOR_STOP_REASON_MAX,
+} motor_stop_reason_e;
 
 typedef int (*policy_finish_cb_fptr)(void *user_data);
 
@@ -150,7 +157,8 @@ typedef struct motor_manager_context {
 /// public
     int (*get_motor_state)(void);
     int (*start_motor)(motor_policy_action_e action);
-    int (*stop_motor)(void);
+    int (*stop_motor)(motor_stop_reason_e reason);
+    int (*change_motor_mode)(uint8_t mode, uint8_t is_continue); /// 切换马达模式
     int (*synchronous_stop_motor)(void);
     /// 当前是否允许播放.
     int (*is_can_play_now)(void);  
@@ -158,20 +166,14 @@ typedef struct motor_manager_context {
     bool (*is_on_motor_task_running)(struct motor_manager_context *ctx);
     /// 获取马达策略索引
     int (*get_runtime_policy_index)(motor_policy_type_e type);
-    /// 设置马达策略索引
-    int (*set_runtime_policy_index)(motor_policy_type_e type, int index);
     /// 获取模式类型
     uint8_t (*get_runtime_mode_type)(uint8_t is_next_mode);
     /// 获取当前时间策略剩余时间，单位s
     uint32_t (*get_time_policy_remaining_time)(void);
-    /// 设置当前时间策略剩余时间，单位s
-    int (*set_time_policy_remaining_time)(uint32_t remaining_time);
     /// 获取当前泵奶参数表
     uint8_t (*get_local_suction_table)(factory_suction_para_t **suction_para);
     /// 获取策略运行时间，单位ms
     uint32_t (*get_policy_running_time)(uint8_t mode);
-    /// 获取所有定时策略执行完毕标志
-    uint8_t (*get_timed_policy_finish_flag)(void);
     /// 注册马达状态事件回调
     void (*add_motor_status_evt_listener)(void *user_data, on_motor_status_evt_cb_fptr cb);
     /// 移除马达状态事件回调

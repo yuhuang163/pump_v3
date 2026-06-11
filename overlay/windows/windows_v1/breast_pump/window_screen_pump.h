@@ -123,8 +123,6 @@ typedef struct {
     uint32_t margic;
     breast_pump_result_t pump_result; /// 泵奶结果.
     uint8_t window_run_state; /// WM是否运行.
-    uint8_t is_mode_changed_by_app; /// 是否是从app中切换模式.
-    uint8_t is_mode_changed_by_device; /// 是否是从设备中切换模式.
     uint8_t ui_normal_mode_index; /// UI普通模式索引.
     uint8_t ui_bf_mode_index; /// UI追奶模式索引.
     uint16_t current_ui_type; /// 当前UI类型
