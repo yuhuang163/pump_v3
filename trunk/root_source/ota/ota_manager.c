@@ -112,6 +112,7 @@ static void end_ota_upgrade(ota_object_e object, uint8_t state)
         set_ota_upgrade_progress(object, info->total_size, info->total_size);
         set_ota_upgrade_state(OTA_UPGRADE_STATE_SUCCESS);
         SEND_BROADCAST_ARGS1(ID_BROADCAST_OTA_STATE_CHANGE, OTA_UPGRADE_STATE_SUCCESS);
+        
     } else {
         LOG_OTA("ota result faile, reson 0x%02X", state);
         set_ota_upgrade_progress(object, info->total_size, 0);

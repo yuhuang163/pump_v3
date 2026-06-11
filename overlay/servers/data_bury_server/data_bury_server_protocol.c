@@ -17,7 +17,9 @@ static int data_bury_server_send_tlv(uint8_t svc_id, uint8_t cmd_id,
     uint16_t app_len = (uint16_t)(2u + tlv_len);
 
     if (app_len > mfs) {
-        return app_data_bury_protocol_frame_builder_send_split(svc_id, cmd_id, tlv, tlv_len, mfs);
+        ///先不走分帧，直接走单帧，有mtu切片功能
+        LOG_BURY("data bury send tlv mfs=%u app_len=%u", mfs, app_len);
+        //return app_data_bury_protocol_frame_builder_send_split(svc_id, cmd_id, tlv, tlv_len, mfs);
     }
     return app_data_bury_protocol_frame_builder_send(svc_id, cmd_id, tlv, tlv_len);
 }

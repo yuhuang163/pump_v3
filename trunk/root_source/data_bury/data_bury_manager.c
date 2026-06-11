@@ -273,6 +273,7 @@ static int data_bury_publish(servers_publish_data_id_e id, servers_publish_data_
 {
     data_bury_msg_pool_payload_t payload = {0};
     uint16_t payload_len;
+    uint32_t delay_ms;
     int ret;
 
     EXCEPTION_CHECK_INT(thiz);
@@ -290,17 +291,20 @@ static int data_bury_publish(servers_publish_data_id_e id, servers_publish_data_
         return -3;
     }
 
+    delay_ms = (args->arg2 > 0) ? (uint32_t)args->arg2 : 0u;
     data_bury_fill_evt_common_hdr(args->val, payload_len, id);
 
     payload.publish_id = id;
     payload.arg1 = (int)payload_len;
     payload.val = args->val;
 #if DATA_BURY_MSG_POOL_ENABLE
-    ret = data_bury_sys_msg_put(thiz, DATA_BURY_EVT_PUBLISH, 0u, &payload);
+    ret = data_bury_sys_msg_put(thiz, DATA_BURY_EVT_PUBLISH, delay_ms, &payload);
     if (ret != 0) {
-        LOGE("data bury publish queue fail id=%d len=%u ret=%d", (int)id, (unsigned)payload_len, ret);
+        LOGE("data bury publish queue fail id=%d len=%u delay=%u ret=%d",
+             (int)id, (unsigned)payload_len, (unsigned)delay_ms, ret);
     } else {
-        LOG_BURY("data bury publish queued id=%d len=%u", (int)id, (unsigned)payload_len);
+        LOG_BURY("data bury publish queued id=%d len=%u delay=%u",
+                 (int)id, (unsigned)payload_len, (unsigned)delay_ms);
     }
     return ret;
 #else
@@ -323,6 +327,36 @@ static int data_bury_publish(servers_publish_data_id_e id, servers_publish_data_
         return 0;
     }
 #endif
+}
+
+static int data_bury_event_trigger(data_bury_trigger_event_e event_id, const data_bury_trigger_args_t *args)
+{
+    const data_bury_event_process_handle_t *list;
+    uint16_t list_len;
+    data_bury_trigger_args_t empty_args = {0};
+
+    EXCEPTION_CHECK_INT(thiz);
+    if (event_id == DATA_BURY_TRIGGER_EVT_NONE) {
+        return -1;
+    }
+    if (!args) {
+        args = &empty_args;
+    }
+    if (thiz->data_bury_is_enable && !thiz->data_bury_is_enable()) {
+        return 0;
+    }
+    list = thiz->priv.event_process_list;
+    list_len = thiz->priv.event_process_list_len;
+    if (!list || list_len == 0u) {
+        return -2;
+    }
+    for (int i = 0; i < (int)list_len; i++) {
+        if (list[i].event_id == (uint16_t)event_id && list[i].event_process) {
+            return list[i].event_process(thiz, args);
+        }
+    }
+    LOGE("data bury event trigger not found id=%d", (int)event_id);
+    return -3;
 }
 
 static int data_bury_flush_pending(void)
@@ -406,7 +440,6 @@ static void data_bury_manager_internal_dispatch_thread(const void *args)
     multi_func_msg_data_t msg = {0};
     data_bury_manager_context_t *obj = thiz;
 
-    CREATE_MSG_QUEUE(&thd->msg_id, DATA_BURY_EVT_MESQ_NUM);
 #if DATA_BURY_MSG_POOL_ENABLE
     CREATE_TIMER(&obj->priv.bury_timer, "data_bury_msg_timer", obj, OS_TIMER_PERIODIC,
                  data_bury_msg_timer_handler);
@@ -467,6 +500,8 @@ static int on_post_data_bury_init(void *self)
         register_broadcast_receiver(ctx->priv.bcd);
     }
 
+    /* 在拉起 bury 线程前创建消息队列，避免开机等早期 publish 时 msg_id 尚未就绪 */
+    CREATE_MSG_QUEUE(&ctx->priv.bury_thd.msg_id, DATA_BURY_EVT_MESQ_NUM);
     RUN_NEW_THREAD(&ctx->priv.bury_thd, "data_bury_thd",
                    data_bury_manager_internal_dispatch_thread,
                    RT_PRIO_DATA_BURY_DISPATCH_THREAD, INPUT_DATA_BURY_THREAD_STACKSIZE);
@@ -481,6 +516,7 @@ void *register_module_for_data_burial_new(list_head_t *list_head)
     ptr->data_bury_is_enable = data_bury_is_enable;
     ptr->data_bury_set_enable = data_bury_set_enable;
     ptr->data_bury_publish = data_bury_publish;
+    ptr->data_bury_event_trigger = data_bury_event_trigger;
     ptr->data_bury_flush_pending = data_bury_flush_pending;
     ptr->data_bury_sys_msg_put = data_bury_sys_msg_put_wrapper;
     ptr->data_bury_sys_msg_remove = data_bury_sys_msg_remove_wrapper;

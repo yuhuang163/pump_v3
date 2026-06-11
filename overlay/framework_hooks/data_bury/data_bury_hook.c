@@ -1,38 +1,53 @@
 /*
- * 数据埋点 Manager overlay hook：BLE 建连 flush、线程事件路由
+ * 数据埋点 Manager overlay hook：线程事件路由、离线环 flush
  */
 
 #include "root_common_api.h"
 #include "app_data_bury_protocol_defs.h"
+#include "data_bury_event_handler.h"
 
 #define DATA_BURY_LOG_DEBUG 1
+
+const static data_bury_event_process_handle_t data_bury_event_process_list[] = {
+    { DATA_BURY_TRIGGER_EVT_BLE_CONNECTED, data_bury_event_process_ble_connected },
+    { DATA_BURY_TRIGGER_EVT_BLE_DISCONNECT, data_bury_event_process_ble_disconnect },
+    { DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START, data_bury_event_process_pump_session_start },
+    { DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, data_bury_event_process_pump_session_end },
+    { DATA_BURY_TRIGGER_EVT_POWER_ON, data_bury_event_process_power_on },
+    { DATA_BURY_TRIGGER_EVT_POWER_OFF, data_bury_event_process_power_off },
+    { DATA_BURY_TRIGGER_EVT_OTA_START, data_bury_event_process_ota_start },
+    { DATA_BURY_TRIGGER_EVT_BAT_CHARGE_STATUS, data_bury_event_process_bat_charge_status },
+};
+
+static servers_manager_context_t *data_bury_hook_get_servers_ctx(data_bury_manager_context_t *ctx)
+{
+    servers_manager_context_t *servers;
+
+    if (!ctx) {
+        return NULL;
+    }
+    servers = ctx->priv.servers_ctx;
+    if (!servers) {
+        servers = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+        ctx->priv.servers_ctx = servers;
+    }
+    return servers;
+}
 
 static int on_data_bury_br_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2,
                                           broadcast_priv_data_t *pdata)
 {
     data_bury_manager_context_t *ctx = context;
-    ble_manager_context_t *ble;
 
-    (void)id;
     (void)pdata;
     if (!ctx) {
         return -1;
     }
-    if (arg1 != BLE_BROADCAST_NOTIFY_ENABLED) {
+    if (ctx->data_bury_is_enable && !ctx->data_bury_is_enable()) {
         return 0;
     }
-    ble = ctx->priv.ble_ctx;
-    if (!ble) {
-        ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
-        ctx->priv.ble_ctx = ble;
-    }
-    if (!ble || !ble->ble_is_connected()) {
-        return 0;
-    }
-    if (ctx->data_bury_sys_msg_put) {
-        LOG_BURY("data bury hook flush pending start");
-        /* 建连后稍延时 flush，避免 GATT 未就绪 */
-        return ctx->data_bury_sys_msg_put(DATA_BURY_EVT_FLUSH_PENDING, 200u, NULL);
+    if (id.code == ID_BROADCAST_BLE_STATE_CHANGE) {
+        return data_bury_event_handler_on_ble_notify_broadcast(ctx, arg1, arg2);
     }
     return 0;
 }
@@ -216,6 +231,7 @@ static int data_bury_hook_append_to_ring(data_bury_manager_context_t *ctx, uint8
 static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_bury_entry_extra_t *extra)
 {
     ble_manager_context_t *ble;
+    servers_manager_context_t *servers;
     servers_publish_data_args_t pub_args;
     uint8_t cmd_id;
     int ret;
@@ -248,27 +264,29 @@ static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_b
     pub_args.arg1 = extra->arg1;
     pub_args.val = extra->val;
 
-    if (ble && ble->ble_is_connected()) {
-        if (!ctx->priv.servers_ctx || !ctx->priv.servers_ctx->hook
-            || !ctx->priv.servers_ctx->hook->data_bury_server_data_publish) {
-            LOGE("data bury hook server not ready servers=%p", ctx->priv.servers_ctx);
-            return -3;
-        }
-        ret = ctx->priv.servers_ctx->hook->data_bury_server_data_publish(extra->publish_id, &pub_args);
-        if (ret == 0) {
-            LOG_BURY("data bury online sent cmd=%s len=%d",
-                     data_bury_hook_cmd_to_str(cmd_id), extra->arg1);
-            return 0;
-        }
-        /* 发送过程中 BLE 断开，回落写环 */
-        if (ret != -3) {
-            LOGE("data bury online send fail id=%d cmd=0x%02x len=%d ret=%d",
-                 (int)extra->publish_id, cmd_id, extra->arg1, ret);
-            return ret;
-        }
-        LOGW("data bury online send ret=-3 fallback ring id=%d cmd=0x%02x", (int)extra->publish_id, cmd_id);
+    if (!ble || !ble->ble_is_connected()) {
+        LOG_BURY("data bury offline cache cmd=%s (ble not connected)", data_bury_hook_cmd_to_str(cmd_id));
+        return data_bury_hook_append_to_ring(ctx, cmd_id, extra->val, (uint16_t)extra->arg1);
     }
 
+    servers = data_bury_hook_get_servers_ctx(ctx);
+    if (!servers || !servers->hook || !servers->hook->data_bury_server_data_publish) {
+        LOGE("data bury hook server not ready servers=%p", servers);
+        return -3;
+    }
+    ret = servers->hook->data_bury_server_data_publish(extra->publish_id, &pub_args);
+    if (ret == 0) {
+        LOG_BURY("data bury online sent cmd=%s len=%d",
+                 data_bury_hook_cmd_to_str(cmd_id), extra->arg1);
+        return 0;
+    }
+    /* 发送过程中 BLE 断开，回落写环 */
+    if (ret != -3) {
+        LOGE("data bury online send fail id=%d cmd=0x%02x len=%d ret=%d",
+             (int)extra->publish_id, cmd_id, extra->arg1, ret);
+        return ret;
+    }
+    LOGW("data bury online send ret=-3 fallback ring id=%d cmd=0x%02x", (int)extra->publish_id, cmd_id);
     return data_bury_hook_append_to_ring(ctx, cmd_id, extra->val, (uint16_t)extra->arg1);
 }
 
@@ -296,11 +314,7 @@ static int data_bury_hook_flush_pending(data_bury_manager_context_t *ctx)
         return -1;
     }
 
-    servers = ctx->priv.servers_ctx;
-    if (!servers) {
-        servers = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-        ctx->priv.servers_ctx = servers;
-    }
+    servers = data_bury_hook_get_servers_ctx(ctx);
     if (!servers || !servers->hook || !servers->hook->data_bury_server_data_publish) {
         return -1;
     }
@@ -414,7 +428,12 @@ static int data_bury_thread_route(data_bury_manager_context_t *ctx, void *msg)
 
 static int on_prepare_data_bury_hook_route(data_bury_manager_context_t *ctx)
 {
-    (void)ctx;
+    if (!ctx) {
+        return -1;
+    }
+    data_bury_event_handler_init_params();
+    ctx->priv.event_process_list = data_bury_event_process_list;
+    ctx->priv.event_process_list_len = (uint16_t)LENGTH_OF_ARRAY(data_bury_event_process_list);
     return 0;
 }
 
