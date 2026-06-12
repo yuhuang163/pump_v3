@@ -158,7 +158,7 @@ typedef struct motor_manager_context {
     int (*get_motor_state)(void);
     int (*start_motor)(motor_policy_action_e action);
     int (*stop_motor)(motor_stop_reason_e reason);
-    int (*change_motor_mode)(uint8_t mode, uint8_t is_continue); /// 切换马达模式
+    int (*change_motor_mode)(uint8_t mode, bool is_continue); /// 切换马达模式
     int (*synchronous_stop_motor)(void);
     /// 当前是否允许播放.
     int (*is_can_play_now)(void);  

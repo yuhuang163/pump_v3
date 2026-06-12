@@ -368,7 +368,7 @@ static void pump_algo_compensation_callback(void *user_data, algo_breast_pump_da
 }
 #endif
 
-int change_motor_mode(struct motor_manager_context *thiz, uint8_t mode, uint8_t is_continue)
+int change_motor_mode(struct motor_manager_context *thiz, uint8_t mode, bool is_continue)
 {
     EXCEPTION_CHECK_INT(thiz);
     motor_policy_runtime_t *body = &thiz->priv.runtime;
@@ -377,15 +377,22 @@ int change_motor_mode(struct motor_manager_context *thiz, uint8_t mode, uint8_t 
         LOGE("invalid policy obj: %p, pump_mode: %d", policy_obj, mode);
         return -1;
     }
-    body->current_mode_type = pump_policy_type_get(policy_obj->head.policy);
-    if (policy_obj->head.next) {
-        body->next_mode_type = pump_policy_type_get(policy_obj->head.next->policy);
+    body->manager = (motor_policy_manager_t *)policy_obj;
+    body->timed_policy = &body->manager->head;
+    body->breast_pump_mode = mode;
+    body->current_mode_type = pump_policy_type_get(body->timed_policy->policy);
+    if (body->timed_policy->next) {
+        body->next_mode_type = pump_policy_type_get(body->timed_policy->next->policy);
     } else {
         body->next_mode_type = body->current_mode_type;
     }
     body->current_timed_policy_index = 0;
     body->time_policy_remaining_time = body->timed_policy->duration_seconds;
+    body->time_policy_target_time = body->timed_policy->duration_seconds;
     body->policy_running_time_ms = 0;
+    for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+        memcpy(&body->policy[i], &body->timed_policy->policy, sizeof(motor_policy_node_t));
+    }
     if (is_continue) {
         thiz->start_motor(MOTOR_POLICY_CHANGE_MODE);
     }

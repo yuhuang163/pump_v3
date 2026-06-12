@@ -189,7 +189,7 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
 
     m_info->mode = mode;
     if (motor_ctx) {
-        motor_ctx->change_motor_mode(m_info->mode, m_info->do_work ? MOTOR_POLICY_CONTINUE : MOTOR_POLICY_STATE_RESET);
+        motor_ctx->change_motor_mode(m_info->mode, m_info->do_work);
     }
     
     if (breast_pump_obj->hook && breast_pump_obj->hook->mode_change_route) {
