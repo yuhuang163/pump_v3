@@ -180,6 +180,8 @@ typedef struct {
     uint8_t valve_duty;           /// 电磁阀门占空比
     uint8_t target_pressure;      /// 目标压力
     uint16_t release_wait_time_ms; /// 负压释放等待时间，单位ms
+    uint16_t action_duration_ms;   /// 动作持续时间，单位ms
+    uint32_t action_start_time;    /// 动作开始时间，单位ms
 } motor_policy_state_t;
 
 /// 马达组件状态, 给算法采集用，顺序与motor_policy_state_t保持一致

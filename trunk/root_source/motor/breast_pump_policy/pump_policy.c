@@ -91,9 +91,17 @@ int pump_policy_del(motor_timed_policy_node_t *time_policy)
 
 int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_event_msg_t msg) 
 { 
-    // if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG) {
-    //     LOG_MOTOR("pump_policy_update: msg_type: %d, pump_id: %d, action: %d", msg.msg_type, msg.pump_id, msg.action);
-    // }
+    uint32_t duration_ms = get_timestamp_ms(info->state.action_start_time);
+
+#if 1
+    static uint32_t log_time = 0;
+    if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG || get_timestamp_ms(log_time) > 2000) {
+        log_time = get_timestamp();
+        LOG_MOTOR("type:%d, id:%d, action:%d, duration:%d/%d", 
+            msg.msg_type, msg.pump_id, msg.un.action, duration_ms, info->state.action_duration_ms);
+    }
+#endif
+
     switch (info->state.status) {
         case SUCTION_STATUS_IDLE: 
             info->state.policy_update_lock = 1;
@@ -102,8 +110,8 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
             break;
 
         case SUCTION_STATUS_GENERATE:
-            if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG &&
-                msg.pump_id == pump_id && msg.un.action == MOTOR_PUMP_ON) {
+            if ((msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG && msg.pump_id == pump_id &&
+                 msg.un.action == MOTOR_PUMP_ON) || duration_ms > info->state.action_duration_ms) {
                 if (info->original.hold_time > 0) {
                     info->state.status = SUCTION_STATUS_HOLD;
                     info->state.action = MOTOR_ACTION_PUMP_OFF;
@@ -115,41 +123,43 @@ int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_e
             break;
 
         case SUCTION_STATUS_HOLD:
-            if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG &&
-                msg.pump_id == pump_id && msg.un.action == MOTOR_PUMP_OFF) {
+            if ((msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG && msg.pump_id == pump_id &&
+                msg.un.action == MOTOR_PUMP_OFF) || duration_ms > info->state.action_duration_ms) {
                 info->state.status = SUCTION_STATUS_RELEASE;
                 info->state.action = MOTOR_ACTION_VALVE_ON;
             }
             break;
 
         case SUCTION_STATUS_RELEASE:
-            if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG && msg.pump_id == pump_id && 
-                (msg.un.action == MOTOR_VALVE_ON || msg.un.action == MOTOR_PUMP_OFF_AND_VALVE_ON)) {
+            if ((msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG && msg.pump_id == pump_id && 
+                (msg.un.action == MOTOR_VALVE_ON || msg.un.action == MOTOR_PUMP_OFF_AND_VALVE_ON)) ||
+                duration_ms > info->state.action_duration_ms) {
                 info->state.status = SUCTION_STATUS_SLEEP;
                 info->state.action = MOTOR_ACTION_VALVE_OFF;
             }
             break;
 
         case SUCTION_STATUS_SLEEP:
-            if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG && 
-                msg.pump_id == pump_id && msg.un.action == MOTOR_VALVE_OFF) {
+            if ((msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG && msg.pump_id == pump_id &&
+                 msg.un.action == MOTOR_VALVE_OFF) || duration_ms > info->state.action_duration_ms) {
                 info->state.status = SUCTION_STATUS_UPDATE_POLICY;
                 info->state.action = MOTOR_ACTION_IDLE;
                 info->state.cycles_count++;
                 info->state.policy_update_lock = 0;
             }
             break;
+
         case SUCTION_STATUS_UPDATE_POLICY:
             if (info->state.policy_update_lock) {
                 info->state.policy_update_lock = 0; /// 释放策略
                 LOG_MOTOR("dev-%d policy update lock release", pump_id);
             }
             break;
+
         default:
-            LOG_MOTOR("unknown status: %d, action: %d, lock: %d", 
-                info->state.status, info->state.action, info->state.policy_update_lock);
             if (info->state.policy_update_lock) {
                 info->state.policy_update_lock = 0; /// 释放策略
+                LOG_MOTOR("dev-%d unknown status lock release", pump_id);
             }
             break;
     }
