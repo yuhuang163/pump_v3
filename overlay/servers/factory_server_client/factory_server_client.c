@@ -27,8 +27,6 @@
 */
 static void on_packet_subscribe_callback(int err_code, uint8_t *data, uint16_t len)
 {
-    LOG_SRV("err_code: %d", err_code);
-    LOG_HEX("data", data, len);
     ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     EXCEPTION_CHECK_VOID(ble_ctx);
     /// 发送数据主要ack应答
