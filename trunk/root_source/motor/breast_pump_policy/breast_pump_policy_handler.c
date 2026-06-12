@@ -10,7 +10,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define POLICY_WORK_MSG_NUM            4 /// 策略工作消息队列数量
+#define POLICY_WORK_MSG_NUM            8 /// 策略工作消息队列数量
 #define MOTOR_POLICY_OBJ_MIN_ADDR      0x1000U
 
 /*
@@ -19,6 +19,7 @@
 */
 static os_message_id policy_work_msg_id = NULL; /// 策略工作消息ID.
 static os_timer_id policy_work_timer = NULL; /// 策略工作定时器.
+static bool driver_msg_send_failed = false; /// 驱动消息发送失败标志.
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -79,6 +80,8 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
             info->state.pump_duty = motor.un.pump.pulse_width / PUMP_DUTY_SCALE_FACTOR;
             info->state.release_wait_time_ms = info->original.valve_on_time;
             DEVICE_IOCTL_ARGS(thiz->priv.motor_dev, OP_CODE_MOTOR_START_PLAY, &motor);
+            info->state.action_start_time = get_timestamp();
+            info->state.action_duration_ms = motor.un.pump.duration_ms + 100; 
             info->state.n_pressure_flag = 1;
             break;
 
@@ -89,6 +92,8 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
             motor.un.pump.action = MOTOR_PUMP_OFF;
             motor.un.pump.duration_ms = info->original.hold_time;
             DEVICE_IOCTL_ARGS(thiz->priv.motor_dev, OP_CODE_MOTOR_STOP_PLAY, &motor);
+            info->state.action_start_time = get_timestamp();
+            info->state.action_duration_ms = motor.un.pump.duration_ms + 100;
             break;
 
         case MOTOR_ACTION_PUMP_OFF_AND_VALVE_ON:
@@ -98,6 +103,8 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
             motor.un.pump.action = MOTOR_PUMP_OFF_AND_VALVE_ON;
             motor.un.pump.duration_ms = info->original.valve_on_time == 0 ? 10 : info->original.valve_on_time;
             DEVICE_IOCTL_ARGS(thiz->priv.motor_dev, OP_CODE_MOTOR_START_PLAY, &motor);
+            info->state.action_start_time = get_timestamp();
+            info->state.action_duration_ms = motor.un.pump.duration_ms + 100;
             break;
 
         case MOTOR_ACTION_VALVE_ON:
@@ -107,6 +114,8 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
             motor.un.pump.action = MOTOR_VALVE_ON;
             motor.un.pump.duration_ms = info->original.valve_on_time == 0 ? 10 : info->original.valve_on_time;
             DEVICE_IOCTL_ARGS(thiz->priv.motor_dev, OP_CODE_MOTOR_START_PLAY, &motor);
+            info->state.action_start_time = get_timestamp();
+            info->state.action_duration_ms = motor.un.pump.duration_ms + 100;
             break;
 
         case MOTOR_ACTION_VALVE_OFF:
@@ -117,9 +126,11 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
             motor.un.pump.duration_ms = info->original.sleep_time == 0 ? 2 : info->original.sleep_time;
             info->state.release_wait_time_ms = 0;
             DEVICE_IOCTL_ARGS(thiz->priv.motor_dev, OP_CODE_MOTOR_STOP_PLAY, &motor);
+            info->state.action_start_time = get_timestamp();
+            info->state.action_duration_ms = motor.un.pump.duration_ms + 100;
             info->state.n_pressure_flag = 0;
-            break;
-        default:
+            break;    
+        default: 
             break;
 
     }
@@ -143,13 +154,17 @@ static void pump_duty_adjust_to_motor_device(struct motor_manager_context *thiz,
 }
 #endif
 
-static void policy_work_timer_cb(os_timer_id *timer)
+static void policy_work_timer_cb(void *arg)
 {
     motor_timer_event_msg_t msg = {
         .msg_type = MOTOR_TASK_HEARTBEAT_TIMER_MSG,
         .un.action = 0,
         .pump_id = 0,
     };
+
+    if (driver_msg_send_failed) {
+        msg.msg_type = MOTOR_DRIVER_TIMER_EVENT_MSG;
+    }
     MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0);
 }
 
@@ -160,7 +175,11 @@ static void on_motor_timer_event_cb(uint8_t pump_id, motor_pump_status_e action)
         .un.action = action,
         .pump_id = pump_id,
     };
-    MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0);
+
+    if (MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0) != 0) {
+        LOGE("driver msg send failed");
+        driver_msg_send_failed = true;
+    }
 }
 
 static void breast_pump_start_prepare(struct motor_manager_context *thiz, const motor_policy_manager_t *policy_obj)
@@ -336,6 +355,7 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
         runtime->compensation_delta_pwm[i] = 0;
     }
 #endif
+    driver_msg_send_failed = false;
     LOG_MOTOR("exit:%d", exit_code);
     return exit_code;
 }
