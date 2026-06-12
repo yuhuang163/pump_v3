@@ -154,7 +154,17 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         LOG_WM("system idle, ignore key event.");
         return 0;
     }
-    
+
+    if (keycode == KEY_CODE_CANCEL) {
+        home_cancel_key_event_handler(proc);
+        return 0;
+    }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
+        LOG_WM("pump result, ignore key event.");
+        return 0;
+    }
+
     switch (keycode) {
         case KEY_CODE_MODE:
             home_pump_normal_mode_key_click_handler(proc);
@@ -163,9 +173,6 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
             home_pump_bf_mode_key_click_handler(proc);
             #endif
-            break;
-        case KEY_CODE_CANCEL:
-            home_cancel_key_event_handler(proc);
             break;
         case KEY_CODE_POWER:
             home_power_key_event_cb(proc);
