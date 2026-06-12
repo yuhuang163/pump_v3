@@ -219,57 +219,37 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
     LOG_WM("code:%lx, arg1:%d, arg2:%d, status:%d, mode:%d",
             bcd_args->code, bcd_args->arg1, bcd_args->arg2, pump_status, pump_mode);
     switch (bcd_args->code) {
-        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
-            switch (bcd_args->arg1) {
-                case BREAST_PUMP_BROADCAST_MODE_CHANGE:
-                    if (!proc->is_mode_changed_by_device) {
-                        proc->is_mode_changed_by_app = true;  /// 监测APP端切换模式动作，同步手柄端
-                        LOG_WM("mode change by app");
-                        if (proc->pm) {
-                            proc->pm->pm_wakeup(PM_WAKEUP_REASON_BLE_REQ); /// 接收到APP事件之后仅刷新进入休眠时间
-                        }
-                    } else {
-                        proc->is_mode_changed_by_device = false;
-                        proc->is_mode_changed_by_app = false;
-                    }
-                    break;
-                case BREAST_PUMP_BROADCAST_COMPLETED: {
-                    if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
-                        proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
-                        proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
-                        proc->pump_will_finish && PUMP_NO_FINISH(pump_status)) {
-                        multi_func_msg_data_t msg = {0};
-                        msg.union_body.extra.window_id = ID_WINDOW_HOME;
-                        msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
-                        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-                        LOG_WM("pump finish, goto home window.");
-                    }
-                    break;
-                }
-                case BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH:
-                    proc->pump_will_finish = true;
-                    pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_TIMEOUT);
-                    LOG_WM("pump will finish, post pump will finish task.");
-                    break;
-                case BREAST_PUMP_BROADCAST_APP_COMPLETED: {
+        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE: {
+            int state = bcd_args->arg1;
+            if (state == BREAST_PUMP_BROADCAST_COMPLETED) {
+                if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
+                    proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
+                    proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
+                    proc->pump_will_finish && PUMP_NO_FINISH(pump_status)) {
                     multi_func_msg_data_t msg = {0};
                     msg.union_body.extra.window_id = ID_WINDOW_HOME;
                     msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
                     proc->wm->dispatch_new_window_args(proc->wm, &msg);
-                    LOG_WM("pump app complete, post pump app complete task.");
-                    break;
+                    LOG_WM("pump finish, goto home window.");
                 }
-                case BREAST_PUMP_BROADCAST_PUMP_ERROR:
-                    LOG_WM("pump error, post pump error task.");
-                    break;
-                case BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST:
-                    pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_TIMEOUT);
-                    LOG_WM("pump pause timeout, post pump pause timeout task.");
-                    break;
-                default:
-                    break;
+            } else if (state == BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH) {
+                proc->pump_will_finish = true;
+                pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_TIMEOUT);
+                LOG_WM("pump will finish, post pump will finish task.");
+            } else if (state == BREAST_PUMP_BROADCAST_APP_COMPLETED) {
+                multi_func_msg_data_t msg = {0};
+                msg.union_body.extra.window_id = ID_WINDOW_HOME;
+                msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
+                proc->wm->dispatch_new_window_args(proc->wm, &msg);
+                LOG_WM("pump app complete, post pump app complete task.");
+            } else if (state == BREAST_PUMP_BROADCAST_PUMP_ERROR) {
+                LOG_WM("pump error, post pump error task.");
+            } else if (state == BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST) {
+                pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_TIMEOUT);
+                LOG_WM("pump pause timeout, post pump pause timeout task.");
             }
             break;
+        }
         default:
             break;
     }

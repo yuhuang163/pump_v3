@@ -59,9 +59,11 @@ static bool app_old_comm_check_custom_policy_capacity(uint8_t step_index, uint8_
 
 static uint8_t app_old_comm_get_adaptive_dimming_switch(void)
 {
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_night_light_adaptive_switch);
-    return led->hook->get_night_light_adaptive_switch(led);
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+//     return (uint8_t)adaptive_dimming_global_switch_get();
+// #else
+    return 0;
+#endif
 }
 
 static void app_pump_safe_start_key_sim_task(void)
@@ -72,6 +74,36 @@ static void app_pump_safe_start_key_sim_task(void)
     if (wm->is_current_window(wm, ID_WINDOW_PUMP)) {
         app_start_key_simulation();
     }
+}
+
+static uint8_t app_old_comm_get_night_light_level(void)
+{
+#if IS_SUPPORT_NIGHT_LIGHT
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_night_light_level);
+    return led->hook->get_night_light_level(led);
+#else
+    return 0;
+#endif
+}
+
+static uint8_t app_old_comm_get_night_light_onoff(void)
+{
+#if IS_SUPPORT_NIGHT_LIGHT
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_night_light_onoff);
+    return led->hook->get_night_light_onoff(led);
+#else
+    return 0;
+#endif
+}
+
+static uint8_t app_old_comm_get_screen_key_light_level(void)
+{
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    //TODO:
+    //EXCEPTION_CHECK_UINT(led && led->hook && led->hook->get_key_backlight_level);
+    return 10; //TODO:
 }
 
 static uint8_t app_old_comm_get_sys_status(servers_old_protocol_publish_data_id_e id, void *user_data)
@@ -103,7 +135,7 @@ static uint8_t app_old_comm_get_sys_status(servers_old_protocol_publish_data_id_
     }
 
     /// 强制上报泵状态结束
-    if (id == OLD_PUBLISH_DATA_PUMP_STATUS_FINISH || motor_ctx->get_timed_policy_finish_flag() == 1) {
+    if (id == OLD_PUBLISH_DATA_PUMP_STATUS_FINISH) {
         USB_IS_PLUGIN(chage_state) ? sys_status = APP_OLD_COMM_PUMP_FINISH_IN_CHARGE : APP_OLD_COMM_SYS_FINISH;
        if (sys_status == APP_OLD_COMM_PUMP_FINISH_IN_CHARGE) {
             LOG_SRV("APP_OLD_COMM_PUMP_FINISH_IN_CHARGE");
@@ -410,9 +442,6 @@ static uint16_t app_old_comm_get_current_running_mode_step_time(void)
     motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
     EXCEPTION_CHECK_UINT(motor_ctx);
     uint16_t step_index_time = (uint16_t)motor_ctx->get_time_policy_remaining_time();
-    //if (motor_ctx->get_timed_policy_finish_flag()) {
-    //    step_index_time = 0;
-    //}
     LOG_SRV("step_index_time= %d", step_index_time);
     return (uint16_t)step_index_time;
 }

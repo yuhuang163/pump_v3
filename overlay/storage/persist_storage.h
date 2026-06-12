@@ -1,6 +1,7 @@
 #ifndef __PERSIST_STORAGE_H__
 #define __PERSIST_STORAGE_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -278,26 +279,6 @@ typedef struct {
     char mode_name[BREAST_PUMP_MODE_MAX][PUMP_MODE_NAME_LEN];   /// 模式名称
 } sys_pump_mode_info_t;
 
-typedef enum {
-    THEME_PAKCET_ORIGINAL, 
-    THEME_PACKET_OFFICIAL,
-    THEME_PACKET_PUSH,   
-    THEME_PACKET_GIFT,
-    THEME_PACKET_CUSTOME,
-    THEME_PACKET_MAX,
-} theme_type_e;
-
-typedef struct {
-    uint8_t file_id;
-    // char filename[ROOT_FILENAME_LEN];
-} theme_item_info_t;
-
-typedef struct {
-    uint8_t cur_theme_type;  
-    uint8_t last_theme_type;
-    theme_item_info_t theme_info[THEME_PACKET_MAX];
-} theme_packet_info_t;
-
 /// 用户绑定信息
 typedef struct {
     uint8_t bind_status;                    /// 绑定状态 0-未绑定 1-已绑定
@@ -322,12 +303,23 @@ typedef struct {
     uint8_t guide_deployed;       /// 向导部署标志
     uint8_t battery_health;       /// 电池健康
     uint8_t airplane_mode_state;  /// 飞行模式状态
-    uint8_t night_light_adaptive_switch; /// 夜灯自适应开关
+    uint8_t night_light_adaptive_switch; /// 夜灯自适应开关 @deprecated
     uint32_t log_filter;          /// 日志过滤
     uint32_t sync_sys_time;       /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算泵奶记录的差值.
     uint8_t battery_percent;      /// 电池电量
-    uint8_t rsv[31];              /// 保留
+    uint8_t global_adaptive_switch;             /// App 自动调光总开关（Flash 唯一 ALS 持久化）
+    uint8_t night_light_gear;                   /// 夜灯档位
+    uint8_t back_light_level;                   /// LCD+按键背光系数 0~100，App 钳 5~80
+    uint8_t rsv[28];              /// 保留
 } sys_state_info_t;
+
+typedef struct {
+    uint32_t img_id;
+    uint32_t total_size;
+    uint32_t version;
+    uint32_t crc32;
+    uint32_t recv_size;
+} img_res_ota_info_t;
 
 /// 描述埋点数据
 typedef struct sys_buried_info {
@@ -407,6 +399,7 @@ typedef struct {
 typedef struct factory_data_store {
     factory_flag_info_t flag_info;
     factory_dev_info_t dev_info;
+    img_res_ota_info_t res_ota_info;
     #if IS_SUPPORT_DEVICE_IMU
     imu_cali_data_t imu;
     #endif

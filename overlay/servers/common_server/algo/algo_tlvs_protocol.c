@@ -91,7 +91,8 @@ int algo_sampling_data_publish(servers_publish_data_args_t *args)
     EXCEPTION_CHECK_INT(ble_ctx);
     comm_protocol_builder_t builder = {0};
     /// 初始化构建器
-    ret = protocol_ctx->comm_protocol_builder_init(&builder, 1024, protocol_ctx->get_packet_seq(), COMM_PROTOCOL_FRAME_TYPE_NOTIFY);
+    ret = protocol_ctx->comm_protocol_builder_init(&builder, COMM_PROTOCOL_MAX_PAYLOAD_SIZE,
+        protocol_ctx->get_packet_seq(), COMM_PROTOCOL_FRAME_TYPE_NOTIFY);
     if (ret != 0) {
         LOGE("==> comm_protocol_builder_init failed");
         return COMM_PROTOCOL_ERROR_INVALID_BUILDER;

@@ -216,7 +216,7 @@ const static home_text_info_t home_text_infos[HOME_TEXT_ID_MAX] = {
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
     {"Slow, deep suction for\nefficient milk expression", RESOURCE_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Efficiently promote let-\ndownand better emptying", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Efficiently promote let-\ndown and better emptying", RESOURCE_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
     {"Most suitable for daily use\nafter successful lactation", RESOURCE_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},

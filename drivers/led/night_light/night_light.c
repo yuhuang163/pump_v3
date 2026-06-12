@@ -9,6 +9,8 @@
 #include "bsp_config.h" // IWYU pragma: keep
 #include "bsp_led_internal.h"
 
+#if IS_SUPPORT_NIGHT_LIGHT
+
 /*
 * DEFINES
 *****************************************************************************************
@@ -16,6 +18,18 @@
 #define IS_SUPPORT_NIGHT_LIGHT_CLIMB              (1)  /// 支持爬升
 #define NIGHT_LIGHT_PERIOD                        1000
 #define NIGHT_LIGHT_TIME_PERIOD                   35
+#if NIGHT_LIGHT_TIME_PERIOD > 35
+#error "NIGHT_LIGHT_TIME_PERIOD must not exceed 35ms"
+#endif
+#ifndef IS_SUPPORT_NIGHT_LIGHT_CLIMB_DIM_END_BLEND
+#define IS_SUPPORT_NIGHT_LIGHT_CLIMB_DIM_END_BLEND (1) /// 变暗末段半阶插值
+#endif
+#ifndef IS_SUPPORT_NIGHT_LIGHT_CLIMB_BRIGHT_END_BLEND
+#define IS_SUPPORT_NIGHT_LIGHT_CLIMB_BRIGHT_END_BLEND (1) /// 变亮末段半阶插值
+#endif
+#ifndef NIGHT_LIGHT_CLIMB_END_BLEND_THRESHOLD
+#define NIGHT_LIGHT_CLIMB_END_BLEND_THRESHOLD     4u  /// 距 target 剩余档位数
+#endif
 #define NIGHT_LIGHT_LOG_DEBUG                     (1)
 
 typedef struct {
@@ -24,7 +38,8 @@ typedef struct {
     uint8_t current_duty;   /// 当前占空比
     uint8_t target_duty;   /// 当前占空比
     uint8_t onoff;   /// 开关状态，0：关，1：开
-    uint8_t duty_update_flag;    /// 占空比更新标志，0：不更新，1：更新    
+    uint8_t duty_update_flag;    /// 占空比更新标志，0：不更新，1：更新
+    uint8_t blend_phase;         /// 末段半阶：0 整档，1 半阶待落档
     uint32_t pulse_width;   /// 当前脉冲宽度
 } night_light_timer_cfg_t;
 
@@ -35,6 +50,10 @@ typedef struct {
 #if IS_SUPPORT_NIGHT_LIGHT_CLIMB
 static night_light_timer_cfg_t time_info;
 #endif
+
+#define NIGHT_LIGHT_PWM_TABLE_INDEX_MIN                2
+#define NIGHT_LIGHT_PWM_TABLE_INDEX_MAX                98
+
 static const uint16_t pwm_table[101] = {
     0, 0, 2, 5, 9, 14, 21, 29, 39, 51,
     65, 80, 96, 115, 135, 157, 181, 207, 235, 265,
@@ -108,21 +127,116 @@ static void bsp_night_light_climb_stop(void)
     time_info.is_running = false; 
 }
 
+static void bsp_night_light_climb_schedule(void)
+{
+    hwtimer_start(time_info.time_id, MS_TO_HWTICKS(NIGHT_LIGHT_TIME_PERIOD));
+}
+
+#if IS_SUPPORT_NIGHT_LIGHT_CLIMB_DIM_END_BLEND
+static bool bsp_night_light_dim_end_blend_needed(void)
+{
+    uint8_t gap = time_info.current_duty - time_info.target_duty;
+
+    return gap > 0 && gap <= NIGHT_LIGHT_CLIMB_END_BLEND_THRESHOLD;
+}
+#endif
+
+#if IS_SUPPORT_NIGHT_LIGHT_CLIMB_BRIGHT_END_BLEND
+static bool bsp_night_light_bright_end_blend_needed(void)
+{
+    uint8_t gap = time_info.target_duty - time_info.current_duty;
+
+    return gap > 0 && gap <= NIGHT_LIGHT_CLIMB_END_BLEND_THRESHOLD;
+}
+#endif
+
 static void bsp_night_light_timer_handler(void *param)
 {
-    if (time_info.current_duty > time_info.target_duty && time_info.current_duty > 0) {
+    (void)param;
+
+    if (time_info.current_duty > time_info.target_duty && time_info.current_duty > NIGHT_LIGHT_PWM_TABLE_INDEX_MIN) {
+#if IS_SUPPORT_NIGHT_LIGHT_CLIMB_DIM_END_BLEND
+        if (time_info.blend_phase) {
+            time_info.blend_phase = 0;
+            time_info.current_duty--;
+            if (time_info.current_duty == time_info.target_duty) {
+                LOG_PBUS("nl dim blend land: cur=tgt=%u, pulse=%lu",
+                    (unsigned)time_info.current_duty,
+                    (unsigned long)time_info.pulse_width);
+                return;
+            }
+            time_info.pulse_width = pwm_table[time_info.current_duty];
+            time_info.duty_update_flag = 1;
+            bsp_night_light_climb_schedule();
+            return;
+        }
+
+        if (bsp_night_light_dim_end_blend_needed()) {
+            uint8_t next_duty = time_info.current_duty - 1;
+
+            time_info.blend_phase = 1;
+            time_info.pulse_width =
+                (pwm_table[time_info.current_duty] + pwm_table[next_duty]) / 2;
+            time_info.duty_update_flag = 1;
+            LOG_PBUS("nl dim blend: %u -> %u, tgt=%u",
+                (unsigned)time_info.current_duty,
+                (unsigned)next_duty,
+                (unsigned)time_info.target_duty);
+            bsp_night_light_climb_schedule();
+            return;
+        }
+#endif
         time_info.current_duty--;
         time_info.pulse_width = pwm_table[time_info.current_duty];
         time_info.duty_update_flag = 1;
-        hwtimer_start(time_info.time_id, MS_TO_HWTICKS(NIGHT_LIGHT_TIME_PERIOD));
-    } else if (time_info.current_duty < time_info.target_duty && time_info.current_duty < 100) {
+        if (time_info.current_duty == time_info.target_duty) {
+            return;
+        }
+        bsp_night_light_climb_schedule();
+    } else if (time_info.current_duty < time_info.target_duty &&
+               time_info.current_duty < NIGHT_LIGHT_PWM_TABLE_INDEX_MAX) {
+#if IS_SUPPORT_NIGHT_LIGHT_CLIMB_BRIGHT_END_BLEND
+        if (time_info.blend_phase) {
+            time_info.blend_phase = 0;
+            time_info.current_duty++;
+            if (time_info.current_duty == time_info.target_duty) {
+                LOG_PBUS("nl bright blend land: cur=tgt=%u, pulse=%lu",
+                    (unsigned)time_info.current_duty,
+                    (unsigned long)time_info.pulse_width);
+                return;
+            }
+            time_info.pulse_width = pwm_table[time_info.current_duty];
+            time_info.duty_update_flag = 1;
+            bsp_night_light_climb_schedule();
+            return;
+        }
+
+        if (bsp_night_light_bright_end_blend_needed()) {
+            uint8_t next_duty = time_info.current_duty + 1;
+
+            time_info.blend_phase = 1;
+            time_info.pulse_width =
+                (pwm_table[time_info.current_duty] + pwm_table[next_duty]) / 2;
+            time_info.duty_update_flag = 1;
+            LOG_PBUS("nl bright blend: %u -> %u, tgt=%u",
+                (unsigned)time_info.current_duty,
+                (unsigned)next_duty,
+                (unsigned)time_info.target_duty);
+            bsp_night_light_climb_schedule();
+            return;
+        }
+#endif
+        time_info.blend_phase = 0;
         time_info.current_duty++;
         time_info.pulse_width = pwm_table[time_info.current_duty];
         time_info.duty_update_flag = 1;
-        hwtimer_start(time_info.time_id, MS_TO_HWTICKS(NIGHT_LIGHT_TIME_PERIOD));
+        if (time_info.current_duty == time_info.target_duty) {
+            return;
+        }
+        bsp_night_light_climb_schedule();
     } else {
 #if NIGHT_LIGHT_LOG_DEBUG
-        LOG_PBUS("time is over, current_duty: %d, target_duty: %d", 
+        LOG_PBUS("time is over, current_duty: %d, target_duty: %d",
             time_info.current_duty, time_info.target_duty);
 #endif
     }
@@ -140,7 +254,14 @@ static int8_t bsp_night_light_timer_register(void)
 }
 
 static void night_light_level_set(uint8_t level)
-{    
+{
+    LOG_PBUS("nl bsp in: level=%u, onoff=%u, cur=%u, tgt=%u, pulse=%lu",
+        (unsigned)level,
+        (unsigned)time_info.onoff,
+        (unsigned)time_info.current_duty,
+        (unsigned)time_info.target_duty,
+        (unsigned long)time_info.pulse_width);
+
     if (time_info.onoff == 0 && level > 0) {
         struct HAL_PWM_CFG_T pwm_cfg = {
             .freq = NIGHT_LIGHT_PERIOD,
@@ -152,29 +273,38 @@ static void night_light_level_set(uint8_t level)
         time_info.current_duty = 2; /// 2 才亮灯
         time_info.pulse_width = pwm_table[time_info.current_duty];
         hal_pwm_enable(NIGHT_LIGHT_PWM_ID, &pwm_cfg);
+        hal_pwm_update_pulse_width(NIGHT_LIGHT_PWM_ID, time_info.pulse_width, NIGHT_LIGHT_PERIOD);
         bsp_night_light_irq_control(true);
         LOG_PBUS("night light on");
+        LOG_PBUS("nl bsp reinit: level=%u, cur->2, tgt pending", (unsigned)level);
     }
 
     uint8_t duty = level;
-    if (duty > 58)   // 最大PWM限定在30%
-    {
-        duty = 58;
+
+    if (duty > NIGHT_LIGHT_PWM_TABLE_INDEX_MAX) {
+        duty = NIGHT_LIGHT_PWM_TABLE_INDEX_MAX;
     }
-    if (duty < 2)   // 防止target_duty小于2，因无法触发中断而无法更新PWM占空比
+    if (duty < NIGHT_LIGHT_PWM_TABLE_INDEX_MIN)   // 防止target_duty小于2，因无法触发中断而无法更新PWM占空比
     {
-        duty = 2;
+        duty = NIGHT_LIGHT_PWM_TABLE_INDEX_MIN;
     }
 
     // if ((time_info.target_duty > (target_duty + 5)) || (time_info.target_duty < (target_duty - 5))) {
     if (time_info.current_duty != duty) {
-        time_info.duty_update_flag = 1;
         time_info.target_duty = duty;
+        time_info.blend_phase = 0;
         bsp_night_light_climb_start();
+        LOG_PBUS("nl bsp climb: level=%u, duty=%u, cur=%u->tgt=%u",
+            (unsigned)level,
+            (unsigned)duty,
+            (unsigned)time_info.current_duty,
+            (unsigned)time_info.target_duty);     
     }
     else {
         time_info.duty_update_flag = 0;
         time_info.target_duty = time_info.current_duty;
+        LOG_PBUS("nl bsp noop: level=%u, duty=%u, cur=tgt=%u",
+            (unsigned)level, (unsigned)duty, (unsigned)time_info.current_duty);  
     }
     // LOG_PBUS("nightlight target_duty: %d, current_duty: %d", time_info.target_duty, time_info.current_duty);
 }
@@ -248,3 +378,5 @@ int bsp_night_light_level_max_update(led_level_msg_t *msg)
 {
     return 0;
 }
+
+#endif /* IS_SUPPORT_NIGHT_LIGHT */

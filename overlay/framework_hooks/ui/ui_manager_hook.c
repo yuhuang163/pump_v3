@@ -353,6 +353,14 @@ static void ui_backlight_adaptive_thread(void *user_data)
 {
     ui_manager_context_t *thiz = (ui_manager_context_t *)user_data;
     EXCEPTION_CHECK_VOID(thiz);
+#if IS_SUPPORT_ADAPTIVE_DIMMING
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);    
+    EXCEPTION_CHECK_VOID(led);
+    // 按键和屏背光自适应开关共用，底层有分开实现
+    if (!led->hook->get_key_backlight_adaptive_dimming_switch(led)) {
+        return;
+    }
+#endif
     if (thiz->priv.ui_backlight_level == 0) {
         return;
     }
@@ -374,6 +382,14 @@ static void ui_backlight_adaptive_thread(void *user_data)
 
 static void ui_backlight_adaptive_level_update(ui_manager_context_t *thiz, uint8_t level)
 {
+    #if IS_SUPPORT_ADAPTIVE_DIMMING
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);    
+    EXCEPTION_CHECK_VOID(led);
+    // 按键和屏背光自适应开关共用，底层有分开实现
+    if (!led->hook->get_key_backlight_adaptive_dimming_switch(led)) {
+        return;
+    }
+#endif
     if (level > LCD_BACKLIGHT_LEVEL_MAX) {
         level = LCD_BACKLIGHT_LEVEL_MAX;
     }

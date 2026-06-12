@@ -110,12 +110,10 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
     
     if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
         switch_home_pump_speed(proc, false);
-        return;
-    } 
-    
-#if IS_SUPPORT_NIGHT_LIGHT_ADJUST
-    if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
+#if IS_SUPPORT_NIGHT_LIGHT
+    } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         switch_home_night_light_adjust(proc, false);
+#endif
     }
 #endif
 }
@@ -146,13 +144,10 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
     
     if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
         switch_home_pump_speed(proc, true);
-        return;
-    } 
-    
-#if IS_SUPPORT_NIGHT_LIGHT_ADJUST
-    if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
+#if IS_SUPPORT_NIGHT_LIGHT  
+    } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         switch_home_night_light_adjust(proc, true);
-        return;
+#endif
     }
 #endif
 }
@@ -176,14 +171,14 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
             return;
         }
         
+#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
         if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-            int ret = proc->led->hook->toggle_night_light(proc->led);
-            #if IS_SUPPORT_NIGHT_LIGHT_ADJUST
-            show_home_night_light_adjust_ui(proc);
-            #endif
+            proc->led->hook->toggle_night_light(proc->led);
+            /// 调节页 LVGL 尚未实现（prepare/process 为空）；切动画会 remove 首页导致黑屏。
+            /// 与吸乳页一致：仅 toggle 夜灯，待 home_night_light_adjust_ui.c 补齐后再进调节 UI。
         }
-        return;
-    } 
+#endif
+    }
 #endif
 
     if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {

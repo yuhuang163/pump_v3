@@ -20,6 +20,8 @@ extern "C" {
 typedef enum {
     BLE_BROADCAST_CONNECTED = 100, /// 连接成功
     BLE_BROADCAST_DISCONNECT, /// 断开连接 
+    BLE_BROADCAST_NOTIFY_ENABLED, /// BLE NOTIFY 使能
+    BLE_BROADCAST_NOTIFY_DISABLED, /// BLE NOTIFY 禁用
     BLE_BROADCAST_ID_MAX,
 } ble_broadcast_id_e;
 
@@ -135,6 +137,8 @@ typedef struct ble_manager_context {
         uint8_t ble_connect_state;
         uint8_t fac_enter_sleep;
         uint16_t connect_idx;
+        /** 广播窗口起点 tick(get_timestamp)，建连时用于计算 setup_ms */
+        uint32_t connect_timestamp_use;
     } priv;
 /// public
     int (*get_mac_addr)(uint8_t *addr);

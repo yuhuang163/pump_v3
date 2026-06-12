@@ -12,6 +12,7 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "persist_storage.h"
 #include "broadcast_manager_api.h"
+#include "data_bury_persist_defs.h"
 
 #define ADDR_FACTORY_DATA_OFFSET                          (0)
 
@@ -53,6 +54,13 @@ typedef enum {
     STORE_ID_MODE_NEW_STEP_INFO_FLAG,       /// 模式新步数信息标志
     STORE_ID_PUMP_MODE_ACTIVATE_STATUS,     /// 模式激活状态更新
     STORE_ID_PUMP_MODE_STEPS_INFO_ID,       /// 模式配置ID
+    STORE_ID_DATA_BURY_FLASH_BANK,          /// Momcozy 埋点 Flash 槽位索引
+    STORE_ID_DATA_BURY_RING_META,           /// Momcozy 埋点环 meta arg1=slot_index
+    STORE_ID_DATA_BURY_RING_CHUNK,          /// Momcozy 埋点环数据块(2048B) arg1=0 arg2=slot_index
+    STORE_ID_DATA_BURY_RING_APPEND,         /// 埋点环追加 val=data_bury_ring_append_args_t*
+    STORE_ID_DATA_BURY_RING_PENDING_COUNT,  /// 埋点环待上报条数 val=uint16_t*
+    STORE_ID_DATA_BURY_RING_POP_OLDEST,       /// 埋点环 pop 最旧一条
+    STORE_ID_DATA_BURY_RING_PEEK_OLDEST,      /// 埋点环 peek 最旧一条 val=data_bury_ring_peek_args_t*
     STORE_ID_SYS_CONFIG_INFO = 400,         /// 系统配置信息
     STORE_ID_SYS_TIME_ZONE,                 /// 系统时区
     STORE_ID_SYS_AP_MODE_ONOFF,             /// 系统飞航模式开关
@@ -65,12 +73,16 @@ typedef enum {
     STORE_ID_SYS_GUIDE_DEPLOYED,            /// 向导部署标志
     STORE_ID_SYS_BATTERY_HEALTH,            /// 电池健康
     STORE_ID_SYS_BREAST_PUMP_HEADER_LIFE,   /// 吸嘴寿命
-    STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, /// 夜灯自适应开关
+    STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, /// 夜灯自适应开关 @deprecated
     STORE_ID_SYS_AIRPLANE_MODE_STATE,       /// 飞行模式状态
     STORE_ID_SYS_SYNC_SYS_TIME,             /// 保存第一次同步系统时间时 本地经历的最终时间点 用于计算吸奶记录的差值.
     STORE_ID_SYS_LOG_FILTER,                /// 系统日志过滤
+    STORE_ID_SYS_ADAPTIVE_SWITCH,           /// global_adaptive_switch（Flash sys_state）
+    STORE_ID_SYS_NIGHT_LIGHT_GEAR,          /// 夜灯档位 L0~L3
+    STORE_ID_SYS_BACK_LIGHT_LEVEL,          /// LCD+按键背光亮度
     STORE_ID_USER_BIND_INFO = 600,          /// 用户绑定信息
     STORE_ID_SYS_BIND_STATUS,               /// 绑定状态
+    STORE_ID_IMG_RES_OTA_INFO = 700,        /// 图片资源OTA信息
     STORE_ID_MAX
 } persist_store_id_e;
 
@@ -81,6 +93,7 @@ typedef enum {
     STORE_CRC_TYPE_PUMP_MODE_STEPS_INFO,
     STORE_CRC_TYPE_PUMP_BURY_INFO,
     STORE_CRC_TYPE_PUMP_USER_DATA_HEAD,
+    STORE_CRC_TYPE_IMG_RES_OTA_INFO,
     STORE_CRC_TYPE_MAX
 } store_crc_type_id_e;
 
@@ -164,7 +177,7 @@ typedef struct storage_manager_context {
     int (*put_store_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
     int (*get_store_val)(persist_store_id_e id, int arg1, int arg2, void *val_out);
     int (*del_store_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
-    void (*put_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
+    int (*put_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_in);
     int (*get_store_ram_val)(persist_store_id_e id, int arg1, int arg2, void *val_out);
     int (*user_database_reset)(void);
     int (*flash_protect)(int protect_enable);  /// 保护flash读写操作.
@@ -194,6 +207,12 @@ typedef struct storage_manager_context {
         /// 工厂数据集合.
         factory_data_store_t factory_data;
         breast_pump_data_head_t pump_data_head;
+
+        /// 埋点信息.
+        data_bury_info_t data_bury_info;
+        //资源ota信息
+        img_res_ota_info_t img_res_ota_info;
+
         /// 存储处理列表.
         const put_store_process_handle_t *put_store_process_list;
         const get_store_process_handle_t *get_store_process_list;

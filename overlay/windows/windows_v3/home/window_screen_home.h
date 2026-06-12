@@ -119,7 +119,7 @@ typedef struct {
     uint8_t level_sync_flag; /// 档位同步标志.
     uint8_t speed_sync_flag; /// 速度同步标志.
     uint8_t pump_priming;
-    uint8_t night_light_level; /// 夜灯调节亮度等级（L0 - L4）.
+    uint8_t night_light_gear; /// 夜灯调节亮度等级（L0 - L4）.
     home_page_display_type_e home_display_type;
     uint32_t pump_record_time;
 } ui_proc_home_t;

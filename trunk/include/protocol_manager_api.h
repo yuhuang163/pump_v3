@@ -44,6 +44,8 @@ typedef struct protocol_manager_context {
     void (*comm_protocol_builder_free)(comm_protocol_builder_t *builder);
     /// 组包回调函数
     int (*comm_protocol_assemble_packet)(const uint8_t *data, uint16_t len, comm_protocol_frame_callback_t callback);
+    /// 重置组包环形缓冲区
+    void (*comm_protocol_assemble_reset)(void);
     /// 反序列化协议帧
     int (*comm_protocol_frame_deserialize)(const uint8_t *buffer, uint16_t buffer_size, comm_protocol_frame_node_t *frame);
     ///old app组包回调函数

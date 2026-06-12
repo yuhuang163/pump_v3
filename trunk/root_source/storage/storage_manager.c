@@ -135,10 +135,10 @@ static int get_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *va
     return ret;
 }
 
-static void put_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *val_in)
+static int put_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *val_in)
 {
     int ret = -2;
-    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_INT(thiz);
     store_func_args_t args = {
         .ctx = thiz,
         .arg1 = arg1,
@@ -147,7 +147,7 @@ static void put_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *v
     };
     const put_store_ram_val_handle_t *list = thiz->priv.put_store_ram_val_list;
     uint16_t list_len = thiz->priv.put_store_ram_val_list_len;
-    EXCEPTION_CHECK_VOID(list);
+    EXCEPTION_CHECK_INT(list);
     MUTEX_LOCK(thiz->priv.storage_rw_lock);
     for (int i = 0; i < list_len; i++) {
         if (list[i].store_id == id) {
@@ -159,6 +159,7 @@ static void put_store_ram_val(persist_store_id_e id, int arg1, int arg2, void *v
     if (ret != 0) {
         LOGE("==> put store ram val failed: %d", id);
     }
+    return ret;
 }
 
 static void on_storage_broadcast_receive(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
@@ -260,9 +261,6 @@ int user_database_put(storage_manager_context_t *ctx, int database_id, const uin
             uint8_t *tmp_buf = u_malloz(buf_len);
             uint32_t buf_rd[] = {database_id, (uint32_t)tmp_buf, (uint32_t)buf_len };
             DEVICE_READ_ARGS(db_dev, buf_rd, sizeof(buf_rd));
-            // LOG_STORE("write database id: %d, buf_len: %d", database_id, buf_len);
-            // LOG_HEX("tx buf", tmp_buf, buf_len);
-            // LOG_HEX("rx buf", buf, buf_len);
             if (memcmp(tmp_buf, buf, buf_len) != 0) {
                 LOGE("storage database id %d fail, retry write.", database_id);
                 /// 重试写入时使用原始数据，而不是读取回来的数据
@@ -281,8 +279,6 @@ int user_database_get(storage_manager_context_t *ctx, int database_id, uint8_t *
     if (db_dev && db_dev->read) {
         uint32_t buf_rd[] = {database_id, (uint32_t)buf, (uint32_t)buf_len };
         ret = DEVICE_READ_ARGS(db_dev, buf_rd, sizeof(buf_rd));
-        // LOG_STORE("read database id: %d, buf_len: %d", database_id, buf_len);
-        // LOG_HEX("buf_rd", buf, buf_len);
     }
     return ret;
 }
@@ -335,10 +331,8 @@ int factory_flash_put(storage_manager_context_t *ctx, const uint8_t *buf, int bu
                 u_free(tmp_buf);
                 return -1;
             }
-            LOG_STORE("write factory flash, buf_len: %d", buf_len);
-            LOG_HEX("rx buf", buf, buf_len);
-            LOG_STORE("read factory flash, buf_len: %d", buf_len);
-            LOG_HEX("tx buf", tmp_buf, buf_len);
+            LOG_HEX("factory flash rx", buf, buf_len);
+            LOG_HEX("factory flash tx", tmp_buf, buf_len);
             if (memcmp(tmp_buf, buf, buf_len) != 0) {
                 LOGE("factory flash write failed, retry write.");
                 erase_ret = DEVICE_IOCTL_ARGS(factory_flash_dev, OP_CODE_FLASH_ERASE, &buf_flash_info_erase);

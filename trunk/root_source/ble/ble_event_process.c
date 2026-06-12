@@ -66,6 +66,20 @@ static ble_msg_process_handle_t s_ble_msg_process_list[] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static uint16_t ble_connect_setup_ms_get(uint32_t adv_window_start_tick)
+{
+    uint32_t setup_ms;
+
+    if (adv_window_start_tick == 0u) {
+        return 0u;
+    }
+    setup_ms = get_timestamp_ms(adv_window_start_tick);
+    if (setup_ms > 0xFFFFu) {
+        setup_ms = 0xFFFFu;
+    }
+    return (uint16_t)setup_ms;
+}
+
 static void ble_event_opt_adv_param_update(void *context, void *data, int data_len)
 {
 
@@ -92,6 +106,7 @@ static void ble_event_opt_adv_start(void *context, void *data, int data_len)
         DEVICE_IOCTL_ARGS(pble->priv.ble_dev, OP_CODE_BLE_ADV_SPEED_SET, args);
         pble->set_adv_speed(opt_id);*/
         //V3没有适配调广播速率改变接口，直接打开500ms广播
+        pble->priv.connect_timestamp_use = get_timestamp();
         DEVICE_IOCTL(pble->priv.ble_dev, OP_CODE_BLE_ADV_OPEN);
         LOG_BLE("ble adv open");
     }
@@ -161,21 +176,52 @@ static void ble_event_periph_disconnect(void *context, void *data, int data_len)
 static void ble_event_periph_connect_suc(void *context, void *data, int data_len)
 {
     ble_manager_context_t *pble = context;
-    uint16_t conn_id = *(uint16_t *)data;
+    ble_hal_event_param_t *evt = (ble_hal_event_param_t *)data;
+    uint16_t conn_id = 0;
+
+    if (evt && data_len >= (int)sizeof(ble_hal_event_param_t)) {
+        conn_id = evt->connhdl;
+    } else if (data && data_len >= (int)sizeof(uint16_t)) {
+        conn_id = *(uint16_t *)data;
+    }
     LOG_BLE("ble connect succ, conn_id: %d", conn_id);
     if (pble->priv.ble_connect_state == 1) {
         LOG_BLE("ble already connect");
         return;
     }
+
     pble->priv.connect_idx = conn_id;
     pble->priv.ble_connect_state = 1;
     pble->set_adv_state(0);
+
+    {
+        uint16_t setup_ms = ble_connect_setup_ms_get(pble->priv.connect_timestamp_use);
+
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BLE_CONNECTED, (int)setup_ms, (int)(int8_t)0xFF);
+        LOG_BLE("ble connect bury cache setup_ms=%u adv_tick=%u conn_id=%u",
+                (unsigned)setup_ms, (unsigned)pble->priv.connect_timestamp_use, (unsigned)conn_id);
+    }
+
     pble->on_connect_status_change(pble, pble->priv.ble_connect_state, 0);
 }
 
 static void ble_event_periph_disconnect_suc(void *context, void *data, int data_len)
 {
     ble_manager_context_t *pble = context;
+    ble_hal_event_param_t *evt = (ble_hal_event_param_t *)data;
+    uint8_t disc_reason = 0x13u;
+
+    if (evt && data_len >= (int)sizeof(ble_hal_event_param_t)) {
+        disc_reason = evt->error_code;
+        if (evt->connhdl != 0u) {
+            pble->priv.connect_idx = evt->connhdl;
+        }
+    }
+    ////触发断开连接埋点
+    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BLE_DISCONNECT, disc_reason, 0);
+
+    LOG_BLE("ble disconnect succ, conn_id: %d reason: 0x%02x",
+            pble->priv.connect_idx, disc_reason);
     pble->set_adv_state(0);
     pble->priv.ble_connect_state = 0;
     if (BLE_BIND_STATE_COMPLETE != pble->priv.ble_bind_state) {
@@ -196,7 +242,8 @@ static void ble_event_periph_disconnect_suc(void *context, void *data, int data_
     ///app要求主动调用一次sdk断开的接口，让sdk主动断开连接
     uint32_t args[] = {pble->priv.connect_idx};
     DEVICE_IOCTL_ARGS(pble->priv.ble_dev, OP_CODE_BLE_DISCONNECT, args);
-    
+
+    pble->priv.connect_timestamp_use = 0u;
     pble->on_connect_status_change(pble, pble->priv.ble_connect_state, 0);
 }
 
@@ -274,13 +321,20 @@ static void ble_event_remot_recive_data(void *context, void *data, int data_len)
 
 static void ble_event_tx_ccc_enabled(void *context, void *data, int data_len)
 {
+    ble_hal_event_param_t *evt = (ble_hal_event_param_t *)data;
+    uint16_t conn_id = 0;
+
     (void)context;
     if (!data || data_len <= 0) {
         LOG_BLE("ble tx ccc enabled, invalid param");
         return;
     }
-
-    uint16_t conn_id = *(uint16_t *)data;
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_BLE_STATE_CHANGE, BLE_BROADCAST_NOTIFY_ENABLED);
+    if (evt && data_len >= (int)sizeof(ble_hal_event_param_t)) {
+        conn_id = evt->connhdl;
+    } else if (data_len >= (int)sizeof(uint16_t)) {
+        conn_id = *(uint16_t *)data;
+    }
     LOG_BLE("ble tx ccc enabled, conn_id: %d", conn_id);
 }
 

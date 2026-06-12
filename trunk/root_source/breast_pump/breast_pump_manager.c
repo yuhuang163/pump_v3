@@ -49,15 +49,9 @@ static void on_motor_error_check_callback(uint8_t pump_id, motor_dev_status_e st
         
         set_breast_pump_status(BREAST_PUMP_PAUSE, 1);
         LOG_PMP("motor error check callback, pump_id: %d, status: %d", pump_id, status);
-    }
-    else if (status == MOTOR_STATUS_OK) {
+    } else if (status == MOTOR_STATUS_OK) {
         
     }
-}
-
-static void on_sensor_data_pump_callback(void *user_data, uint8_t *data, int data_len)
-{
-
 }
 
 static void notify_breast_pump_completed(void)
@@ -93,10 +87,8 @@ static void start_breast_pump_work(uint8_t is_continue_work)
 {
     breast_pump_manager_context_t *ctx = breast_pump_obj;
     if (ctx->hook && ctx->hook->start_breast_pump_work_route) {
-        if (ctx->hook->start_breast_pump_work_route(ctx, 
-            is_continue_work ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START) < 0) {
-            return;
-        }
+        ctx->hook->start_breast_pump_work_route(ctx, 
+            is_continue_work ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START);
     }
 
     /// 启动马达.
@@ -115,7 +107,7 @@ static void stop_breast_pump_work(int breast_pump_state)
     LOG_PMP("stop breast pump work, state: %d", breast_pump_state);
     /// 关闭马达.
     CHECK_IF_VALID(ctx->priv.motor, {
-        ctx->priv.motor->stop_motor();
+        ctx->priv.motor->stop_motor(breast_pump_state == BREAST_PUMP_PAUSE ? MOTOR_POLICY_PAUSE : MOTOR_POLICY_FINISH);
     });
 
     STOP_TIMER(ctx->priv.breast_pump_work_timer);
@@ -192,20 +184,22 @@ static void set_breast_pump_mode(uint32_t mode, uint8_t is_store_mode, uint8_t i
     motor_manager_context_t *motor_ctx = breast_pump_obj->priv.motor;
 
     if (mode >= BREAST_PUMP_MODE_MAX) {
-        m_info->mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
-    } else {
-        m_info->mode = mode;
+        mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
+    } 
+
+    m_info->mode = mode;
+    if (motor_ctx) {
+        motor_ctx->change_motor_mode(m_info->mode, m_info->do_work);
     }
     
-    SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_MODE_CHANGE, m_info->mode);
-    
-    /// 更新存储器中的泵奶模式
+    if (breast_pump_obj->hook && breast_pump_obj->hook->mode_change_route) {
+        breast_pump_obj->hook->mode_change_route(breast_pump_obj, m_info->mode);
+    }
+
     if (st) {
-        st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE, mode, 0, NULL);
+        st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE, mode, 0, NULL); /// 更新存储器中的泵奶模式
     }
     
-    m_info->step_index = 0;
-    motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         if (st) {
             st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, &breast_pump_obj->priv.setting[i]);
@@ -284,10 +278,6 @@ static void set_breast_pump_status(int status, int is_report)
                 case BREAST_PUMP_START:
                     reset_breast_pump_result();
                     m_info->step_index = 0;
-                    motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
-                    /// 初始步长剩余时间为当前模式第一步步长时间
-                    m_info->step_remaining_time = breast_pump_mode_step_target_time_get(m_info->mode, 0);
-                    motor_ctx->set_time_policy_remaining_time(m_info->step_remaining_time);
                     if (!m_info->do_work) {
                         m_info->do_work = 1;
                         CHECK_IF_VALID(pm_ctx, {
@@ -322,8 +312,6 @@ static void set_breast_pump_status(int status, int is_report)
                             pm_ctx->release_wakelock(PUMP_THD_WAKELOCK);
                         });
                     }
-                    m_info->step_index = 0;
-                    motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
                     // LOG_PMP("brush finish, =>save brush result.");
                     notify_breast_pump_completed();
                     WRITE_PUMP_IS_START_FROM_APP(breast_pump_obj, false);
@@ -346,8 +334,6 @@ static void set_breast_pump_status(int status, int is_report)
                             pm_ctx->release_wakelock(PUMP_THD_WAKELOCK);
                         });
                     }
-                    m_info->step_index = 0;
-                    motor_ctx->set_runtime_policy_index(MOTOR_TIME_POLICY, 0);
                     break;
             }
             SEND_BROADCAST_ARGS2(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_STATE_CHANGE, status);
@@ -483,16 +469,12 @@ static const char *get_breast_pump_mode_name(uint8_t mode)
 
 static uint8_t get_breast_pump_step_index(void)
 {
-#if IS_PUMP_STEPS_USE_SAME_SETTING
-    return 0;
-#else
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
     motor_manager_context_t *motor = breast_pump_obj->priv.motor;
     if (motor) {
         m_info->step_index = motor->get_runtime_policy_index(MOTOR_TIME_POLICY);
     }
     return m_info->step_index;
-#endif
 }
 
 static uint32_t get_breast_pump_step_remaining_time(void)
@@ -546,7 +528,7 @@ static void set_pump_mode_activate_state(uint8_t mode, uint8_t status)
         st->put_store_ram_val(STORE_ID_PUMP_MODE_ACTIVATE_STATUS, mode, m_info->custom_activate, NULL);
     }
 }
-//标识由APP启动pump控制
+
 static void set_pump_status_start_from_app(uint8_t status)
 {
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
@@ -569,48 +551,76 @@ static void set_pump_mode_steps_update_state(uint8_t mode, uint8_t status)
 
 }
 
-static void get_pump_composite_state(pump_state_type_e type, int arg1, int arg2, void *out_data)
+static void get_pump_composite_state(pump_state_type_e type, int arg1, int arg2, void *out_data, int data_size)
 {
     int state = 0;
     switch (type) {
         case BREAST_PUMP_MODE_SETTING_INFO: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(pump_setting_t)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             pump_setting_t *setting = (pump_setting_t *)out_data;
             get_breast_pump_setting(setting, arg1);
             break;
         }
         case BREAST_PUMP_STEP_INDEX: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *step_index = (int *)out_data;
             *step_index  = get_breast_pump_step_index();
             break;
         }
         case BREAST_PUMP_WORK_STATE: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *work_state = (int *)out_data;
             *work_state = get_breast_pump_status();
             break;
         }
         case BREAST_PUMP_MODE_ACTIVATE_STATE: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *activate_state = (int *)out_data;
             *activate_state = get_pump_mode_activate_state(arg1);
             break;
         }
         case BREAST_PUMP_MODE_STEPS_UPDATE_STATE: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *update_state = (int *)out_data;
             *update_state  = get_pump_mode_steps_update_state(arg1);
             break;
         }
         case BREAST_PUMP_LEVEL_CONTROL_TYPE: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *control_type = (int *)out_data;
             *control_type  = get_breast_pump_control_type();
             break;
         }
         case BREAST_PUMP_IS_WORKING: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *is_working = (int *)out_data;
             breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
             *is_working = m_info->do_work == 1;
@@ -618,46 +628,82 @@ static void get_pump_composite_state(pump_state_type_e type, int arg1, int arg2,
         }
         case BREAST_PUMP_WORK_MODE: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *mode_id = (int *)out_data;
             *mode_id = get_breast_pump_mode();
             break;
         }
         case BREAST_PUMP_COMMON_MODE: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *mode_id = (int *)out_data;
             *mode_id = get_breast_pump_mode_by_type(BREAST_PUMP_MODE_TYPE_COMMON, arg1);
             break;
         }
         case BREAST_PUMP_EXPERT_MODE: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *mode_id = (int *)out_data;
             *mode_id = get_breast_pump_mode_by_type(BREAST_PUMP_MODE_TYPE_BREASTFEEDING, arg1);
             break;
         }
         case BREAST_PUMP_WORK_MODE_NAME: {
+            EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(char *)) {  
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             const char **name_str = (const char **)out_data;
             breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
             *name_str = get_breast_pump_mode_name(m_info->mode);
             break;
         }
         case BREAST_PUMP_MODE_NAME: {
+            EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(char *)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             const char **name_str = (const char **)out_data;
             *name_str = get_breast_pump_mode_name(arg1);
             break;
         }
         case BREAST_PUMP_WORK_STATE_NAME: {
+            EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(char *)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             const char **name_str = (const char **)out_data;
             breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
             *name_str = get_breast_pump_status_name(m_info->status);
             break;
         }
         case BREAST_PUMP_RESULT_INFO: {
+            EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(pump_result_info_t *)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             const pump_result_info_t **result_info = (const pump_result_info_t **)out_data;
             *result_info = get_breast_pump_result(arg1);
             break;
         }
         case BREAST_PUMP_IS_START_FROM_APP: {
             EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
             int *is_start_from_app = (int *)out_data;
             *is_start_from_app = get_pump_status_start_from_app();
             break;

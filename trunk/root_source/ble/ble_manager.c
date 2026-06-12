@@ -305,9 +305,24 @@ static void ble_manager_dispatch_thread(void *args)
     }
 }
 
-static void ble_event_callback(ble_event_e event, void *param)
+static void ble_event_dispatch_hal_param(uint8_t msg_id, uintptr_t connhdl, void *param)
 {
-    LOG_BLE("ble event: %d", event);
+    ble_hal_event_param_t dispatch_param = {0};
+
+    if (param) {
+        dispatch_param = *(const ble_hal_event_param_t *)param;
+    }
+    if (dispatch_param.connhdl == 0u) {
+        dispatch_param.connhdl = (uint16_t)connhdl;
+    }
+    (void)ble_obj->dispatch_ble_event_wrapper(ble_obj, msg_id,
+                                              (uint8_t *)&dispatch_param,
+                                              (int)sizeof(dispatch_param));
+}
+
+static void ble_event_callback(ble_event_e event, uintptr_t connhdl, void *param)
+{
+    LOG_BLE("ble event: %d connhdl=%u", event, (unsigned)connhdl);
     switch (event) {
         case BLE_EVENT_ADVERTISE_STARTED:
             ble_obj->priv.ble_adv_state = 1;
@@ -316,21 +331,21 @@ static void ble_event_callback(ble_event_e event, void *param)
             ble_obj->priv.ble_adv_state = 0;
             break;
         case BLE_EVENT_TX_CCC_DISABLED:
-            //ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_TX_CCC_DISABLED, param, 1);
             LOG_BLE("ble tx ccc disabled");
             break;
         case BLE_EVENT_TX_CCC_ENABLED:
-            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_TX_CCC_ENABLED, param, 1);
+            ble_event_dispatch_hal_param(BLE_MSG_TX_CCC_ENABLED, connhdl, param);
+            break;
         case BLE_EVENT_CONN_OPENED:
         case BLE_EVENT_CONN_MTU_EXCHANGED:
         case BLE_EVENT_CONN_PARAMS_UPDATE:
-            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_CONNECT_SUC, param, 1);
+            ble_event_dispatch_hal_param(BLE_MSG_PERIPH_CONNECT_SUC, connhdl, param);
             break;
         case BLE_EVENT_CONN_CLOSED:
-            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_DISCONN_SUC, param, 1);
+            ble_event_dispatch_hal_param(BLE_MSG_PERIPH_DISCONN_SUC, connhdl, param);
             break;
         case BLE_EVENT_CONN_FAILED:
-            ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_PERIPH_DISCONN, param, 1);
+            ble_event_dispatch_hal_param(BLE_MSG_PERIPH_DISCONN, connhdl, param);
             break;
         default:
             break;
@@ -339,7 +354,7 @@ static void ble_event_callback(ble_event_e event, void *param)
 
 static void ble_data_callback(ble_service_id_e service_id, uint8_t *p_data, uint16_t size)
 {
-    LOG_BLE("ble data: %d", service_id);
+    // LOG_BLE("ble data: %d, size: %d", service_id, size);
     switch (service_id) {
         case BLE_SRV_ID_MASTER:
             ble_obj->dispatch_ble_event_wrapper(ble_obj, BLE_MSG_MASTER_RECIVE_DATA, p_data, size);
@@ -397,19 +412,16 @@ static void *list_del_ble_condition_cb(void *data, list_head_t *pos)
 static void dispatch_ble_client(ble_manager_context_t *obj, int msg_channel, uint8_t *data, uint16_t size)
 {
     list_head_t *head = &obj->priv.client_list;
-    LOG_BLE("==> dispatch_ble_client: msg_channel=%d, data=%p, size=%d", msg_channel, data, size);
+    // LOG_BLE("==> dispatch_ble_client: msg_channel=%d, data=%p, size=%d", msg_channel, data, size);
     MUTEX_LOCK(obj->priv.m_lock);
     LIST_FOR_EACH(pos, (head)) { 
         ble_evt_client_node_t *node = CONTAINER_OF(pos, ble_evt_client_node_t, list);
-        LOG_BLE("==> dispatch_ble_client: checking node, node->msg_channel=%d", node->msg_channel);
         if (node->msg_channel == msg_channel) {
-            LOG_BLE("==> dispatch_ble_client: calling callback, node->cb=%p", node->cb);
             node->cb(node->user_data, data, size);
-            LOG_BLE("==> dispatch_ble_client: callback returned");
         }
     }
     MUTEX_UNLOCK(obj->priv.m_lock);
-    LOG_BLE("==> dispatch_ble_client: done");
+    // LOG_BLE("==> dispatch_ble_client: done");
 }
 
 static void remove_ble_evt_lisenser(on_ble_evt_data_cb_fptr cb)

@@ -105,6 +105,10 @@ extern "C" {
 #define IS_SUPPORT_MODULE_RES                            (1)
 /// 支持自适应背光  
 #define IS_SUPPORT_ADAPTIVE_DIMMING                      (1)
+/// 设备端电源键 toggle 夜灯（暂关，保留 hook 接口供后续启用）
+#ifndef IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
+#define IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE             (0)
+#endif
 /// 支持堵转检测
 #define IS_SUPPORT_MOTOR_STALL_DETECT                    (1)
 /// 支持睡眠关机
@@ -181,12 +185,6 @@ extern "C" {
 #define IS_SUPPORT_TOUCH_IC_OTA                          (1)
 #endif
 
-/// 支持触摸按键背光灯自适应亮度调节
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-#define IS_SUPPORT_KEY_LIGHT_ADAPTIVE                    (1)
-#else
-#define IS_SUPPORT_KEY_LIGHT_ADAPTIVE                    (0)
-#endif
 
 #ifdef __cplusplus
 }

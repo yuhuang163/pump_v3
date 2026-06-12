@@ -59,7 +59,6 @@ do { \
 
 /// 计算CRC16.
 #define CRC16(data, len)            crc16_compute((const uint8_t *)(data), len, NULL)
-
 /// CRC16 增量更新（用于分块计算 / streaming）。
 #define CRC16_UPDATE(crc, data, len) \
 do { \
@@ -67,9 +66,29 @@ do { \
     (crc) = (unsigned short)crc16_compute((const uint8_t *)(data), (len), &__crc_prev); \
 } while (0)
 
+/// 计算 CRC32.
+#define CRC32(data, len)            crc32_compute((const uint8_t *)(data), len, NULL)
+/// CRC32 增量更新（用于分块计算 / streaming）。
+#define CRC32_UPDATE(crc, data, len) \
+do { \
+    uint32_t __crc_prev = (crc); \
+    (crc) = crc32_compute((const uint8_t *)(data), (len), &__crc_prev); \
+} while (0)
+
 // 将hex转换为ascii
 #define HEX_TO_ASCII(hex, len, out)  hex_to_ascii((const unsigned char *)(hex), len, (char *)(out))
-
+/// 将字节数组转换为uint32
+#define BYTES_TO_UINT32(data, len, is_little_endian) \
+    bytes_to_uint32((const uint8_t *)(data), len, is_little_endian)
+/// 将字节数组转换为uint16
+#define BYTES_TO_UINT16(data, len, is_little_endian) \
+    bytes_to_uint16((const uint8_t *)(data), len, is_little_endian)
+/// 将uint32转换为字节数组
+#define UINT32_TO_BYTES(value, data, is_little_endian) \
+    uint32_to_bytes(value, (uint8_t *)(data), is_little_endian)
+/// 将uint16转换为字节数组
+#define UINT16_TO_BYTES(value, data, is_little_endian) \
+    uint16_to_bytes(value, (uint8_t *)(data), is_little_endian)
 /// 空指针检查判断.
 #define CHECK_IF_VALID(x, closure) \
 do { \
@@ -128,7 +147,12 @@ do { \
  *****************************************************************************************
  */
 unsigned short crc16_compute(unsigned char const *p_data, unsigned int size, unsigned short const *p_crc);
+uint32_t crc32_compute(unsigned char const *p_data, unsigned int size, uint32_t const *p_crc);
 void hex_to_ascii(const unsigned char *hex, int len, char *out);
+uint32_t bytes_to_uint32(const uint8_t *data, uint16_t data_len, uint8_t is_little_endian);
+uint16_t bytes_to_uint16(const uint8_t *data, uint16_t data_len, uint8_t is_little_endian);
+void uint32_to_bytes(uint32_t value, uint8_t *data, uint8_t is_little_endian);
+void uint16_to_bytes(uint16_t value, uint8_t *data, uint8_t is_little_endian);
 #ifdef __cplusplus
 }
 #endif

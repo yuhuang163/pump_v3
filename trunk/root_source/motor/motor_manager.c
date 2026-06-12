@@ -3,7 +3,6 @@
 *****************************************************************************************
 */
 #include "root_common_api.h"
-#include "stddef.h"
 #include "motor_manager.h" // IWYU pragma: keep
 
 /*
@@ -132,23 +131,6 @@ static void on_motor_broadcast_receiver(broadcast_mask_id_t id, void *context, i
     }
 
     switch (id.code) {
-        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
-            if (arg1 == BREAST_PUMP_BROADCAST_MODE_CHANGE) {
-                breast_pump_mode = arg2;
-                if (motor_obj->priv.pump_ctx && motor_obj->priv.runtime.breast_pump_mode != breast_pump_mode) { 
-                    int is_pump_working = 0; 
-                    READ_PUMP_IS_WORKING(motor_obj->priv.pump_ctx, is_pump_working);
-                    if (is_pump_working) {
-                        motor_mode_change_handler(thiz, breast_pump_mode);
-                        internal_start_motor(MOTOR_POLICY_CHANGE_MODE);
-                    }       
-                }
-                LOG_MOTOR("mode change: %d", breast_pump_mode);
-            } else if (arg1 == BREAST_PUMP_BROADCAST_STATE_CHANGE) {
-                breast_pump_state = arg2;
-                LOG_MOTOR("state change: %d", breast_pump_state);
-            }
-            break;
         case ID_BROADCAST_PM_STATE_CHANGE:
             if (arg1 == PM_BROADCAST_SYS_RESUME) {
                 LOG_MOTOR("reset history_node");
@@ -178,7 +160,6 @@ static int on_post_motor_init(void *ptr)
     /// 注册广播监听.
     thiz->priv.m_bdc.context = thiz;
     thiz->priv.m_bdc.name = "motor_manager";
-    thiz->priv.m_bdc.id.code |= ID_BROADCAST_BREAST_PUMP_STATE_CHANGE;
     thiz->priv.m_bdc.id.code |= ID_BROADCAST_PM_STATE_CHANGE;
     thiz->priv.m_bdc.id.code |= ID_BROADCAST_REQ_PM_SUSPEND;
     thiz->priv.m_bdc.receiver_cb = on_motor_broadcast_receiver;
@@ -208,11 +189,19 @@ static int start_motor(motor_policy_action_e action)
     return internal_start_motor(action);   
 }
 
-static int stop_motor(void)
+static int stop_motor(motor_stop_reason_e reason)
 {
     motor_obj->priv.is_user_stoped = 1;
     motor_obj->priv.user_debug_status = 0;
+    if (reason == MOTOR_POLICY_FINISH) {
+        motor_obj->priv.runtime.current_timed_policy_index = 0;
+    }
     return internal_stop_motor("user-stop");
+}
+
+static int change_motor_mode_wrapper(uint8_t mode, bool is_continue)
+{
+    return change_motor_mode(motor_obj, mode, is_continue);
 }
 
 static int synchronous_stop_motor(void)
@@ -270,15 +259,6 @@ static int get_runtime_policy_index(motor_policy_type_e type)
         return 0;
     }
 }
-static int set_runtime_policy_index(motor_policy_type_e type, int index)
-{
-    if (type == MOTOR_TIME_POLICY) {
-        motor_obj->priv.runtime.current_timed_policy_index = index;
-    } else {
-        LOG_MOTOR("set runtime policy index error, type: %d", type);
-    }
-    return 0;
-}
 
 static uint8_t get_runtime_mode_type(uint8_t is_next_mode)
 {
@@ -294,12 +274,6 @@ static uint32_t get_time_policy_remaining_time(void)
     return motor_obj->priv.runtime.time_policy_remaining_time;
 }
 
-static int set_time_policy_remaining_time(uint32_t remaining_time)
-{
-    motor_obj->priv.runtime.time_policy_remaining_time = remaining_time;
-    return 0;
-}
-
 static uint32_t get_policy_running_time(uint8_t mode)
 {
     if (mode == motor_obj->priv.runtime.breast_pump_mode) {
@@ -307,11 +281,6 @@ static uint32_t get_policy_running_time(uint8_t mode)
     } else {
         return 0;
     }
-}
-
-static uint8_t get_timed_policy_finish_flag(void)
-{
-    return motor_obj->priv.runtime.all_timed_policy_finish_flag;
 }
 
 static void dispatch_motor_status_evt_client(motor_manager_context_t *obj, motor_status_evt_type_e evt_type)
@@ -377,7 +346,7 @@ static void notify_motor_status_change(motor_status_evt_type_e evt_type)
     dispatch_motor_status_evt_client(motor_obj, evt_type);
 }
 
-uint8_t get_local_suction_table(factory_suction_para_t **suction_para)
+static uint8_t get_local_suction_table(factory_suction_para_t **suction_para)
 {
     if (!suction_para || !motor_obj || !motor_obj->priv.suction_para) {
         return 0;
@@ -396,16 +365,14 @@ void *register_module_for_motor_manager_new(list_head_t *list_head)
     ptr->get_motor_state = get_motor_state;
     ptr->start_motor = start_motor;
     ptr->stop_motor = stop_motor;
+    ptr->change_motor_mode = change_motor_mode_wrapper;
+    ptr->synchronous_stop_motor = synchronous_stop_motor;
     ptr->is_on_motor_task_running = is_on_motor_task_running;
     ptr->is_can_play_now = motor_is_can_play_now;
     ptr->get_runtime_policy_index = get_runtime_policy_index;
-    ptr->set_runtime_policy_index = set_runtime_policy_index;
     ptr->get_runtime_mode_type = get_runtime_mode_type;
     ptr->get_time_policy_remaining_time = get_time_policy_remaining_time;
-    ptr->set_time_policy_remaining_time = set_time_policy_remaining_time;
     ptr->get_policy_running_time = get_policy_running_time; 
-    ptr->get_timed_policy_finish_flag = get_timed_policy_finish_flag;
-    ptr->synchronous_stop_motor = synchronous_stop_motor;
     ptr->get_local_suction_table = get_local_suction_table;
     ptr->add_motor_status_evt_listener = add_motor_status_evt_listener;
     ptr->remove_motor_status_evt_listener = remove_motor_status_evt_listener;

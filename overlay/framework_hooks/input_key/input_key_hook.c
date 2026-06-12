@@ -40,7 +40,7 @@ static int input_keyevent_route(struct key_input_context *ctx, uint16_t keycode,
         }
         breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
         if (pump) {
-            uint8_t is_working = 0;
+            int is_working = 0;
             READ_PUMP_IS_WORKING(pump, is_working);
             if (is_working) {
                 LOG_KEY("in pump, ignore");

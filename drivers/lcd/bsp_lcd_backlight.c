@@ -21,19 +21,30 @@
 
 #if IS_SUPPORT_LCD_BACKLIGHT_CLIMB
 #ifndef IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD
-#define IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD (0)
+#define IS_SUPPORT_LCD_BACKLIGHT_CLIMB_VARIABLE_PERIOD (1)
 #endif
-#ifndef LCD_BACKLIGHT_CLIMB_PERIOD_START_MS
-#define LCD_BACKLIGHT_CLIMB_PERIOD_START_MS       35
+#ifndef IS_SUPPORT_LCD_BACKLIGHT_CLIMB_DIM_END_BLEND
+#define IS_SUPPORT_LCD_BACKLIGHT_CLIMB_DIM_END_BLEND (1) /// 变暗末段 PWM 半阶插值,解决变暗末段跳跃问题
 #endif
-#ifndef LCD_BACKLIGHT_CLIMB_PERIOD_END_MS
-#define LCD_BACKLIGHT_CLIMB_PERIOD_END_MS         20
+#ifndef LCD_BACKLIGHT_CLIMB_DIM_END_THRESHOLD
+#define LCD_BACKLIGHT_CLIMB_DIM_END_THRESHOLD     4   /// 变暗末段：距目标剩余档位数
 #endif
 #endif
 
 #define LCD_BACKLIGHT_PERIOD                      1000
-#define LCD_BACKLIGHT_TIME_PERIOD                 25
-#define LCD_BACKLIGHT_LOG_DEBUG                   (1)
+#define LCD_BACKLIGHT_TIME_PERIOD                 30  /// 爬坡周期，不超过 35ms
+#if LCD_BACKLIGHT_TIME_PERIOD > 35
+#error "LCD_BACKLIGHT_TIME_PERIOD must not exceed 35ms"
+#endif
+
+/// 日志开关
+#define LCD_BACKLIGHT_LOG_DEBUG                   (0)
+#if LCD_BACKLIGHT_LOG_DEBUG
+#define LOG_LCD_BL_DBG(...) LOG_PBUS(__VA_ARGS__)
+#else
+#define LOG_LCD_BL_DBG(...)
+#endif
+
 
 typedef struct {
     HWTIMER_ID time_id;
@@ -41,7 +52,8 @@ typedef struct {
     uint8_t current_duty;   /// 当前占空比
     uint8_t target_duty;   /// 当前占空比
     uint8_t onoff;   /// 开关状态，0：关，1：开
-    uint8_t duty_update_flag;    /// 占空比更新标志，0：不更新，1：更新    
+    uint8_t duty_update_flag;    /// 占空比更新标志，0：不更新，1：更新
+    uint8_t dim_blend_phase;     /// 变暗末段半阶插值阶段，0：整档，1：半阶
     uint32_t pulse_width;   /// 当前脉冲宽度
 } backlight_timer_cfg_t;
 
@@ -80,9 +92,7 @@ static void lcd_backlight_gpio_irq_callback(enum HAL_GPIO_PIN_T pin)
         backlight_info.duty_update_flag = 0;
         if (backlight_info.pulse_width == 0 && backlight_info.onoff > 0) {
             backlight_info.onoff = 0;
-#if LCD_BACKLIGHT_LOG_DEBUG
-            LOG_PBUS("lcd backlight off...");
-#endif
+            LOG_LCD_BL_DBG("lcd backlight off...");
         }
         hal_pwm_update_pulse_width(LCD_LCD_BL_PWM_ID, backlight_info.pulse_width, LCD_BACKLIGHT_PERIOD);
     }
@@ -123,31 +133,73 @@ static void bsp_lcd_backlight_climb_stop(void)
     backlight_info.is_running = false; 
 }
 
+static void bsp_lcd_backlight_climb_schedule(void)
+{
+    hwtimer_start(backlight_info.time_id, MS_TO_HWTICKS(LCD_BACKLIGHT_TIME_PERIOD));
+}
+
+#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB_DIM_END_BLEND
+static bool bsp_lcd_backlight_dim_end_blend_needed(void)
+{
+    uint8_t gap = backlight_info.current_duty - backlight_info.target_duty;
+
+    return gap > 0 && gap <= LCD_BACKLIGHT_CLIMB_DIM_END_THRESHOLD;
+}
+#endif
+
 static void bsp_lcd_backlight_timer_handler(void *param)
 {
     (void)param;
 
     if (backlight_info.current_duty > backlight_info.target_duty && backlight_info.current_duty > 0) {
+#if IS_SUPPORT_LCD_BACKLIGHT_CLIMB_DIM_END_BLEND
+        if (backlight_info.dim_blend_phase) {
+            backlight_info.dim_blend_phase = 0;
+            backlight_info.current_duty--;
+            backlight_info.pulse_width = lcd_backlight_pwm_table[backlight_info.current_duty];
+            backlight_info.duty_update_flag = 1;
+            LOG_LCD_BL_DBG("current_duty: %d, target_duty: %d",
+                backlight_info.current_duty, backlight_info.target_duty);
+            if (backlight_info.current_duty == backlight_info.target_duty) {
+                return;
+            }
+            bsp_lcd_backlight_climb_schedule();
+            return;
+        }
+
+        if (bsp_lcd_backlight_dim_end_blend_needed()) {
+            uint8_t next_duty = backlight_info.current_duty - 1;
+
+            backlight_info.dim_blend_phase = 1;
+            backlight_info.pulse_width =
+                (lcd_backlight_pwm_table[backlight_info.current_duty] +
+                 lcd_backlight_pwm_table[next_duty]) / 2;
+            backlight_info.duty_update_flag = 1;
+            LOG_LCD_BL_DBG("dim blend duty: %d -> %d, target_duty: %d",
+                backlight_info.current_duty, next_duty, backlight_info.target_duty);
+            bsp_lcd_backlight_climb_schedule();
+            return;
+        }
+#endif
         backlight_info.current_duty--;
         backlight_info.pulse_width = lcd_backlight_pwm_table[backlight_info.current_duty];
         backlight_info.duty_update_flag = 1;
         if (backlight_info.current_duty == backlight_info.target_duty) {
             return;
         }
-        hwtimer_start(backlight_info.time_id, MS_TO_HWTICKS(LCD_BACKLIGHT_TIME_PERIOD));
+        bsp_lcd_backlight_climb_schedule();
     } else if (backlight_info.current_duty < backlight_info.target_duty && backlight_info.current_duty < 100) {
+        backlight_info.dim_blend_phase = 0;
         backlight_info.current_duty++;
         backlight_info.pulse_width = lcd_backlight_pwm_table[backlight_info.current_duty];
         backlight_info.duty_update_flag = 1;
         if (backlight_info.current_duty == backlight_info.target_duty) {
             return;
         }
-        hwtimer_start(backlight_info.time_id, MS_TO_HWTICKS(LCD_BACKLIGHT_TIME_PERIOD));
+        bsp_lcd_backlight_climb_schedule();
     } else {
-#if LCD_BACKLIGHT_LOG_DEBUG
-        LOG_PBUS("time is over, current_duty: %d, target_duty: %d",
+        LOG_LCD_BL_DBG("time is over, current_duty: %d, target_duty: %d",
             backlight_info.current_duty, backlight_info.target_duty);
-#endif
     }
 }
 
@@ -187,7 +239,7 @@ static void lcd_backlight_level_set(uint8_t level)
 
     if (backlight_info.current_duty != level) {
         backlight_info.target_duty = level;
-        backlight_info.duty_update_flag = 1;
+        backlight_info.dim_blend_phase = 0;
         bsp_lcd_backlight_climb_start();
     } else {
         backlight_info.duty_update_flag = 0;

@@ -44,14 +44,15 @@ static void test_led_post_task_handler(hdr_post_args_t *args)
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_VOID(led);
     LOG_SRV("test_led_post_task_handler");
-
+#if IS_SUPPORT_NIGHT_LIGHT
     led->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_ON);
-    if (led->hook && led->hook->set_night_light_adaptive_dimming) {
-        led->hook->set_night_light_adaptive_dimming(led, 0); /// 关闭夜灯自适应调光.
+    if (led->hook && led->hook->set_night_light_adaptive_dimming_switch) {
+        led->hook->set_night_light_adaptive_dimming_switch(led, 0); /// 关闭夜灯自适应调光.
     }
     if (led->hook && led->hook->set_night_light_level) {
         led->hook->set_night_light_level(led, LED_LEVEL_MAX); /// 设置夜灯亮度为最大.
     }
+#endif
 }
 
 static void test_factory_reset_post_task_handler(hdr_post_args_t *args)
@@ -113,8 +114,6 @@ int sys_config_tlvs_read_mac_address(comm_protocol_builder_t *builder, comm_prot
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("sys_config_tlvs_read_mac_address");
-
     uint8_t mac_addr[SYS_CONFIG_MAC_ADDRESS_LENGTH] = {0};
 
     ble_manager_context_t *ble_ctx = get_ble_ctx();
@@ -135,12 +134,8 @@ int sys_config_tlvs_write_mac_address(comm_protocol_builder_t *builder, comm_pro
                                       uint16_t data_len)
 {
     EXCEPTION_CHECK_INT(builder && service);
-
-    LOG_SRV("sys_config_tlvs_write_mac_address, data_len: %d", data_len);
-
     if (data && data_len == SYS_CONFIG_MAC_ADDRESS_LENGTH) {
         LOG_HEX("write_mac_address", data, SYS_CONFIG_MAC_ADDRESS_LENGTH);
-
         ble_manager_context_t *ble_ctx = get_ble_ctx();
         if (ble_ctx && ble_ctx->set_mac_addr) {
             ble_ctx->set_mac_addr(data);
@@ -201,12 +196,14 @@ int sys_config_tlvs_display_test(comm_protocol_builder_t *builder, comm_protocol
         if (cmd == 0x00 || cmd == 0x01) {
             if (led) {
                 led->set_led_onoff(PUMP_LED_ALL_ID, cmd == 0x00 ? LED_STATUS_OFF : LED_STATUS_ON);
-                if (led->hook && led->hook->set_night_light_adaptive_dimming) {
-                    led->hook->set_night_light_adaptive_dimming(led, 0); /// 关闭夜灯自适应调光.
+#if IS_SUPPORT_NIGHT_LIGHT
+                if (led->hook && led->hook->set_night_light_adaptive_dimming_switch) {
+                    led->hook->set_night_light_adaptive_dimming_switch(led, 0); /// 关闭夜灯自适应调光.
                 }
                 if (led->hook && led->hook->set_night_light_level) {
                     led->hook->set_night_light_level(led, cmd == 0x00 ? 0 : LED_LEVEL_MAX); /// 设置夜灯亮度为最大.
                 }
+#endif
                 if (cmd == 0x01) {
                     POST_TASK_HANDLER_DELAYED_ARG0(test_led_post_task_handler, 100, "display_test_cb");
                 }
@@ -242,13 +239,13 @@ int sys_config_tlvs_set_night_light(comm_protocol_builder_t *builder, comm_proto
     LOG_SRV("sys_config_tlvs_set_night_light, level: %d", level);
 
     uint8_t result = 0x00; // 默认失败
-
+#if IS_SUPPORT_NIGHT_LIGHT
     // 检查亮度范围
     if (level <= SYS_CONFIG_NIGHT_LIGHT_MAX) {
         led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
         EXCEPTION_CHECK_INT(led && led->hook);
-        if (led->hook->set_night_light_adaptive_dimming) {
-            led->hook->set_night_light_adaptive_dimming(led, 0); /// 关闭夜灯自适应调光.
+        if (led->hook->set_night_light_adaptive_dimming_switch) {
+            led->hook->set_night_light_adaptive_dimming_switch(led, 0); /// 关闭夜灯自适应调光.
         }
 
         if (led->hook->set_night_light_level) {
@@ -256,7 +253,7 @@ int sys_config_tlvs_set_night_light(comm_protocol_builder_t *builder, comm_proto
             result = 0x01; // 成功
         }
     }
-
+#endif
     comm_protocol_tlv_node_t tlv_node = {
         .type = SYS_CONFIG_TLV_SET_NIGHT_LIGHT,
         .length = 1,

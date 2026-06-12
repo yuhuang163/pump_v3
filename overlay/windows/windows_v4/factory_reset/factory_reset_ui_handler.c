@@ -104,8 +104,8 @@ static void factory_reset_cb(hdr_post_args_t *args)
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
-    if (proc->led && proc->led->hook && proc->led->hook->set_key_light_adaptive_dimming) {
-        proc->led->hook->set_key_light_adaptive_dimming(proc->led, 0);
+    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight_adaptive_dimming_switch) {
+        proc->led->hook->set_key_backlight_adaptive_dimming_switch(proc->led, 0);
     }
     factory_reset_led_blink_policy(proc);
     start_factory_reset_ui_animation(proc);

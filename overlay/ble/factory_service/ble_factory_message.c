@@ -39,7 +39,6 @@ int ble_factory_srv_recv_data(void *context, ble_service_data_t *srv_data)
         LOGE("recv data is NULL or size is 0");
         return -1;
     }
-    LOG_BLE("ble_factory_recv_data[%d]", srv_data->size);
     if (srv_data->p_data[0] == '#') {
         LOG_BLE("recv_data str %s", srv_data->p_data);
     } else {

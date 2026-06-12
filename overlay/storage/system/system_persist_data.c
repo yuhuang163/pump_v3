@@ -116,7 +116,9 @@ void reset_sys_state_info(storage_manager_context_t *ctx, sys_state_info_t *sys_
     sys_state->sync_sys_time = 0;
     sys_state->battery_health = 100;
     sys_state->airplane_mode_state = 0;
-    sys_state->night_light_adaptive_switch = 1; //默认开启自适应
+    sys_state->global_adaptive_switch = 1;
+    sys_state->night_light_gear = 2;
+    sys_state->back_light_level = 80;
     store_func_args_t args = {
         .ctx = ctx,
         .arg1 = 0,
@@ -328,14 +330,35 @@ int write_airplane_mode_state_to_ram(store_func_args_t args)
     return 0;
 }
 
-int write_night_light_adaptive_switch_to_ram(store_func_args_t args)
+int write_global_adaptive_switch_to_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
     sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
-    sys_state->night_light_adaptive_switch = (uint8_t)args.arg1;
-    LOG_STORE_WRAP("write night light adaptive switch: %d", args.arg1);
+
+    sys_state->global_adaptive_switch = (uint8_t)args.arg1 ? 1u : 0u;
+    LOG_STORE_WRAP("write global adaptive switch: %d", args.arg1);
     return 0;
-}   
+}
+
+#if IS_SUPPORT_NIGHT_LIGHT
+int write_night_light_gear_to_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
+    sys_state->night_light_gear = (uint8_t)args.arg1;
+    LOG_STORE_WRAP("write night light gear: %d", args.arg1);
+    return 0;
+}
+#endif
+
+int write_back_light_level_to_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
+    sys_state->back_light_level = (uint8_t)args.arg1;
+    LOG_STORE_WRAP("write back light level: %d", args.arg1);
+    return 0;
+}
 
 int write_sync_sys_time_to_ram(store_func_args_t args)
 {
@@ -445,13 +468,35 @@ int read_airplane_mode_state_from_ram(store_func_args_t args)
     return 0;
 }
 
-int read_night_light_adaptive_switch_from_ram(store_func_args_t args)
+int read_global_adaptive_switch_from_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);
     sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
     int *tmp = (int *)args.val;
     EXCEPTION_CHECK_INT(tmp);
-    *tmp = sys_state->night_light_adaptive_switch;
+    *tmp = sys_state->global_adaptive_switch;
+    return 0;
+}
+
+#if IS_SUPPORT_NIGHT_LIGHT
+int read_night_light_gear_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
+    int *tmp = (int *)args.val;
+    EXCEPTION_CHECK_INT(tmp);
+    *tmp = sys_state->night_light_gear;
+    return 0;
+}
+#endif
+
+int read_back_light_level_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
+    int *tmp = (int *)args.val;
+    EXCEPTION_CHECK_INT(tmp);
+    *tmp = sys_state->back_light_level;
     return 0;
 }
 

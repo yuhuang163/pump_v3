@@ -27,22 +27,53 @@ static ota_manager_context_t *ota_obj = NULL;
 */
 static void ota_touch_key_event_callback(key_ota_event_e event, int arg1, int arg2)
 {
-    LOG_OTA("ota event: %d/%d/%d", event, arg1, arg2);
+    // LOG_OTA("ota event: %d/%d/%d", event, arg1, arg2);
     if (event == KEY_OTA_EVENT_UPDATE_START) {
-        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_START_OTA, OTA_OBJECT_TOUCH_KEY_FIRMWARE, arg1, arg2);
+        ota_obj->set_ota_upgrade_progress(OTA_OBJECT_TOUCH_KEY_FIRMWARE, arg1, arg2);
+        ota_obj->start_ota_upgrade(OTA_OBJECT_TOUCH_KEY_FIRMWARE, NULL);
     } else if (event == KEY_OTA_EVENT_UPDATE_PROGRESS) {
-        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_OTA_PROGRESS, OTA_OBJECT_TOUCH_KEY_FIRMWARE, arg1, arg2);
+        ota_obj->set_ota_upgrade_progress(OTA_OBJECT_TOUCH_KEY_FIRMWARE, arg1, arg2);
     } else if (event == KEY_OTA_EVENT_UPDATE_FAIL) {
-        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_OTA_FAIL, OTA_OBJECT_TOUCH_KEY_FIRMWARE,  0, 0);
+        ota_obj->end_ota_upgrade(OTA_OBJECT_TOUCH_KEY_FIRMWARE, false);
     } else if (event == KEY_OTA_EVENT_UPDATE_SUCCESS) {
-        ota_obj->dispatch_ota_event_wrapper(OTA_EVENT_OTA_SUCCESS, OTA_OBJECT_TOUCH_KEY_FIRMWARE, 0, 0);
+        ota_obj->end_ota_upgrade(OTA_OBJECT_TOUCH_KEY_FIRMWARE, true);
     }
 }
 
 static void ota_main_fw_event_callback(ota_event_type_e event, int arg1, int arg2)
 {
-    LOG_OTA("ota event: %d/%d", event, arg1, arg2);
-    ota_obj->dispatch_ota_event_wrapper(event, OTA_OBJECT_MAIN_FIRMWARE, arg1, arg2);
+    // LOG_OTA("ota event: %d/%d/%d", event, arg1, arg2);
+    if (event == OTA_EVENT_START_OTA || event == OTA_EVENT_RESUME_OTA) {
+        ota_obj->set_ota_upgrade_progress(OTA_OBJECT_MAIN_FIRMWARE, arg1, arg2);
+        ota_obj->start_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, NULL);
+        ///插入固件更新开始
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_OTA_START, 1u, 0u);
+    } else if (event == OTA_EVENT_OTA_PROGRESS) {
+        ota_obj->set_ota_upgrade_progress(OTA_OBJECT_MAIN_FIRMWARE, arg1, arg2);
+    } else if (event == OTA_EVENT_OTA_FAIL) {
+        ota_obj->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, false);
+        ///插入固件更新失败
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_OTA_START, 0u, 0u);
+    } else if (event == OTA_EVENT_OTA_SUCCESS) {
+        ota_obj->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, true);
+        ///插入固件更新完成，重启开机
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, DATA_BURY_SHUTDOWN_FW_UPDATE, 0);
+    }
+}
+
+static void ota_image_resource_event_callback(ota_event_type_e event, int arg1, int arg2)
+{
+    // LOG_OTA("ota event: %d/%d/%d", event, arg1, arg2);
+    if (event == OTA_EVENT_START_OTA || event == OTA_EVENT_RESUME_OTA) {
+        ota_obj->set_ota_upgrade_progress(OTA_OBJECT_IMAGE_RESOURCE, arg1, arg2);
+        ota_obj->start_ota_upgrade(OTA_OBJECT_IMAGE_RESOURCE, NULL);
+    } else if (event == OTA_EVENT_OTA_PROGRESS) {
+        ota_obj->set_ota_upgrade_progress(OTA_OBJECT_IMAGE_RESOURCE, arg1, arg2);
+    } else if (event == OTA_EVENT_OTA_FAIL) {
+        ota_obj->end_ota_upgrade(OTA_OBJECT_IMAGE_RESOURCE, false);
+    } else if (event == OTA_EVENT_OTA_SUCCESS) {
+        ota_obj->end_ota_upgrade(OTA_OBJECT_IMAGE_RESOURCE, true);
+    }
 }
 
 static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *pdata)
@@ -51,11 +82,12 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
     EXCEPTION_CHECK_INT(ctx);
     switch (id.code) {
         case ID_BROADCAST_BLE_STATE_CHANGE: {
-            ota_info_t ota_info = {0};
-            ctx->get_ota_info(&ota_info); 
-            if (arg1 == BLE_BROADCAST_DISCONNECT && 
-                ota_info.is_working && ota_info.object == OTA_OBJECT_MAIN_FIRMWARE) {
-                ctx->dispatch_ota_event_wrapper(OTA_EVENT_OTA_FAIL, OTA_OBJECT_MAIN_FIRMWARE, 0, 0);
+            if (arg1 == BLE_BROADCAST_DISCONNECT && ctx->priv.ota_info.is_working) {
+                if (ctx->priv.ota_info.object == OTA_OBJECT_MAIN_FIRMWARE) {
+                    ctx->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, false);
+                } else if (ctx->priv.ota_info.object == OTA_OBJECT_IMAGE_RESOURCE) {
+                    ctx->end_ota_upgrade(OTA_OBJECT_IMAGE_RESOURCE, false);
+                }
             }
             break;
         }
@@ -92,4 +124,3 @@ void register_ota_hook(ota_manager_context_t *ctx)
     ctx->hook->on_post_init_route = on_post_init_route;
     ctx->hook->on_ota_receiver_route = on_broadcast_receiver_route;
 }
-

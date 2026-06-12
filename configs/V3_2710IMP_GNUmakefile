@@ -474,6 +474,7 @@ SERVERS_INC_FLAGS := \
 	$(APP_OLD_PROTOCOL_SERVERS_INC_FLAGS) \
 	$(MASTER_SERVER_CLIENT_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client \
+	-I$(PROJECT_ROOT)/overlay/servers/data_bury_server \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/servers
 
 # 存储模块头文件
@@ -483,6 +484,8 @@ STORAGE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/storage/breast_pump \
 	-I$(PROJECT_ROOT)/overlay/storage/resource \
 	-I$(PROJECT_ROOT)/overlay/storage/system \
+	-I$(PROJECT_ROOT)/overlay/storage/data_bury \
+	-I$(PROJECT_ROOT)/overlay/protocol/app_data_bury_protocol \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/storage \
 	-I$(PROJECT_ROOT)/trunk/root_source/storage
 
@@ -507,6 +510,12 @@ PRODUCT_TESTS_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/product_tests \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/product_tests \
 	-I$(PROJECT_ROOT)/trunk/root_source/tests
+
+# 数据埋点 Manager 模块头文件
+DATA_BURY_MODULE_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/trunk/root_source/data_bury \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/data_bury \
+	-I$(PROJECT_ROOT)/overlay/servers/data_bury_server
 
 # 资源模块头文件
 RESOURCE_INC_FLAGS := \
@@ -550,6 +559,7 @@ SDK_INCLUDE_PATHS := \
 	$(NETWORK_INC_FLAGS) \
 	$(OTA_INC_FLAGS) \
 	$(PRODUCT_TESTS_INC_FLAGS) \
+	$(DATA_BURY_MODULE_INC_FLAGS) \
 	$(RESOURCE_INC_FLAGS)
 
 # 添加项目根目录和 SDK 头文件路径
@@ -934,6 +944,7 @@ SERVERS_MODULE_SRCS := \
 	$(MASTER_SERVER_CLIENT_SRCS) \
 	$(APP_OLD_PROTOCOL_SERVERS_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/servers/data_bury_server/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/servers/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/servers/*.c)
 
@@ -944,6 +955,7 @@ STORAGE_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/resource/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/system/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/data_bury/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/storage/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/storage/*.c)
 
@@ -967,6 +979,11 @@ PRODUCT_TESTS_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/product_tests/stress_tests/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/product_tests/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/tests/*.c)
+
+# 数据埋点 Manager 模块源码
+DATA_BURY_MODULE_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/data_bury/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/data_bury/*.c)
 
 # 框架钩子基础源码
 FRAMEWORK_HOOKS_BASE_SRCS := \
@@ -1001,6 +1018,7 @@ EXTRA_SRCS := \
 	$(NETWORK_MODULE_SRCS) \
 	$(OTA_MODULE_SRCS) \
 	$(PRODUCT_TESTS_MODULE_SRCS) \
+	$(DATA_BURY_MODULE_SRCS) \
 	$(FRAMEWORK_HOOKS_BASE_SRCS) 
 
 CC := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)gcc,gcc)

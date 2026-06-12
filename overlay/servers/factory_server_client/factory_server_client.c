@@ -2,12 +2,10 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "ble_manager_api.h"
-#include "peripheral_bus_api.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "factory_server_client.h" // IWYU pragma: keep
 #include "common_service.h"
-#include "root_log_define.h"
+
 /*
 * DEFINES
 *****************************************************************************************
@@ -29,8 +27,6 @@
 */
 static void on_packet_subscribe_callback(int err_code, uint8_t *data, uint16_t len)
 {
-    LOG_SRV("on_packet_subscribe_callback111, err_code: %d", err_code);
-    LOG_HEX("data", data, len);
     ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     EXCEPTION_CHECK_VOID(ble_ctx);
     /// 发送数据主要ack应答
@@ -47,16 +43,16 @@ static void on_packet_subscribe_callback(int err_code, uint8_t *data, uint16_t l
 
 static void on_factory_server_event_cb(void *user_data, uint8_t *data, uint16_t data_len)   
 {
-    LOGE("==> on_factory_server_event_cb: data=%p, len=%d", data, data_len);
+    LOG_SRV("==> on_factory_server_event_cb: data=%p, len=%d", data, data_len);
     /// 缺少组包功能，先直接订阅
     comm_protocol_subscribe_context_t ctx = {
         .buffer = data,
         .size = data_len,
         .cb = on_packet_subscribe_callback,
     };
-    LOGE("==> before call comm_protocol_subscribe_handler, ctx.buffer=%p, ctx.size=%d", ctx.buffer, ctx.size);
+    LOG_SRV("==> ctx.buffer=%p, ctx.size=%d", ctx.buffer, ctx.size);
     comm_protocol_subscribe_handler(&ctx);
-    LOGE("==> after call comm_protocol_subscribe_handler");
+    LOG_SRV("==> end");
 }
 
 #if USE_PLATFORM_TRACE
@@ -69,14 +65,15 @@ static void on_factory_server_event_cb_callback(void *ctx, uint8_t *p_data, uint
     
     // 过滤单个字节的错误数据（FF/FE可能是UART错误状态或噪声）
     if (ulLen == 1 && (p_data[0] == 0xFF || p_data[0] == 0xFE)) {
-        LOGW("factory uart callback: filtered single byte error data: 0x%02X", p_data[0]);
+        LOGW("filtered single byte error data: 0x%02X", p_data[0]);
         return;
     }
     
-    LOG_SRV("==> on_factory_server_event_cb_callback: ctx=%p, p_data=%p, ulLen=%d", ctx, p_data, ulLen);
+    LOG_SRV("ctx=%p, p_data=%p, ulLen=%d", ctx, p_data, ulLen);
     on_factory_server_event_cb(ctx, p_data, ulLen);
 }
 #endif
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************

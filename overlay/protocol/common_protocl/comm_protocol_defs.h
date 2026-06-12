@@ -9,6 +9,12 @@ extern "C" {
 * Include files
 ******************************************************************************/
 #include "stdint.h" // IWYU pragma: keep
+#include "project_config.h"
+
+/// 定义OTA单块原数据大小
+#ifndef OTA_BLOCK_SIZE
+#define OTA_BLOCK_SIZE                   (1024)
+#endif
 
 /// 协议常量定义
 #define COMM_PROTOCOL_SOF                 0x5CC5             ///< Start Of Frame 标识
@@ -20,7 +26,7 @@ extern "C" {
                         COMM_PROTOCOL_TLV_HEADER_SIZE)       ///< 单个Service最小长度
 #define COMM_PROTOCOL_PAYLOAD_SIZE_MIN    (COMM_PROTOCOL_HEADER_SIZE + \
                         COMM_PROTOCOL_FOOTER_SIZE)           ///< Payload最小长度
-#define COMM_PROTOCOL_MAX_PAYLOAD_SIZE    1024               ///< 最大Payload长度
+#define COMM_PROTOCOL_MAX_PAYLOAD_SIZE    (OTA_BLOCK_SIZE + 64)       ///< 最大Payload长度
 #define COMM_PROTOCOL_FRAME_SIZE_MAX      (COMM_PROTOCOL_MAX_PAYLOAD_SIZE + \
                         COMM_PROTOCOL_HEADER_SIZE +\
                         COMM_PROTOCOL_FOOTER_SIZE)           ///< 帧最大长度
@@ -101,9 +107,10 @@ typedef struct {
 
 /// 帧类型
 typedef enum {
-    COMM_PROTOCOL_FRAME_TYPE_REQUEST = 0,       ///< 请求帧
+    COMM_PROTOCOL_FRAME_TYPE_REQUEST = 0,   ///< 请求帧
     COMM_PROTOCOL_FRAME_TYPE_RESPONSE,      ///< 响应帧
     COMM_PROTOCOL_FRAME_TYPE_NOTIFY,        ///< 通知帧
+    COMM_PROTOCOL_FRAME_TYPE_WRITE_NO_RSP,  ///< 写无应答帧
     COMM_PROTOCOL_FRAME_TYPE_MAX,
 } comm_protocol_frame_type_e;
 
@@ -118,6 +125,7 @@ typedef enum {
     COMM_PROTOCOL_SYSTEM_STATE_SERVICE = 6,
     COMM_PROTOCOL_TESTS_SERVICE = 7,
     COMM_PROTOCOL_TRACKING_DATA_SERVICE = 8,
+    COMM_PROTOCOL_OTA_SERVICE = 9,
 } comm_protocol_service_id_e;
 
 /// 错误码

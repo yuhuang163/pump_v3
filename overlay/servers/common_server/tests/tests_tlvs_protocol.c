@@ -94,13 +94,12 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
     if (mode == 1) {
         /* 进入产测模式 */
         //set_log_ouput_level(US_LOG_LEVEL_NONE);
-        /// 关闭自适应夜灯
-        if (led && led->hook && led->hook->set_night_light_adaptive_switch &&
-            led->hook->set_night_light_adaptive_dimming && led->hook->set_night_light_level) {
-            led->hook->set_night_light_adaptive_switch(led, 0);
-            led->hook->set_night_light_adaptive_dimming(led, 0);
-            led->hook->set_night_light_level(led, 0);
+#if IS_SUPPORT_NIGHT_LIGHT        
+        /// 屏蔽自适应
+        if (led && led->hook && led->hook->set_adaptive_dimming_fct_suppress) {
+            led->hook->set_adaptive_dimming_fct_suppress(led, 1);
         }
+#endif        
         tests_ctx->tests_manager_set_current_mode(TST_FACTORY_TYPE);
         tests_ctx->set_factory_tests_event_process(FAC_TST_ENTER_EVENT, 0, 0, NULL);
         /// 唤醒电源管理模块
@@ -119,11 +118,12 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
         } else {
             /* 退出产测模式 */
             set_log_ouput_level(US_LOG_LEVEL_VERBOSE);
-            /// 开启自适应夜灯
-            if (led && led->hook && led->hook->set_night_light_adaptive_switch) {
-                led->hook->set_night_light_adaptive_switch(led, 1);
-                led->hook->set_night_light_adaptive_dimming(led, 1);
+#if IS_SUPPORT_NIGHT_LIGHT        
+            /// 恢复自适应夜灯
+            if (led && led->hook && led->hook->set_adaptive_dimming_fct_suppress) {
+                led->hook->set_adaptive_dimming_fct_suppress(led, 0);
             }
+#endif
             tests_ctx->tests_manager_set_current_mode(TST_NONE_TYPE);
             tests_ctx->set_factory_tests_event_process(FAC_TST_EXIT_EVENT, 0, 0, NULL);
             /* 关闭测试窗口 */
@@ -399,7 +399,6 @@ int tests_tlvs_write_sn(comm_protocol_builder_t *builder, comm_protocol_service_
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_write_sn, data_len: %d", data_len);
     LOG_HEX("write_sn", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -441,7 +440,6 @@ int tests_tlvs_write_product_id(comm_protocol_builder_t *builder, comm_protocol_
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_write_product_id, data_len: %d", data_len);
     LOG_HEX("write_product_id", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -483,7 +481,6 @@ int tests_tlvs_write_device_id(comm_protocol_builder_t *builder, comm_protocol_s
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_write_device_id, data_len: %d", data_len);
     LOG_HEX("write_device_id", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -525,7 +522,6 @@ int tests_tlvs_write_secret_key(comm_protocol_builder_t *builder, comm_protocol_
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_write_secret_key, data_len: %d", data_len);
     LOG_HEX("write_secret_key", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -872,7 +868,6 @@ int tests_tlvs_set_trim_value(comm_protocol_builder_t *builder, comm_protocol_se
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_set_trim_value, data_len: %d", data_len);
     LOG_HEX("set_trim_value", data, data_len);
 
     uint8_t result = 0x00; // 默认失败
@@ -924,7 +919,7 @@ int tests_tlvs_get_trim_value(comm_protocol_builder_t *builder, comm_protocol_se
     response[2] = (uint8_t)((trim_value >> 16) & 0xFF);
     response[3] = (uint8_t)((trim_value >> 24) & 0xFF);
 
-    LOG_SRV("tests_tlvs_get_trim_value: trim_value=0x%08X", trim_value);
+    LOG_SRV("trim_value=0x%08X", trim_value);
     LOG_HEX("get_trim_value_response", response, TESTS_TRIM_VALUE_LENGTH);
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1068,7 +1063,6 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
         sensor_count++;
     #endif
 
-    LOG_SRV("tests_tlvs_query_sensor_status: sensor_count=%d", sensor_count);
     LOG_HEX("sensor_status_response", response, sensor_count);
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1126,7 +1120,7 @@ int tests_tlvs_get_rssi(comm_protocol_builder_t *builder, comm_protocol_service_
     response[2] = (uint8_t)((rssi_value >> 16) & 0xFF);
     response[3] = (uint8_t)((rssi_value >> 24) & 0xFF);
 
-    LOG_SRV("tests_tlvs_get_rssi: rssi_type=0x%02X, rssi_value=%d", rssi_type, rssi_value);
+    LOG_SRV("rssi_type=0x%02X, rssi_value=%d", rssi_type, rssi_value);
     LOG_HEX("rssi_response", response, sizeof(response));
 
     comm_protocol_tlv_node_t tlv_node = {

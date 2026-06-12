@@ -201,11 +201,6 @@ endif
 CFG_POWER_KEY_HW_RESET_ENABLE := 0
 endif
 
-# 泵驱动版本(1:旧版本, 2:新版本)
-MOTOR_DRIVER_V1 ?= 1
-MOTOR_DRIVER_V2 ?= 2
-MOTOR_DRIVER_VERSION ?= $(MOTOR_DRIVER_V2)
-
 # BLE 头文件子目录
 BLE_INC_DIRS := $(shell find $(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/bthost -type d)\
 # BLE 头文件
@@ -305,6 +300,25 @@ DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_FLAGS := $(patsubst %,-I%,$(DATA_BURY_PROTO
 DATA_BURY_PROTOCOL_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/data_bury_protocol_server_client
 # 数据埋点协议 Server Client 源码文件
 DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS := $(call rwildcard,$(DATA_BURY_PROTOCOL_SERVER_CLIENT_DIR))
+
+# 数据埋点业务 Server 头文件子目录
+DATA_BURY_SERVER_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/servers/data_bury_server -type d)
+# 数据埋点业务 Server 头文件
+DATA_BURY_SERVER_INC_FLAGS := $(patsubst %,-I%,$(DATA_BURY_SERVER_INC_DIRS))
+# 数据埋点业务 Server 源码目录
+DATA_BURY_SERVER_DIR := $(PROJECT_ROOT)/overlay/servers/data_bury_server
+# 数据埋点业务 Server 源码文件
+DATA_BURY_SERVER_SRCS := $(call rwildcard,$(DATA_BURY_SERVER_DIR))
+
+# OTA Server Client 头文件子目录
+OTA_SERVER_CLIENT_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/servers/ota_server_client -type d)
+# OTA Server Client 头文件
+OTA_SERVER_CLIENT_INC_FLAGS := $(patsubst %,-I%,$(OTA_SERVER_CLIENT_INC_DIRS))
+# OTA Server Client 源码目录
+OTA_SERVER_CLIENT_DIR := $(PROJECT_ROOT)/overlay/servers/ota_server_client
+# OTA Server Client 源码文件
+OTA_SERVER_CLIENT_SRCS := $(call rwildcard,$(OTA_SERVER_CLIENT_DIR))
+
 
 # -------------- SDK 头文件路径（按功能模块拆分）--------------
 
@@ -470,12 +484,7 @@ DRIVERS_LED_INC_FLAGS := \
 # 电机驱动头文件
 DRIVERS_MOTOR_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/drivers/motor
-
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
-DRIVERS_MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/motor/chip/motor_pwm
-else
 DRIVERS_MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/drivers/motor/chip/motor_pump
-endif
 
 # UART 驱动头文件
 DRIVERS_UART_INC_FLAGS := \
@@ -558,11 +567,7 @@ MOTOR_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/motor \
 	-I$(PROJECT_ROOT)/trunk/root_source/motor
 
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
 MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy
-else
-MOTOR_INC_FLAGS += -I$(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy_v2
-endif
 
 # 传感器模块头文件
 SENSOR_INC_FLAGS := \
@@ -637,6 +642,8 @@ SERVERS_INC_FLAGS := \
 	$(APP_OLD_PROTOCOL_SERVERS_INC_FLAGS) \
 	$(MASTER_SERVER_CLIENT_INC_FLAGS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_INC_FLAGS) \
+	$(DATA_BURY_SERVER_INC_FLAGS) \
+	$(OTA_SERVER_CLIENT_INC_FLAGS) \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/servers
 
 # 存储模块头文件
@@ -646,6 +653,8 @@ STORAGE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/storage/breast_pump \
 	-I$(PROJECT_ROOT)/overlay/storage/resource \
 	-I$(PROJECT_ROOT)/overlay/storage/system \
+	-I$(PROJECT_ROOT)/overlay/storage/data_bury \
+	-I$(PROJECT_ROOT)/overlay/protocol/app_data_bury_protocol \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/storage \
 	-I$(PROJECT_ROOT)/trunk/root_source/storage
 
@@ -670,6 +679,13 @@ PRODUCT_TESTS_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/product_tests \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/product_tests \
 	-I$(PROJECT_ROOT)/trunk/root_source/tests
+
+# 数据埋点 Manager 模块头文件
+DATA_BURY_MODULE_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/trunk/root_source/data_bury \
+	-I$(PROJECT_ROOT)/overlay/data_bury \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/data_bury \
+	$(DATA_BURY_SERVER_INC_FLAGS)
 
 # 资源模块头文件
 RESOURCE_INC_FLAGS := \
@@ -702,9 +718,21 @@ BATTERY_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/battery \
 	-I$(PROJECT_ROOT)/trunk/root_source/battery
 
+# 夜灯（仅 V3PRO）
+ifeq ($(ROOT_PRODUCT_ID),$(ROOT_PRODUCT_V3PRO_ID))
+LED_NIGHT_LIGHT_INC := -I$(PROJECT_ROOT)/overlay/night_light
+LED_NIGHT_LIGHT_DRIVER_SRCS := $(wildcard $(PROJECT_ROOT)/drivers/led/night_light/*.c)
+LED_NIGHT_LIGHT_OVERLAY_SRCS := $(wildcard $(PROJECT_ROOT)/overlay/night_light/*.c)
+else
+LED_NIGHT_LIGHT_INC :=
+LED_NIGHT_LIGHT_DRIVER_SRCS :=
+LED_NIGHT_LIGHT_OVERLAY_SRCS :=
+endif
+
 # 灯模块头文件
 LED_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/adaptive_dimming \
+	$(LED_NIGHT_LIGHT_INC) \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/led \
 	-I$(PROJECT_ROOT)/trunk/root_source/led
 
@@ -741,6 +769,7 @@ SDK_INCLUDE_PATHS := \
 	$(NETWORK_INC_FLAGS) \
 	$(OTA_INC_FLAGS) \
 	$(PRODUCT_TESTS_INC_FLAGS) \
+	$(DATA_BURY_MODULE_INC_FLAGS) \
 	$(RESOURCE_INC_FLAGS) \
 	$(LED_MODULE_INC_FLAGS) 
 
@@ -821,11 +850,6 @@ CPPFLAGS += -DV3_UX_V1=$(V3_UX_V1)
 CPPFLAGS += -DV3_UX_V2=$(V3_UX_V2)
 CPPFLAGS += -DV3_UX_V3=$(V3_UX_V3)
 CPPFLAGS += -DV3_UX_V4=$(V3_UX_V4)
-
-# 泵驱动版本
-CPPFLAGS += -DMOTOR_DRIVER_VERSION=$(MOTOR_DRIVER_VERSION)
-CPPFLAGS += -DMOTOR_DRIVER_V1=$(MOTOR_DRIVER_V1)
-CPPFLAGS += -DMOTOR_DRIVER_V2=$(MOTOR_DRIVER_V2)
 
 # 调试日志相关宏定义
 ifeq ($(REL_TRACE_ENABLE),1)
@@ -1048,7 +1072,7 @@ endif
 # LED 驱动源码
 DRIVERS_LED_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/led/*.c) \
-	$(wildcard $(PROJECT_ROOT)/drivers/led/night_light/*.c)
+	$(LED_NIGHT_LIGHT_DRIVER_SRCS)
 
 ifeq ($(V3_HARDWARE_VERSION),$(V3_2710IMC_HARDWARE_V1))
 DRIVERS_LED_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/led/led_tm1650/*.c)
@@ -1061,11 +1085,7 @@ endif
 # 电机驱动源码C
 DRIVERS_MOTOR_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/drivers/motor/*.c)
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
-DRIVERS_MOTOR_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/motor/chip/motor_pwm/*.c)
-else
 DRIVERS_MOTOR_SRCS += $(wildcard $(PROJECT_ROOT)/drivers/motor/chip/motor_pump/*.c)
-endif
 
 # UART 驱动源码
 DRIVERS_UART_SRCS := \
@@ -1158,11 +1178,7 @@ BREAST_PUMP_MODULE_SRCS := \
 MOTOR_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/motor/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/*.c) 
-ifeq ($(MOTOR_DRIVER_VERSION), $(MOTOR_DRIVER_V1))
 MOTOR_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy/*.c)
-else
-MOTOR_MODULE_SRCS += $(wildcard $(PROJECT_ROOT)/trunk/root_source/motor/breast_pump_policy_v2/*.c)
-endif
 
 # 传感器模块源码
 SENSOR_MODULE_SRCS := \
@@ -1239,6 +1255,8 @@ SERVERS_MODULE_SRCS := \
 	$(MASTER_SERVER_CLIENT_SRCS) \
 	$(APP_OLD_PROTOCOL_SERVERS_SRCS) \
 	$(DATA_BURY_PROTOCOL_SERVER_CLIENT_SRCS) \
+	$(DATA_BURY_SERVER_SRCS) \
+	$(OTA_SERVER_CLIENT_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/servers/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/servers/*.c)
 
@@ -1249,6 +1267,7 @@ STORAGE_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/breast_pump/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/resource/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/storage/system/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/storage/data_bury/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/storage/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/storage/*.c)
 
@@ -1275,6 +1294,12 @@ PRODUCT_TESTS_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/product_tests/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/tests/*.c)
 
+# 数据埋点 Manager 模块源码
+DATA_BURY_MODULE_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/data_bury/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/data_bury/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/data_bury/*.c)
+
 # 框架钩子基础源码
 FRAMEWORK_HOOKS_BASE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/*.c)
@@ -1286,6 +1311,7 @@ BATTERY_MODULE_SRCS := \
 # 灯模块源码
 LED_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/adaptive_dimming/*.c) \
+	$(LED_NIGHT_LIGHT_OVERLAY_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/led/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/led/*.c)
 
@@ -1315,6 +1341,7 @@ EXTRA_SRCS := \
 	$(NETWORK_MODULE_SRCS) \
 	$(OTA_MODULE_SRCS) \
 	$(PRODUCT_TESTS_MODULE_SRCS) \
+	$(DATA_BURY_MODULE_SRCS) \
 	$(FRAMEWORK_HOOKS_BASE_SRCS) \
 	$(LED_MODULE_SRCS)
 

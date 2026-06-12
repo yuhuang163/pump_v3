@@ -66,10 +66,12 @@ void pump_power_key_handler(ui_proc_pump_t *proc)
             return;
         }
         
-        if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-            proc->led->hook->toggle_night_light(proc->led);
+#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
+        if (proc->led && proc->led->hook && proc->led->hook->sync_night_light_power_key) {
+            proc->led->hook->sync_night_light_power_key(proc->led);
         }
         return;
+#endif
     }
 #endif
 

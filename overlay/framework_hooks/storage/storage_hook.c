@@ -7,6 +7,9 @@
 #include "factory_persist_data.h"
 #include "system_persist_data.h"
 #include "breast_pump_persist_data.h"
+#include "data_bury_persist_data.h"
+#include "resource_persist_data.h"
+
 
 /*
 * DEFINES
@@ -38,6 +41,10 @@ const static put_store_process_handle_t put_store_process_list[] = {
     {STORE_ID_FACTORY_DEV_INFO, write_factory_dev_info_to_flash},
     {STORE_ID_BREAST_PUMP_DATA_HEAD, write_pump_data_head_to_flash},
     {STORE_ID_BREAST_PUMP_DATA_BODY, write_pump_data_body_to_flash},
+    {STORE_ID_DATA_BURY_FLASH_BANK, write_data_bury_flash_bank_to_flash},
+    {STORE_ID_DATA_BURY_RING_META, write_data_bury_ring_meta_to_flash},
+    {STORE_ID_DATA_BURY_RING_CHUNK, write_data_bury_ring_chunk_to_flash},
+    {STORE_ID_IMG_RES_OTA_INFO, write_img_res_ota_info_to_flash},
 };
 
 const static get_store_process_handle_t get_store_process_list[] = {
@@ -51,7 +58,11 @@ const static get_store_process_handle_t get_store_process_list[] = {
     {STORE_ID_SYS_STATE_INFO, read_sys_state_info_from_flash},    
     {STORE_ID_USER_BIND_INFO, read_user_bind_info_from_flash},
     {STORE_ID_BREAST_PUMP_DATA_HEAD, read_pump_data_head_from_flash},
-    {STORE_ID_BREAST_PUMP_DATA_BODY, read_pump_data_body_from_flash},   
+    {STORE_ID_BREAST_PUMP_DATA_BODY, read_pump_data_body_from_flash},
+    {STORE_ID_DATA_BURY_FLASH_BANK, read_data_bury_flash_bank_from_flash},
+    {STORE_ID_DATA_BURY_RING_META, read_data_bury_ring_meta_from_flash},
+    {STORE_ID_DATA_BURY_RING_CHUNK, read_data_bury_ring_chunk_from_flash},  
+    {STORE_ID_IMG_RES_OTA_INFO, read_img_res_ota_info_from_flash},
 };
 
 const static del_store_process_handle_t del_store_process_list[] = {
@@ -74,14 +85,21 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_PUMP_MODE_STEPS_INFO, write_pump_mode_steps_info_to_ram},
     {STORE_ID_PUMP_MODE_NAME_INFO, write_pump_mode_name_to_ram},
     {STORE_ID_PUMP_CONTROL_TYPE, write_pump_control_type_to_ram},
-    {STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, write_night_light_adaptive_switch_to_ram},
+    {STORE_ID_SYS_ADAPTIVE_SWITCH, write_global_adaptive_switch_to_ram},
+#if IS_SUPPORT_NIGHT_LIGHT
+    {STORE_ID_SYS_NIGHT_LIGHT_GEAR, write_night_light_gear_to_ram},
+#endif
+    {STORE_ID_SYS_BACK_LIGHT_LEVEL, write_back_light_level_to_ram},
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, write_airplane_mode_state_to_ram},
     {STORE_ID_BREAST_PUMP_BURY_INFO, write_pump_buried_info_to_ram},
+    {STORE_ID_DATA_BURY_RING_APPEND, write_data_bury_ring_event_to_ram},
+    {STORE_ID_DATA_BURY_RING_POP_OLDEST, write_data_bury_ring_pop_oldest_to_ram},
     {STORE_ID_BREAST_PUMP_MODE, write_pump_mode_to_ram},
     {STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, write_pump_mode_with_type_to_ram},
     {STORE_ID_MODE_NEW_STEP_INFO_FLAG, write_mode_new_step_info_flag_to_ram},
     {STORE_ID_SYS_BIND_STATUS, write_bind_status_to_ram},
     {STORE_ID_PUMP_MODE_ACTIVATE_STATUS, write_pump_mode_activate_to_ram},
+    {STORE_ID_IMG_RES_OTA_INFO, write_img_res_ota_info_to_ram},
 };
 
 const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
@@ -112,7 +130,11 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_PUMP_MODE_STEPS_INFO, read_pump_mode_steps_info_from_ram},
     {STORE_ID_PUMP_MODE_NAME_INFO, read_pump_mode_name_from_ram},
     {STORE_ID_PUMP_CONTROL_TYPE, read_pump_control_type_from_ram},
-    {STORE_ID_SYS_NIGHT_LIGHT_ADAPTIVE_SWITCH, read_night_light_adaptive_switch_from_ram},
+    {STORE_ID_SYS_ADAPTIVE_SWITCH, read_global_adaptive_switch_from_ram},
+#if IS_SUPPORT_NIGHT_LIGHT
+    {STORE_ID_SYS_NIGHT_LIGHT_GEAR, read_night_light_gear_from_ram},
+#endif
+    {STORE_ID_SYS_BACK_LIGHT_LEVEL, read_back_light_level_from_ram},
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, read_airplane_mode_state_from_ram},
     {STORE_ID_BREAST_PUMP_DATA_HEAD, read_pump_data_head_from_ram},
     {STORE_ID_BREAST_PUMP_MODE, read_pump_mode_from_ram},
@@ -121,6 +143,9 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_SYS_BIND_STATUS, read_bind_status_from_ram},
     {STORE_ID_PUMP_MODE_ACTIVATE_STATUS, read_pump_mode_activate_from_ram},
     {STORE_ID_PUMP_MODE_STEPS_INFO_ID, read_pump_mode_steps_info_id_from_ram},
+    {STORE_ID_DATA_BURY_RING_PENDING_COUNT, read_data_bury_ring_pending_count_from_ram},
+    {STORE_ID_DATA_BURY_RING_PEEK_OLDEST, read_data_bury_ring_peek_oldest_from_ram},
+    {STORE_ID_IMG_RES_OTA_INFO, read_img_res_ota_info_from_ram},
 };
 
 static storage_manager_context_t *thiz = NULL;
@@ -180,13 +205,18 @@ static int init_system_persist_info(storage_manager_context_t *ctx)
     read_pump_buried_info_from_flash(args);  /// 读取泵奶埋点信息
     args.val = pump_data_head;
     read_pump_data_head_from_flash(args);  /// 读取泵奶数据头
+    args.val = &ctx->priv.data_bury_info;
+    data_bury_infor_storage_init(args);    /// 读取 Momcozy 埋点信息 + 环
     msleep(10);
+    args.val = &ctx->priv.img_res_ota_info;
+    read_img_res_ota_info_from_flash(args);  /// 读取图片资源OTA信息
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_CONFIG] = CRC16(&sys_info->config, sizeof(sys_config_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_STATE]  = CRC16(&sys_info->state, sizeof(sys_state_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_INFO]  = CRC16(&sys_info->pump_info, sizeof(sys_pump_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_MODE_STEPS_INFO]  = CRC16(&sys_info->mode_info, sizeof(sys_pump_mode_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_BURY_INFO]  = CRC16(&sys_info->buried_info_list, sizeof(sys_buried_info_list_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_USER_DATA_HEAD]  = CRC16(pump_data_head, sizeof(breast_pump_data_head_t));
+    ctx->priv.sys_info_crc[STORE_CRC_TYPE_IMG_RES_OTA_INFO]  = CRC16(&ctx->priv.img_res_ota_info, sizeof(img_res_ota_info_t));
     return 0;
 }
 
@@ -246,6 +276,15 @@ static int system_persist_info_sync_flash(storage_manager_context_t *ctx)
         }
         LOG_STORE("-->pump buried info sync flash");
     }
+    ///  图片资源OTA信息
+    info_crc = CRC16(&ctx->priv.img_res_ota_info, sizeof(img_res_ota_info_t));
+    if (info_crc != ctx->priv.sys_info_crc[STORE_CRC_TYPE_IMG_RES_OTA_INFO]) {
+        args.val = &ctx->priv.img_res_ota_info;
+        if (write_img_res_ota_info_to_flash(args) == 0) {
+            ctx->priv.sys_info_crc[STORE_CRC_TYPE_IMG_RES_OTA_INFO] = info_crc;
+        }
+        LOG_STORE("-->img res ota info sync flash");
+    }
     return 0;
 }
 
@@ -265,6 +304,10 @@ static int user_database_reset(void)
     reset_pump_data_head(thiz, &thiz->priv.pump_data_head);  /// 重置泵奶数据头
     msleep(10);
     reset_pump_buried_info(thiz, &thiz->priv.sys_info.buried_info_list);  /// 重置泵奶埋点信息
+    msleep(10);
+    data_bury_ring_storage_reset(thiz);                                   /// 重置 Momcozy 埋点环
+    msleep(10);
+    reset_img_res_ota_info(thiz, &thiz->priv.img_res_ota_info);  /// 重置图片资源OTA信息
     LOGE("==> user database reset !!!!!!!!!!!!!!!");
     return 0;
 }
@@ -285,6 +328,9 @@ static void on_power_off_force_save_route(storage_manager_context_t *ctx)
     uint32_t percent = battery->get_battery_percent();
     ctx->priv.sys_info.state.battery_percent = percent;
     system_persist_info_sync_flash(ctx);
+    if (data_bury_ring_sync_to_flash(ctx) == 0) {
+        LOG_STORE("-->data bury ring sync flash on power off");
+    }
     LOG_STORE("-->power off force save success");
 }
 

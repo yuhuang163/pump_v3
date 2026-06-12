@@ -84,6 +84,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
                 if (is_power_off_by_charging()) {
                     pm->system_power_control(true);
                     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
+                    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
                     msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
                     msg.union_body.extra.arg1 = 0;
                     LOG_PM("goto power off charge screen");
@@ -95,6 +96,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             } else {
                 pm->system_power_control(true);
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
+                DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
                 msg.union_body.extra.window_id = ID_WINDOW_LOGO;
                 LOG_PM("goto logo screen");
                 wm->dispatch_new_window_args(wm, &msg); 
@@ -104,6 +106,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             LOG_PM("%s action:%d", args->name, action);
             pm->system_power_control(true);
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
             msg.union_body.extra.window_id = ID_WINDOW_LOGO;
             LOG_PM("goto logo screen");
             wm->dispatch_new_window_args(wm, &msg); 
@@ -112,6 +115,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             LOG_PM("%s action:%d", args->name, action);
             pm->system_power_control(true);
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
             msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
             msg.union_body.extra.arg1 = 0;
             LOG_PM("goto power off charge screen");
@@ -213,6 +217,8 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
             POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_SYS_STANDBY,
                 POWER_ONOFF_AND_STANDBY_TASK_NAME);
         #endif
+         ///插入关机数据埋点 0:手动关机 1:低电量关机 2:自动休眠关机 3:异常关机 4:固件更新关机 5:过热关机
+         DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_USER_MANUAL, 0);
         } else {
             LOG_PM("forbid shutdown or standby");
         }
@@ -333,7 +339,7 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
     msg.union_body.extra.arg1 = ID_POPUP_UI_WILL_POWER_OFF;
     msg.union_body.extra.popup_exit_time = 3000;
     msg.union_body.extra.user_data = ctx;
-    msg.union_body.extra.forbid_short_press_exit_popup = false;
+    msg.union_body.extra.forbid_short_press_exit_popup = true;
     wm->dispatch_new_window_args(wm, &msg); 
 #else
     ctx->priv.allow_shutdown_or_standby = 0;

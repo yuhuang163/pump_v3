@@ -10,6 +10,17 @@ extern "C" {
 ******************************************************************************/
 #include "root_common_api.h" // IWYU pragma: keep
 
+/* Momcozy 埋点 Flash：8 槽 × 每槽 1 块 2048B（与 PSRAM 环对齐，须与 data_bury_persist_defs.h 一致） */
+#ifndef PERSIST_DATA_BURY_FLASH_SLOT_NUM
+#define PERSIST_DATA_BURY_FLASH_SLOT_NUM  8u
+#endif
+#ifndef PERSIST_DATA_BURY_RING_CHUNK_PER_SLOT
+#define PERSIST_DATA_BURY_RING_CHUNK_PER_SLOT  1u
+#endif
+#ifndef PERSIST_DATA_BURY_RING_CHUNK_NUM
+#define PERSIST_DATA_BURY_RING_CHUNK_NUM  (PERSIST_DATA_BURY_FLASH_SLOT_NUM * PERSIST_DATA_BURY_RING_CHUNK_PER_SLOT)
+#endif
+
 #if 1
 #define LOG_STORE_WRAP(...) LOG_STORE(__VA_ARGS__)
 #else
@@ -43,6 +54,7 @@ typedef enum {
     PERSIST_KEY_AUDIO_PACKET_DATA,
     PERSIST_KEY_THEME_PACKET_DATA,
     PERSIST_KEY_BATTERY_HEALTH_COEFF,
+    PERSIST_KEY_IMG_RES_OTA_INFO,
 
     PERSIST_KEY_UTC_TIMESTEMP = 150,             /// 系统时间戳
 
@@ -54,6 +66,12 @@ typedef enum {
     PERSIST_KEY_BREAST_PUMP_DATA_BODY_BEGIN,
     PERSIST_KEY_BREAST_PUMP_DATA_BODY_END = PERSIST_KEY_BREAST_PUMP_DATA_BODY_BEGIN + ROOT_BREAST_PUMP_DATA_BODY_NUM,
     PERSIST_KEY_USER_ID,
+    PERSIST_KEY_DATA_BURY_FLASH_BANK,
+    PERSIST_KEY_DATA_BURY_USE_SESSION_BOOT_SEQ,
+    PERSIST_KEY_DATA_BURY_RING_META_SLOT_BEGIN,
+    PERSIST_KEY_DATA_BURY_RING_META_SLOT_END = PERSIST_KEY_DATA_BURY_RING_META_SLOT_BEGIN + PERSIST_DATA_BURY_FLASH_SLOT_NUM,
+    PERSIST_KEY_DATA_BURY_RING_CHUNK_BEGIN,
+    PERSIST_KEY_DATA_BURY_RING_CHUNK_END = PERSIST_KEY_DATA_BURY_RING_CHUNK_BEGIN + PERSIST_DATA_BURY_RING_CHUNK_NUM,
     PERSIST_KEY_MAX,
 } persist_key_id_enum_t;
 
@@ -65,13 +83,6 @@ typedef struct {
     user_bind_info_t bind_info;
     uint16_t crc;
 } user_bind_storage_t;
-
-/// 描述主题包信息
-typedef struct {
-    uint32_t magic;
-    theme_packet_info_t theme_packet;
-    uint16_t crc;
-} theme_packet_storage_t;
 
 /// 描述泵奶信息
 typedef struct {
@@ -149,6 +160,13 @@ typedef struct {
     uint32_t utc_timestamp;
     uint16_t crc;
 } utc_timestamp_storage_t;
+
+/// 描述图片资源OTA状态信息
+typedef struct {
+    uint32_t magic;
+    img_res_ota_info_t res_ota_info;
+    uint16_t crc;
+} img_res_ota_storage_t;
 
 #ifdef __cplusplus
 }

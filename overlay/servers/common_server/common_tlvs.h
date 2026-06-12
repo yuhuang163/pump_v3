@@ -10,6 +10,7 @@ extern "C" {
 ******************************************************************************/
 #include "stdint.h" // IWYU pragma: keep
 #include "comm_protocol_defs.h" // IWYU pragma: keep
+#include "comm_protocol_builder.h" // IWYU pragma: keep
 #include "algo_tlvs_protocol.h" // IWYU pragma: keep
 #include "pump_tlvs_protocol.h" // IWYU pragma: keep
 #include "iot_tlvs_protocol.h" // IWYU pragma: keep
@@ -18,6 +19,7 @@ extern "C" {
 #include "sys_state_tlvs_protocol.h" // IWYU pragma: keep
 #include "tests_tlvs_protocol.h" // IWYU pragma: keep
 #include "tracking_data_tlvs_protocol.h" // IWYU pragma: keep
+#include "ota_tlvs_protocol.h" // IWYU pragma: keep
 
 /// TLVS处理接口.
 typedef int (*protocol_service_tlv_func)(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
@@ -40,6 +42,17 @@ typedef struct {
 *****************************************************************************************
 */
 protocol_service_tlv_func get_protocol_service_tlvs(protocol_service_tlvs_handle_list_t *ctx, uint16_t tlv_id);
+
+int common_tlv_add_u8(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                      uint16_t tlv_type, uint8_t value);
+int common_tlv_add_u16(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                       uint16_t tlv_type, uint16_t value);
+int common_tlv_add_u32(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                       uint16_t tlv_type, uint32_t value);
+int common_tlv_add_bytes(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                         uint16_t tlv_type, const uint8_t *data, uint16_t data_len);
+int common_tlv_add_empty(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                         uint16_t tlv_type);
 
 #ifdef __cplusplus
 }

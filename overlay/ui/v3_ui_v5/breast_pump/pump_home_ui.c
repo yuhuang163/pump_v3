@@ -593,7 +593,8 @@ static void pump_home_speed_label_update(ui_manager_context_t *thiz, uint8_t spe
     pump_info->speed = speed; 
 }
 
-static void pump_home_common_mode_update(ui_manager_context_t *thiz, uint8_t mode_index, bool is_show)
+static void pump_home_common_mode_update(ui_manager_context_t *thiz, uint8_t mode_index, 
+        uint8_t sub_mode, uint8_t next_sub_mode, bool is_show)
 {
     /// 设置label
     if (pump_info->mode_label == NULL || !lv_obj_is_valid(pump_info->mode_label)) {
@@ -658,6 +659,8 @@ static void pump_home_common_mode_update(ui_manager_context_t *thiz, uint8_t mod
         pump_info->mode_icon_info.data, pump_info->mode_icon_info.size, "baj");
     lv_image_set_src(pump_info->mode_icon, (const void *)&mode_icon_path);
     pump_info->mode = mode_index;
+    pump_info->sub_mode = sub_mode;
+    pump_info->next_sub_mode = next_sub_mode;
     LOG_UI("===> %s mode", home_mode_names[mode_index]);
 }
 
@@ -881,21 +884,25 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(result_info);
     uint16_t hold_time = result_info->work_valid_time / 1000;
     pump_setting_t setting;
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     int time_index = 0;
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
-    int pump_mode = 0;
-    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     uint8_t is_regular_mode = PUMP_IS_COMMON_MODE(pump_mode);
-    pump_home_bg_update(thiz);
-    ble_ui_update(thiz, pump_info->root, proc->ble, PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y);
-    pump_home_time_update(thiz, hold_time);
     uint8_t sub_mode = 0;
     uint8_t next_sub_mode = 0;
     sub_mode = proc->motor->get_runtime_mode_type(false);
     next_sub_mode = proc->motor->get_runtime_mode_type(true);
+    if (pump_mode != pump_info->mode || sub_mode != pump_info->sub_mode || next_sub_mode != pump_info->next_sub_mode) {
+        LOG_UI("===> pump mode changed: %d -> %d, sub_mode:%d->%d, next_sub_mode:%d->%d", pump_info->mode, pump_mode, 
+            sub_mode, pump_info->sub_mode, pump_info->next_sub_mode, next_sub_mode);
+    }
+    pump_home_bg_update(thiz);
+    ble_ui_update(thiz, pump_info->root, proc->ble, PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y);
+    pump_home_time_update(thiz, hold_time);
     pump_home_animation_update(thiz, sub_mode);
-    pump_home_common_mode_update(thiz, pump_mode, is_regular_mode ? true : false);  
+    pump_home_common_mode_update(thiz, pump_mode, sub_mode, next_sub_mode, is_regular_mode ? true : false);  
     pump_home_custom_mode_update(thiz, pump_mode, sub_mode, next_sub_mode, is_regular_mode ? false : true);
     pump_home_left_level_update(thiz, setting.level[0]);
     pump_home_right_level_update(thiz, setting.level[1]);

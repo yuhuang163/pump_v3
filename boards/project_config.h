@@ -39,6 +39,8 @@ extern "C" {
 #define INPUT_SENSOR_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 2 + 0)
 /// 产品测试线程深度
 #define INPUT_PRODUCT_TESTS_THREAD_STACKSIZE           (TASK_SIZE_DEFAULT * 2 + 0)
+/// 数据埋点线程深度
+#define INPUT_DATA_BURY_THREAD_STACKSIZE                 (TASK_SIZE_DEFAULT * 4 + 0)
 /// 死锁检查线程深度
 #define HG_CHECK_THREAD_STACKSIZE                      (TASK_SIZE_DEFAULT * 2 + 0)
 /// 死锁检测线程深度
@@ -136,6 +138,8 @@ extern "C" {
 #define LED_SLOW_BLINK_TIME                            (500) /// 1000ms
 /// 关机提醒时间
 #define POWER_OFF_REMINDER_TIME                        (3000) /// 3秒
+/// OTA单块原数据大小
+#define OTA_BLOCK_SIZE                                 (4096)
 
 #ifdef __cplusplus
 }
