@@ -148,10 +148,9 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     int ret = RESULT_PUMP_NORMAL;
     log_timer++;
     /// 更新模式和力度.
-    if (result_info->mode != ctx->priv.m_info.mode) {
+    //if (result_info->mode != ctx->priv.m_info.mode) {
         ctx->priv.m_result.working_mode = ctx->priv.m_info.mode;
-        return RESULT_PUMP_NORMAL;
-    }
+    //}
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
     result_info->current_mode_work_time = ctx->priv.motor->get_policy_running_time(ctx->priv.m_info.mode);
     result_info->work_valid_time = result_info->hostory_work_time + result_info->current_mode_work_time;
