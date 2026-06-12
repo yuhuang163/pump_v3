@@ -37,6 +37,7 @@ typedef struct {
     uint32_t display_time;
     uint32_t total_size;
     uint32_t recv_size;
+    uint32_t last_recv_size;
     uint8_t force_update;
     uint8_t status;
     uint8_t progress;
@@ -390,6 +391,12 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
     ui_ota_root_init(); /// 初始化 root 容器
     ota_info->force_update = true;
     ota_info->progress = 0;
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)thiz->priv.play_info.user_data;
+    if (proc) {
+        ota_info_t ota_dev_info = {0};
+        proc->ota->get_ota_info(&ota_dev_info); 
+        ota_info->last_recv_size = ota_dev_info.recv_size;
+    }
 }
 
 void ui_display_ota_remove(ui_manager_context_t *thiz)
@@ -427,7 +434,10 @@ int ui_display_ota_process(ui_manager_context_t *thiz)
 
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
-        LOG_UI("===> ota fps: %d", thiz->priv.fps_count);
+        float speed = ota_dev_info.recv_size > ota_info->last_recv_size ? 
+            (ota_dev_info.recv_size - ota_info->last_recv_size) / 1024.0f : 0;
+        ota_info->last_recv_size = ota_dev_info.recv_size;
+        LOG_UI("===> ota fps: %d, %0.2fKB/s", thiz->priv.fps_count, speed);
         thiz->priv.fps_count = 0;
     }
     
