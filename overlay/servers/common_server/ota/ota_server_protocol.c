@@ -106,13 +106,18 @@ int ota_subscribe_service_handle(comm_protocol_builder_t *builder, comm_protocol
     }
     /// 如果builder为空，说明是notify类型，则不需要组装响应帧
     if (builder != NULL) {
+        /// 添加图片偏移地址TLV
+        comm_protocol_tlv_node_t rsp_tlv_node = {0};
+        // ota_img_info_t ota_info = get_ota_info();
+        // rsp_tlv_node.type = OTA_TLV_IMG_OFFSET_ADDR;
+        // rsp_tlv_node.length = sizeof(ota_info.offset_addr);
+        // rsp_tlv_node.value = (uint8_t *)&ota_info.offset_addr;
+        // protocol_ctx->comm_protocol_builder_add_tlv(builder, rsp_srv, &rsp_tlv_node);
         /// 添加应答TLV
         uint16_t err_code = (ret == 0) ? 0 : 1;
-        comm_protocol_tlv_node_t rsp_tlv_node = {
-            .type = PROTOCOL_SERVICE_ERROR_CODE_TLV_ID,
-            .length = sizeof(err_code),
-            .value = (uint8_t *)&err_code,
-        };
+        rsp_tlv_node.type = PROTOCOL_SERVICE_ERROR_CODE_TLV_ID;
+        rsp_tlv_node.length = sizeof(err_code);
+        rsp_tlv_node.value = (uint8_t *)&err_code;
         protocol_ctx->comm_protocol_builder_add_tlv(builder, rsp_srv, &rsp_tlv_node);
     }
     return ret;

@@ -53,6 +53,7 @@ static void img_res_notify_upgrade_error(ota_manager_context_t *ctx, uint16_t er
 {
     servers_publish_data_args_t args = {0};
     args.arg1 = error_code;
+    args.arg2 = (int)ota_info.recv_size;
     ota_tlvs_upgrade_status_notify(&args);
     if (error_code == OTA_STATUS_CODE_DATA_BLOCK_TIMEOUT) {
         return;
@@ -198,7 +199,7 @@ static int img_res_integrity_check(ota_manager_context_t *ctx)
 
 static void ota_timeout_timer_handler(void *arg)
 {
-    if (get_timestamp_ms(ota_timestamp) > 500) {
+    if (get_timestamp_ms(ota_timestamp) > 1000) {
         POST_TASK_HANDLER_NO_DELAY(ota_img_write_timeout_post_task_handler, NULL, __OTA_IMG_WRITE_TIMEOUT_TASK);
         ota_timestamp = get_timestamp();
     }

@@ -81,6 +81,7 @@ int ota_tlvs_write_img_data(comm_protocol_builder_t *builder, comm_protocol_serv
 int ota_tlvs_end_upgrade_request(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
                     uint8_t *data, uint16_t data_len);
 int ota_tlvs_upgrade_status_notify(servers_publish_data_args_t *args);
+ota_img_info_t get_ota_info(void);
 #ifdef __cplusplus
 }
 #endif
