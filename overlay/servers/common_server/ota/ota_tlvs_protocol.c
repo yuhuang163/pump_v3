@@ -165,26 +165,16 @@ int ota_tlvs_upgrade_status_notify(servers_publish_data_args_t *args)
     ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     EXCEPTION_CHECK_INT(ble_ctx);
     comm_protocol_builder_t builder = {0};
-
-    ota_tlvs_notify_args_t *notify_args = (ota_tlvs_notify_args_t *)args->val;
-    comm_protocol_tlv_node_t default_tlv = {0};
-    comm_protocol_tlv_node_t *tlvs = NULL;
-    uint16_t tlv_count = 0;
-
-    if (notify_args != NULL && notify_args->tlvs != NULL && notify_args->tlv_count > 0) {
-        tlvs = notify_args->tlvs;
-        tlv_count = notify_args->tlv_count;
-        LOG_SRV("tlv_count=%u", tlv_count);
-    } else {
-        uint16_t error_code = (uint16_t)args->arg1;
-        LOG_SRV("error_code=%u", error_code);
-        default_tlv.type = OTA_TLV_UPGRADE_STATUS_NOTIFY;
-        default_tlv.length = sizeof(error_code);
-        default_tlv.value = (uint8_t *)&error_code;
-        tlvs = &default_tlv;
-        tlv_count = 1;
-    }
-
+    uint16_t error_code = (uint16_t)args->arg1;
+    uint32_t offset_addr = (uint32_t)args->arg2;
+    comm_protocol_tlv_node_t tlvs[2];
+    tlvs[0].type = OTA_TLV_IMG_OFFSET_ADDR;
+    tlvs[0].length = sizeof(offset_addr);
+    tlvs[0].value = (uint8_t *)&offset_addr;
+    tlvs[1].type = OTA_TLV_UPGRADE_STATUS_NOTIFY;
+    tlvs[1].length = sizeof(error_code);
+    tlvs[1].value = (uint8_t *)&error_code;
+    LOG_SRV("error_code=%u, offset_addr=%u", error_code, offset_addr);
     /// 初始化构建器
     ret = protocol_ctx->comm_protocol_builder_init(&builder, 256, protocol_ctx->get_packet_seq(),
                                                    COMM_PROTOCOL_FRAME_TYPE_NOTIFY);
@@ -201,7 +191,7 @@ int ota_tlvs_upgrade_status_notify(servers_publish_data_args_t *args)
         goto ERROR_EXIT;
     }
 
-    for (uint16_t i = 0; i < tlv_count; i++) {
+    for (uint16_t i = 0; i < LENGTH_OF_ARRAY(tlvs); i++) {
         ret = protocol_ctx->comm_protocol_builder_add_tlv(&builder, service, &tlvs[i]);
         if (ret != 0) {
             LOGE("==> tlv add failed, index=%u, type=0x%04x", i, tlvs[i].type);
@@ -223,4 +213,9 @@ int ota_tlvs_upgrade_status_notify(servers_publish_data_args_t *args)
 ERROR_EXIT:
     protocol_ctx->comm_protocol_builder_free(&builder);
     return ret;
+}
+
+ota_img_info_t get_ota_info(void)
+{
+    return ota_info;
 }

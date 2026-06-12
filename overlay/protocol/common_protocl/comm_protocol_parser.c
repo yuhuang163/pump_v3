@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_common.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "comm_protocol_defs.h"
 #include "comm_protocol_parser.h"
@@ -12,7 +11,7 @@
 *****************************************************************************************
 */
 #define PACKET_ASSEMBLY_BUFFER_SIZE         (COMM_PROTOCOL_MAX_PAYLOAD_SIZE * 2)   ///< 环形缓冲区大小
-#define PACKET_ASSEMBLY_TIMEOUT_MS          100    /// 组包超时(毫秒)
+#define PACKET_ASSEMBLY_TIMEOUT_MS          1000    /// 组包超时(毫秒)
 #define PACKET_ASSEMBLY_MAX_SYNC_STEPS      256    /// 单次调用最大同步步数，避免脏数据时长时间占用
 #define PACKET_ASSEMBLY_SOF_BYTE0           0xC5   /// SOF 低字节
 #define PACKET_ASSEMBLY_SOF_BYTE1           0x5C   /// SOF 高字节
@@ -148,6 +147,7 @@ int comm_protocol_assemble_packet(const uint8_t *data, uint16_t len, comm_protoc
     if (packet_assembly_is_timeout()) {
         LOGW("packet assembly timeout, reset buffer");
         comm_protocol_assemble_reset();
+        return -1;
     }
 
     /// 写入数据到环形缓冲区
