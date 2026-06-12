@@ -122,13 +122,14 @@ void policy_remaining_time_update(motor_policy_runtime_t *runtime)
 
     if (get_timestamp_ms(last_log_time) > 2000) {
         last_log_time = get_timestamp();
-        LOG_MOTOR("mode:%d, index:%d, time:%d/%d/%d, mode:%d/%d/%d, state:%d/%d/%d/%d", 
+        LOG_MOTOR("mode:%d, index:%d, time:%d/%d/%d, mode:%d/%d/%d, state:%d/%d/%d/%d/%d/%d", 
             runtime->breast_pump_mode, runtime->current_timed_policy_index,
             runtime->policy_running_time_ms, runtime->time_policy_target_time,
             runtime->time_policy_remaining_time, runtime->breast_pump_mode,
             runtime->current_mode_type, runtime->next_mode_type,
             runtime->info[0].state.policy_update_lock, runtime->info[1].state.policy_update_lock,
-            runtime->info[0].state.status, runtime->info[1].state.status);
+            runtime->info[0].state.status, runtime->info[1].state.status,
+            runtime->info[0].state.action, runtime->info[1].state.action);
     }
 }
 

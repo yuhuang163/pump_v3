@@ -36,7 +36,15 @@
 #if LCD_BACKLIGHT_TIME_PERIOD > 35
 #error "LCD_BACKLIGHT_TIME_PERIOD must not exceed 35ms"
 #endif
-#define LCD_BACKLIGHT_LOG_DEBUG                   (1)
+
+/// 日志开关
+#define LCD_BACKLIGHT_LOG_DEBUG                   (0)
+#if LCD_BACKLIGHT_LOG_DEBUG
+#define LOG_LCD_BL_DBG(...) LOG_PBUS(__VA_ARGS__)
+#else
+#define LOG_LCD_BL_DBG(...)
+#endif
+
 
 typedef struct {
     HWTIMER_ID time_id;
@@ -84,9 +92,7 @@ static void lcd_backlight_gpio_irq_callback(enum HAL_GPIO_PIN_T pin)
         backlight_info.duty_update_flag = 0;
         if (backlight_info.pulse_width == 0 && backlight_info.onoff > 0) {
             backlight_info.onoff = 0;
-#if LCD_BACKLIGHT_LOG_DEBUG
-            LOG_PBUS("lcd backlight off...");
-#endif
+            LOG_LCD_BL_DBG("lcd backlight off...");
         }
         hal_pwm_update_pulse_width(LCD_LCD_BL_PWM_ID, backlight_info.pulse_width, LCD_BACKLIGHT_PERIOD);
     }
@@ -152,7 +158,7 @@ static void bsp_lcd_backlight_timer_handler(void *param)
             backlight_info.current_duty--;
             backlight_info.pulse_width = lcd_backlight_pwm_table[backlight_info.current_duty];
             backlight_info.duty_update_flag = 1;
-            LOG_PBUS("current_duty: %d, target_duty: %d",
+            LOG_LCD_BL_DBG("current_duty: %d, target_duty: %d",
                 backlight_info.current_duty, backlight_info.target_duty);
             if (backlight_info.current_duty == backlight_info.target_duty) {
                 return;
@@ -169,7 +175,7 @@ static void bsp_lcd_backlight_timer_handler(void *param)
                 (lcd_backlight_pwm_table[backlight_info.current_duty] +
                  lcd_backlight_pwm_table[next_duty]) / 2;
             backlight_info.duty_update_flag = 1;
-            LOG_PBUS("dim blend duty: %d -> %d, target_duty: %d",
+            LOG_LCD_BL_DBG("dim blend duty: %d -> %d, target_duty: %d",
                 backlight_info.current_duty, next_duty, backlight_info.target_duty);
             bsp_lcd_backlight_climb_schedule();
             return;
@@ -192,10 +198,8 @@ static void bsp_lcd_backlight_timer_handler(void *param)
         }
         bsp_lcd_backlight_climb_schedule();
     } else {
-#if LCD_BACKLIGHT_LOG_DEBUG
-        LOG_PBUS("time is over, current_duty: %d, target_duty: %d",
+        LOG_LCD_BL_DBG("time is over, current_duty: %d, target_duty: %d",
             backlight_info.current_duty, backlight_info.target_duty);
-#endif
     }
 }
 

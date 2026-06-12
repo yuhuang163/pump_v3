@@ -339,7 +339,7 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
     msg.union_body.extra.arg1 = ID_POPUP_UI_WILL_POWER_OFF;
     msg.union_body.extra.popup_exit_time = 3000;
     msg.union_body.extra.user_data = ctx;
-    msg.union_body.extra.forbid_short_press_exit_popup = false;
+    msg.union_body.extra.forbid_short_press_exit_popup = true;
     wm->dispatch_new_window_args(wm, &msg); 
 #else
     ctx->priv.allow_shutdown_or_standby = 0;

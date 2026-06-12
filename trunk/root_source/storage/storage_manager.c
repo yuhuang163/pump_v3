@@ -261,9 +261,6 @@ int user_database_put(storage_manager_context_t *ctx, int database_id, const uin
             uint8_t *tmp_buf = u_malloz(buf_len);
             uint32_t buf_rd[] = {database_id, (uint32_t)tmp_buf, (uint32_t)buf_len };
             DEVICE_READ_ARGS(db_dev, buf_rd, sizeof(buf_rd));
-            // LOG_STORE("write database id: %d, buf_len: %d", database_id, buf_len);
-            // LOG_HEX("tx buf", tmp_buf, buf_len);
-            // LOG_HEX("rx buf", buf, buf_len);
             if (memcmp(tmp_buf, buf, buf_len) != 0) {
                 LOGE("storage database id %d fail, retry write.", database_id);
                 /// 重试写入时使用原始数据，而不是读取回来的数据
@@ -282,8 +279,6 @@ int user_database_get(storage_manager_context_t *ctx, int database_id, uint8_t *
     if (db_dev && db_dev->read) {
         uint32_t buf_rd[] = {database_id, (uint32_t)buf, (uint32_t)buf_len };
         ret = DEVICE_READ_ARGS(db_dev, buf_rd, sizeof(buf_rd));
-        // LOG_STORE("read database id: %d, buf_len: %d", database_id, buf_len);
-        // LOG_HEX("buf_rd", buf, buf_len);
     }
     return ret;
 }
@@ -336,9 +331,7 @@ int factory_flash_put(storage_manager_context_t *ctx, const uint8_t *buf, int bu
                 u_free(tmp_buf);
                 return -1;
             }
-            // LOG_STORE("write factory flash, buf_len: %d", buf_len);
             LOG_HEX("factory flash rx", buf, buf_len);
-            // LOG_STORE("read factory flash, buf_len: %d", buf_len);
             LOG_HEX("factory flash tx", tmp_buf, buf_len);
             if (memcmp(tmp_buf, buf, buf_len) != 0) {
                 LOGE("factory flash write failed, retry write.");
