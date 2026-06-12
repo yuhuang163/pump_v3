@@ -199,7 +199,7 @@ static int stop_motor(motor_stop_reason_e reason)
     return internal_stop_motor("user-stop");
 }
 
-static int change_motor_mode_wrapper(uint8_t mode, uint8_t is_continue)
+static int change_motor_mode_wrapper(uint8_t mode, bool is_continue)
 {
     return change_motor_mode(motor_obj, mode, is_continue);
 }
