@@ -19,7 +19,6 @@
 */
 static os_message_id policy_work_msg_id = NULL; /// 策略工作消息ID.
 static os_timer_id policy_work_timer = NULL; /// 策略工作定时器.
-static bool driver_msg_send_failed = false; /// 驱动消息发送失败标志.
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -161,10 +160,6 @@ static void policy_work_timer_cb(void *arg)
         .un.action = 0,
         .pump_id = 0,
     };
-
-    if (driver_msg_send_failed) {
-        msg.msg_type = MOTOR_DRIVER_TIMER_EVENT_MSG;
-    }
     MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0);
 }
 
@@ -178,7 +173,6 @@ static void on_motor_timer_event_cb(uint8_t pump_id, motor_pump_status_e action)
 
     if (MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0) != 0) {
         LOGE("driver msg send failed");
-        driver_msg_send_failed = true;
     }
 }
 
@@ -324,8 +318,10 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
             if (runtime->policy[i].core.un.mapping.mode_type == SUCTION_MODE_IDLE) {
                 continue;
             } 
-            pump_policy_update(&runtime->info[i], i, msg);    
-            update_para_to_motor_device(thiz, i, &runtime->info[i]);   
+            pump_policy_update(&runtime->info[i], i, msg);
+            if (runtime->info[i].state.action != MOTOR_ACTION_IDLE) {
+                update_para_to_motor_device(thiz, i, &runtime->info[i]);
+            }
         }
 #if IS_SUPPORT_PUMP_DUTY_ADJUST
         if (msg.msg_type == MOTOR_PUMP_LEVEL_ADJUST_MSG) {
@@ -355,7 +351,6 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
         runtime->compensation_delta_pwm[i] = 0;
     }
 #endif
-    driver_msg_send_failed = false;
     LOG_MOTOR("exit:%d", exit_code);
     return exit_code;
 }

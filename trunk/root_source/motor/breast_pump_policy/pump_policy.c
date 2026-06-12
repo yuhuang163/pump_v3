@@ -92,13 +92,13 @@ int pump_policy_del(motor_timed_policy_node_t *time_policy)
 int pump_policy_update(motor_policy_info_t *info, uint8_t pump_id, motor_timer_event_msg_t msg) 
 { 
     uint32_t duration_ms = get_timestamp_ms(info->state.action_start_time);
-
-#if 1
+#if 0
     static uint32_t log_time = 0;
-    if (msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG || get_timestamp_ms(log_time) > 2000) {
+    if ((msg.msg_type == MOTOR_DRIVER_TIMER_EVENT_MSG && msg.pump_id == pump_id) ||
+        get_timestamp_ms(log_time) > 2000) {
         log_time = get_timestamp();
-        LOG_MOTOR("type:%d, id:%d, action:%d, duration:%d/%d", 
-            msg.msg_type, msg.pump_id, msg.un.action, duration_ms, info->state.action_duration_ms);
+        LOG_MOTOR("type:%d, id:%d, action:%d, duration:%d/%d",
+            msg.msg_type, pump_id, msg.un.action, duration_ms, info->state.action_duration_ms);
     }
 #endif
 
@@ -265,5 +265,4 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
     info->state.target_pressure = pump_level == SUCTION_LEVEL_0KPA ? 0 : (pump_level + SUCTION_DEFAULT_LEVEL_VALUE);
     /// 通过算法线性补偿
     pump_compensation_policy_update(thiz, &info->original); 
-    
 }
