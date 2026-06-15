@@ -212,8 +212,26 @@ static void polling_charge_status(void *user_data)
     }
     uint8_t charge_status = local_get_charge_status();
     if (thiz->priv.charge_status != charge_status) {
+        uint8_t prev_status = thiz->priv.charge_status;
+        uint8_t prev_charging = BATTERY_IS_CHARGING(prev_status) ? 1u : 0u;
+        uint8_t now_charging = BATTERY_IS_CHARGING(charge_status) ? 1u : 0u;
+
         thiz->priv.charge_status = charge_status;
         LOG_MISC("charge status change:%d", charge_status);
+        if (!prev_charging && now_charging) {
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START, 0, 0);
+        } else if (prev_charging && !now_charging) {
+            int end_reason;
+
+            if (charge_status == CHARGE_STATE_ERROR) {
+                end_reason = DATA_BURY_BAT_CHARGE_END_REASON_ADAPTER_MISMATCH;
+            } else if (prev_status == CHARGE_STATE_FULL) {
+                end_reason = DATA_BURY_BAT_CHARGE_END_REASON_FULL;
+            } else {
+                end_reason = DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG;
+            }
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END, end_reason, 0);
+        }
         polling_battery_status(user_data);
     }
 }
@@ -229,8 +247,8 @@ static int on_post_battery_init(void *ptr)
 {
     battery_manager_context_t *ctx = ptr;
     thiz->priv.battery_state = BATTERY_STATE_NONE;
-    thiz->priv.is_vbus_plug_in = 0;
-    thiz->priv.charge_status = CHARGE_STATE_UNCHARGE;
+    thiz->priv.is_vbus_plug_in = local_is_vbus_plug_in();
+    thiz->priv.charge_status = local_get_charge_status();
     if (ctx->priv.battery) {
         DEVICE_IOCTL_ARGS_NO_RET(ctx->priv.battery, OP_CODE_BAT_ADD_CHARGE_EVENT_CALLBACK, charge_event_callback);
         DEVICE_IOCTL_NO_RET(thiz->priv.battery, OP_CODE_BAT_POLL_VOLTAGE);

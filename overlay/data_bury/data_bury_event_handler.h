@@ -24,8 +24,10 @@ int data_bury_event_process_power_off(data_bury_manager_context_t *ctx,
                                       const data_bury_trigger_args_t *args);
 int data_bury_event_process_ota_start(data_bury_manager_context_t *ctx,
                                       const data_bury_trigger_args_t *args);
-int data_bury_event_process_bat_charge_status(data_bury_manager_context_t *ctx,
-                                              const data_bury_trigger_args_t *args);
+int data_bury_event_process_bat_charge_start(data_bury_manager_context_t *ctx,
+                                             const data_bury_trigger_args_t *args);
+int data_bury_event_process_bat_charge_end(data_bury_manager_context_t *ctx,
+                                           const data_bury_trigger_args_t *args);
 
 #ifdef __cplusplus
 }
