@@ -167,9 +167,9 @@ void breast_pump_mode_steps_info_reset(sys_pump_mode_info_t *mode_info, int mode
         steps_info->data[step_idx].duration = cfg[i].duration; /// 单位s
         steps_info->data[step_idx].policy_type = cfg[i].policy_type;
         steps_info->total_time += steps_info->data[step_idx].duration;
-        LOG_MOTOR("steps%d policy=%d, mode=%d, level=%d, duration=%d",
-            step_idx, steps_info->data[step_idx].policy_type, steps_info->data[step_idx].mode_type,
-            steps_info->data[step_idx].level, steps_info->data[step_idx].duration);
+        // LOG_MOTOR("steps%d policy=%d, mode=%d, level=%d, duration=%d",
+        //     step_idx, steps_info->data[step_idx].policy_type, steps_info->data[step_idx].mode_type,
+        //     steps_info->data[step_idx].level, steps_info->data[step_idx].duration);
         step_idx++;
         if (cfg[i].policy_type == MOTOR_TIME_POLICY) {
             time_step_num++;
