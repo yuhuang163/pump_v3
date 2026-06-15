@@ -51,6 +51,19 @@ static int breast_pump_completed_route(breast_pump_manager_context_t *ctx)
     return need_save;
 }
 
+static void update_work_valid_time(breast_pump_manager_context_t *ctx, pump_result_info_t *result_info)
+{
+    uint32_t current_mode_work_time = ctx->priv.motor->get_policy_running_time(ctx->priv.m_info.mode);
+    uint32_t offset_work_time = current_mode_work_time > result_info->current_mode_work_time ? 
+        current_mode_work_time - result_info->current_mode_work_time : 0;
+    if (offset_work_time < 100) {
+        result_info->work_valid_time += offset_work_time;
+    }
+    result_info->current_mode_work_time = current_mode_work_time;
+    ctx->priv.m_result.work_valid_time = result_info->work_valid_time;
+}
+
+
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
 static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_result_info_t *result_info)
 {
@@ -111,13 +124,15 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     }
     result_info->target_valid_time = result_info->setting_time;
     m_result->total_valid_time = result_info->target_valid_time;
+    result_info->hostory_work_time += result_info->current_mode_work_time;
     if (PUMP_IS_COMMON_MODE(m_info->mode)) {
+        update_work_valid_time(ctx, result_info);
         m_info->common_mode = m_info->mode;
-        result_info->hostory_work_time += result_info->current_mode_work_time;
         ctx->priv.st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE,
             BREAST_PUMP_MODE_TYPE_COMMON, m_info->mode, NULL);
     } else {
-        result_info->hostory_work_time = 0;
+        result_info->work_valid_time = 0;
+        ctx->priv.m_result.work_valid_time = result_info->work_valid_time;
         m_info->breastfeeding_mode = m_info->mode;
         ctx->priv.st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE,
             BREAST_PUMP_MODE_TYPE_BREASTFEEDING, m_info->mode, NULL);
@@ -127,17 +142,16 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     if (result_info->work_valid_time < PUMP_AUTO_PAUSE_TIME_MS) {
         m_info->auto_pause_onoff = true;
     }
-    LOG_PMP("mode update:%d/%d; common:%d expert:%d; auto pause:%d time:%d/%d/%d", 
+    LOG_PMP("mode update:%d/%d; common:%d expert:%d; auto pause:%d time:(%d/%d)%d/%d", 
         result_info->mode, m_info->mode, m_info->common_mode,
         m_info->breastfeeding_mode, m_info->auto_pause_onoff,
         PUMP_TIME_TO_SECOND(result_info->current_mode_work_time), 
         PUMP_TIME_TO_SECOND(result_info->hostory_work_time),
+        PUMP_TIME_TO_SECOND(result_info->work_valid_time),
         PUMP_TIME_TO_SECOND(result_info->target_valid_time));
     result_info->current_mode_work_time = 0;
     result_info->mode = m_info->mode;
     result_info->start_time = get_timestamp();
-    result_info->work_valid_time = result_info->current_mode_work_time + result_info->hostory_work_time;
-    ctx->priv.m_result.work_valid_time = result_info->work_valid_time;
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
 }
 #endif
@@ -148,13 +162,10 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     int ret = RESULT_PUMP_NORMAL;
     log_timer++;
     /// 更新模式和力度.
-    //if (result_info->mode != ctx->priv.m_info.mode) {
-        ctx->priv.m_result.working_mode = ctx->priv.m_info.mode;
-    //}
+    ctx->priv.m_result.working_mode = ctx->priv.m_info.mode;
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
-    result_info->current_mode_work_time = ctx->priv.motor->get_policy_running_time(ctx->priv.m_info.mode);
-    result_info->work_valid_time = result_info->hostory_work_time + result_info->current_mode_work_time;
-    ctx->priv.m_result.work_valid_time = result_info->work_valid_time;
+    /// 更新运行时间
+    update_work_valid_time(ctx, result_info);
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
     if ((result_info->work_valid_time >= result_info->target_valid_time  || 
         result_info->work_valid_time >= SINGLE_PUMP_TIME_MAX)  && 
@@ -175,7 +186,7 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     }
 #endif
     
-/// 判断是否需要自动暂停
+    /// 判断是否需要自动暂停
     if (ctx->priv.m_info.auto_pause_onoff && result_info->work_valid_time >= PUMP_AUTO_PAUSE_TIME_MS) {
         ctx->priv.m_info.auto_pause_onoff = false;
         if (PUMP_IS_COMMON_MODE(ctx->priv.m_info.mode)) {
