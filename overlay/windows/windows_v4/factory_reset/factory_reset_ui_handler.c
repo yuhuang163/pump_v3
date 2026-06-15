@@ -32,6 +32,13 @@ static void factory_reset_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     ui_display_factory_reset_process(ui);
+    if (get_timestamp_ms(proc->led_blink_time) >= proc->led_blink_period) {
+        proc->led_blink_time = get_timestamp();
+        proc->led_blink_status = proc->led_blink_status == 0 ? LED_LEVEL_MAX : 0;
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, proc->led_blink_status);
+        }
+    }
 }
 
 static void factory_reset_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -94,9 +101,9 @@ static void start_factory_reset_ui_animation(ui_proc_factory_reset_t *proc)
 
 static void factory_reset_led_blink_policy(ui_proc_factory_reset_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc && proc->led);
-    LOG_UI("factory reset led blink policy");
-    proc->led->set_led_blink(PUMP_LED_ALL_ID, LED_MEDIUM_BLINK_TIME, 0, LED_STATUS_OFF);
+    proc->led_blink_period = LED_MEDIUM_BLINK_TIME;
+    proc->led_blink_time = get_timestamp();
+    proc->led_blink_status = 0;
 }
 
 static void factory_reset_cb(hdr_post_args_t *args)
