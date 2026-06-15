@@ -3,14 +3,10 @@
  */
 
 #include "root_common_api.h"
-#include "hal_battery.h"
-#include "hal_ble.h"
 #include "data_bury_persist_defs.h"
 #include "data_bury_event_handler.h"
 
 typedef struct {
-    uint8_t last_charge_status;
-    uint8_t charge_tracked;
     uint8_t session_start_mode;
     uint8_t session_start_level;
     uint8_t bt_session_cached;
@@ -44,6 +40,50 @@ static uint8_t data_bury_event_get_battery_percent(void)
         return bat->get_battery_percent();
     }
     return 0u;
+}
+
+typedef struct {
+    uint32_t percent;
+    uint32_t voltage_mv;
+    uint32_t current_ma;
+    int32_t temp_c;
+} data_bury_battery_charge_metrics_t;
+
+static data_bury_battery_charge_metrics_t data_bury_event_sample_battery_charge_metrics(void)
+{
+    data_bury_battery_charge_metrics_t metrics = {0};
+    peripheral_bus_context_t *pbus;
+    rt_device_node_t *battery_dev;
+    uint16_t ibat_ma = 0;
+
+    metrics.percent = data_bury_event_get_battery_percent();
+
+    pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    if (!pbus || !pbus->find_device) {
+        return metrics;
+    }
+    battery_dev = pbus->find_device(ID_DEVICE_BATTERY);
+    if (!battery_dev || !battery_dev->ioctl) {
+        return metrics;
+    }
+
+    DEVICE_IOCTL_NO_RET(battery_dev, OP_CODE_BAT_POLL_VOLTAGE);
+
+    DEVICE_IOCTL_HAS_RET(battery_dev, OP_CODE_BAT_GET_VOLTAGE, voltage_ret);
+    if (voltage_ret >= 0) {
+        metrics.voltage_mv = (uint16_t)voltage_ret;
+    }
+
+    DEVICE_IOCTL_HAS_RET(battery_dev, OP_CODE_BAT_GET_CHARGE_TEMPERATURE, temp_ret);
+    if (temp_ret >= 0) {
+        metrics.temp_c = (int8_t)temp_ret;
+    }
+
+    DEVICE_IOCTL_ARGS_HAS_RET(battery_dev, OP_CODE_BAT_GET_CHARGE_IBAT_MA, &ibat_ma, current_ret);
+    if (current_ret == 0) {
+        metrics.current_ma = (int16_t)ibat_ma;
+    }
+    return metrics;
 }
 
 static uint8_t data_bury_event_get_suction_level(breast_pump_manager_context_t *pump)
@@ -267,11 +307,15 @@ static void data_bury_event_publish_pump_session_end(data_bury_manager_context_t
 static void data_bury_event_publish_charge_start(data_bury_manager_context_t *ctx)
 {
     data_bury_evt_bat_charge_start_t evt = {0};
+    data_bury_battery_charge_metrics_t metrics = data_bury_event_sample_battery_charge_metrics();
 
     evt.device_side = ctx->data_bury_get_device_side();
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
-    evt.start_battery_percent = data_bury_event_get_battery_percent();
+    evt.start_battery_percent = metrics.percent;
+    evt.start_battery_voltage = metrics.voltage_mv;
+    evt.start_battery_current = metrics.current_ma;
+    evt.start_battery_temp = metrics.temp_c;
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BAT_CHARGE_START,
                                     &evt, (uint16_t)sizeof(evt), 0u);
 }
@@ -279,11 +323,15 @@ static void data_bury_event_publish_charge_start(data_bury_manager_context_t *ct
 static void data_bury_event_publish_charge_end(data_bury_manager_context_t *ctx, int8_t end_reason)
 {
     data_bury_evt_bat_charge_end_t evt = {0};
+    data_bury_battery_charge_metrics_t metrics = data_bury_event_sample_battery_charge_metrics();
 
     evt.device_side = ctx->data_bury_get_device_side();
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
-    evt.end_battery_percent = data_bury_event_get_battery_percent();
+    evt.end_battery_percent = metrics.percent;
+    evt.end_battery_voltage = metrics.voltage_mv;
+    evt.end_battery_current = metrics.current_ma;
+    evt.end_battery_temp = metrics.temp_c;
     evt.end_reason = end_reason;
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BAT_CHARGE_END,
                                     &evt, (uint16_t)sizeof(evt), 0u);
@@ -390,34 +438,23 @@ int data_bury_event_process_ota_start(data_bury_manager_context_t *ctx,
     return 0;
 }
 
-int data_bury_event_process_bat_charge_status(data_bury_manager_context_t *ctx,
-                                                   const data_bury_trigger_args_t *args)
+int data_bury_event_process_bat_charge_start(data_bury_manager_context_t *ctx,
+                                                    const data_bury_trigger_args_t *args)
 {
-    uint8_t now_status = (uint8_t)args->arg1;
-    uint8_t prev = (uint8_t)args->arg2;
-    uint8_t now_charging;
-    uint8_t prev_charging;
+    (void)args;
+    data_bury_event_publish_charge_start(ctx);
+    return 0;
+}
 
-    if (!s_event_rt.charge_tracked) {
-        s_event_rt.last_charge_status = now_status;
-        s_event_rt.charge_tracked = 1u;
-        return 0;
-    }
-    if (prev == now_status) {
-        return 0;
-    }
+int data_bury_event_process_bat_charge_end(data_bury_manager_context_t *ctx,
+                                                  const data_bury_trigger_args_t *args)
+{
+    int8_t end_reason = DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG;
 
-    now_charging = BATTERY_IS_CHARGING(now_status) ? 1u : 0u;
-    prev_charging = BATTERY_IS_CHARGING(prev) ? 1u : 0u;
-    if (!prev_charging && now_charging) {
-        data_bury_event_publish_charge_start(ctx);
-    } else if (prev_charging && !now_charging) {
-        int8_t end_reason = (prev == CHARGE_STATE_FULL)
-            ? DATA_BURY_BAT_CHARGE_END_REASON_FULL
-            : DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG;
-        data_bury_event_publish_charge_end(ctx, end_reason);
+    if (args && args->arg1 >= 0) {
+        end_reason = (int8_t)args->arg1;
     }
-    s_event_rt.last_charge_status = now_status;
+    data_bury_event_publish_charge_end(ctx, end_reason);
     return 0;
 }
 
