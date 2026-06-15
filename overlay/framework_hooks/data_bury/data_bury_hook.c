@@ -12,6 +12,7 @@ const static data_bury_event_process_handle_t data_bury_event_process_list[] = {
     { DATA_BURY_TRIGGER_EVT_BLE_CONNECTED, data_bury_event_process_ble_connected },
     { DATA_BURY_TRIGGER_EVT_BLE_DISCONNECT, data_bury_event_process_ble_disconnect },
     { DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START, data_bury_event_process_pump_session_start },
+    { DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH, data_bury_event_process_pump_mode_switch },
     { DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, data_bury_event_process_pump_session_end },
     { DATA_BURY_TRIGGER_EVT_POWER_ON, data_bury_event_process_power_on },
     { DATA_BURY_TRIGGER_EVT_POWER_OFF, data_bury_event_process_power_off },

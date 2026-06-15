@@ -99,6 +99,10 @@ static void start_breast_pump_work(uint8_t is_continue_work)
     STOP_TIMER(ctx->priv.breast_pump_work_timer);
     START_TIMER(ctx->priv.breast_pump_work_timer, PUMP_WORK_STEP_TIME_MS);
     LOG_PMP("is_continue_work: %d", is_continue_work);
+    // 如果接续工作，则触发泵奶启动埋点事件
+    if (!is_continue_work) {
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START, 0, 0);
+    }
 }
 
 static void stop_breast_pump_work(int breast_pump_state)
@@ -756,6 +760,8 @@ static void make_progress(breast_pump_manager_context_t *ctx)
                 ctx->priv.notify_time = get_timestamp();
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_COMPLETED);
             }
+            /// 触发泵奶结束埋点
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
         } else if (notify_id == RESULT_PUMP_WILL_FINISH) {
             if (get_timestamp_ms(breast_pump_obj->priv.notify_time) > 5000) {
                 breast_pump_obj->priv.notify_time = get_timestamp();

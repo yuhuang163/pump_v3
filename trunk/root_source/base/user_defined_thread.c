@@ -219,7 +219,7 @@ static void data_bury_pressure_test_init_payloads(
 {
     data_bury_evt_pump_session_end_fixed_t *session_end;
     data_bury_evt_milk_volume_fixed_t *milk_volume;
-    uint32_t *mode_durations;
+    data_bury_evt_program_duration_t *program_durations;
     uint16_t *volume_samples;
     data_bury_manager_context_t *bury_ctx;
     uint8_t device_side;
@@ -263,7 +263,7 @@ static void data_bury_pressure_test_init_payloads(
     session_start->initial_volume_ml = 0u;
     session_start->initial_battery_level = 84u;
 
-    memset(session_end_buf, 0, DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN + 8u);
+    memset(session_end_buf, 0, DATA_BURY_EVT_PUMP_SESSION_END_PAYLOAD_LEN(2u));
     session_end = (data_bury_evt_pump_session_end_fixed_t *)session_end_buf;
     session_end->device_side = device_side;
     session_end->use_session_id = sid;
@@ -277,12 +277,12 @@ static void data_bury_pressure_test_init_payloads(
     session_end->end_reason = DATA_BURY_END_REASON_MANUAL;
     session_end->milk_drop_count = 2u;
     session_end->used_mode_count = 2u;
-    session_end->pump_side = bury_ctx->data_bury_get_pump_side();
-    session_end->initial_program_id = 0u;
-    session_end->initial_program_type = 0u;
-    mode_durations = (uint32_t *)(session_end_buf + DATA_BURY_EVT_PUMP_SESSION_END_MODE_OFF);
-    mode_durations[0] = 60u;
-    mode_durations[1] = 120u;
+    program_durations = (data_bury_evt_program_duration_t *)(session_end_buf +
+        DATA_BURY_EVT_PUMP_SESSION_END_PROGRAM_OFF);
+    program_durations[0].mode_or_program_id = 1u;
+    program_durations[0].duration_sec = 60u;
+    program_durations[1].mode_or_program_id = 2u;
+    program_durations[1].duration_sec = 120u;
 
     memset(manual_adjust, 0, sizeof(*manual_adjust));
     manual_adjust->device_side = device_side;
@@ -413,7 +413,7 @@ static int data_bury_pressure_test_cb(void)
     static data_bury_evt_pump_shutdown_t evt_shutdown;
     static data_bury_evt_bt_connect_t evt_bt_connect;
     static data_bury_evt_pump_session_start_t evt_session_start;
-    static uint8_t evt_session_end_buf[DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN + 8u];
+    static uint8_t evt_session_end_buf[DATA_BURY_EVT_PUMP_SESSION_END_PAYLOAD_LEN(2u)];
     static data_bury_evt_pump_manual_adjust_t evt_manual_adjust;
     static data_bury_evt_pump_user_evt_t evt_user_evt;
     static data_bury_evt_milk_ejection_t evt_milk_ejection;
@@ -434,7 +434,7 @@ static int data_bury_pressure_test_cb(void)
         { SERVERS_PUBLISH_DATA_DATA_BURY_BT_CONNECT_EVENT, &evt_bt_connect, 0, "bt_connect" },
         { SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_START, &evt_session_start, 0, "session_start" },
         { SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_END, evt_session_end_buf,
-          (int)(DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN + 8u), "session_end" },
+          (int)DATA_BURY_EVT_PUMP_SESSION_END_PAYLOAD_LEN(2u), "session_end" },
         { SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_MANUAL_ADJUST, &evt_manual_adjust, 0, "manual_adjust" },
         { SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_USER_EVENT, &evt_user_evt, 0, "user_event" },
         { SERVERS_PUBLISH_DATA_DATA_BURY_MILK_EJECTION, &evt_milk_ejection, 0, "milk_ejection" },

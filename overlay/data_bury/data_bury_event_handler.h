@@ -16,6 +16,8 @@ int data_bury_event_process_ble_disconnect(data_bury_manager_context_t *ctx,
                                            const data_bury_trigger_args_t *args);
 int data_bury_event_process_pump_session_start(data_bury_manager_context_t *ctx,
                                                const data_bury_trigger_args_t *args);
+int data_bury_event_process_pump_mode_switch(data_bury_manager_context_t *ctx,
+                                             const data_bury_trigger_args_t *args);
 int data_bury_event_process_pump_session_end(data_bury_manager_context_t *ctx,
                                              const data_bury_trigger_args_t *args);
 int data_bury_event_process_power_on(data_bury_manager_context_t *ctx,

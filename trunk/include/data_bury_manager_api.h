@@ -86,6 +86,9 @@ typedef enum {
 /** 映射后跳过上报 */
 #define DATA_BURY_BT_DISCONNECT_REASON_SKIP       0xFFu
 
+/** 有效泵奶 session 最短时长(秒)，与 pump_m5pro 一致：仅超过此时长才分配 pump_session_id 并落盘 start/end */
+#define DATA_BURY_PUMP_SESSION_MIN_DURATION_SEC   120u
+
 /**
  * DATA_BURY_TRIGGER_EVT_BLE_CONNECTED：
  *   arg1=建连耗时 setup_ms（广播窗口起点至建连完成，由应用层传入，上限 65535ms）
@@ -93,6 +96,7 @@ typedef enum {
  * DATA_BURY_TRIGGER_EVT_BLE_DISCONNECT：arg1=HCI 断开原因，arg2=保留
  * DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START：arg1/arg2 保留
  * DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END：arg1=结束原因（DATA_BURY_BAT_CHARGE_END_REASON_*），arg2 保留
+ * DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH：arg1=adjust_from，arg2=adjust_to，val=uint16_t* duration_sec(秒)
  */
 
 typedef enum {
@@ -100,6 +104,7 @@ typedef enum {
     DATA_BURY_TRIGGER_EVT_BLE_CONNECTED,
     DATA_BURY_TRIGGER_EVT_BLE_DISCONNECT,
     DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START,
+    DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH,
     DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END,
     DATA_BURY_TRIGGER_EVT_POWER_ON,
     DATA_BURY_TRIGGER_EVT_POWER_OFF,
@@ -234,7 +239,8 @@ typedef struct data_bury_manager_context {
     uint8_t (*data_bury_get_device_side)(void);
     uint8_t (*data_bury_get_pump_side)(void);
     uint16_t (*data_bury_get_current_pump_session_id)(void);
-    uint16_t (*data_bury_alloc_pump_session_id)(void);
+    uint16_t (*data_bury_alloc_pump_session_id_on_commit)(void);
+    void (*data_bury_reset_pump_session_state)(void);
     void (*data_bury_pump_session_begin)(void);
     void (*data_bury_pump_session_end)(void);
     void (*data_bury_fill_evt_common_hdr)(void *payload, uint16_t payload_len, servers_publish_data_id_e id);

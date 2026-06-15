@@ -1,6 +1,6 @@
 /*
  * Momcozy 数据埋点 Data Service TLV 组包（设备上报，协议 v1.0.2）
- * Flash 环 packed(LE) -> 联机 TLV(BE)：按 packed 偏移组包；pump_side 仅 EVT_005 Type 0x0D
+ * Flash 环 packed(LE) -> 联机 TLV(BE)：按 packed 偏移组包
  */
 
 #include "root_common_api.h"
@@ -217,12 +217,14 @@ static int data_bury_tlv_pack_pump_session_end(const uint8_t *packed, uint16_t p
                                                data_bury_tlv_builder_t *builder)
 {
     uint8_t used;
+    uint16_t program_off;
 
     if (packed_len < DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN) {
         return -1;
     }
     used = packed[22];
-    if (packed_len < (uint16_t)(DATA_BURY_EVT_PUMP_SESSION_END_MODE_OFF + (uint16_t)used * 4u)) {
+    program_off = DATA_BURY_EVT_PUMP_SESSION_END_PROGRAM_OFF;
+    if (packed_len < DATA_BURY_EVT_PUMP_SESSION_END_PAYLOAD_LEN(used)) {
         return -1;
     }
     if (BURY_PACK_HDR(builder, packed) != 0 ||
@@ -234,30 +236,27 @@ static int data_bury_tlv_pack_pump_session_end(const uint8_t *packed, uint16_t p
         return -1;
     }
     if (used > 0u) {
-        uint16_t body_len = (uint16_t)used * 4u;
-        uint8_t body[DATA_BURY_PUMP_SESSION_MAX_MODES * 4u];
+        uint16_t program_body_len = (uint16_t)used * 6u;
+        uint8_t program_body[DATA_BURY_PUMP_SESSION_MAX_MODES * 6u];
         uint8_t i;
-        uint16_t mode_off = DATA_BURY_EVT_PUMP_SESSION_END_MODE_OFF;
 
-        if (body_len > 255u) {
+        if (program_body_len > 255u) {
             return -1;
         }
         for (i = 0; i < used; i++) {
-            uint16_t mt = bury_rd_u16(packed + mode_off + (uint16_t)i * 4u);
-            uint16_t du = bury_rd_u16(packed + mode_off + (uint16_t)i * 4u + 2u);
-            body[(uint16_t)i * 4u] = (uint8_t)(mt >> 8);
-            body[(uint16_t)i * 4u + 1u] = (uint8_t)mt;
-            body[(uint16_t)i * 4u + 2u] = (uint8_t)(du >> 8);
-            body[(uint16_t)i * 4u + 3u] = (uint8_t)du;
+            uint32_t pid = bury_rd_u32(packed + program_off + (uint16_t)i * 6u);
+            uint16_t pdu = bury_rd_u16(packed + program_off + (uint16_t)i * 6u + 4u);
+
+            program_body[(uint16_t)i * 6u] = (uint8_t)(pid >> 24);
+            program_body[(uint16_t)i * 6u + 1u] = (uint8_t)(pid >> 16);
+            program_body[(uint16_t)i * 6u + 2u] = (uint8_t)(pid >> 8);
+            program_body[(uint16_t)i * 6u + 3u] = (uint8_t)pid;
+            program_body[(uint16_t)i * 6u + 4u] = (uint8_t)(pdu >> 8);
+            program_body[(uint16_t)i * 6u + 5u] = (uint8_t)pdu;
         }
-        if (bury_builder_add_raw(builder, 0x0Cu, body, (uint8_t)body_len) != 0) {
+        if (bury_builder_add_raw(builder, 0x0Du, program_body, (uint8_t)program_body_len) != 0) {
             return -1;
         }
-    }
-    if (BURY_ADD_U8(builder, 0x0Du, packed, 23) != 0 ||
-        BURY_ADD_U8(builder, 0x0Eu, packed, 24) != 0 ||
-        BURY_ADD_U8(builder, 0x0Fu, packed, 25) != 0) {
-        return -1;
     }
     return 0;
 }

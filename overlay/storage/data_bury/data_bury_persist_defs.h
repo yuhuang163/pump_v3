@@ -15,14 +15,14 @@ extern "C" {
 #define DATA_BURY_RING_CHUNK_NUM           1u
 #define DATA_BURY_FLASH_SLOT_NUM           8u
 
-/* 单条环记录 payload 上限（v1.0.2 EVT_005: 25 + 58*4 = 257） */
-#define DATA_BURY_EVENT_PAYLOAD_MAX        260u
+/* 单条环记录 payload 上限（v1.0.2 EVT_005: 23 + 58*6 = 371） */
+#define DATA_BURY_EVENT_PAYLOAD_MAX        372u
 #define DATA_BURY_PUMP_SESSION_MAX_MODES    58u
 
 #define DATA_BURY_SVC_DATA                 APP_DATA_BURY_PROTOCOL_SVC_DATA
 /*============================================================================
  * Data Service 事件载荷（协议 7.1~7.19 / v1.0.2，packed 小端写入 Flash 环）
- * device_side 由应用层填写；pump_side 仅 EVT_005 业务字段 TLV Type 0x0D
+ * device_side 由应用层填写
  *============================================================================*/
 
 /* 协议公共头：device_side + use_session_id + evt_timestamp */
@@ -84,7 +84,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  initial_program_type;   /* O；initial_mode_type=韵律(0x03) 时 TLV 0x0B */
 } data_bury_evt_pump_session_start_t;
 
-/* CMD:0x05 EVT_005 pump_session_end（变长: mode_type_and_duration[used_mode_count]） */
+/* CMD:0x05 EVT_005 pump_session_end（变长: program_duration[used_mode_count]，TLV 0x0D） */
 typedef struct __attribute__((packed)) {
     uint8_t  device_side;
     uint32_t use_session_id;
@@ -98,23 +98,21 @@ typedef struct __attribute__((packed)) {
     uint8_t  end_reason;
     uint8_t  milk_drop_count;
     uint8_t  used_mode_count;
-    uint8_t  pump_side;              /* TLV 0x0D */
-    uint8_t  initial_program_id;     /* TLV 0x0E */
-    uint8_t  initial_program_type;   /* TLV 0x0F */
 } data_bury_evt_pump_session_end_fixed_t;
 
-#define DATA_BURY_EVT_PUMP_SESSION_END_MODE_OFF \
-    ((uint16_t)sizeof(data_bury_evt_pump_session_end_fixed_t))
-
 typedef struct __attribute__((packed)) {
-    data_bury_evt_pump_session_end_fixed_t fixed;
-    uint32_t mode_type_and_duration[];
-} data_bury_evt_pump_session_end_t;
+    uint32_t mode_or_program_id;
+    uint16_t duration_sec;
+} data_bury_evt_program_duration_t;
 
 #define DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN \
     ((uint16_t)sizeof(data_bury_evt_pump_session_end_fixed_t))
+#define DATA_BURY_EVT_PUMP_SESSION_END_PROGRAM_OFF \
+    DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN
+#define DATA_BURY_EVT_PUMP_SESSION_END_PAYLOAD_LEN(_used) \
+    ((uint16_t)(DATA_BURY_EVT_PUMP_SESSION_END_PROGRAM_OFF + ((uint16_t)(_used) * 6u)))
 #define DATA_BURY_EVT_PUMP_SESSION_END_MAX_LEN \
-    (DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN + (DATA_BURY_PUMP_SESSION_MAX_MODES * 4u))
+    DATA_BURY_EVT_PUMP_SESSION_END_PAYLOAD_LEN(DATA_BURY_PUMP_SESSION_MAX_MODES)
 
 /* CMD:0x06 EVT_006 pump_manual_adjust */
 typedef struct __attribute__((packed)) {

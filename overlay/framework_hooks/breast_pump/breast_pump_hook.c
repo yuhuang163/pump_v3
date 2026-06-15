@@ -259,8 +259,17 @@ static void mode_change_route(breast_pump_manager_context_t *ctx, uint8_t mode)
 {
     breast_pump_info_t *m_info = &ctx->priv.m_info;
     if (m_info->status == BREAST_PUMP_START || m_info->status == BREAST_PUMP_CONTINUE || m_info->status == BREAST_PUMP_PAUSE) {
-        LOG_PMP("mode change: %d", mode);
-        breast_pump_mode_update(ctx, &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING]);
+        pump_result_info_t *result_info = &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING];
+        uint8_t from_mode = (uint8_t)result_info->mode;
+        // 记录模式切换事件,触发埋点
+        LOG_PMP("mode change: %d -> %d", from_mode, mode);
+        if (from_mode != mode) {
+            uint16_t duration_sec = (uint16_t)(result_info->current_mode_work_time / 1000u);
+
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH,
+                                        (int)from_mode, (int)mode, &duration_sec);
+        }
+        breast_pump_mode_update(ctx, result_info);
     } else {
         LOG_PMP("mode change: %d, ignore", mode);
     }
