@@ -14,7 +14,7 @@
 */
 #define PAGE_STATIC_NAME                            logo
 #define PAGE_NAME_STR                               "logo"
-#define LOGO_UI_KEY_CODE                            (KEY_CODE_KNOB_RIGHT | KEY_CODE_KNOB_LEFT)
+#define LOGO_UI_KEY_CODE                            (KEY_CODE_KNOB_RIGHT | KEY_CODE_KNOB_LEFT | KEY_CODE_START)
 #define LOGO_UI_KEY_TYPE                            KEY_EVENT_CLICK
 #define TOUCH_KEY_FW_VERSION_CHECK_TASK_NAME       "touch_key_fw_version_check"
 #define REMOVE_ALL_HANDER_TASK() \
@@ -76,6 +76,8 @@ static int on_logo_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         proc->test_page_count--;
     } else if (keycode == KEY_CODE_KNOB_RIGHT) {
         proc->test_page_count++;
+    } else if (keycode == KEY_CODE_START) {
+        proc->is_test_anim = proc->is_test_anim == 0 ? 1 : 0;
     }
 #if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
     logo_test_key_backlight_on(proc);
@@ -94,10 +96,14 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         #if IS_SUPPORT_LOGO_BG_COLOR_TEST
             if (proc->key) {
                 ADD_KEYEVENT_CB(proc->key, "home_wm", proc, LOGO_UI_KEY_CODE, LOGO_UI_KEY_TYPE,
-                    on_logo_ui_keyevent_hdr);
+                    on_logo_ui_keyevent_hdr);   
         #if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
-            logo_test_key_backlight_on(proc);
+                logo_test_key_backlight_on(proc);
         #endif
+            }
+            if (proc->led) {
+                proc->led->set_led_onoff(PUMP_START_BL, LED_STATUS_ON);
+            }
         #endif
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
