@@ -48,6 +48,7 @@ typedef struct {
     uint16_t current_ui_type; /// 当前UI类型. logo_ui_type_e
 #if IS_SUPPORT_LOGO_BG_COLOR_TEST
     uint8_t test_page_count;
+    uint8_t is_test_anim; /// 测试动画标志
 #endif
 } ui_proc_logo_t;
 
