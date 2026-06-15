@@ -121,7 +121,7 @@ static uint16_t data_bury_get_current_pump_session_id(void)
     return thiz ? thiz->priv.current_pump_session_id : 0u;
 }
 
-static uint16_t data_bury_alloc_pump_session_id(void)
+static uint16_t data_bury_alloc_pump_session_id_on_commit(void)
 {
     uint16_t id;
 
@@ -131,8 +131,19 @@ static uint16_t data_bury_alloc_pump_session_id(void)
     id = thiz->priv.pump_session_counter;
     thiz->priv.pump_session_counter++;
     thiz->priv.current_pump_session_id = id;
-    LOG_BURY("data bury alloc pump_session_id=%u", (unsigned)id);
+    LOG_BURY("data bury alloc pump_session_id on commit=%u", (unsigned)id);
     return id;
+}
+
+static void data_bury_reset_pump_session_state(void)
+{
+    if (!thiz) {
+        return;
+    }
+    thiz->priv.pump_session_counter = 0u;
+    thiz->priv.pump_session_active = 0u;
+    thiz->priv.current_pump_session_id = 0u;
+    LOG_BURY("data bury reset pump session state");
 }
 
 static void data_bury_pump_session_begin(void)
@@ -525,7 +536,8 @@ void *register_module_for_data_burial_new(list_head_t *list_head)
     ptr->data_bury_get_device_side = data_bury_get_device_side;
     ptr->data_bury_get_pump_side = data_bury_get_pump_side;
     ptr->data_bury_get_current_pump_session_id = data_bury_get_current_pump_session_id;
-    ptr->data_bury_alloc_pump_session_id = data_bury_alloc_pump_session_id;
+    ptr->data_bury_alloc_pump_session_id_on_commit = data_bury_alloc_pump_session_id_on_commit;
+    ptr->data_bury_reset_pump_session_state = data_bury_reset_pump_session_state;
     ptr->data_bury_pump_session_begin = data_bury_pump_session_begin;
     ptr->data_bury_pump_session_end = data_bury_pump_session_end;
     ptr->data_bury_fill_evt_common_hdr = data_bury_fill_evt_common_hdr;

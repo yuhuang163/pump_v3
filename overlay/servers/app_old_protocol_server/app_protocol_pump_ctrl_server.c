@@ -1528,6 +1528,9 @@ void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab)
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_VOID(pump_ctx);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_RESET_STATUS, 0, NULL);
+    /// 触发泵奶结束埋点
+    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END,
+                            DATA_BURY_END_REASON_MANUAL, 0);
     /// 先重置pump，再将pump状态设置为空闲
     WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_RESET, 1);
     app_broadcast_pump_status_to_window(BREAST_PUMP_RESET,OLD_BROADCAST_ALL_CT);

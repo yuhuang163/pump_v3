@@ -124,6 +124,8 @@ void show_home_pump_result_ui(ui_proc_home_t *proc)
     if (PUMP_NO_FINISH(pump_status)) {
         LOG_UI("=>set pump finish%d", pump_status);
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, 1);
+        /// 触发泵奶结束埋点
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 0);
     } else {
         char *state_name = "unknow";
         READ_PUMP_STATE_NAME(proc->pump, &state_name);

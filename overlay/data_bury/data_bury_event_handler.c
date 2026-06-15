@@ -14,9 +14,42 @@ typedef struct {
     uint32_t bt_connect_timestamp_utc;
     uint16_t bt_connection_setup_duration;
     int8_t bt_signal_strength_rssi;
+    uint8_t mode_queue_tracking;
+    uint8_t mode_queue_count;
+    data_bury_evt_program_duration_t mode_queue[DATA_BURY_PUMP_SESSION_MAX_MODES];
+    uint8_t pump_session_start_pending;
+    uint32_t pending_pump_session_start_utc;
+    data_bury_evt_pump_session_start_t pending_pump_session_start;
 } data_bury_event_runtime_t;
 
 static data_bury_event_runtime_t s_event_rt;
+
+static void data_bury_session_mode_queue_reset(void)
+{
+    s_event_rt.mode_queue_tracking = 0u;
+    s_event_rt.mode_queue_count = 0u;
+    memset(s_event_rt.mode_queue, 0, sizeof(s_event_rt.mode_queue));
+}
+
+static void data_bury_session_mode_queue_begin(void)
+{
+    data_bury_session_mode_queue_reset();
+    s_event_rt.mode_queue_tracking = 1u;
+}
+
+static int data_bury_session_mode_queue_push(uint32_t mode_or_program_id, uint16_t duration_sec)
+{
+    uint8_t idx;
+
+    if (!s_event_rt.mode_queue_tracking || s_event_rt.mode_queue_count >= DATA_BURY_PUMP_SESSION_MAX_MODES) {
+        return -1;
+    }
+    idx = s_event_rt.mode_queue_count;
+    s_event_rt.mode_queue[idx].mode_or_program_id = mode_or_program_id;
+    s_event_rt.mode_queue[idx].duration_sec = duration_sec;
+    s_event_rt.mode_queue_count++;
+    return 0;
+}
 
 static int data_bury_event_publish(data_bury_manager_context_t *ctx, servers_publish_data_id_e id,
                                    void *payload, uint16_t payload_len, uint32_t delay_ms)
@@ -224,13 +257,23 @@ static int data_bury_event_publish_bt_session_end(data_bury_manager_context_t *c
     return 0;
 }
 
-static void data_bury_event_publish_pump_session_start(data_bury_manager_context_t *ctx)
+static void data_bury_pump_session_pending_discard(data_bury_manager_context_t *ctx)
+{
+    s_event_rt.pump_session_start_pending = 0u;
+    s_event_rt.pending_pump_session_start_utc = 0u;
+    memset(&s_event_rt.pending_pump_session_start, 0, sizeof(s_event_rt.pending_pump_session_start));
+    data_bury_session_mode_queue_reset();
+    if (ctx && ctx->data_bury_pump_session_end) {
+        ctx->data_bury_pump_session_end();
+    }
+}
+
+static void data_bury_event_buffer_pump_session_start(data_bury_manager_context_t *ctx)
 {
     breast_pump_manager_context_t *pump =
         (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     data_bury_evt_pump_session_start_t evt = {0};
     int mode = 0;
-    uint16_t session_id = 0;
 
     if (!pump) {
         return;
@@ -239,69 +282,131 @@ static void data_bury_event_publish_pump_session_start(data_bury_manager_context
     if (ctx->data_bury_pump_session_begin) {
         ctx->data_bury_pump_session_begin();
     }
-    if (ctx->data_bury_alloc_pump_session_id) {
-        session_id = ctx->data_bury_alloc_pump_session_id();
-    }
-    s_event_rt.session_start_mode = mode;
+    s_event_rt.session_start_mode = (uint8_t)mode;
     s_event_rt.session_start_level = data_bury_event_get_suction_level(pump);
 
     evt.device_side = ctx->data_bury_get_device_side();
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
-    evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
-    evt.pump_session_id = session_id;
-    evt.initial_mode_type = mode;
+    evt.evt_timestamp = platform_get_utc_time();
+    evt.pump_session_id = 0u;
+    evt.initial_mode_type = (uint8_t)mode;
     evt.initial_suction_level = s_event_rt.session_start_level;
     evt.initial_battery_level = data_bury_event_get_battery_percent();
-    (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_START,
-                                    &evt, (uint16_t)sizeof(evt), 0u);
+
+    s_event_rt.pending_pump_session_start = evt;
+    s_event_rt.pending_pump_session_start_utc = evt.evt_timestamp;
+    s_event_rt.pump_session_start_pending = 1u;
+    data_bury_session_mode_queue_begin();
+    LOG_BURY("pump session start buffered ts=%u (commit on valid end >= %us)",
+             (unsigned)evt.evt_timestamp, (unsigned)DATA_BURY_PUMP_SESSION_MIN_DURATION_SEC);
 }
 
-static void data_bury_event_publish_pump_session_end(data_bury_manager_context_t *ctx, uint8_t end_reason)
+static void data_bury_event_record_pump_mode_switch(uint8_t adjust_from, uint8_t adjust_to,
+                                                    uint16_t duration_sec)
+{
+    if (!s_event_rt.mode_queue_tracking || adjust_from == adjust_to) {
+        return;
+    }
+
+    (void)data_bury_session_mode_queue_push((uint32_t)adjust_from, duration_sec);
+    LOG_BURY("mode switch queue: from=%u to=%u dur=%u count=%u",
+             (unsigned)adjust_from, (unsigned)adjust_to, (unsigned)duration_sec,
+             (unsigned)s_event_rt.mode_queue_count);
+}
+
+static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t *ctx, uint8_t end_reason)
 {
     breast_pump_manager_context_t *pump =
         (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    uint8_t buf[DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN + 4u];
+    uint8_t buf[DATA_BURY_EVT_PUMP_SESSION_END_MAX_LEN];
     data_bury_evt_pump_session_end_fixed_t *evt =
         (data_bury_evt_pump_session_end_fixed_t *)buf;
+    data_bury_evt_program_duration_t *program_durations;
     pump_result_info_t result = {0};
     int mode = 0;
-    uint32_t *mode_durations;
     uint16_t session_id = 0;
+    uint8_t used_mode_count;
+    uint16_t duration_sec;
     uint16_t payload_len;
+    uint32_t end_utc;
+    uint32_t session_duration_sec;
+    uint8_t i;
 
     if (!pump) {
         return;
     }
-    if (ctx->data_bury_get_current_pump_session_id) {
-        session_id = ctx->data_bury_get_current_pump_session_id();
-    }
-    if (session_id == 0u) {
+    if (!s_event_rt.pump_session_start_pending) {
+        LOG_BURY("pump session end: no pending start, discard");
+        data_bury_pump_session_pending_discard(ctx);
         return;
+    }
+
+    end_utc = platform_get_utc_time();
+    session_duration_sec = end_utc - s_event_rt.pending_pump_session_start_utc;
+    if (session_duration_sec < DATA_BURY_PUMP_SESSION_MIN_DURATION_SEC) {
+        LOG_BURY("pump session end: duration=%u sec < %u, discard",
+                 (unsigned)session_duration_sec, (unsigned)DATA_BURY_PUMP_SESSION_MIN_DURATION_SEC);
+        data_bury_pump_session_pending_discard(ctx);
+        return;
+    }
+
+    if (ctx->data_bury_alloc_pump_session_id_on_commit) {
+        session_id = ctx->data_bury_alloc_pump_session_id_on_commit();
+    }
+    if (session_id == 0u && ctx->data_bury_get_current_pump_session_id) {
+        session_id = ctx->data_bury_get_current_pump_session_id();
     }
 
     READ_PUMP_WORK_MODE(pump, mode);
     READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result);
+    duration_sec = (uint16_t)(result.current_mode_work_time / 1000u);
+    if (s_event_rt.mode_queue_tracking) {
+        (void)data_bury_session_mode_queue_push((uint32_t)mode, duration_sec);
+    }
+
+    used_mode_count = s_event_rt.mode_queue_count;
+    if (used_mode_count == 0u) {
+        used_mode_count = 1u;
+    }
 
     memset(buf, 0, sizeof(buf));
     evt->device_side = ctx->data_bury_get_device_side();
     evt->use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt->evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
     evt->pump_session_id = session_id;
-    evt->final_mode_type = mode;
+    evt->final_mode_type = (uint8_t)mode;
     evt->final_suction_level = data_bury_event_get_suction_level(pump);
     evt->final_battery_level = data_bury_event_get_battery_percent();
     evt->end_reason = end_reason;
-    evt->used_mode_count = 1u;
-    evt->pump_side = ctx->data_bury_get_pump_side();
-    mode_durations = (uint32_t *)(buf + DATA_BURY_EVT_PUMP_SESSION_END_MODE_OFF);
-    mode_durations[0] = result.work_valid_time / 1000u;
+    evt->used_mode_count = used_mode_count;
 
-    payload_len = (uint16_t)(DATA_BURY_EVT_PUMP_SESSION_END_FIXED_LEN + sizeof(uint32_t));
+    program_durations = (data_bury_evt_program_duration_t *)(buf + DATA_BURY_EVT_PUMP_SESSION_END_PROGRAM_OFF);
+    if (s_event_rt.mode_queue_count > 0u) {
+        for (i = 0; i < s_event_rt.mode_queue_count; i++) {
+            program_durations[i] = s_event_rt.mode_queue[i];
+        }
+    } else {
+        program_durations[0].mode_or_program_id = (uint32_t)mode;
+        program_durations[0].duration_sec = (uint16_t)(result.work_valid_time / 1000u);
+    }
+
+    payload_len = DATA_BURY_EVT_PUMP_SESSION_END_PAYLOAD_LEN(used_mode_count);
+    s_event_rt.pending_pump_session_start.pump_session_id = session_id;
+    (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_START,
+                                    &s_event_rt.pending_pump_session_start,
+                                    (uint16_t)sizeof(s_event_rt.pending_pump_session_start), 0u);
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_END,
-                                    buf, payload_len, 0u);
+                                    buf, payload_len, 100u);
+
+    s_event_rt.pump_session_start_pending = 0u;
+    s_event_rt.pending_pump_session_start_utc = 0u;
+    memset(&s_event_rt.pending_pump_session_start, 0, sizeof(s_event_rt.pending_pump_session_start));
+    data_bury_session_mode_queue_reset();
     if (ctx->data_bury_pump_session_end) {
         ctx->data_bury_pump_session_end();
     }
+    LOG_BURY("pump session end committed id=%u duration=%us modes=%u",
+             (unsigned)session_id, (unsigned)session_duration_sec, (unsigned)used_mode_count);
 }
 
 static void data_bury_event_publish_charge_start(data_bury_manager_context_t *ctx)
@@ -394,14 +499,37 @@ int data_bury_event_process_pump_session_start(data_bury_manager_context_t *ctx,
                                                       const data_bury_trigger_args_t *args)
 {
     (void)args;
-    data_bury_event_publish_pump_session_start(ctx);
+    data_bury_event_buffer_pump_session_start(ctx);
+    return 0;
+}
+
+int data_bury_event_process_pump_mode_switch(data_bury_manager_context_t *ctx,
+                                                    const data_bury_trigger_args_t *args)
+{
+    uint8_t adjust_from;
+    uint8_t adjust_to;
+    uint16_t duration_sec = 0u;
+
+    (void)ctx;
+    if (!args || !args->val) {
+        return -1;
+    }
+    adjust_from = (uint8_t)args->arg1;
+    adjust_to = (uint8_t)args->arg2;
+    duration_sec = *(const uint16_t *)args->val;
+    data_bury_event_record_pump_mode_switch(adjust_from, adjust_to, duration_sec);
     return 0;
 }
 
 int data_bury_event_process_pump_session_end(data_bury_manager_context_t *ctx,
                                                     const data_bury_trigger_args_t *args)
 {
-    data_bury_event_publish_pump_session_end(ctx, (uint8_t)args->arg1);
+    uint8_t end_reason = DATA_BURY_END_REASON_MANUAL;
+
+    if (args && args->arg1 >= 0) {
+        end_reason = (uint8_t)args->arg1;
+    }
+    data_bury_event_commit_pump_session_end(ctx, end_reason);
     return 0;
 }
 
@@ -409,6 +537,10 @@ int data_bury_event_process_power_on(data_bury_manager_context_t *ctx,
                                             const data_bury_trigger_args_t *args)
 {
     (void)args;
+    if (ctx->data_bury_reset_pump_session_state) {
+        ctx->data_bury_reset_pump_session_state();
+    }
+    data_bury_pump_session_pending_discard(ctx);
     data_bury_event_publish_pump_startup(ctx);
     return 0;
 }
@@ -421,6 +553,7 @@ int data_bury_event_process_power_off(data_bury_manager_context_t *ctx,
     if (reason == 0u) {
         reason = DATA_BURY_SHUTDOWN_USER_MANUAL;
     }
+    data_bury_pump_session_pending_discard(ctx);
     data_bury_event_publish_pump_shutdown(ctx, reason);
     if (ctx->priv.ble_ctx && ctx->priv.ble_ctx->ble_is_connected
         && ctx->priv.ble_ctx->ble_is_connected()) {
@@ -461,6 +594,7 @@ int data_bury_event_process_bat_charge_end(data_bury_manager_context_t *ctx,
 void data_bury_event_handler_init_params(void)
 {
     memset(&s_event_rt, 0, sizeof(s_event_rt));
+    data_bury_session_mode_queue_reset();
 }
 
 int data_bury_event_handler_on_ble_notify_broadcast(data_bury_manager_context_t *ctx, int arg1, int arg2)
