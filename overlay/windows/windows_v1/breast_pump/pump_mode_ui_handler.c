@@ -166,7 +166,9 @@ void switch_pump_common_mode_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->pump);
-    uint8_t mode = proc->ui_normal_mode_index;
+    uint8_t mode_from = proc->ui_normal_mode_index;
+    uint8_t mode = mode_from;
+
     if (is_increase) {
         if (mode < BREAST_PUMP_NORMAL_MODE_UPPER) {
             mode++;
@@ -179,6 +181,15 @@ void switch_pump_common_mode_ui(ui_proc_pump_t *proc, bool is_increase)
         } else {
             mode = BREAST_PUMP_NORMAL_MODE_UPPER;
         }
+    }
+    if (mode_from != mode) {
+        data_bury_trigger_manual_adjust_t bury_adj = {
+            .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+            .evt_type = DATA_BURY_ADJUST_PUMP_MODE,
+            .adjust_from = mode_from,
+            .adjust_to = mode,
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
     }
     proc->mode_sync_flag = true;
     proc->ui_normal_mode_index = mode;

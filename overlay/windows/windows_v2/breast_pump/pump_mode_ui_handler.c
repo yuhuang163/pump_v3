@@ -154,11 +154,21 @@ void pump_mode_key_click_handler(ui_proc_pump_t *proc)
             LOG_UI("switch %s mode: %d", mode_name, proc->ui_normal_mode_index);
         }
     } else {
-        uint8_t mode = proc->ui_normal_mode_index;
+        uint8_t mode_from = proc->ui_normal_mode_index;
+        uint8_t mode = mode_from;
         if (mode < BREAST_PUMP_NORMAL_MODE_UPPER) {
             mode++;
         } else {
             mode = BREAST_PUMP_NORMAL_MODE_LOWER;
+        }
+        if (mode_from != mode) {
+            data_bury_trigger_manual_adjust_t bury_adj = {
+                .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+                .evt_type = DATA_BURY_ADJUST_PUMP_MODE,
+                .adjust_from = mode_from,
+                .adjust_to = mode,
+            };
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
         }
         proc->ui_normal_mode_index = mode;
         WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);

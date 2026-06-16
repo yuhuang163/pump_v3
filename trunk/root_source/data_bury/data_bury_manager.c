@@ -128,9 +128,8 @@ static uint16_t data_bury_alloc_pump_session_id_on_commit(void)
     if (!thiz) {
         return 0u;
     }
-    id = thiz->priv.pump_session_counter;
+    id = thiz->priv.current_pump_session_id;
     thiz->priv.pump_session_counter++;
-    thiz->priv.current_pump_session_id = id;
     LOG_BURY("data bury alloc pump_session_id on commit=%u", (unsigned)id);
     return id;
 }
@@ -152,8 +151,8 @@ static void data_bury_pump_session_begin(void)
         return;
     }
     thiz->priv.pump_session_active = 1u;
-    thiz->priv.current_pump_session_id = 0u;
-    LOG_BURY("data bury pump session begin");
+    thiz->priv.current_pump_session_id = thiz->priv.pump_session_counter;
+    LOG_BURY("data bury pump session begin id=%u", (unsigned)thiz->priv.current_pump_session_id);
 }
 
 static void data_bury_pump_session_end(void)
@@ -198,10 +197,10 @@ static void data_bury_fill_evt_common_hdr(void *payload, uint16_t payload_len, s
         return;
     }
     pump_session_id = *(uint16_t *)((uint8_t *)payload + DATA_BURY_EVT_PUMP_SESSION_ID_OFF);
-    if (pump_session_id != DATA_BURY_EVT_PUMP_SESSION_ID_PLACEHOLDER && pump_session_id != 0u) {
+    if (pump_session_id != DATA_BURY_EVT_PUMP_SESSION_ID_PLACEHOLDER) {
         return;
     }
-    if (thiz && thiz->priv.pump_session_active && thiz->priv.current_pump_session_id != 0u) {
+    if (thiz && thiz->priv.pump_session_active) {
         data_bury_fill_pump_session_id(payload, payload_len, thiz->priv.current_pump_session_id);
     }
 }

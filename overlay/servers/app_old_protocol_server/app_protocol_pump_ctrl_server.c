@@ -553,6 +553,21 @@ static uint8_t pump_custom_mode_update_by_app(pump_mode_steps_info_t pump_steps_
     return true;
 }
 
+static void app_old_comm_bury_pump_level_adjust(const pump_setting_t *before, const pump_setting_t *after)
+{
+    data_bury_trigger_manual_adjust_t bury_adj = {
+        .evt_source = DATA_BURY_EVT_SOURCE_REMOTE_APP,
+        .evt_type = DATA_BURY_ADJUST_SUCTION_LEVEL,
+        .adjust_from = DATA_BURY_PACK_SUCTION_LEVEL(before->level[0], before->level[1]),
+        .adjust_to = DATA_BURY_PACK_SUCTION_LEVEL(after->level[0], after->level[1]),
+    };
+
+    if (bury_adj.adjust_from == bury_adj.adjust_to) {
+        return;
+    }
+    DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
+}
+
 static uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
@@ -562,7 +577,9 @@ static uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_ol
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
     pump_setting_t setting; /// 当前泵奶设置信息.
-    READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting); 
+    pump_setting_t setting_before;
+    READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting);
+    setting_before = setting;
     if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_LEFT_CT) {
         if (app_old_comm_pump_ctrl_date->normal_pump_level >= 0) {
             ///相同不进行设置
@@ -599,9 +616,11 @@ static uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_ol
             app_broadcast_pump_level_to_window(setting.level[0], OLD_BROADCAST_LEFT_CT);
             app_broadcast_pump_level_to_window(setting.level[1], OLD_BROADCAST_RIGHT_CT);
             ///双边模式不要设置，通过EA设置
+            ///app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
             return false;
         }
     }
+    app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
     return true;
 }
@@ -620,6 +639,16 @@ static uint8_t app_old_comm_set_nommal_pump_speed(app_old_comm_pump_ctrl *app_ol
     if (setting.speed == app_old_comm_pump_ctrl_date->normal_pump_speed) {
         LOG_SRV("pump speed no change %d", setting.speed);
         return false;
+    }
+    /// 触发泵奶速度设置埋点 (EVT_006: 频率调节)
+    {
+        data_bury_trigger_manual_adjust_t bury_adj = {
+            .evt_source = DATA_BURY_EVT_SOURCE_REMOTE_APP,
+            .evt_type = DATA_BURY_ADJUST_FREQUENCY,
+            .adjust_from = (uint8_t)setting.speed,
+            .adjust_to = (uint8_t)app_old_comm_pump_ctrl_date->normal_pump_speed,
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
     }
     //只允许常规模式设置 speed，并且左右同步控制
     setting.speed = app_old_comm_pump_ctrl_date->normal_pump_speed;
@@ -679,7 +708,9 @@ static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_ol
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
     pump_setting_t setting; /// 当前泵奶设置信息.
-    READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting); 
+    pump_setting_t setting_before;
+    READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting);
+    setting_before = setting;
     if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_LEFT_CT) {
         if (app_old_comm_pump_ctrl_date->user_define_pump_level >= 0) {
             ///相同不进行设置
@@ -716,9 +747,11 @@ static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_ol
             app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
             app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
             ///双边模式不要设置，通过EA设置
+            app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
             return false;
         }
     }
+    app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
     return true;
 }
@@ -737,6 +770,16 @@ static uint8_t app_old_comm_set_custom_pump_speed(app_old_comm_pump_ctrl *app_ol
     if (setting.speed == app_old_comm_pump_ctrl_date->user_define_pump_speed) {
         LOG_SRV("pump speed no change %d", setting.speed);
         return false;
+    }
+    /// 触发泵奶速度设置埋点 (EVT_006: 频率调节)
+    {
+        data_bury_trigger_manual_adjust_t bury_adj = {
+            .evt_source = DATA_BURY_EVT_SOURCE_REMOTE_APP,
+            .evt_type = DATA_BURY_ADJUST_FREQUENCY,
+            .adjust_from = (uint8_t)setting.speed,
+            .adjust_to = (uint8_t)app_old_comm_pump_ctrl_date->user_define_pump_speed,
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
     }
     //左右同步控制
     setting.speed = app_old_comm_pump_ctrl_date->user_define_pump_speed;
@@ -786,10 +829,22 @@ static uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old
         }
     } else {
         /// 如果模式改变，则改变模式,忽略参数
-        WRITE_PUMP_WORK_MODE(pump_ctx, app_old_comm_pump_ctrl_date->pump_mode, true, 1);
-        app_broadcast_pump_mode_to_window(app_old_comm_pump_ctrl_date->pump_mode,OLD_BROADCAST_ALL_CT);
+        uint8_t mode_from = app_old_comm_get_current_pump_mode();
+        uint8_t mode_to = app_old_comm_pump_ctrl_date->pump_mode;
+        WRITE_PUMP_WORK_MODE(pump_ctx, mode_to, true, 1);
+        app_broadcast_pump_mode_to_window(mode_to, OLD_BROADCAST_ALL_CT);
+        /// 触发泵奶模式切换埋点 (EVT_006: 模式切换)
+        {
+            data_bury_trigger_manual_adjust_t bury_adj = {
+                .evt_source = DATA_BURY_EVT_SOURCE_REMOTE_APP,
+                .evt_type = DATA_BURY_ADJUST_PUMP_MODE,
+                .adjust_from = mode_from,
+                .adjust_to = mode_to,
+            };
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
+        }
         /// prd 模式记忆
-        LOG_SRV("app change pump_mode %d",app_old_comm_pump_ctrl_date->pump_mode);
+        LOG_SRV("app change pump_mode %d", mode_to);
     }
     return true;
 }
@@ -1777,6 +1832,17 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
     if (setting.level[0] == left_level && setting.level[1] == right_level && setting.speed == left_speed_internal) {
         LOG_SRV("Bilateral pump param no change, left_level=%d, right_level=%d, left_speed=%d", left_level, right_level, left_speed_internal);
         return;
+    }
+    /// 触发泵奶档位设置埋点 (EVT_007: 吸力调节)
+    {
+        pump_setting_t setting_before = setting;
+        pump_setting_t setting_after = setting;
+
+        if (setting_before.level[0] != left_level || setting_before.level[1] != right_level) {
+            setting_after.level[0] = left_level;
+            setting_after.level[1] = right_level;
+            app_old_comm_bury_pump_level_adjust(&setting_before, &setting_after);
+        }
     }
     // 设置左右两边的档位和频次
     setting.level[0] = left_level;

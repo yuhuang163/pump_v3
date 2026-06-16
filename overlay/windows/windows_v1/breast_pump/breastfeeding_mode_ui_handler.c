@@ -167,7 +167,8 @@ static void show_breastfeeding_mode_ui(ui_proc_pump_t *proc)
 void switch_breastfeeding_mode_ui(ui_proc_pump_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
-    uint8_t mode = proc->ui_bf_mode_index;
+    uint8_t mode_from = proc->ui_bf_mode_index;
+    uint8_t mode = mode_from;
     int activate_status = 0;
     READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
     uint8_t mode_upper_boundary = activate_status > 0 ? BREAST_PUMP_CUSTOM_MODE : (BREAST_PUMP_CUSTOM_MODE - 1);
@@ -183,6 +184,15 @@ void switch_breastfeeding_mode_ui(ui_proc_pump_t *proc, bool is_increase)
         } else {
             mode = mode_upper_boundary;
         }
+    }
+    if (mode_from != mode) {
+        data_bury_trigger_manual_adjust_t bury_adj = {
+            .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+            .evt_type = DATA_BURY_ADJUST_PUMP_MODE,
+            .adjust_from = mode_from,
+            .adjust_to = mode,
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
     }
     proc->mode_sync_flag = true;
     proc->ui_bf_mode_index = mode;
