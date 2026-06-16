@@ -7,7 +7,6 @@
 #include "bsp_common.h" 
 #include "bsp_config.h"
 #include "motor_stall_detection.h" // IWYU pragma: keep
-#include "root_log_define.h"
 #include "motor_pump.h" // IWYU pragma: keep
 
 /*
@@ -15,7 +14,7 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_PUMP_RUN_TIME_TEST          (0)
-#define IS_SUPPORT_PUMP_DEBUG_LOG              (1)
+#define IS_SUPPORT_PUMP_DEBUG_LOG              (0)
 #define IS_SUPPORT_PUMP_PWM_IDLE_HIGH          (1)
 #define PUMP_PWM_TIME_NUMBER                   (2)   /// 泵1和泵2各一个定时器
 #define MOTOR_PUMP_IDLE_PWM_DUTY               (100)
