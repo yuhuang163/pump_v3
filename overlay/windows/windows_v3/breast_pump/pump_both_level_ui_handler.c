@@ -139,7 +139,10 @@ static void show_pump_both_level_ui(ui_proc_pump_t *proc)
 */
 void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase)
 {
+    pump_setting_t setting_before;
+
     EXCEPTION_CHECK_VOID(proc && proc->pump);
+    setting_before = proc->setting;
     int16_t left_level = proc->setting.level[0] + proc->both_level_change;
     int16_t right_level = proc->setting.level[1] + proc->both_level_change;
     pump_setting_t setting;
@@ -172,6 +175,18 @@ void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase)
         setting.level[1] = BREAST_PUMP_LEVEL_15;
     } else {
         setting.level[1] = right_level;
+    }
+    {
+        data_bury_trigger_manual_adjust_t bury_adj = {
+            .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+            .evt_type = DATA_BURY_ADJUST_SUCTION_LEVEL,
+            .adjust_from = DATA_BURY_PACK_SUCTION_LEVEL(setting_before.level[0], setting_before.level[1]),
+            .adjust_to = DATA_BURY_PACK_SUCTION_LEVEL(setting.level[0], setting.level[1]),
+        };
+
+        if (bury_adj.adjust_from != bury_adj.adjust_to) {
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
+        }
     }
     setting.speed = proc->setting.speed;
     WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, setting);

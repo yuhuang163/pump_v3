@@ -127,7 +127,7 @@ static uint8_t data_bury_event_get_suction_level(breast_pump_manager_context_t *
         return 0u;
     }
     READ_PUMP_SETTING_INFO(pump, 0, setting);
-    return setting.level[0] > setting.level[1] ? setting.level[0] : setting.level[1];
+    return DATA_BURY_PACK_SUCTION_LEVEL(setting.level[0], setting.level[1]);
 }
 
 static void data_bury_event_publish_pump_startup(data_bury_manager_context_t *ctx)
@@ -314,6 +314,36 @@ static void data_bury_event_record_pump_mode_switch(uint8_t adjust_from, uint8_t
              (unsigned)s_event_rt.mode_queue_count);
 }
 
+static void data_bury_event_publish_pump_manual_adjust(data_bury_manager_context_t *ctx,
+                                                       uint8_t evt_source, uint8_t evt_type,
+                                                       uint8_t adjust_from, uint8_t adjust_to)
+{
+    data_bury_evt_pump_manual_adjust_t evt = {0};
+    uint16_t session_id = 0u;
+
+    if (adjust_from == adjust_to) {
+        return;
+    }
+
+    if (ctx->data_bury_get_current_pump_session_id) {
+        session_id = ctx->data_bury_get_current_pump_session_id();
+    }
+
+    evt.device_side = ctx->data_bury_get_device_side();
+    evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
+    evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
+    evt.pump_session_id = session_id;
+    evt.evt_source = evt_source;
+    evt.evt_type = evt_type;
+    evt.adjust_from = adjust_from;
+    evt.adjust_to = adjust_to;
+    (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_MANUAL_ADJUST,
+                                    &evt, (uint16_t)sizeof(evt), 0u);
+    LOG_BURY("manual adjust publish: sid=%u src=%u type=%u from=%u to=%u",
+             (unsigned)session_id, (unsigned)evt_source, (unsigned)evt_type,
+             (unsigned)adjust_from, (unsigned)adjust_to);
+}
+
 static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t *ctx, uint8_t end_reason)
 {
     breast_pump_manager_context_t *pump =
@@ -358,7 +388,8 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
     }
 
     READ_PUMP_WORK_MODE(pump, mode);
-    READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result);
+    (void)pump->get_pump_composite_state(BREAST_PUMP_RESULT_INFO, BREAST_PUMP_RESULT_PUMPING, 0,
+                                          &result, (int)sizeof(result));
     duration_sec = (uint16_t)(result.current_mode_work_time / 1000u);
     if (s_event_rt.mode_queue_tracking) {
         (void)data_bury_session_mode_queue_push((uint32_t)mode, duration_sec);
@@ -421,6 +452,10 @@ static void data_bury_event_publish_charge_start(data_bury_manager_context_t *ct
     evt.start_battery_voltage = metrics.voltage_mv;
     evt.start_battery_current = metrics.current_ma;
     evt.start_battery_temp = metrics.temp_c;
+    LOG_BURY("charge start publish: ts=%u percent=%u voltage=%u current=%d temp=%d",
+             (unsigned)evt.evt_timestamp, (unsigned)evt.start_battery_percent,
+             (unsigned)evt.start_battery_voltage, (int)evt.start_battery_current,
+             (int)evt.start_battery_temp);
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BAT_CHARGE_START,
                                     &evt, (uint16_t)sizeof(evt), 0u);
 }
@@ -438,6 +473,10 @@ static void data_bury_event_publish_charge_end(data_bury_manager_context_t *ctx,
     evt.end_battery_current = metrics.current_ma;
     evt.end_battery_temp = metrics.temp_c;
     evt.end_reason = end_reason;
+    LOG_BURY("charge end publish: ts=%u percent=%u voltage=%u current=%d temp=%d reason=%d",
+             (unsigned)evt.evt_timestamp, (unsigned)evt.end_battery_percent,
+             (unsigned)evt.end_battery_voltage, (int)evt.end_battery_current,
+             (int)evt.end_battery_temp, (int)evt.end_reason);
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BAT_CHARGE_END,
                                     &evt, (uint16_t)sizeof(evt), 0u);
 }
@@ -518,6 +557,20 @@ int data_bury_event_process_pump_mode_switch(data_bury_manager_context_t *ctx,
     adjust_to = (uint8_t)args->arg2;
     duration_sec = *(const uint16_t *)args->val;
     data_bury_event_record_pump_mode_switch(adjust_from, adjust_to, duration_sec);
+    return 0;
+}
+
+int data_bury_event_process_pump_manual_adjust(data_bury_manager_context_t *ctx,
+                                                      const data_bury_trigger_args_t *args)
+{
+    const data_bury_trigger_manual_adjust_t *adj;
+
+    if (!ctx || !args || !args->val) {
+        return -1;
+    }
+    adj = (const data_bury_trigger_manual_adjust_t *)args->val;
+    data_bury_event_publish_pump_manual_adjust(ctx, adj->evt_source, adj->evt_type,
+                                               adj->adjust_from, adj->adjust_to);
     return 0;
 }
 

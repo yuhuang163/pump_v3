@@ -61,6 +61,14 @@ typedef enum {
     DATA_BURY_ADJUST_VIBRATION_LEVEL,
 } data_bury_adjust_type_e;
 
+/** EVT_006 trigger 入参，经 DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST 的 args->val 传入 */
+typedef struct {
+    uint8_t evt_source;
+    uint8_t evt_type;
+    uint8_t adjust_from;
+    uint8_t adjust_to;
+} data_bury_trigger_manual_adjust_t;
+
 typedef enum {
     DATA_BURY_USER_EVT_NIGHT_LIGHT = 0,
     DATA_BURY_USER_EVT_TRAVEL_LOCK,
@@ -97,6 +105,7 @@ typedef enum {
  * DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START：arg1/arg2 保留
  * DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END：arg1=结束原因（DATA_BURY_BAT_CHARGE_END_REASON_*），arg2 保留
  * DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH：arg1=adjust_from，arg2=adjust_to，val=uint16_t* duration_sec(秒)
+ * DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST：val=data_bury_trigger_manual_adjust_t*
  */
 
 typedef enum {
@@ -105,6 +114,7 @@ typedef enum {
     DATA_BURY_TRIGGER_EVT_BLE_DISCONNECT,
     DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START,
     DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH,
+    DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST,
     DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END,
     DATA_BURY_TRIGGER_EVT_POWER_ON,
     DATA_BURY_TRIGGER_EVT_POWER_OFF,
@@ -156,6 +166,11 @@ typedef struct {
         }; \
         DATA_BURY_EVENT_TRIGGER_ARGS((_evt), &_bury_trig_args_); \
     } while (0)
+
+/** 吸力档位打包：高 4 位左、低 4 位右（0~15） */
+#define DATA_BURY_PACK_SUCTION_LEVEL(_left, _right) \
+    ((uint8_t)((((uint8_t)(_left) > 15u ? (uint8_t)15u : ((uint8_t)(_left) & 0x0Fu)) << 4) | \
+               ((uint8_t)(_right) > 15u ? (uint8_t)15u : ((uint8_t)(_right) & 0x0Fu))))
 
 /** data_bury_publish(servers_publish_data_args_t)：arg1=payload 长度(0=按 id 推导)，arg2=延时 ms(0=立即)，val=payload；delay>0 时内部会拷贝 payload */
 #define DATA_BURY_PUBLISH_ARGS(_len, _delay_ms, _val) \

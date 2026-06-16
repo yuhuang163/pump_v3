@@ -168,7 +168,10 @@ static void show_pump_speed_ui(ui_proc_pump_t *proc)
 */
 void switch_pump_speed_ui(ui_proc_pump_t *proc, bool is_increase)
 {
+    uint8_t speed_before;
+
     EXCEPTION_CHECK_VOID(proc && proc->pump);
+    speed_before = proc->setting.speed;
     if (is_increase) {
         if (proc->setting.speed < BREAST_PUMP_SPEED_HIGH) {
             proc->setting.speed++;
@@ -180,6 +183,18 @@ void switch_pump_speed_ui(ui_proc_pump_t *proc, bool is_increase)
             proc->setting.speed--;
         } else {
             proc->setting.speed = BREAST_PUMP_SPEED_HIGH;
+        }
+    }
+    {
+        data_bury_trigger_manual_adjust_t bury_adj = {
+            .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+            .evt_type = DATA_BURY_ADJUST_FREQUENCY,
+            .adjust_from = speed_before,
+            .adjust_to = proc->setting.speed,
+        };
+
+        if (bury_adj.adjust_from != bury_adj.adjust_to) {
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
         }
     }
     proc->speed_sync_flag = true;
