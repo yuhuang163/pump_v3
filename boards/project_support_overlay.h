@@ -173,6 +173,8 @@ extern "C" {
 #define IS_SUPPORT_LOGO_UI_TEST                          (0)
 /// 支持LOGO界面按键背光自适应测试
 #define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (0)    
+/// 支持引导界面
+#define IS_SUPPORT_GUIDE_WINDOW                          (0)    
 
 /// 支持触摸芯片固件升级
 #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)

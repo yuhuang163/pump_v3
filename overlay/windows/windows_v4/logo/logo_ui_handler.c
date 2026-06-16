@@ -62,7 +62,7 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     }
 
     if (proc->wm->is_window_guidance_deployed() == 0) {
-        #if 0
+        #if IS_SUPPORT_GUIDE_WINDOW
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
