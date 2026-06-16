@@ -47,12 +47,19 @@ static void touch_key_fw_version_check_cb(hdr_post_args_t *args)
         return;
     }
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    if (pbus == NULL) {
+        LOG_WM("device bus missing, ignore fw check.");
+        return;
+    }
     rt_device_node_t *key_dev = pbus->find_device(ID_DEVICE_INPUT_KEY);
+    if (key_dev == NULL) {
+        LOG_WM("input key device missing, ignore fw check.");
+        return;
+    }
     DEVICE_IOCTL_ARGS(key_dev , OP_CODE_INPUT_KEY_FW_VERSION_CHECK, NULL);
     LOG_WM("touch key fw version check");
 }
 
-#if IS_SUPPORT_LOGO_BG_COLOR_TEST
 #if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
 static void logo_test_key_backlight_on(ui_proc_logo_t *proc)
 {
@@ -63,6 +70,7 @@ static void logo_test_key_backlight_on(ui_proc_logo_t *proc)
 }
 #endif
 
+#if (IS_SUPPORT_LOGO_UI_TEST || IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST)
 static int on_logo_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     (void)keytype;
@@ -72,11 +80,14 @@ static int on_logo_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         LOG_WM("wm not running, ignore.");
         return 0;
     }
+#if IS_SUPPORT_LOGO_UI_TEST
     if (keycode == KEY_CODE_KNOB_LEFT) {
         proc->test_page_count--;
     } else if (keycode == KEY_CODE_KNOB_RIGHT) {
         proc->test_page_count++;
     }
+#endif
+
 #if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
     logo_test_key_backlight_on(proc);
 #endif
@@ -91,13 +102,14 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     window_manager_context_t *wm = proc->wm;
     ui_manager_context_t *ui = proc->ui;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
-        #if IS_SUPPORT_LOGO_BG_COLOR_TEST
-            if (proc->key) {
-                ADD_KEYEVENT_CB(proc->key, "home_wm", proc, LOGO_UI_KEY_CODE, LOGO_UI_KEY_TYPE,
-                    on_logo_ui_keyevent_hdr);
-        #if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
-            logo_test_key_backlight_on(proc);
+        #if (IS_SUPPORT_LOGO_UI_TEST || IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST)
+        if (proc->key) {
+            ADD_KEYEVENT_CB(proc->key, "home_wm", proc, LOGO_UI_KEY_CODE, LOGO_UI_KEY_TYPE,
+                on_logo_ui_keyevent_hdr);
+        }
         #endif
+        #if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
+        logo_test_key_backlight_on(proc);
         #endif
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
@@ -127,9 +139,9 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_ALL_HANDER_TASK();
-#if IS_SUPPORT_LOGO_BG_COLOR_TEST
+            #if (IS_SUPPORT_LOGO_UI_TEST || IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST)
             REMOVE_KEYEVENT_CB(proc->key, on_logo_ui_keyevent_hdr);
-#endif
+            #endif
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window exit--end", PAGE_NAME_STR);

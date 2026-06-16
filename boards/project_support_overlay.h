@@ -170,13 +170,9 @@ extern "C" {
 #endif
 
 /// 支持LOGO界面背景颜色测试
-#define IS_SUPPORT_LOGO_BG_COLOR_TEST                    (0)
-#if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 1 && IS_SUPPORT_ADAPTIVE_DIMMING == 1)
-/// 支持LOGO界面按键背光自适应调节测试（仅测试使用，默认关闭）
-#define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (1)
-#else
+#define IS_SUPPORT_LOGO_UI_TEST                          (0)
+/// 支持LOGO界面按键背光自适应测试
 #define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (0)    
-#endif
 
 /// 支持触摸芯片固件升级
 #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)

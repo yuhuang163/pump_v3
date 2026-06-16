@@ -92,7 +92,7 @@ static void logo_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_proc_logo_t *proc = (ui_proc_logo_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
     ui_display_logo_process(ui);
-#if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 0)
+#if (IS_SUPPORT_LOGO_UI_TEST == 0)
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
     if (time_diff >= LOGO_ANIMATION_DISPLAY_TIME) {
         proc->last_progress_ani_time = get_timestamp();
