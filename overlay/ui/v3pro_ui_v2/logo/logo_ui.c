@@ -11,7 +11,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#if IS_SUPPORT_LOGO_BG_COLOR_TEST
+#if IS_SUPPORT_LOGO_UI_TEST
 #define IS_SUPPORT_LOGO_COMP_BG                                (0)
 #define IS_SUPPORT_LOGO_IMG_TEST                               (1)
 #else
@@ -172,7 +172,7 @@ void ui_display_logo_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     ui_logo_root_init(); /// 初始化 root 容器
-#if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 0 && IS_SUPPORT_LOGO_IMG_TEST == 0) 
+#if (IS_SUPPORT_LOGO_UI_TEST == 0 && IS_SUPPORT_LOGO_IMG_TEST == 0) 
     common_ui_bg_init(thiz);
 #endif
     logo_info->force_update = true;
@@ -183,7 +183,7 @@ void ui_display_logo_remove(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(logo_info);
     EXCEPTION_CHECK_VOID(logo_info->root);
-#if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 0 && IS_SUPPORT_LOGO_IMG_TEST == 0) 
+#if (IS_SUPPORT_LOGO_UI_TEST == 0 && IS_SUPPORT_LOGO_IMG_TEST == 0) 
     common_ui_img_resource_deinit(thiz, &logo_info->img_info);
     common_ui_bg_deinit(thiz);
 #endif
@@ -197,7 +197,7 @@ int ui_display_logo_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(logo_info);
     EXCEPTION_CHECK_INT(logo_info->root);
-#if (IS_SUPPORT_LOGO_BG_COLOR_TEST == 0 && IS_SUPPORT_LOGO_IMG_TEST == 0) 
+#if (IS_SUPPORT_LOGO_UI_TEST == 0 && IS_SUPPORT_LOGO_IMG_TEST == 0) 
     ui_logo_bg_update(thiz);
     sys_logo_label_update(thiz);   
 #elif (IS_SUPPORT_LOGO_IMG_TEST == 1 && IS_SUPPORT_LOGO_COMP_BG == 0)
