@@ -36,7 +36,7 @@ void ui_display_home_pump_level_prepare(ui_manager_context_t *thiz);
 void ui_display_home_pump_level_remove(ui_manager_context_t *thiz);
 int ui_display_home_pump_level_process(ui_manager_context_t *thiz);
 
-/// 泵奶双档位调节界面
+/// 泵奶档位调节界面
 void ui_display_home_pump_both_level_prepare(ui_manager_context_t *thiz);
 void ui_display_home_pump_both_level_remove(ui_manager_context_t *thiz);
 int ui_display_home_pump_both_level_process(ui_manager_context_t *thiz);

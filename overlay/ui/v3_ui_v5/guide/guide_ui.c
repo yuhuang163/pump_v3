@@ -357,7 +357,7 @@ void ui_display_guide_prepare(ui_manager_context_t *thiz)
     guide_info->text_num = GUIDE_TEXT_NUM;
     resource_manager_context_t *res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
     if (res) {
-        uint16_t img_res_version = res->get_img_res_version(RES_THEME_TYPE_BASE_IMG);
+        uint16_t img_res_version = res->get_img_res_version(RES_THEME_TYPE_BASE);
         LOG_UI("===> guide img res version: %u", (unsigned)img_res_version);
         if (img_res_version == 102) {
             guide_info->text_num = 4;

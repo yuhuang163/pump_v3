@@ -461,7 +461,7 @@
     {
       "resource_id": "RESOURCE_ID_HOME_IDLE_IP",
       "description": "首页空闲IP图标",
-      "file": "base/baj/ip_home_dummy_226x134_a8_q99_444.baj",
+      "file": "base/baj/ip_home_idle_226x134_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },

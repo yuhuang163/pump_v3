@@ -12,6 +12,7 @@
 */
 #define PUMP_RUN_CHECK_ENABLE                        0 /// 调试开关
 #define PUMP_RUN_CHECK_INTERVAL                      1
+#define PUMP_SLEEP_TIME_COMPENSATE_FACTOR            1 /// 补偿系数
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -215,6 +216,8 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
 #endif
     runtime->pump_level[pump_id] = map_para.level >= BREAST_PUMP_LEVEL_MAX ? (BREAST_PUMP_LEVEL_MAX - 1) : map_para.level;
     runtime->pump_speed[pump_id] = map_para.speed >= SUCTION_SPEED_MAX ? (SUCTION_SPEED_MAX - 1) : map_para.speed;
+    uint32_t reset_time = get_timestamp_ms(runtime->reset_time[pump_id]);
+    runtime->reset_time[pump_id] = get_timestamp();
     /// 通过map参数获取吸力参数
     if (map_para.mode_type == SUCTION_MODE_SHORT || map_para.mode_type == SUCTION_MODE_MIX_SHORT) {
         pump_level = short_level_table[runtime->pump_level[pump_id]]; /// 获取负压等级
@@ -230,14 +233,17 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         total_time = ONE_MIN_TIME_MS / runtime->pump_freq[pump_id];
         info->original.sleep_time    = total_time - info->original.pumping_time - 
                             info->original.valve_on_time - info->original.hold_time;           
+        uint8_t compensate_time = (PUMP_SLEEP_TIME_COMPENSATE_FACTOR * total_time) / runtime->pump_freq[pump_id]; /// 补偿时间, 往负偏差靠  
+        info->original.sleep_time = info->original.sleep_time > compensate_time ? 
+                (info->original.sleep_time - compensate_time) : 0;
         if (info->original.sleep_time < PUMP_SLEEP_TIME_MIN || info->original.sleep_time > PUMP_SLEEP_TIME_MAX) {
             info->original.sleep_time = PUMP_SLEEP_TIME_MIN;
             LOG_MOTOR("work period error");
         }
-        LOG_MOTOR("short suction mode_type:%d, s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d/%d/%d",
+        LOG_MOTOR("short type:%d, time:%d/%d/%d, setting:%d/%d/%d, config:%d/%d/%d(%d/%d)",
             map_para.mode_type, info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time,
             runtime->pump_level[pump_id], info->original.pump_level, runtime->pump_speed[pump_id],
-            total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag);
+            total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag, compensate_time, reset_time);
     } else {
         runtime->pump_freq[pump_id] = thiz->priv.suction_para->long_pump_freq_table[runtime->pump_level[pump_id]][runtime->pump_speed[pump_id]];
         if (runtime->pump_freq[pump_id] == 0) {
@@ -248,19 +254,21 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         info->original.pump_level    = thiz->priv.suction_para->long_suction_table[pump_level].pump_level * PUMP_DUTY_SCALE_FACTOR;
         info->original.pumping_time  = thiz->priv.suction_para->long_suction_table[pump_level].pumping_time;
         info->original.valve_on_time = thiz->priv.suction_para->long_suction_table[pump_level].valve_on_time;
-
         info->original.hold_time     = LONG_SUCTION_HOLD_TIME; 
         total_time = ONE_MIN_TIME_MS / runtime->pump_freq[pump_id];
         info->original.sleep_time    = total_time - info->original.pumping_time - info->original.valve_on_time - 
                 info->original.hold_time;
+        uint8_t compensate_time = (PUMP_SLEEP_TIME_COMPENSATE_FACTOR * total_time) / runtime->pump_freq[pump_id]; /// 补偿时间, 往正偏差靠  
+        info->original.sleep_time = info->original.sleep_time > compensate_time ? 
+                (info->original.sleep_time - compensate_time) : 0;
         if (info->original.sleep_time < PUMP_SLEEP_TIME_MIN || info->original.sleep_time > PUMP_SLEEP_TIME_MAX) {
             info->original.sleep_time = PUMP_SLEEP_TIME_MIN;
             LOG_MOTOR("work period error");
         } 
-        LOG_MOTOR("long suction mode_type:%d, s_time:%d, p_time:%d, v_time:%d, level:%d/%d, speed:%d, d_time:%d/%d/%d",
+        LOG_MOTOR("long type:%d, time:%d/%d/%d, setting:%d/%d/%d, config:%d/%d/%d(%d/%d)",
             map_para.mode_type, info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time,
             runtime->pump_level[pump_id], info->original.pump_level, runtime->pump_speed[pump_id], 
-            total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag);
+            total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag, compensate_time, reset_time);
     }
     info->state.target_pressure = pump_level == SUCTION_LEVEL_0KPA ? 0 : (pump_level + SUCTION_DEFAULT_LEVEL_VALUE);
     /// 通过算法线性补偿

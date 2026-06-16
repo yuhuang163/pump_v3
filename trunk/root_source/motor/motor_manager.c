@@ -32,6 +32,7 @@ static void update_play_interrupt_reason(const char *reason)
 {
     if (motor_obj->priv.interrupt_play_reason != reason) {
         motor_obj->priv.interrupt_play_reason = (char *)reason;
+        LOG_MOTOR("update play interrupt reason: %s", reason);
     }
 }
 
@@ -47,6 +48,7 @@ static void motor_play_work_thread(void *args)
         MSG_QUEUE_RECV(thd->msg_id, &task_para, OS_WAIT_FOREVER);
         LOG_MOTOR("running timestamp: %ld, id: %d, action: %d", task_para.timestamp, task_para.play_mask_id, task_para.action_id);
         set_thread_running(thd, true);
+        MSG_QUEUE_RESET(thd->msg_id);
         update_play_interrupt_reason(NULL);
         if (pm->acquire_wakelock(MOTOR_PLAY_THD_WAKELOCK, -1) == 0) { 
             if (motor_obj->hook == NULL) {
@@ -89,13 +91,21 @@ static int internal_start_motor(uint8_t action)
     };
 
     uint8_t is_running_flag = is_on_motor_task_running(motor_obj);
-    LOG_MOTOR("start motor, action: %d, is_running_flag: %d", action, is_running_flag);
-    update_play_interrupt_reason("play-new-task");
-    
+    if (is_running_flag) {
+        update_play_interrupt_reason("play-new-task");
+    } else {
+        if (action == MOTOR_POLICY_CHANGE_MODE) {
+            LOG_MOTOR("ignore change mode, not running");
+            return -1;
+        }
+    }
+    LOG_MOTOR("start motor, action:%d, flag:%d, para:[%ld]%d/%d", 
+        action, is_running_flag, task_para.timestamp, task_para.play_mask_id, task_para.action_id);
     os_message_id msg_id = motor_obj->priv.motor_play_thd.msg_id;
     if (msg_id) {
-        LOG_MOTOR("timestamp: %ld, id: %d", task_para.timestamp, task_para.play_mask_id);
         MSG_QUEUE_SEND(msg_id, &task_para, 0);
+    } else {
+        LOG_MOTOR("msg_id is NULL");
     }
     
     if (motor_obj) {

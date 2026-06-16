@@ -276,6 +276,7 @@ typedef struct {
     uint32_t time_policy_remaining_time; /// 时间策略剩余时间，单位s
     uint32_t time_policy_target_time; /// 时间策略目标时间，单位s
     uint32_t policy_running_time_ms; /// 策略运行时间，单位ms
+    uint32_t reset_time[BREAST_PUMP_NUM]; /// 重置时间，单位ms
 #if IS_SUPPORT_PUMP_DUTY_ADJUST
     int16_t compensation_delta_pwm[BREAST_PUMP_NUM]; /// 气压补偿delta_pwm -10000~-1:PWM减小, 1~10000: PWM增加
 #endif

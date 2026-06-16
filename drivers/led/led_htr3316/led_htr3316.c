@@ -394,7 +394,7 @@ static void led_level_set(uint8_t index, led_luminous_t luminous)
         led_status[index].un.luminous.status = level > 0 ? LED_STATUS_ON : LED_STATUS_OFF;
         led_extension_level_set(index, level);
     }
-    LOG_PBUS("led level set finish: index: %d, level: %d", index, level);
+    LOG_PBUS("led level: index: %d, level: %d", index, level);
 }
 
 static void led_blink_set(uint8_t index, led_blink_t blink)
@@ -420,6 +420,7 @@ static void led_blink_set(uint8_t index, led_blink_t blink)
         led_status[index].un.blink.level = led_status[index].level_max;
     }
     MUTEX_UNLOCK(s_led_mutex_id);
+    LOG_PBUS("led blink: index: %d, level: %d", index, led_status[index].un.blink.level);
 }
 
 static void led_htr3316_chip_id_get(uint8_t *chip_id)

@@ -103,6 +103,21 @@ typedef enum {
     RESOURCE_ID_HD_ANIM_IP_START = 1500,   /// 首页默认动画-开始
     RESOURCE_ID_HD_ANIM_IP_END = 1619,     /// 首页默认动画-结束
 
+    RESOURCE_ID_TEST_PAGE_01 = 1700,   /// 测试页面1
+    RESOURCE_ID_TEST_PAGE_02 = 1701,   /// 测试页面2
+    RESOURCE_ID_TEST_PAGE_03 = 1702,   /// 测试页面3
+    RESOURCE_ID_TEST_PAGE_04 = 1703,   /// 测试页面4
+    RESOURCE_ID_TEST_PAGE_05 = 1704,   /// 测试页面5
+    RESOURCE_ID_TEST_PAGE_06 = 1705,   /// 测试页面6
+    RESOURCE_ID_TEST_PAGE_07 = 1706,   /// 测试页面7
+    RESOURCE_ID_TEST_PAGE_08 = 1707,   /// 测试页面8
+    RESOURCE_ID_TEST_PAGE_09 = 1708,   /// 测试页面9
+    RESOURCE_ID_TEST_PAGE_10 = 1709,   /// 测试页面10
+    RESOURCE_ID_TEST_PAGE_11 = 1710,   /// 测试页面11
+
+    RESOURCE_ID_TEST_ANIM_START = 1800,   /// 测试动画-开始
+    RESOURCE_ID_TEST_ANIM_END = 1918,     /// 测试动画-结束
+
     RESOURCE_ID_TYPE_MAX
 } resource_id_type_e;
 

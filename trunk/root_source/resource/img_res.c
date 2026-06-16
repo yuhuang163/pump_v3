@@ -96,9 +96,9 @@ static const char *img_res_get_partition_name(void)
 
 static const char *img_res_get_theme_name(res_theme_type_e theme_type)
 {
-    if (theme_type == RES_THEME_TYPE_CUSTOM_IMG) {
+    if (theme_type == RES_THEME_TYPE_CUSTOM) {
         return "custom";
-    } else if (theme_type == RES_THEME_TYPE_BASE_IMG) {
+    } else if (theme_type == RES_THEME_TYPE_BASE) {
         return "base";
     }
     return "unknown";
@@ -109,17 +109,17 @@ static bool img_res_get_base_addr(resource_manager_context_t *thiz,
 {
     EXCEPTION_CHECK_BOOL(base_addr);
 #if V3_IMG_RES_STORAGE_TYPE == IMG_RES_STORAGE_INTERNAL_FLASH
-    if (theme_type == RES_THEME_TYPE_BASE_IMG) {
+    if (theme_type == RES_THEME_TYPE_BASE) {
         *base_addr = (uint32_t)IMG_INT_DATA_START_ADDR;
         *size = (uint32_t)IMG_INT_DATA_SIZE;
     } else {
         return false;
     }
 #else
-    if (theme_type == RES_THEME_TYPE_BASE_IMG) {
+    if (theme_type == RES_THEME_TYPE_BASE) {
         *base_addr = (uint32_t)BASE_IMG_RES_START_ADDR;
         *size = (uint32_t)BASE_IMG_RES_SIZE;
-    } else if (theme_type == RES_THEME_TYPE_CUSTOM_IMG) {
+    } else if (theme_type == RES_THEME_TYPE_CUSTOM) {
         *base_addr = (uint32_t)THEME_IMG_RES_START_ADDR;
         *size = (uint32_t)THEME_IMG_RES_SIZE;
     } else {
@@ -503,9 +503,9 @@ out:
     }
 
     if (ok) {
-        if (theme_type == RES_THEME_TYPE_BASE_IMG) {
+        if (theme_type == RES_THEME_TYPE_BASE) {
             thiz->priv.img_base_res_version = w.head.version;
-        } else if (theme_type == RES_THEME_TYPE_CUSTOM_IMG) {
+        } else if (theme_type == RES_THEME_TYPE_CUSTOM) {
             thiz->priv.img_custom_res_version = w.head.version;
         }
     }
@@ -606,7 +606,7 @@ int img_res_init(resource_manager_context_t *thiz)
     int ret = 0;
     EXCEPTION_CHECK_INT(thiz);
     MUTEX_LOCK_FS(thiz->priv.m_fs_rw_lock, "base_img_res_validate");
-    ret = img_res_validate_and_dump(thiz, RES_THEME_TYPE_BASE_IMG);
+    ret = img_res_validate_and_dump(thiz, RES_THEME_TYPE_BASE);
     thiz->priv.base_res_init_completed = (ret == 0) ? true : false;
     MUTEX_UNLOCK_FS(thiz->priv.m_fs_rw_lock, "base_img_res_validate");
     if (ret != 0) {
@@ -615,7 +615,7 @@ int img_res_init(resource_manager_context_t *thiz)
     }
 #if IS_SUPPORT_UI_THEME_RES
     MUTEX_LOCK_FS(thiz->priv.m_fs_rw_lock, "theme_img_res_validate");
-    ret = img_res_validate_and_dump(thiz, RES_THEME_TYPE_CUSTOM_IMG);
+    ret = img_res_validate_and_dump(thiz, RES_THEME_TYPE_CUSTOM);
     thiz->priv.theme_res_init_completed = (ret == 0) ? true : false;
     MUTEX_UNLOCK_FS(thiz->priv.m_fs_rw_lock, "theme_img_res_validate");
 #endif
@@ -627,12 +627,12 @@ int install_img_res(resource_manager_context_t *thiz, res_theme_type_e theme_typ
 #if IS_SUPPORT_UI_THEME_RES
     int ret = 0;
     
-    if (theme_type != RES_THEME_TYPE_CUSTOM_IMG) {
+    if (theme_type != RES_THEME_TYPE_CUSTOM) {
         LOGE("only support custom theme install");
         return 0;
     }
     MUTEX_LOCK_FS(thiz->priv.m_fs_rw_lock, "install_resource");
-    ret = img_res_validate_and_dump(thiz, RES_THEME_TYPE_CUSTOM_IMG);
+    ret = img_res_validate_and_dump(thiz, RES_THEME_TYPE_CUSTOM);
     thiz->priv.theme_res_init_completed = (ret == 0) ? true : false;
     MUTEX_UNLOCK_FS(thiz->priv.m_fs_rw_lock, "install_resource");
     if (ret != 0) {
@@ -646,7 +646,7 @@ int install_img_res(resource_manager_context_t *thiz, res_theme_type_e theme_typ
 
 int uninstall_img_res(resource_manager_context_t *thiz, res_theme_type_e theme_type)
 {
-    if (theme_type != RES_THEME_TYPE_CUSTOM_IMG) {
+    if (theme_type != RES_THEME_TYPE_CUSTOM) {
         LOGE("only support custom theme uninstall");
         return 0;
     }
@@ -659,10 +659,10 @@ int uninstall_img_res(resource_manager_context_t *thiz, res_theme_type_e theme_t
 
 int res_data_load_with_theme(resource_manager_context_t *thiz, res_theme_type_e which, uint16_t img_id, res_img_info_t *out)
 {
-    if (which == RES_THEME_TYPE_CUSTOM_IMG && thiz->priv.theme_res_init_completed) {
-        return res_data_load_with_theme_impl(thiz, RES_THEME_TYPE_CUSTOM_IMG, img_id, out);
+    if (which == RES_THEME_TYPE_CUSTOM && thiz->priv.theme_res_init_completed) {
+        return res_data_load_with_theme_impl(thiz, RES_THEME_TYPE_CUSTOM, img_id, out);
     } 
-    return res_data_load_with_theme_impl(thiz, RES_THEME_TYPE_BASE_IMG, img_id, out);
+    return res_data_load_with_theme_impl(thiz, RES_THEME_TYPE_BASE, img_id, out);
 }
 
 
