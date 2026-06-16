@@ -12,7 +12,8 @@
 */
 #define PUMP_RUN_CHECK_ENABLE                        0 /// 调试开关
 #define PUMP_RUN_CHECK_INTERVAL                      1
-#define PUMP_SLEEP_TIME_COMPENSATE_FACTOR            1 /// 补偿系数
+#define LONG_TIME_COMPENSATE_FACTOR                  1 /// 长吸时间补偿系数
+#define SHORT_TIME_COMPENSATE_FACTOR                 1 /// 短吸时间补偿系数
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -233,7 +234,7 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         total_time = ONE_MIN_TIME_MS / runtime->pump_freq[pump_id];
         info->original.sleep_time    = total_time - info->original.pumping_time - 
                             info->original.valve_on_time - info->original.hold_time;           
-        uint8_t compensate_time = (PUMP_SLEEP_TIME_COMPENSATE_FACTOR * total_time) / runtime->pump_freq[pump_id]; /// 补偿时间, 往负偏差靠  
+        uint8_t compensate_time = (SHORT_TIME_COMPENSATE_FACTOR * total_time) / runtime->pump_freq[pump_id]; /// 补偿时间, 往负偏差靠  
         info->original.sleep_time = info->original.sleep_time > compensate_time ? 
                 (info->original.sleep_time - compensate_time) : 0;
         if (info->original.sleep_time < PUMP_SLEEP_TIME_MIN || info->original.sleep_time > PUMP_SLEEP_TIME_MAX) {
@@ -258,7 +259,7 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         total_time = ONE_MIN_TIME_MS / runtime->pump_freq[pump_id];
         info->original.sleep_time    = total_time - info->original.pumping_time - info->original.valve_on_time - 
                 info->original.hold_time;
-        uint8_t compensate_time = (PUMP_SLEEP_TIME_COMPENSATE_FACTOR * total_time) / runtime->pump_freq[pump_id]; /// 补偿时间, 往正偏差靠  
+        uint8_t compensate_time = (LONG_TIME_COMPENSATE_FACTOR * total_time) / runtime->pump_freq[pump_id]; /// 补偿时间, 往正偏差靠  
         info->original.sleep_time = info->original.sleep_time > compensate_time ? 
                 (info->original.sleep_time - compensate_time) : 0;
         if (info->original.sleep_time < PUMP_SLEEP_TIME_MIN || info->original.sleep_time > PUMP_SLEEP_TIME_MAX) {
