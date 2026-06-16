@@ -49,6 +49,15 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
     EXCEPTION_CHECK_VOID(algo_result);
     algo_manager_context_t *ctx = s_algo_ctx;
     EXCEPTION_CHECK_VOID(ctx);
+    if (algo_result->wear_status[0] != ctx->priv.algo_data.wear_detection.result[0] ||
+        algo_result->wear_status[1] != ctx->priv.algo_data.wear_detection.result[1]) {
+        data_bury_trigger_wear_detection_t bury_wear = {
+            .detection_type = DATA_BURY_WEAR_DETECTION_TYPE_PRESSURE,
+            .detection_data = DATA_BURY_PACK_WEAR_DETECTION_DATA(algo_result->wear_status[0],
+                                                                  algo_result->wear_status[1]),
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_WEAR_DETECTION, 0, 0, &bury_wear);
+    }
     /*
     if (algo_result->wear_status[0] != ctx->priv.algo_data.wear_detection.result[0] || \
          algo_result->wear_status[1] != ctx->priv.algo_data.wear_detection.result[1]) {
