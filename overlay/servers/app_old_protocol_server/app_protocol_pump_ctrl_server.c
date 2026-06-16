@@ -900,6 +900,9 @@ static void app_pump_custom_trial_mode_start_handler(void)
         app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE, OLD_BROADCAST_ALL_CT);
         WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 0);
         app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
+        /// 强制上报DO
+        app_old_comm_report_device_status(APP_OLD_COMM_LEFT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
+        app_old_comm_report_device_status(APP_OLD_COMM_RIGHT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
     }
 }
 
@@ -914,6 +917,9 @@ static void app_pump_custom_mode_start_handler(void)
         app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE, OLD_BROADCAST_ALL_CT);
         WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 0);
         app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
+        /// 强制上报DO，触发时间更新
+        app_old_comm_report_device_status(APP_OLD_COMM_LEFT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
+        app_old_comm_report_device_status(APP_OLD_COMM_RIGHT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
     }
 }
 

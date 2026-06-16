@@ -26,9 +26,6 @@ typedef struct {
 *****************************************************************************************
 */
 static servers_system_info_t *servers_sys_info = NULL;
-static uint32_t servers_cached_custom_mode_id = 0;
-static uint8_t servers_cached_custom_mode_id_valid = 0;
-
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -241,83 +238,6 @@ static int servers_work_thread_route(servers_manager_context_t *ctx, servers_pub
     return 0;
 }
 
-static bool servers_is_custom_pump_mode(uint8_t mode)
-{
-    return mode == BREAST_PUMP_CUSTOM_MODE || mode == BREAST_PUMP_CUSTOM_TRIAL_MODE;
-}
-
-static uint8_t servers_get_custom_mode_index(const breast_pump_result_t *result,
-    const breast_pump_result_t *pump)
-{
-    if (pump && servers_is_custom_pump_mode(pump->working_mode)) {
-        return pump->working_mode;
-    }
-    if (pump && servers_is_custom_pump_mode(pump->setting_mode)) {
-        return pump->setting_mode;
-    }
-    if (result && PUMP_IS_GOING(result->status) && servers_is_custom_pump_mode(result->working_mode)) {
-        return result->working_mode;
-    }
-    if (result && servers_is_custom_pump_mode(result->setting_mode)) {
-        return result->setting_mode;
-    }
-    return BREAST_PUMP_MODE_MAX;
-}
-
-static void servers_sync_custom_mode_id_cache(uint8_t mode_index)
-{
-    storage_manager_context_t *storage_ctx = NULL;
-    uint32_t current_id = 0;
-
-    if (mode_index >= BREAST_PUMP_MODE_MAX) {
-        return;
-    }
-    storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    if (!storage_ctx) {
-        return;
-    }
-    if (storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, mode_index, 0, &current_id) != 0) {
-        return;
-    }
-    servers_cached_custom_mode_id = current_id;
-    servers_cached_custom_mode_id_valid = 1;
-}
-
-static bool servers_check_custom_mode_id_changed(const breast_pump_result_t *result,
-    const breast_pump_result_t *pump)
-{
-    storage_manager_context_t *storage_ctx = NULL;
-    uint8_t mode_index = 0;
-    uint32_t current_id = 0;
-
-    if (!result || !pump) {
-        return false;
-    }
-    mode_index = servers_get_custom_mode_index(result, pump);
-    if (mode_index >= BREAST_PUMP_MODE_MAX) {
-        return false;
-    }
-    storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    if (!storage_ctx) {
-        return false;
-    }
-    if (storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, mode_index, 0, &current_id) != 0) {
-        return false;
-    }
-    if (!servers_cached_custom_mode_id_valid) {
-        servers_cached_custom_mode_id = current_id;
-        servers_cached_custom_mode_id_valid = 1;
-        return false;
-    }
-    if (servers_cached_custom_mode_id == current_id) {
-        return false;
-    }
-    LOG_SRV("custom mode id changed: 0x%08lX -> 0x%08lX",
-        (unsigned long)servers_cached_custom_mode_id, (unsigned long)current_id);
-    servers_cached_custom_mode_id = current_id;
-    return true;
-}
-
 static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *result)
 {
     static uint32_t last_report_time = 0;
@@ -325,12 +245,6 @@ static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *resu
     EXCEPTION_CHECK_VOID(ctx && servers_sys_info && result);
     breast_pump_result_t *pump = &servers_sys_info->pump;
     uint8_t is_need_publish = false;
-    /// 自定义模式ID发生变化，需要上报且在工作状态
-    if (servers_check_custom_mode_id_changed(result, pump) && PUMP_IS_GOING(result->status)) {
-        ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_CUSTOM_MODE_REPORT);
-        is_need_publish = true;
-        goto TO_PUBLISH;
-    }
 
     if (pump->status != result->status) {
         pump->status = result->status;
@@ -360,7 +274,6 @@ static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *resu
             pump->working_mode = result->working_mode;
             pump->setting_mode = result->setting_mode;
             if (pump->setting_mode == BREAST_PUMP_CUSTOM_MODE) {
-                servers_sync_custom_mode_id_cache(pump->working_mode);
                 ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_CUSTOM_MODE_REPORT);
             }
             is_need_publish = true;
@@ -370,7 +283,6 @@ static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *resu
         if (pump->setting_mode != result->setting_mode) {
             pump->setting_mode = result->setting_mode;
             if (pump->setting_mode == BREAST_PUMP_CUSTOM_MODE) {
-                servers_sync_custom_mode_id_cache(pump->setting_mode);
                 ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_CUSTOM_MODE_REPORT);
             }
             is_need_publish = true;
