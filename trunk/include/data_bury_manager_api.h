@@ -83,6 +83,18 @@ typedef enum {
     DATA_BURY_USER_EVT_PAUSE,
 } data_bury_user_evt_type_e;
 
+typedef enum {
+    DATA_BURY_WEAR_DETECTION_TYPE_IR = 1,
+    DATA_BURY_WEAR_DETECTION_TYPE_PRESSURE,
+    DATA_BURY_WEAR_DETECTION_TYPE_MIXED,
+} data_bury_wear_detection_type_e;
+
+/** EVT_019 trigger 入参，经 DATA_BURY_TRIGGER_EVT_WEAR_DETECTION 的 args->val 传入 */
+typedef struct {
+    uint8_t detection_type;
+    uint32_t detection_data;
+} data_bury_trigger_wear_detection_t;
+
 #define DATA_BURY_BAT_CHARGE_END_REASON_FULL              0
 #define DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG            1
 #define DATA_BURY_BAT_CHARGE_END_REASON_ADAPTER_MISMATCH  2
@@ -113,6 +125,7 @@ typedef enum {
  * DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH：arg1=adjust_from，arg2=adjust_to，val=uint16_t* duration_sec(秒)
  * DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST：val=data_bury_trigger_manual_adjust_t*
  * DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT：val=data_bury_trigger_user_evt_t*
+ * DATA_BURY_TRIGGER_EVT_WEAR_DETECTION：val=data_bury_trigger_wear_detection_t*
  */
 
 typedef enum {
@@ -129,6 +142,7 @@ typedef enum {
     DATA_BURY_TRIGGER_EVT_OTA_START,
     DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START,
     DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END,
+    DATA_BURY_TRIGGER_EVT_WEAR_DETECTION,
 } data_bury_trigger_event_e;
 
 typedef struct {
@@ -179,6 +193,10 @@ typedef struct {
 #define DATA_BURY_PACK_SUCTION_LEVEL(_left, _right) \
     ((uint8_t)((((uint8_t)(_left) > 15u ? (uint8_t)15u : ((uint8_t)(_left) & 0x0Fu)) << 4) | \
                ((uint8_t)(_right) > 15u ? (uint8_t)15u : ((uint8_t)(_right) & 0x0Fu))))
+
+/** 佩戴检测数据打包：低 8 位左、次 8 位右（wear_status 0/1） */
+#define DATA_BURY_PACK_WEAR_DETECTION_DATA(_left, _right) \
+    ((uint32_t)(((uint32_t)(uint8_t)(_left)) | (((uint32_t)(uint8_t)(_right)) << 8)))
 
 /** data_bury_publish(servers_publish_data_args_t)：arg1=payload 长度(0=按 id 推导)，arg2=延时 ms(0=立即)，val=payload；delay>0 时内部会拷贝 payload */
 #define DATA_BURY_PUBLISH_ARGS(_len, _delay_ms, _val) \
