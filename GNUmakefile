@@ -132,6 +132,7 @@ ROOT_UI_V2 ?= 0x02
 ROOT_UI_V3 ?= 0x03
 ROOT_UI_V4 ?= 0x04
 ROOT_UI_V5 ?= 0x05
+ROOT_UI_V6 ?= 0x06
 
 ROOT_UI_VERSION ?= $(ROOT_UI_V5)
 
@@ -140,12 +141,14 @@ V3_UI_V2 ?= 0x02
 V3_UI_V3 ?= 0x03
 V3_UI_V4 ?= 0x04
 V3_UI_V5 ?= 0x05
+V3_UI_V6 ?= 0x06
 
 # V3PRO UI版本
 V3PRO_UI_V2 ?= 0x12
 V3PRO_UI_V3 ?= 0x13
 V3PRO_UI_V4 ?= 0x14
 V3PRO_UI_V5 ?= 0x15
+V3PRO_UI_V6 ?= 0x16
 
 # 产品UX版本
 V3_UX_V1 ?= 0x01
@@ -169,7 +172,10 @@ V3_UX_VERSION ?= $(V3_UX_V2)
 PUMP_RHYTHM_MODE_NUM := 3
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V5))
 V3_UI_VERSION ?= $(V3PRO_UI_V5)
-# V3_UX_VERSION ?= $(V3_UX_V3)
+V3_UX_VERSION ?= $(V3_UX_V4)
+PUMP_RHYTHM_MODE_NUM := 3
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V6))
+V3_UI_VERSION ?= $(V3PRO_UI_V6)
 V3_UX_VERSION ?= $(V3_UX_V4)
 PUMP_RHYTHM_MODE_NUM := 3
 else 
@@ -192,7 +198,10 @@ V3_UX_VERSION ?= $(V3_UX_V2)
 PUMP_RHYTHM_MODE_NUM := 3
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V5))
 V3_UI_VERSION ?= $(V3_UI_V5)
-# V3_UX_VERSION ?= $(V3_UX_V3)
+V3_UX_VERSION ?= $(V3_UX_V4)
+PUMP_RHYTHM_MODE_NUM := 3
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V6))
+V3_UI_VERSION ?= $(V3_UI_V6)
 V3_UX_VERSION ?= $(V3_UX_V4)
 PUMP_RHYTHM_MODE_NUM := 3
 else
@@ -224,6 +233,10 @@ else ifeq ($(V3_UI_VERSION), $(V3_UI_V5))
 UI_OVERLAY_SUBDIR := v3_ui_v5
 else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V5))
 UI_OVERLAY_SUBDIR := v3pro_ui_v5
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V6))
+UI_OVERLAY_SUBDIR := v3_ui_v6
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V6))
+UI_OVERLAY_SUBDIR := v3pro_ui_v6
 else
 $(warning Invalid UI version)
 endif
@@ -710,6 +723,10 @@ else ifeq ($(V3_UI_VERSION), $(V3_UI_V5))
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v5
 else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V5))
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v5
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V6))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v6
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V6))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v6
 else
 $(warning Invalid UI version)
 endif
