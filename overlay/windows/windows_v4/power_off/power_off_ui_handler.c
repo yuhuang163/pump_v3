@@ -117,11 +117,28 @@ void power_off_handle(ui_proc_power_off_t *proc)
     if (power_dev == NULL) {
         platform_system_reboot();
     }
+    
+    rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
+    if (led_dev) {
+        led_status_msg_t msg = {
+            .led_index = PUMP_LED_ALL_ID,
+            .led_status = {
+                .mode = LED_MODE_ONOFF,
+                .un.onoff = {
+                    .status = LED_STATUS_OFF,
+                },
+            },
+        };
+        led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+        LOG_WM("set led off");
+        msleep(100);
+    } 
+
     int arg1[] = {0};
     for (uint8_t i = 0; i < 3; i++) {
         power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)arg1);
         msleep(200);
-        LOG_PM("power off try: %d", i);
+        LOG_WM("power off try: %d", i);
     }
     platform_system_reboot();
 }
