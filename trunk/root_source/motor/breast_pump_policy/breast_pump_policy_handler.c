@@ -264,34 +264,26 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     if (action == MOTOR_USER_DEBUG_POLICY_START) {
         body->taste_run_flag = 1;
         policy_obj = thiz->priv.user_debug_policy;
+        breast_pump_start_prepare(thiz, policy_obj);
+        thiz->notify_motor_status_change(MOTOR_STATUS_EVT_TASTE_START);
         LOG_MOTOR("user debug policy");
-    } else if (action == MOTOR_POLICY_CONTINUE) {
-        if (body->breast_pump_mode == pump_mode) {
-            LOG_MOTOR("continue %s policy, step_index: %d", mode_name, body->current_timed_policy_index);
-            negative_pressure_release(thiz, 200);
-            return;
-        } else {
-            LOG_MOTOR("breast pump mode changed, need to restart policy");
-            body->policy_running_time_ms = 0;
-            body->breast_pump_mode = pump_mode;
-            policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
-            LOG_MOTOR("%s mode policy", mode_name);
-        }
+        return;
+    } else if (action == MOTOR_POLICY_CONTINUE && body->breast_pump_mode == pump_mode) {
+        LOG_MOTOR("continue %s policy, step_index: %d", mode_name, body->current_timed_policy_index);
+        negative_pressure_release(thiz, 200);
+        return;
     } else {
         body->policy_running_time_ms = 0;
         body->breast_pump_mode = pump_mode;
-        policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
-        LOG_MOTOR("%s mode policy", mode_name);
     }
+    policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
+    LOG_MOTOR("%s mode policy", mode_name);
     if (!is_valid_motor_policy_obj(policy_obj)) {
         LOGE("invalid policy obj: %p, mode: %s, breast_pump_mode: %d",
             policy_obj, mode_name, body->breast_pump_mode);
         // return; /// 不返回, 触发重启复现问题
     }
     breast_pump_start_prepare(thiz, policy_obj);
-    if (body->taste_run_flag) {
-        thiz->notify_motor_status_change(MOTOR_STATUS_EVT_TASTE_START);
-    }
 }
 
 int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_task_para_t *play_para)
