@@ -30,6 +30,16 @@ extern "C" {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
+typedef struct {
+    void (*remove)(ui_manager_context_t *thiz);
+    int (*process)(ui_manager_context_t *thiz);
+} ui_page_ops_t;
+
+typedef struct {
+    void (*init)(ui_manager_context_t *thiz);
+    void (*deinit)(ui_manager_context_t *thiz);
+} ui_module_lifecycle_ops_t;
+
 #ifdef __cplusplus
 }
 #endif
