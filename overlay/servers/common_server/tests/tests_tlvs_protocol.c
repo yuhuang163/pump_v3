@@ -1589,7 +1589,7 @@ int tests_tlvs_read_ui_res_version(comm_protocol_builder_t *builder, comm_protoc
     }
 
     /// 产测上报设备已加载的基础 UI 资源包版本（与 img_res_init 校验的 BASE 分区一致）
-    uint16_t img_res_version = (uint16_t)res->get_img_res_version(RES_THEME_TYPE_BASE_IMG);
+    uint16_t img_res_version = (uint16_t)res->get_img_res_version(RES_THEME_TYPE_BASE);
     if (img_res_version == 0) {
         img_res_version = (uint16_t)ROOT_RES_VERSION;
         LOGW("tests_tlvs_read_ui_res_version: base res version not ready, fallback ROOT_RES_VERSION=%u",

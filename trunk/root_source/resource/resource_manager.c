@@ -64,23 +64,23 @@ static int wait_init_completed(void *res)
 
 static int install_resource(int which)
 {
-    if (which == RES_THEME_TYPE_CUSTOM_IMG) {
-        return install_img_res(thiz, RES_THEME_TYPE_CUSTOM_IMG);
+    if (which == RES_THEME_TYPE_CUSTOM) {
+        return install_img_res(thiz, RES_THEME_TYPE_CUSTOM);
     } 
     return 0;
 }
 
 static int uninstall_resource(int which)
 {
-    if (which == RES_THEME_TYPE_CUSTOM_IMG) {
-        return uninstall_img_res(thiz, RES_THEME_TYPE_CUSTOM_IMG);
+    if (which == RES_THEME_TYPE_CUSTOM) {
+        return uninstall_img_res(thiz, RES_THEME_TYPE_CUSTOM);
     }
     return 0;
 }
 
 static int base_res_data_load_impl(uint16_t img_id, res_img_info_t *out)
 {
-    return res_data_load_with_theme(thiz, RES_THEME_TYPE_BASE_IMG, img_id, out);
+    return res_data_load_with_theme(thiz, RES_THEME_TYPE_BASE, img_id, out);
 }
 
 static int theme_res_data_load_impl(uint16_t img_id, res_img_info_t *out)
@@ -88,18 +88,24 @@ static int theme_res_data_load_impl(uint16_t img_id, res_img_info_t *out)
 #if IS_SUPPORT_UI_THEME_RES
     return res_data_load_with_theme(thiz, thiz->priv.theme_type, img_id, out);
 #else
-    return res_data_load_with_theme(thiz, RES_THEME_TYPE_BASE_IMG, img_id, out);
+    return res_data_load_with_theme(thiz, RES_THEME_TYPE_BASE, img_id, out);
 #endif 
 }
 
 static int get_img_res_version(res_theme_type_e theme_type)
 {
-    if (theme_type == RES_THEME_TYPE_BASE_IMG) {
+    if (theme_type == RES_THEME_TYPE_BASE) {
         return thiz->priv.img_base_res_version;
-    } else if (theme_type == RES_THEME_TYPE_CUSTOM_IMG) {
+    } else if (theme_type == RES_THEME_TYPE_CUSTOM) {
         return thiz->priv.img_custom_res_version;
     }
     return 0;
+}
+
+static int get_current_theme_type(void)
+{
+    thiz->priv.theme_type = RES_THEME_TYPE_CUSTOM;
+    return thiz->priv.theme_type;
 }
 
 static int on_post_res_init(void *ptr) 
@@ -125,6 +131,7 @@ void *register_module_for_res_manager_new(list_head_t *list_head)
     ptr->theme_res_data_load = theme_res_data_load_impl;
     ptr->res_data_unload = res_data_unload;
     ptr->get_img_res_version = get_img_res_version;
+    ptr->get_current_theme_type = get_current_theme_type;
     MUTEX_INIT(&ptr->priv.m_fs_rw_lock, fs_rw_lock);
     thiz = ptr;
 
