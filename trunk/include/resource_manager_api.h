@@ -31,8 +31,8 @@ do { \
 
 /// 资源主题类型
 typedef enum {
-    RES_THEME_TYPE_BASE_IMG,  /// 基础图片资源
-    RES_THEME_TYPE_CUSTOM_IMG,    /// 自定义图片资源
+    RES_THEME_TYPE_BASE,  /// 基础主题资源
+    RES_THEME_TYPE_CUSTOM,    /// 自定义主题资源
     RES_THEME_TYPE_MAX
 } res_theme_type_e;
 
@@ -67,6 +67,7 @@ typedef struct resource_manager_context {
     int (*theme_res_data_load)(uint16_t img_id, res_img_info_t *out); /// 主题资源加载
     void (*res_data_unload)(res_img_info_t *img); /// 释放资源
     int (*get_img_res_version)(res_theme_type_e theme_type); /// 获取基础资源版本
+    int (*get_current_theme_type)(void); /// 获取当前主题类型 
 /// private:
     struct __resource_manager_private {
         int install_result;
