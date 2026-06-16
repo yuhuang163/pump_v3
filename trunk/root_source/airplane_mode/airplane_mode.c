@@ -39,6 +39,14 @@ static int enter_airplane_mode(int enter_reason)
     if (thiz->hook && thiz->hook->enter_airplane_mode_route) {
         thiz->hook->enter_airplane_mode_route(thiz, enter_reason);
     }
+    /// 触发飞机模式进入埋点 (EVT_009: 飞机模式进入)
+    {
+        data_bury_trigger_user_evt_t bury_evt = {
+            .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+            .evt_type = DATA_BURY_USER_EVT_TRAVEL_LOCK,
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
+    }
     return 0;
 }
 

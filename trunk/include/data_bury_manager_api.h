@@ -69,6 +69,12 @@ typedef struct {
     uint8_t adjust_to;
 } data_bury_trigger_manual_adjust_t;
 
+/** EVT_007 trigger 入参，经 DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT 的 args->val 传入 */
+typedef struct {
+    uint8_t evt_source;
+    uint8_t evt_type;
+} data_bury_trigger_user_evt_t;
+
 typedef enum {
     DATA_BURY_USER_EVT_NIGHT_LIGHT = 0,
     DATA_BURY_USER_EVT_TRAVEL_LOCK,
@@ -106,6 +112,7 @@ typedef enum {
  * DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END：arg1=结束原因（DATA_BURY_BAT_CHARGE_END_REASON_*），arg2 保留
  * DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH：arg1=adjust_from，arg2=adjust_to，val=uint16_t* duration_sec(秒)
  * DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST：val=data_bury_trigger_manual_adjust_t*
+ * DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT：val=data_bury_trigger_user_evt_t*
  */
 
 typedef enum {
@@ -115,6 +122,7 @@ typedef enum {
     DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START,
     DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH,
     DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST,
+    DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT,
     DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END,
     DATA_BURY_TRIGGER_EVT_POWER_ON,
     DATA_BURY_TRIGGER_EVT_POWER_OFF,

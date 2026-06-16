@@ -14,6 +14,7 @@ const static data_bury_event_process_handle_t data_bury_event_process_list[] = {
     { DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START, data_bury_event_process_pump_session_start },
     { DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH, data_bury_event_process_pump_mode_switch },
     { DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, data_bury_event_process_pump_manual_adjust },
+    { DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, data_bury_event_process_pump_user_event },
     { DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, data_bury_event_process_pump_session_end },
     { DATA_BURY_TRIGGER_EVT_POWER_ON, data_bury_event_process_power_on },
     { DATA_BURY_TRIGGER_EVT_POWER_OFF, data_bury_event_process_power_off },
