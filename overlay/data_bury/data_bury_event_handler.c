@@ -474,7 +474,8 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
         ctx->data_bury_pump_session_end();
     }
     LOG_BURY("pump session end committed id=%u duration=%us modes=%u",
-             (unsigned)session_id, (unsigned)session_duration_sec, (unsigned)used_mode_count);
+             (unsigned)session_id, (unsigned)(session_duration_ms / 1000u),
+             (unsigned)used_mode_count);
 }
 
 static void data_bury_event_publish_charge_start(data_bury_manager_context_t *ctx)
