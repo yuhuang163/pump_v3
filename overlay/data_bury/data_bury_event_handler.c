@@ -344,6 +344,28 @@ static void data_bury_event_publish_pump_manual_adjust(data_bury_manager_context
              (unsigned)adjust_from, (unsigned)adjust_to);
 }
 
+static void data_bury_event_publish_pump_user_evt(data_bury_manager_context_t *ctx,
+                                                  uint8_t evt_source, uint8_t evt_type)
+{
+    data_bury_evt_pump_user_evt_t evt = {0};
+    uint16_t session_id = 0u;
+
+    if (ctx->data_bury_get_current_pump_session_id) {
+        session_id = ctx->data_bury_get_current_pump_session_id();
+    }
+
+    evt.device_side = ctx->data_bury_get_device_side();
+    evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
+    evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
+    evt.pump_session_id = session_id;
+    evt.evt_source = evt_source;
+    evt.evt_type = evt_type;
+    (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_USER_EVENT,
+                                  &evt, (uint16_t)sizeof(evt), 0u);
+    LOG_BURY("user evt publish: sid=%u src=%u type=%u",
+             (unsigned)session_id, (unsigned)evt_source, (unsigned)evt_type);
+}
+
 static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t *ctx, uint8_t end_reason)
 {
     breast_pump_manager_context_t *pump =
@@ -571,6 +593,19 @@ int data_bury_event_process_pump_manual_adjust(data_bury_manager_context_t *ctx,
     adj = (const data_bury_trigger_manual_adjust_t *)args->val;
     data_bury_event_publish_pump_manual_adjust(ctx, adj->evt_source, adj->evt_type,
                                                adj->adjust_from, adj->adjust_to);
+    return 0;
+}
+
+int data_bury_event_process_pump_user_event(data_bury_manager_context_t *ctx,
+                                            const data_bury_trigger_args_t *args)
+{
+    const data_bury_trigger_user_evt_t *user_evt;
+
+    if (!ctx || !args || !args->val) {
+        return -1;
+    }
+    user_evt = (const data_bury_trigger_user_evt_t *)args->val;
+    data_bury_event_publish_pump_user_evt(ctx, user_evt->evt_source, user_evt->evt_type);
     return 0;
 }
 

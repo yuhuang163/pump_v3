@@ -31,6 +31,14 @@ static void factory_reset_confirm_ui_finish_policy(ui_manager_context_t *ui, int
 {
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
+    /// 触发清库/Flash/重启埋点 (EVT_010: 清库/Flash/重启)
+    {
+        data_bury_trigger_user_evt_t bury_evt = {
+            .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+            .evt_type = DATA_BURY_USER_EVT_RESET,
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
+    }
     factory_reset_handle(proc, 10);
 }
 

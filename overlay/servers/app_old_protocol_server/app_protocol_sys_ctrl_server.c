@@ -244,6 +244,14 @@ void app_old_comm_handle_sys_ctrl_req(uint8_t cal, uint8_t *cab)
         else {
             LOG_SRV("factory_reset failed");
         }*/
+        /// 触发清库/Flash/重启埋点 (EVT_010: 清库/Flash/重启)
+        {
+            data_bury_trigger_user_evt_t bury_evt = {
+                .evt_source = DATA_BURY_EVT_SOURCE_REMOTE_APP,
+                .evt_type = DATA_BURY_USER_EVT_RESET,
+            };
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
+        }   
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
         EXCEPTION_CHECK_VOID(wm);
         multi_func_msg_data_t msg = {0};
@@ -368,6 +376,14 @@ void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab)
     LOG_SRV(" light ctrl: switch=%d level=%d adaptive=%d screen_key=%d",
             light_status.night_light_switch, light_status.night_light_gear,
             light_status.adaptive_switch, light_status.screen_key_level);
+    /// 触发灯光状态设置埋点 (EVT_008: 灯光状态设置)
+    {
+        data_bury_trigger_user_evt_t bury_evt = {
+            .evt_source = DATA_BURY_EVT_SOURCE_REMOTE_APP,
+            .evt_type = DATA_BURY_USER_EVT_NIGHT_LIGHT,
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
+    }
     result = app_old_comm_apply_light_control(&light_status) ? 0x01 : 0x00;
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL,
                                                1, &result);
