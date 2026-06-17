@@ -584,7 +584,8 @@ static void pump_home_speed_label_update(ui_manager_context_t *thiz, uint8_t spe
         pump_info->speed_icon = lv_image_create(pump_info->root);
         EXCEPTION_CHECK_VOID(pump_info->speed_icon);
     } 
-    common_ui_img_resource_init(thiz, home_speed_icon_ids[speed], &pump_info->speed_icon_info);
+    common_ui_theme_img_resource_init(thiz, home_speed_icon_ids[speed], RES_THEME_TYPE_CUSTOM,
+        &pump_info->speed_icon_info);
     EXCEPTION_CHECK_VOID(pump_info->speed_icon_info.data);
     lv_fs_make_path_from_buffer(&speed_icon_path, LV_FS_MEMFS_LETTER, 
         pump_info->speed_icon_info.data, pump_info->speed_icon_info.size, "baj");
@@ -652,7 +653,8 @@ static void pump_home_common_mode_update(ui_manager_context_t *thiz, uint8_t mod
 
     /// 设置icon
     lv_obj_clear_flag(pump_info->mode_icon, LV_OBJ_FLAG_HIDDEN); /// 显示
-    common_ui_img_resource_init(thiz, home_mode_icons[mode_index], &pump_info->mode_icon_info);
+    common_ui_theme_img_resource_init(thiz, home_mode_icons[mode_index], RES_THEME_TYPE_CUSTOM,
+        &pump_info->mode_icon_info);
     EXCEPTION_CHECK_VOID(pump_info->mode_icon_info.data);
     lv_fs_path_ex_t mode_icon_path;
     lv_fs_make_path_from_buffer(&mode_icon_path, LV_FS_MEMFS_LETTER, 
@@ -725,7 +727,8 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         pump_info->bf_mode_step_line = lv_image_create(pump_info->root);
         EXCEPTION_CHECK_VOID(pump_info->bf_mode_step_line);
         lv_obj_align(pump_info->bf_mode_step_line, LV_ALIGN_TOP_MID, 0, 83); /// 设置label文字位置
-        common_ui_img_resource_init(thiz, RESOURCE_ID_MODE_STEP_LINE_ICON, &pump_info->bf_mode_step_line_info);
+        common_ui_theme_img_resource_init(thiz, RESOURCE_ID_MODE_STEP_LINE_ICON, RES_THEME_TYPE_CUSTOM,
+            &pump_info->bf_mode_step_line_info);
         EXCEPTION_CHECK_VOID(pump_info->bf_mode_step_line_info.data);
         lv_fs_path_ex_t step_line_path;
         lv_fs_make_path_from_buffer(&step_line_path, LV_FS_MEMFS_LETTER, 
@@ -828,8 +831,8 @@ static void pump_home_animation_update(ui_manager_context_t *thiz, uint8_t mode_
         common_ui_img_resource_deinit(thiz, &pump_info->animation_info);
         memset(&pump_info->animation_info, 0, sizeof(pump_info->animation_info));
     }
-    common_ui_img_resource_init_with_theme(thiz, 
-        pump_info->animation_id, &pump_info->animation_info);
+    common_ui_theme_img_resource_init(thiz, pump_info->animation_id, RES_THEME_TYPE_CUSTOM,
+        &pump_info->animation_info);
     EXCEPTION_CHECK_VOID(pump_info->animation_info.data);
     lv_fs_path_ex_t animation_img_path;
     lv_fs_make_path_from_buffer(&animation_img_path, LV_FS_MEMFS_LETTER, 
@@ -868,7 +871,7 @@ void pump_home_custom_ui_remove(ui_manager_context_t *thiz)
     common_ui_img_resource_deinit(thiz, &pump_info->mode_icon_info);
     common_ui_img_resource_deinit(thiz, &pump_info->bf_mode_step_line_info);
     ble_ui_deinit(thiz);
-    ui_common_operation_tip_remove(thiz);
+    ui_common_operation_tip_custom_ui_remove(thiz);
     LVGL_OBJ_DELETE(pump_info->root);
     u_free(pump_info);
     pump_info = NULL;
@@ -907,7 +910,7 @@ int pump_home_custom_ui_process(ui_manager_context_t *thiz)
     pump_home_left_level_update(thiz, setting.level[0]);
     pump_home_right_level_update(thiz, setting.level[1]);
     pump_home_speed_label_update(thiz, setting.speed);
-    ui_common_operation_tip_update(thiz, proc->popup_ui_type, pump_info->root, &pump_info->popup_ui_index);
+    ui_common_operation_tip_custom_ui_update(thiz, proc->popup_ui_type, pump_info->root, &pump_info->popup_ui_index);
     pump_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

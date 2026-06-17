@@ -130,7 +130,8 @@ static void airplane_mode_button_icon_update(ui_manager_context_t *thiz)
         !lv_obj_is_valid(airplane_info->unlock_button_icon)) {
         airplane_info->unlock_button_icon = lv_image_create(airplane_info->root);
     }
-    common_ui_img_resource_init(thiz, RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON, &airplane_info->unlock_button_icon_info);
+    common_ui_theme_img_resource_init(thiz, RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON, RES_THEME_TYPE_BASE,
+        &airplane_info->unlock_button_icon_info);
     EXCEPTION_CHECK_VOID(airplane_info->unlock_button_icon_info.data);
     lv_fs_path_ex_t unlock_button_img_path;
     lv_fs_make_path_from_buffer(&unlock_button_img_path, LV_FS_MEMFS_LETTER,
@@ -184,7 +185,7 @@ void airplane_mode_base_ui_remove(ui_manager_context_t *thiz)
     ble_ui_deinit(thiz);
     common_ui_bg_deinit(thiz);
     common_ui_img_resource_deinit(thiz, &airplane_info->unlock_button_icon_info);
-    ui_common_operation_tip_remove(thiz);
+    ui_common_operation_tip_base_ui_remove(thiz);
     LVGL_OBJ_DELETE(airplane_info->root); 
     u_free(airplane_info);
     airplane_info = NULL;
@@ -202,7 +203,7 @@ int airplane_mode_base_ui_process(ui_manager_context_t *thiz)
     for (uint8_t i = 0; i < AIRPLANE_MODE_TEXT_COUNT; i++) {
         airplane_mode_texts_update(thiz, i);
     }
-    ui_common_operation_tip_update(thiz, proc->popup_ui_type, airplane_info->root,
+    ui_common_operation_tip_base_ui_update(thiz, proc->popup_ui_type, airplane_info->root,
         &airplane_info->popup_ui_index);
     airplane_info->force_update = false;
     thiz->priv.fps_count++;

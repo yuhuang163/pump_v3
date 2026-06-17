@@ -30,6 +30,7 @@ typedef struct {
     lv_obj_t * arc;                    /// 圆弧进度条对象
     lv_obj_t * number;
     res_img_info_t img_info;          /// 图片信息
+    res_theme_type_e res_theme_type;
     uint32_t start_time;              /// 开始时间
     uint16_t ring_progress;            /// 圆弧进度
     uint16_t ring_progress_max;       /// 圆弧进度最大值
@@ -145,8 +146,8 @@ static void popup_window_ui_icon_update(ui_manager_context_t *thiz, uint16_t img
         popup_info->icon = lv_image_create(popup_info->root);
         EXCEPTION_CHECK_VOID(popup_info->icon);
     }
-
-    common_ui_img_resource_init(thiz, img_id, &popup_info->img_info);
+    common_ui_theme_img_resource_init(thiz, img_id, popup_info->res_theme_type,
+        &popup_info->img_info);
     EXCEPTION_CHECK_VOID(popup_info->img_info.data);
     lv_fs_path_ex_t invalid_popup_icon_img_path;
     lv_fs_make_path_from_buffer(&invalid_popup_icon_img_path, LV_FS_MEMFS_LETTER,
@@ -349,6 +350,10 @@ void popup_window_ui_prepare(ui_manager_context_t *thiz, popup_ui_id_e type, uin
     popup_info->ring_progress_max = (time / POPUP_STATUS_DISPLAY_STEP_TIME) - 2;
     popup_info->force_update = true;
     popup_info->start_time = get_timestamp();
+    popup_info->res_theme_type = RES_THEME_TYPE_BASE;
+    if (thiz && thiz->priv.res) {
+        popup_info->res_theme_type  = thiz->priv.res->get_current_theme_type();
+    }
     LOG_UI("popup: %s, time:%d", popup_window_ui_name_get(thiz, type), time);
 }
 

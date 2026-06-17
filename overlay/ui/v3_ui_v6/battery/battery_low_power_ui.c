@@ -62,9 +62,7 @@ void ui_display_battery_low_power_remove(ui_manager_context_t *thiz)
     if (s_ops.remove) {
         s_ops.remove(thiz);
     } else {
-        LOG_UI("battery_low_power remove fallback: s_ops.remove is null");
-        battery_low_power_base_ui_remove(thiz);
-        battery_low_power_custom_ui_remove(thiz);
+        LOGE("remove is null");
     }
 }
 

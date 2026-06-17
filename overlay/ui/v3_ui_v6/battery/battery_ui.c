@@ -76,8 +76,6 @@ void battery_ui_deinit(ui_manager_context_t *thiz)
     if (s_ops.life.deinit) {
         s_ops.life.deinit(thiz);
     } else {
-        LOG_UI("battery deinit fallback: s_ops.life.deinit is null");
-        battery_base_ui_deinit(thiz);
-        battery_custom_ui_deinit(thiz);
+        LOGE("deinit is null");
     }
 }

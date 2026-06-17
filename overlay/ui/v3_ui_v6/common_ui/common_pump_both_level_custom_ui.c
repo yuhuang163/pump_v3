@@ -190,10 +190,12 @@ static void pump_both_level_symbol_update(ui_manager_context_t *thiz, int8_t lev
     }
 
     if (symbol_status == PUMP_BOTH_LEVEL_SYMBOL_ADD) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_PUMP_LEVEL_ADD_ICON, &level_info->symbol_info);
+        common_ui_theme_img_resource_init(thiz, RESOURCE_ID_PUMP_LEVEL_ADD_ICON, RES_THEME_TYPE_CUSTOM,
+            &level_info->symbol_info);
         EXCEPTION_CHECK_VOID(level_info->symbol_info.data);
     } else if (symbol_status == PUMP_BOTH_LEVEL_SYMBOL_SUB) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_PUMP_LEVEL_SUB_ICON, &level_info->symbol_info);
+        common_ui_theme_img_resource_init(thiz, RESOURCE_ID_PUMP_LEVEL_SUB_ICON, RES_THEME_TYPE_CUSTOM,
+            &level_info->symbol_info);
         EXCEPTION_CHECK_VOID(level_info->symbol_info.data);
     } else {
         level_info->symbol_status = symbol_status;    
@@ -428,7 +430,7 @@ static void pump_both_level_offset_text_update(ui_manager_context_t *thiz, int8_
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void common_pump_both_level_ui_prepare(ui_manager_context_t *thiz)
+void common_pump_both_level_custom_ui_prepare(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (level_info == NULL) {
@@ -440,18 +442,18 @@ void common_pump_both_level_ui_prepare(ui_manager_context_t *thiz)
     level_info->popup_ui_index = ID_POPUP_UI_NONE;
 }
 
-void common_pump_both_level_ui_remove(ui_manager_context_t *thiz)
+void common_pump_both_level_custom_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(level_info);
     common_ui_img_resource_deinit(thiz, &level_info->symbol_info);
-    ui_common_operation_tip_remove(thiz);
+    ui_common_operation_tip_custom_ui_remove(thiz);
     LVGL_OBJ_DELETE(level_info->root);
     u_free(level_info);
     level_info = NULL;
 }
 
-int common_pump_both_level_ui_process(ui_manager_context_t *thiz, uint8_t *level, 
+int common_pump_both_level_custom_ui_process(ui_manager_context_t *thiz, uint8_t *level, 
     int8_t level_change, uint16_t popup_ui_type)
 {
     EXCEPTION_CHECK_INT(thiz && level_info && level_info->root && level);
@@ -461,7 +463,7 @@ int common_pump_both_level_ui_process(ui_manager_context_t *thiz, uint8_t *level
     pump_both_level_offset_text_update(thiz, level_change);
     pump_left_level_update(thiz, level[0], level_change);
     pump_right_level_update(thiz, level[1], level_change);
-    ui_common_operation_tip_update(thiz, popup_ui_type, level_info->root, &level_info->popup_ui_index);
+    ui_common_operation_tip_custom_ui_update(thiz, popup_ui_type, level_info->root, &level_info->popup_ui_index);
     level_info->force_update = false;
 
     return 0;

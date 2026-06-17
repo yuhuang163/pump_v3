@@ -46,9 +46,7 @@ void ui_display_pump_complete_tip_remove(ui_manager_context_t *thiz)
     if (s_ops.remove) {
         s_ops.remove(thiz);
     } else {
-        LOG_UI("pump_finish remove fallback: s_ops.remove is null");
-        pump_finish_base_ui_remove(thiz);
-        pump_finish_custom_ui_remove(thiz);
+        LOGE("remove is null");
     }
 }
 

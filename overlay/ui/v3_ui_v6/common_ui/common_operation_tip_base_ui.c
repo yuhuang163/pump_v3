@@ -171,7 +171,8 @@ static void common_operation_tip_icon_update(ui_manager_context_t *thiz, uint16_
         EXCEPTION_CHECK_VOID(operation_info->icon);
     }
 
-    common_ui_img_resource_init(thiz, img_id, &operation_info->img_info);
+    common_ui_theme_img_resource_init(thiz, img_id, RES_THEME_TYPE_BASE,
+        &operation_info->img_info);
     EXCEPTION_CHECK_VOID(operation_info->img_info.data);
     lv_fs_path_ex_t invalid_operation_icon_img_path;
     lv_fs_make_path_from_buffer(&invalid_operation_icon_img_path, LV_FS_MEMFS_LETTER,
@@ -384,7 +385,7 @@ static void common_operation_ui_update(ui_manager_context_t *thiz, popup_ui_id_e
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void ui_common_operation_tip_prepare(ui_manager_context_t *thiz, lv_obj_t *parent, popup_ui_id_e type)
+void ui_common_operation_tip_base_ui_prepare(ui_manager_context_t *thiz, lv_obj_t *parent, popup_ui_id_e type)
 {
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(parent);
@@ -410,7 +411,7 @@ void ui_common_operation_tip_prepare(ui_manager_context_t *thiz, lv_obj_t *paren
     LOG_UI("pump status popup prepare %s", common_operation_tip_name_get(thiz, type));
 }
 
-void ui_common_operation_tip_remove(ui_manager_context_t *thiz)
+void ui_common_operation_tip_base_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (operation_info == NULL) {
@@ -422,7 +423,7 @@ void ui_common_operation_tip_remove(ui_manager_context_t *thiz)
     operation_info = NULL;
 }
 
-void ui_common_operation_tip_process(ui_manager_context_t *thiz, popup_ui_id_e type)
+void ui_common_operation_tip_base_ui_process(ui_manager_context_t *thiz, popup_ui_id_e type)
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (operation_info == NULL || operation_info->root == NULL ||
@@ -433,13 +434,13 @@ void ui_common_operation_tip_process(ui_manager_context_t *thiz, popup_ui_id_e t
     operation_info->force_update = false;
 }
 
-void ui_common_operation_tip_update(ui_manager_context_t *thiz, 
+void ui_common_operation_tip_base_ui_update(ui_manager_context_t *thiz,
     popup_ui_id_e type, lv_obj_t *parent, uint8_t *ui_index)
 {
     switch (type) {
         default:
         case ID_POPUP_UI_NONE:
-            ui_common_operation_tip_remove(thiz);
+            ui_common_operation_tip_base_ui_remove(thiz);
             *ui_index = ID_POPUP_UI_NONE;
             break;
         case ID_POPUP_UI_OP_SUCCESS:
@@ -455,12 +456,13 @@ void ui_common_operation_tip_update(ui_manager_context_t *thiz,
         case ID_POPUP_UI_PUMP_PAUSE_TIMEOUT:
         case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
             if (*ui_index != type) {
-                ui_common_operation_tip_remove(thiz);
-                ui_common_operation_tip_prepare(thiz, parent, type);
+                ui_common_operation_tip_base_ui_remove(thiz);
+                ui_common_operation_tip_base_ui_prepare(thiz, parent, type);
                 *ui_index = type;
             } else {
-                ui_common_operation_tip_process(thiz, type);
+                ui_common_operation_tip_base_ui_process(thiz, type);
             }
             break;
     }
 }
+

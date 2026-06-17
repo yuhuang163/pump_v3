@@ -30,14 +30,14 @@
 */
 void pump_level_base_ui_prepare(ui_manager_context_t *thiz)
 {
-   common_pump_level_ui_prepare(thiz);
+   common_pump_level_base_ui_prepare(thiz);
    thiz->priv.fps_count = 0;
    thiz->priv.fps_start_time = get_timestamp();
 }
 
 void pump_level_base_ui_remove(ui_manager_context_t *thiz)
 {
-    common_pump_level_ui_remove(thiz);
+    common_pump_level_base_ui_remove(thiz);
 }
 
 int pump_level_base_ui_process(ui_manager_context_t *thiz)
@@ -46,10 +46,10 @@ int pump_level_base_ui_process(ui_manager_context_t *thiz)
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
     if (proc->info.control_type == BREAST_PUMP_CONTROL_TYPE_LEFT) {
-        common_pump_level_ui_process(thiz, proc->setting.level[0], 
+        common_pump_level_base_ui_process(thiz, proc->setting.level[0], 
             proc->level_change, true, proc->popup_ui_type);
     } else {
-        common_pump_level_ui_process(thiz, proc->setting.level[1],
+        common_pump_level_base_ui_process(thiz, proc->setting.level[1],
             proc->level_change, false, proc->popup_ui_type);
     }
     thiz->priv.fps_count++;
