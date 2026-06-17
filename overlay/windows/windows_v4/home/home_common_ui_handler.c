@@ -8,6 +8,7 @@
 * DEFINES
 *****************************************************************************************
 */
+#define HOME_MODE_UPDATE_UI_DISPLAY_TASK_NAME                     "home_mode_update_ui_dispaly_cmp"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -23,6 +24,16 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void home_pump_mode_update_display_completed_cb(hdr_post_args_t *args)
+{
+    ui_proc_home_t *proc = (ui_proc_home_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
+    home_page_display_type_update(proc);
+    if (proc->led) {
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+    }
+}
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -35,6 +46,10 @@ void stop_home_common_ui(ui_proc_home_t *proc)
     home_pump_level_ui_exit(proc);
     home_pump_both_level_ui_exit(proc);
     home_pump_result_ui_exit(proc);
+    if (proc->led) {
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+    }
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_MODE_UPDATE_UI_DISPLAY_TASK_NAME);
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
@@ -140,4 +155,13 @@ void home_page_display_type_update(ui_proc_home_t *proc)
     LOG_WM("type: %d, timestamp: %d, diff_time: %d, pump_record:%d, battery_state:%d", 
         proc->home_display_type, timestamp, diff_time, proc->pump_record_time,
         battery_state);
+}
+
+void home_mode_change_ui_update(ui_proc_home_t *proc)
+{
+    if (proc->led) {
+        proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
+    }
+    POST_WM_TASK_HANDLER_DELAYED_ARG1(home_pump_mode_update_display_completed_cb, 5000,
+         proc, HOME_MODE_UPDATE_UI_DISPLAY_TASK_NAME);
 }
