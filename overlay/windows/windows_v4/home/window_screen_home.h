@@ -172,6 +172,8 @@ void home_cancel_key_event_handler(ui_proc_home_t *proc);
 /// 主界面UI显示类型更新
 void home_page_display_type_update(ui_proc_home_t *proc);
 
+/// 模式切换UI展示
+void home_mode_change_ui_update(ui_proc_home_t *proc);
 #ifdef __cplusplus
 }
 #endif
