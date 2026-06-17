@@ -22,7 +22,7 @@ extern "C" {
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
 #define NORMAL_MODE_DEFAULT_WORK_TIME                (SETTING_PUMP_TIME_MAX / 1000)
 #else
-#define NORMAL_MODE_DEFAULT_WORK_TIME                ((59 * 60) + 59)
+#define NORMAL_MODE_DEFAULT_WORK_TIME                (60 * 60)
 #endif
 /// 无效工作时长，子模式不需要指定工作时长
 #define INVALID_WORK_TIME                            0  
