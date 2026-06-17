@@ -106,13 +106,27 @@ def _extract_make_assignment(make_text: str, name: str) -> Optional[str]:
     return m.group(1).strip()
 
 
-def _resolve_make_var_ref(value: Optional[str], mapping: Dict[str, str]) -> Optional[str]:
+def _resolve_make_var_ref(value: Optional[str], mapping: Dict[str, str], max_depth: int = 8) -> Optional[str]:
+    """解析 make 风格变量引用，支持递归展开 $(VAR)。"""
     if not value:
         return value
-    m = re.fullmatch(r'\$\(([^)]+)\)', value.strip())
-    if not m:
-        return value.strip()
-    return mapping.get(m.group(1), value.strip())
+    resolved = value.strip()
+    for _ in range(max_depth):
+        changed = False
+
+        def _replace(match: re.Match) -> str:
+            nonlocal changed
+            key = match.group(1)
+            if key in mapping:
+                changed = True
+                return str(mapping[key]).strip()
+            return match.group(0)
+
+        next_resolved = re.sub(r"\$\(([^)]+)\)", _replace, resolved)
+        resolved = next_resolved.strip()
+        if not changed:
+            break
+    return resolved
 
 
 def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
@@ -131,6 +145,7 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
         "ROOT_UI_V3",
         "ROOT_UI_V4",
         "ROOT_UI_V5",
+        "ROOT_UI_V6",
         "V3_UI_V2",
         "V3PRO_UI_V2",
         "V3_UI_V3",
@@ -139,6 +154,8 @@ def _derive_cpp_defines_from_makefile(makefile_path: str) -> Dict[str, str]:
         "V3PRO_UI_V4",
         "V3_UI_V5",
         "V3PRO_UI_V5",
+        "V3_UI_V6",
+        "V3PRO_UI_V6",
     ]:
         value = _extract_make_assignment(raw, key)
         if value:
@@ -365,6 +382,9 @@ def parse_img_res_define_header(header_file: str) -> Tuple[Optional[int], Option
         if makefile:
             cpp_defs = _derive_cpp_defines_from_makefile(makefile)
             for name, value in cpp_defs.items():
+                # 若仍残留 make 变量（例如 $(FOO)），跳过该宏，避免 -D 触发预处理失败
+                if "$(" in value:
+                    continue
                 cmd.append(f"-D{name}={value}")
         for inc in include_dirs:
             cmd.extend(["-I", inc])
