@@ -65,8 +65,10 @@ typedef enum {
 typedef struct {
     uint8_t evt_source;
     uint8_t evt_type;
-    uint8_t adjust_from;
+    uint8_t adjust_from;           /* 非吸力调节：模式/频率等单字节前后值 */
     uint8_t adjust_to;
+    uint16_t adjust_from_desktop;  /* 吸力调节：DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP */
+    uint16_t adjust_to_desktop;
 } data_bury_trigger_manual_adjust_t;
 
 /** EVT_007 trigger 入参，经 DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT 的 args->val 传入 */
@@ -94,6 +96,12 @@ typedef struct {
     uint8_t detection_type;
     uint32_t detection_data;
 } data_bury_trigger_wear_detection_t;
+
+/** EVT_011 trigger 入参，经 DATA_BURY_TRIGGER_EVT_EXCEPTION 的 args->val 传入 */
+typedef struct {
+    uint16_t error_code;
+    uint32_t error_data;
+} data_bury_trigger_exception_t;
 
 #define DATA_BURY_BAT_CHARGE_END_REASON_FULL              0
 #define DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG            1
@@ -126,6 +134,7 @@ typedef struct {
  * DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST：val=data_bury_trigger_manual_adjust_t*
  * DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT：val=data_bury_trigger_user_evt_t*
  * DATA_BURY_TRIGGER_EVT_WEAR_DETECTION：val=data_bury_trigger_wear_detection_t*
+ * DATA_BURY_TRIGGER_EVT_EXCEPTION：val=data_bury_trigger_exception_t*
  */
 
 typedef enum {
@@ -143,6 +152,7 @@ typedef enum {
     DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START,
     DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END,
     DATA_BURY_TRIGGER_EVT_WEAR_DETECTION,
+    DATA_BURY_TRIGGER_EVT_EXCEPTION,
 } data_bury_trigger_event_e;
 
 typedef struct {
@@ -189,10 +199,19 @@ typedef struct {
         DATA_BURY_EVENT_TRIGGER_ARGS((_evt), &_bury_trig_args_); \
     } while (0)
 
-/** 吸力档位打包：高 4 位左、低 4 位右（0~15） */
-#define DATA_BURY_PACK_SUCTION_LEVEL(_left, _right) \
-    ((uint8_t)((((uint8_t)(_left) > 15u ? (uint8_t)15u : ((uint8_t)(_left) & 0x0Fu)) << 4) | \
-               ((uint8_t)(_right) > 15u ? (uint8_t)15u : ((uint8_t)(_right) & 0x0Fu))))
+/** EVT_011 异常触发：error_code 为协议 uint16 有效码，error_data 无附加数据时填 0 */
+#define DATA_BURY_EVENT_TRIGGER_EXCEPTION(_code, _data) \
+    do { \
+        data_bury_trigger_exception_t _bury_exc_ = { \
+            .error_code = (uint16_t)(_code), \
+            .error_data = (uint32_t)(_data), \
+        }; \
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_EXCEPTION, 0, 0, &_bury_exc_); \
+    } while (0)
+
+/** 大主机双奶碗吸力档位：低字节左、高字节右（各 0~255，工程侧 0~15） */
+#define DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(_left, _right) \
+    ((uint16_t)(((uint8_t)(_left) & 0xFFu) | (((uint16_t)((uint8_t)(_right) & 0xFFu)) << 8)))
 
 /** 佩戴检测数据打包：低 8 位左、次 8 位右（wear_status 0/1） */
 #define DATA_BURY_PACK_WEAR_DETECTION_DATA(_left, _right) \

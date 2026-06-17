@@ -258,7 +258,8 @@ static void data_bury_pressure_test_init_payloads(
     session_start->evt_timestamp = ts;
     session_start->pump_session_id = 1001u;
     session_start->initial_mode_type = 1u;
-    session_start->initial_suction_level = 3u;
+    session_start->initial_suction_level = 0u;
+    session_start->initial_suction_level_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(3u, 3u);
     session_start->initial_attitude_pitch_roll = 0x00010002u;
     session_start->initial_volume_ml = 0u;
     session_start->initial_battery_level = 84u;
@@ -270,13 +271,14 @@ static void data_bury_pressure_test_init_payloads(
     session_end->evt_timestamp = ts;
     session_end->pump_session_id = 1001u;
     session_end->final_mode_type = 2u;
-    session_end->final_suction_level = 4u;
+    session_end->final_suction_level = 0u;
     session_end->final_attitude_pitch_roll = 0x00020003u;
     session_end->final_volume_ml = 120u;
     session_end->final_battery_level = 82u;
     session_end->end_reason = DATA_BURY_END_REASON_MANUAL;
     session_end->milk_drop_count = 2u;
     session_end->used_mode_count = 2u;
+    session_end->final_suction_level_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(4u, 4u);
     program_durations = (data_bury_evt_program_duration_t *)(session_end_buf +
         DATA_BURY_EVT_PUMP_SESSION_END_PROGRAM_OFF);
     program_durations[0].mode_or_program_id = 1u;
@@ -291,8 +293,8 @@ static void data_bury_pressure_test_init_payloads(
     manual_adjust->pump_session_id = 1001u;
     manual_adjust->evt_source = DATA_BURY_EVT_SOURCE_LOCAL;
     manual_adjust->evt_type = DATA_BURY_ADJUST_SUCTION_LEVEL;
-    manual_adjust->adjust_from = 3u;
-    manual_adjust->adjust_to = 4u;
+    manual_adjust->adjust_from_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(3u, 3u);
+    manual_adjust->adjust_to_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(4u, 4u);
 
     memset(user_evt, 0, sizeof(*user_evt));
     user_evt->device_side = device_side;
