@@ -13,8 +13,15 @@ extern "C" {
 #include "root_list_api.h" // IWYU pragma: keep
 
 #define PUMP_POLICY_RUN_TIME_INTERVAL            20  /// 策略运行时间间隔，单位ms
-#define IS_SUPPORT_RELATIVE_RUN_TIME             1 /// 支持相对运行时间
-#define IS_SUPPORT_PUMP_SYNC                     1 /// 支持泵同步
+#define IS_SUPPORT_RELATIVE_RUN_TIME             1   /// 支持相对运行时间
+#define IS_SUPPORT_PUMP_SYNC                     1   /// 支持泵同步
+
+#define IS_SUPPORT_PUMP_POLICY_KICKOFF_OPT       1   /// 同轮kickoff优化开关：1启用新流程，0使用旧流程
+#if IS_SUPPORT_PUMP_POLICY_KICKOFF_OPT
+#define IS_SUPPORT_PUMP_TIME_COMPENSATION        0   /// 支持泵奶时间补偿
+#else
+#define IS_SUPPORT_PUMP_TIME_COMPENSATION        1   /// 支持泵奶时间补偿
+#endif
 
 /// 马达调试ID
 typedef enum {
@@ -277,6 +284,7 @@ typedef struct {
     uint32_t time_policy_target_time; /// 时间策略目标时间，单位s
     uint32_t policy_running_time_ms; /// 策略运行时间，单位ms
     uint32_t reset_time[BREAST_PUMP_NUM]; /// 重置时间，单位ms
+    uint32_t last_total_time[BREAST_PUMP_NUM]; /// 上一次运行时间，单位ms
 #if IS_SUPPORT_PUMP_DUTY_ADJUST
     int16_t compensation_delta_pwm[BREAST_PUMP_NUM]; /// 气压补偿delta_pwm -10000~-1:PWM减小, 1~10000: PWM增加
 #endif

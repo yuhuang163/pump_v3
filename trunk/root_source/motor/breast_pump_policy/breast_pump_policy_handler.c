@@ -136,6 +136,26 @@ static void update_para_to_motor_device(struct motor_manager_context *thiz, uint
     info->state.action = MOTOR_ACTION_IDLE;
 }
 
+#if IS_SUPPORT_PUMP_POLICY_KICKOFF_OPT
+static void pump_policy_run_devices(struct motor_manager_context *thiz, motor_policy_runtime_t *runtime,
+    motor_timer_event_msg_t *msg, bool kickoff_only)
+{
+    for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+        if (runtime->policy[i].core.un.mapping.mode_type == SUCTION_MODE_IDLE) {
+            continue;
+        }
+        if (kickoff_only && (runtime->info[i].state.status != SUCTION_STATUS_IDLE ||
+            runtime->info[i].state.policy_update_lock != 0)) {
+            continue;
+        }
+        pump_policy_update(&runtime->info[i], i, *msg);
+        if (runtime->info[i].state.action != MOTOR_ACTION_IDLE) {
+            update_para_to_motor_device(thiz, i, &runtime->info[i]);
+        }
+    }
+}
+#endif
+
 #if IS_SUPPORT_PUMP_DUTY_ADJUST
 static void pump_duty_adjust_to_motor_device(struct motor_manager_context *thiz, uint8_t id, int16_t pulse_width)
 {
@@ -173,6 +193,8 @@ static void on_motor_timer_event_cb(uint8_t pump_id, motor_pump_status_e action)
 
     if (MSG_QUEUE_SEND(policy_work_msg_id, &msg, 0) != 0) {
         LOGE("driver msg send failed");
+    } else {
+        // LOG_MOTOR("motor %d msg, action:%d", pump_id, action);
     }
 }
 
@@ -305,6 +327,11 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
             exit_code = EXIT_REASON_INTERRUPT;
             break;
         }
+#if IS_SUPPORT_PUMP_POLICY_KICKOFF_OPT
+        pump_policy_run_devices(thiz, runtime, &msg, false);
+        pump_time_policy_update(thiz, runtime);
+        pump_policy_run_devices(thiz, runtime, &msg, true);
+#else
         pump_time_policy_update(thiz, runtime);  ///  时间策略
         for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {   
             if (runtime->policy[i].core.un.mapping.mode_type == SUCTION_MODE_IDLE) {
@@ -315,6 +342,8 @@ int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_ta
                 update_para_to_motor_device(thiz, i, &runtime->info[i]);
             }
         }
+#endif
+
 #if IS_SUPPORT_PUMP_DUTY_ADJUST
         if (msg.msg_type == MOTOR_PUMP_LEVEL_ADJUST_MSG) {
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
