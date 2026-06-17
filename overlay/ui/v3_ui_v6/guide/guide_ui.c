@@ -55,9 +55,7 @@ void ui_display_guide_remove(ui_manager_context_t *thiz)
     if (s_ops.remove) {
         s_ops.remove(thiz);
     } else {
-        LOG_UI("guide remove fallback: s_ops.remove is null");
-        guide_base_ui_remove(thiz);
-        guide_custom_ui_remove(thiz);
+        LOGE("remove is null");
     }
 }
 

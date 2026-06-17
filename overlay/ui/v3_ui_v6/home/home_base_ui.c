@@ -296,7 +296,8 @@ static void home_label_ui_update(ui_manager_context_t *thiz, home_text_id_e text
     if (is_show) {
         /// 更新图标
         lv_obj_clear_flag(home_info->label_icon, LV_OBJ_FLAG_HIDDEN);
-        common_ui_img_resource_init(thiz, info->img_id, &home_info->label_info);
+        common_ui_theme_img_resource_init(thiz, info->img_id, RES_THEME_TYPE_BASE,
+            &home_info->label_info);
         EXCEPTION_CHECK_VOID(home_info->label_info.data);
         lv_fs_path_ex_t label_img_path;
         lv_fs_make_path_from_buffer(&label_img_path, LV_FS_MEMFS_LETTER, 
@@ -322,7 +323,7 @@ static void home_label_ui_update(ui_manager_context_t *thiz, home_text_id_e text
         }
         /// 更新按钮图标
         lv_obj_clear_flag(home_info->button_icon, LV_OBJ_FLAG_HIDDEN);
-        common_ui_img_resource_init(thiz, RESOURCE_ID_HOME_START_BUTTON_ICON,
+        common_ui_theme_img_resource_init(thiz, RESOURCE_ID_HOME_START_BUTTON_ICON, RES_THEME_TYPE_BASE,
             &home_info->button_info);
         EXCEPTION_CHECK_VOID(home_info->button_info.data);
         lv_fs_path_ex_t button_img_path;
@@ -355,8 +356,8 @@ static void home_root_animation_update(ui_manager_context_t *thiz,
         common_ui_img_resource_deinit(thiz, &home_info->animation_info);
         memset(&home_info->animation_info, 0, sizeof(home_info->animation_info));
     }
-    common_ui_img_resource_init_with_theme(thiz, 
-        start_resource_id + home_info->animation_index, &home_info->animation_info);
+    common_ui_theme_img_resource_init(thiz, start_resource_id + home_info->animation_index, RES_THEME_TYPE_BASE,
+        &home_info->animation_info);
     EXCEPTION_CHECK_VOID(home_info->animation_info.data);
     lv_fs_path_ex_t animation_img_path;
     lv_fs_make_path_from_buffer(&animation_img_path, LV_FS_MEMFS_LETTER, 
@@ -633,7 +634,8 @@ static void home_pump_speed_label_update(ui_manager_context_t *thiz, uint8_t spe
         home_info->speed_icon = lv_image_create(home_info->root);
         EXCEPTION_CHECK_VOID(home_info->speed_icon);
     } 
-    common_ui_img_resource_init(thiz, home_speed_icon_ids[speed], &home_info->speed_icon_info);
+    common_ui_theme_img_resource_init(thiz, home_speed_icon_ids[speed], RES_THEME_TYPE_BASE,
+        &home_info->speed_icon_info);
     EXCEPTION_CHECK_VOID(home_info->speed_icon_info.data);
     lv_fs_make_path_from_buffer(&speed_icon_path, LV_FS_MEMFS_LETTER, 
         home_info->speed_icon_info.data, home_info->speed_icon_info.size, "baj");
@@ -689,7 +691,8 @@ static void home_pump_mode_update(ui_manager_context_t *thiz, uint8_t mode_index
         EXCEPTION_CHECK_VOID(home_info->mode_icon);
         lv_obj_align(home_info->mode_icon, LV_ALIGN_LEFT_MID, 12, 0); /// 设置icon位置
     }
-    common_ui_img_resource_init(thiz, home_mode_infos[mode_index].img_id, &home_info->mode_icon_info);
+    common_ui_theme_img_resource_init(thiz, home_mode_infos[mode_index].img_id, RES_THEME_TYPE_BASE,
+        &home_info->mode_icon_info);
     EXCEPTION_CHECK_VOID(home_info->mode_icon_info.data);
     lv_fs_path_ex_t mode_icon_path;
     lv_fs_make_path_from_buffer(&mode_icon_path, LV_FS_MEMFS_LETTER, 
@@ -740,7 +743,7 @@ void home_base_ui_remove(ui_manager_context_t *thiz)
     common_ui_img_resource_deinit(thiz, &home_info->speed_icon_info);
     common_ui_img_resource_deinit(thiz, &home_info->mode_icon_info);
     ble_ui_deinit(thiz);
-    ui_common_operation_tip_remove(thiz);
+    ui_common_operation_tip_base_ui_remove(thiz);
     LVGL_OBJ_DELETE(home_info->root);
     u_free(home_info);
     home_info = NULL;
@@ -774,7 +777,7 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     home_pump_speed_label_update(thiz, setting.speed);
     home_pump_mode_update(thiz, pump_mode);
     home_ui_update(thiz, proc);
-    ui_common_operation_tip_update(thiz, proc->popup_ui_type, home_info->root,
+    ui_common_operation_tip_base_ui_update(thiz, proc->popup_ui_type, home_info->root,
         &home_info->popup_ui_index);
     home_info->force_update = false;
     thiz->priv.fps_count++;

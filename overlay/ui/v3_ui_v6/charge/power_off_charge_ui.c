@@ -62,9 +62,7 @@ void ui_display_power_off_charge_screen_remove(ui_manager_context_t *thiz)
     if (s_ops.remove) {
         s_ops.remove(thiz);
     } else {
-        LOG_UI("power_off_charge remove fallback: s_ops.remove is null");
-        power_off_charge_base_ui_remove(thiz);
-        power_off_charge_custom_ui_remove(thiz);
+        LOGE("remove is null");
     }
 }
 

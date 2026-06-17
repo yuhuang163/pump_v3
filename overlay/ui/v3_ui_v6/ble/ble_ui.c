@@ -76,8 +76,6 @@ void ble_ui_deinit(ui_manager_context_t *thiz)
     if (s_ops.life.deinit) {
         s_ops.life.deinit(thiz);
     } else {
-        LOG_UI("ble deinit fallback: s_ops.life.deinit is null");
-        ble_base_ui_deinit(thiz);
-        ble_custom_ui_deinit(thiz);
+        LOGE("deinit is null");
     }
 }

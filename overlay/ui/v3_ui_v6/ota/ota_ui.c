@@ -33,6 +33,7 @@ typedef struct {
     lv_obj_t * ota_size;
     lv_obj_t * icon;
     res_img_info_t icon_info;
+    res_theme_type_e res_theme_type;
     uint32_t start_time;
     uint32_t display_time;
     uint32_t total_size;
@@ -216,7 +217,8 @@ static void ui_ota_icon_update(ui_manager_context_t *thiz, uint16_t img_id, bool
     } else {
         lv_obj_clear_flag(ota_info->icon, LV_OBJ_FLAG_HIDDEN);
     }
-    common_ui_img_resource_init(thiz, img_id, &ota_info->icon_info);
+    common_ui_theme_img_resource_init(thiz, img_id, ota_info->res_theme_type ,
+        &ota_info->icon_info);
     EXCEPTION_CHECK_VOID(ota_info->icon_info.data);
     lv_fs_path_ex_t ota_icon_img_path;
     lv_fs_make_path_from_buffer(&ota_icon_img_path, LV_FS_MEMFS_LETTER, ota_info->icon_info.data, ota_info->icon_info.size, "baj");
@@ -396,6 +398,10 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
         ota_info_t ota_dev_info = {0};
         proc->ota->get_ota_info(&ota_dev_info); 
         ota_info->last_recv_size = ota_dev_info.recv_size;
+    }
+    ota_info->res_theme_type = RES_THEME_TYPE_BASE;
+    if (thiz && thiz->priv.res) {
+        ota_info->res_theme_type  = thiz->priv.res->get_current_theme_type();
     }
 }
 

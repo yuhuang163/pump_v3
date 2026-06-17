@@ -57,9 +57,7 @@ void ui_display_pump_both_level_remove(ui_manager_context_t *thiz)
     if (s_ops.remove) {
         s_ops.remove(thiz);
     } else {
-        LOG_UI("pump_both_level remove fallback: s_ops.remove is null");
-        pump_both_level_base_ui_remove(thiz);
-        pump_both_level_custom_ui_remove(thiz);
+        LOGE("remove is null");
     }
 }
 

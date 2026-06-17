@@ -256,7 +256,8 @@ static void guide_ui_page_img_update(ui_manager_context_t *thiz, uint8_t page_in
         status = (status == 0) ? 1 : 0;
     }
 #else
-    common_ui_img_resource_init(thiz, guide_page_img_ids[page_index], &guide_info->img_info);
+    common_ui_theme_img_resource_init(thiz, guide_page_img_ids[page_index], RES_THEME_TYPE_CUSTOM,
+        &guide_info->img_info);
     EXCEPTION_CHECK_VOID(guide_info->img_info.data);
     guide_ui_page_img_set_from_sw_decode(guide_info->page_img, &guide_info->page_decoded_buf,
                                          guide_info->img_info.data, guide_info->img_info.size);

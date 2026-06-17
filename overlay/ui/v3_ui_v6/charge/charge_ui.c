@@ -62,9 +62,7 @@ void ui_display_charge_screen_remove(ui_manager_context_t *thiz)
     if (s_ops.remove) {
         s_ops.remove(thiz);
     } else {
-        LOG_UI("charge remove fallback: s_ops.remove is null");
-        charge_base_ui_remove(thiz);
-        charge_custom_ui_remove(thiz);
+        LOGE("remove is null");
     }
 }
 
