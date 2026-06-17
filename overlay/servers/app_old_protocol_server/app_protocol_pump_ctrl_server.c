@@ -558,11 +558,11 @@ static void app_old_comm_bury_pump_level_adjust(const pump_setting_t *before, co
     data_bury_trigger_manual_adjust_t bury_adj = {
         .evt_source = DATA_BURY_EVT_SOURCE_REMOTE_APP,
         .evt_type = DATA_BURY_ADJUST_SUCTION_LEVEL,
-        .adjust_from = DATA_BURY_PACK_SUCTION_LEVEL(before->level[0], before->level[1]),
-        .adjust_to = DATA_BURY_PACK_SUCTION_LEVEL(after->level[0], after->level[1]),
+        .adjust_from_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(before->level[0], before->level[1]),
+        .adjust_to_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(after->level[0], after->level[1]),
     };
 
-    if (bury_adj.adjust_from == bury_adj.adjust_to) {
+    if (bury_adj.adjust_from_desktop == bury_adj.adjust_to_desktop) {
         return;
     }
     DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);

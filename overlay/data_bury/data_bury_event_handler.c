@@ -8,7 +8,6 @@
 
 typedef struct {
     uint8_t session_start_mode;
-    uint8_t session_start_level;
     uint8_t bt_session_cached;
     uint8_t bt_remote_initiated;
     uint32_t bt_connect_timestamp_utc;
@@ -119,15 +118,17 @@ static data_bury_battery_charge_metrics_t data_bury_event_sample_battery_charge_
     return metrics;
 }
 
-static uint8_t data_bury_event_get_suction_level(breast_pump_manager_context_t *pump)
+static uint16_t data_bury_event_get_suction_level_desktop(breast_pump_manager_context_t *pump)
 {
     pump_setting_t setting = {0};
+    int time_index = 0;
 
     if (!pump) {
         return 0u;
     }
-    READ_PUMP_SETTING_INFO(pump, 0, setting);
-    return DATA_BURY_PACK_SUCTION_LEVEL(setting.level[0], setting.level[1]);
+    READ_PUMP_MODE_STEP_INDEX(pump, time_index);
+    READ_PUMP_SETTING_INFO(pump, time_index, setting);
+    return DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(setting.level[0], setting.level[1]);
 }
 
 static void data_bury_event_publish_pump_startup(data_bury_manager_context_t *ctx)
@@ -283,14 +284,14 @@ static void data_bury_event_buffer_pump_session_start(data_bury_manager_context_
         ctx->data_bury_pump_session_begin();
     }
     s_event_rt.session_start_mode = (uint8_t)mode;
-    s_event_rt.session_start_level = data_bury_event_get_suction_level(pump);
 
     evt.device_side = ctx->data_bury_get_device_side();
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt.evt_timestamp = platform_get_utc_time();
     evt.pump_session_id = 0u;
     evt.initial_mode_type = (uint8_t)mode;
-    evt.initial_suction_level = s_event_rt.session_start_level;
+    evt.initial_suction_level = 0u;
+    evt.initial_suction_level_desktop = data_bury_event_get_suction_level_desktop(pump);
     evt.initial_battery_level = data_bury_event_get_battery_percent();
 
     s_event_rt.pending_pump_session_start = evt;
@@ -315,13 +316,19 @@ static void data_bury_event_record_pump_mode_switch(uint8_t adjust_from, uint8_t
 }
 
 static void data_bury_event_publish_pump_manual_adjust(data_bury_manager_context_t *ctx,
-                                                       uint8_t evt_source, uint8_t evt_type,
-                                                       uint8_t adjust_from, uint8_t adjust_to)
+                                                       const data_bury_trigger_manual_adjust_t *adj)
 {
     data_bury_evt_pump_manual_adjust_t evt = {0};
     uint16_t session_id = 0u;
 
-    if (adjust_from == adjust_to) {
+    if (!adj) {
+        return;
+    }
+    if (adj->evt_type == DATA_BURY_ADJUST_SUCTION_LEVEL) {
+        if (adj->adjust_from_desktop == adj->adjust_to_desktop) {
+            return;
+        }
+    } else if (adj->adjust_from == adj->adjust_to) {
         return;
     }
 
@@ -333,15 +340,21 @@ static void data_bury_event_publish_pump_manual_adjust(data_bury_manager_context
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
     evt.pump_session_id = session_id;
-    evt.evt_source = evt_source;
-    evt.evt_type = evt_type;
-    evt.adjust_from = adjust_from;
-    evt.adjust_to = adjust_to;
+    evt.evt_source = adj->evt_source;
+    evt.evt_type = adj->evt_type;
+    if (adj->evt_type == DATA_BURY_ADJUST_SUCTION_LEVEL) {
+        evt.adjust_from_desktop = adj->adjust_from_desktop;
+        evt.adjust_to_desktop = adj->adjust_to_desktop;
+    } else {
+        evt.adjust_from = adj->adjust_from;
+        evt.adjust_to = adj->adjust_to;
+    }
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_MANUAL_ADJUST,
                                     &evt, (uint16_t)sizeof(evt), 0u);
-    LOG_BURY("manual adjust publish: sid=%u src=%u type=%u from=%u to=%u",
-             (unsigned)session_id, (unsigned)evt_source, (unsigned)evt_type,
-             (unsigned)adjust_from, (unsigned)adjust_to);
+    LOG_BURY("manual adjust publish: sid=%u src=%u type=%u from=%u to=%u desktop=0x%04x->0x%04x",
+             (unsigned)session_id, (unsigned)adj->evt_source, (unsigned)adj->evt_type,
+             (unsigned)evt.adjust_from, (unsigned)evt.adjust_to,
+             (unsigned)evt.adjust_from_desktop, (unsigned)evt.adjust_to_desktop);
 }
 
 static void data_bury_event_publish_pump_user_evt(data_bury_manager_context_t *ctx,
@@ -381,6 +394,22 @@ static void data_bury_event_publish_wear_detection(data_bury_manager_context_t *
                                   &evt, (uint16_t)sizeof(evt), 0u);
     LOG_BURY("wear detection publish: type=%u data=0x%08x",
              (unsigned)detection_type, (unsigned)detection_data);
+}
+
+static void data_bury_event_publish_exception(data_bury_manager_context_t *ctx,
+                                              uint16_t error_code, uint32_t error_data)
+{
+    data_bury_evt_exception_t evt = {0};
+
+    evt.device_side = ctx->data_bury_get_device_side();
+    evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
+    evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
+    evt.error_code = error_code;
+    evt.error_data = error_data;
+    (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_EXCEPTION,
+                                  &evt, (uint16_t)sizeof(evt), 0u);
+    LOG_BURY("exception publish: code=0x%04x data=0x%08x",
+             (unsigned)error_code, (unsigned)error_data);
 }
 
 static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t *ctx, uint8_t end_reason)
@@ -443,10 +472,11 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
     evt->evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
     evt->pump_session_id = session_id;
     evt->final_mode_type = (uint8_t)mode;
-    evt->final_suction_level = data_bury_event_get_suction_level(pump);
+    evt->final_suction_level = 0u;
     evt->final_battery_level = data_bury_event_get_battery_percent();
     evt->end_reason = end_reason;
     evt->used_mode_count = used_mode_count;
+    evt->final_suction_level_desktop = data_bury_event_get_suction_level_desktop(pump);
 
     program_durations = (data_bury_evt_program_duration_t *)(buf + DATA_BURY_EVT_PUMP_SESSION_END_PROGRAM_OFF);
     if (s_event_rt.mode_queue_count > 0u) {
@@ -607,8 +637,7 @@ int data_bury_event_process_pump_manual_adjust(data_bury_manager_context_t *ctx,
         return -1;
     }
     adj = (const data_bury_trigger_manual_adjust_t *)args->val;
-    data_bury_event_publish_pump_manual_adjust(ctx, adj->evt_source, adj->evt_type,
-                                               adj->adjust_from, adj->adjust_to);
+    data_bury_event_publish_pump_manual_adjust(ctx, adj);
     return 0;
 }
 
@@ -705,6 +734,22 @@ int data_bury_event_process_wear_detection(data_bury_manager_context_t *ctx,
     }
     wear = (const data_bury_trigger_wear_detection_t *)args->val;
     data_bury_event_publish_wear_detection(ctx, wear->detection_type, wear->detection_data);
+    return 0;
+}
+
+int data_bury_event_process_exception(data_bury_manager_context_t *ctx,
+                                      const data_bury_trigger_args_t *args)
+{
+    const data_bury_trigger_exception_t *exc;
+
+    if (!ctx || !args || !args->val) {
+        return -1;
+    }
+    exc = (const data_bury_trigger_exception_t *)args->val;
+    if (exc->error_code == 0u) {
+        return -1;
+    }
+    data_bury_event_publish_exception(ctx, exc->error_code, exc->error_data);
     return 0;
 }
 

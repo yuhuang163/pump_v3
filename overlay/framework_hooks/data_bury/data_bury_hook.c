@@ -22,6 +22,7 @@ const static data_bury_event_process_handle_t data_bury_event_process_list[] = {
     { DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START, data_bury_event_process_bat_charge_start },
     { DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END, data_bury_event_process_bat_charge_end },
     { DATA_BURY_TRIGGER_EVT_WEAR_DETECTION, data_bury_event_process_wear_detection },
+    { DATA_BURY_TRIGGER_EVT_EXCEPTION, data_bury_event_process_exception },
 };
 
 static servers_manager_context_t *data_bury_hook_get_servers_ctx(data_bury_manager_context_t *ctx)

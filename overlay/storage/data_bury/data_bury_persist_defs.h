@@ -15,8 +15,8 @@ extern "C" {
 #define DATA_BURY_RING_CHUNK_NUM           1u
 #define DATA_BURY_FLASH_SLOT_NUM           8u
 
-/* 单条环记录 payload 上限（v1.0.2 EVT_005: 23 + 58*6 = 371） */
-#define DATA_BURY_EVENT_PAYLOAD_MAX        372u
+/* 单条环记录 payload 上限（v1.0.3 EVT_005: 25 + 58*6 = 373） */
+#define DATA_BURY_EVENT_PAYLOAD_MAX        374u
 #define DATA_BURY_PUMP_SESSION_MAX_MODES    58u
 
 #define DATA_BURY_SVC_DATA                 APP_DATA_BURY_PROTOCOL_SVC_DATA
@@ -76,12 +76,11 @@ typedef struct __attribute__((packed)) {
     uint32_t evt_timestamp;
     uint16_t pump_session_id;
     uint8_t  initial_mode_type;
-    uint8_t  initial_suction_level;
+    uint8_t  initial_suction_level;  /* 本工程不用，固定填 0；挡位见 initial_suction_level_desktop */
     uint32_t initial_attitude_pitch_roll;
     uint16_t initial_volume_ml;
     uint8_t  initial_battery_level;
-    uint8_t  initial_program_id;     /* O；initial_mode_type=韵律(0x03) 时 TLV 0x0A */
-    uint8_t  initial_program_type;   /* O；initial_mode_type=韵律(0x03) 时 TLV 0x0B */
+    uint16_t initial_suction_level_desktop; /* v1.0.3 TLV 0x09：低字节左、高字节右 */
 } data_bury_evt_pump_session_start_t;
 
 /* CMD:0x05 EVT_005 pump_session_end（变长: program_duration[used_mode_count]，TLV 0x0D） */
@@ -91,13 +90,14 @@ typedef struct __attribute__((packed)) {
     uint32_t evt_timestamp;
     uint16_t pump_session_id;
     uint8_t  final_mode_type;
-    uint8_t  final_suction_level;
+    uint8_t  final_suction_level;  /* 本工程不用，固定填 0；挡位见 final_suction_level_desktop(TLV 0x0E) */
     uint32_t final_attitude_pitch_roll;
     uint16_t final_volume_ml;
     uint8_t  final_battery_level;
     uint8_t  end_reason;
     uint8_t  milk_drop_count;
     uint8_t  used_mode_count;
+    uint16_t final_suction_level_desktop; /* v1.0.3 TLV 0x0E：低字节左、高字节右 */
 } data_bury_evt_pump_session_end_fixed_t;
 
 typedef struct __attribute__((packed)) {
@@ -122,8 +122,10 @@ typedef struct __attribute__((packed)) {
     uint16_t pump_session_id;
     uint8_t  evt_source;
     uint8_t  evt_type;
-    uint8_t  adjust_from;
+    uint8_t  adjust_from;          /* 本工程吸力调节不用，固定 0；见 adjust_from_desktop */
     uint8_t  adjust_to;
+    uint16_t adjust_from_desktop; /* v1.0.3 TLV 0x09：低字节左、高字节右 */
+    uint16_t adjust_to_desktop;   /* v1.0.3 TLV 0x0A：低字节左、高字节右 */
 } data_bury_evt_pump_manual_adjust_t;
 
 /* CMD:0x07 EVT_007 pump_user_evt */

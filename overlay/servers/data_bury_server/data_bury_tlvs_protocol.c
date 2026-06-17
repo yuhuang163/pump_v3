@@ -201,14 +201,9 @@ static int data_bury_tlv_pack_pump_session_start(const uint8_t *packed, uint16_t
     if (BURY_PACK_HDR(builder, packed) != 0 ||
         BURY_ADD_U16(builder, 3, packed, 9) != 0 || BURY_ADD_U8(builder, 4, packed, 11) != 0 ||
         BURY_ADD_U8(builder, 5, packed, 12) != 0 || BURY_ADD_U32(builder, 6, packed, 13) != 0 ||
-        BURY_ADD_U16(builder, 7, packed, 17) != 0 || BURY_ADD_U8(builder, 8, packed, 19) != 0) {
+        BURY_ADD_U16(builder, 7, packed, 17) != 0 || BURY_ADD_U8(builder, 8, packed, 19) != 0 ||
+        BURY_ADD_U16(builder, 0x09, packed, 20) != 0) {
         return -1;
-    }
-    if (packed[11] == DATA_BURY_PUMP_MODE_RHYTHM) {
-        if (BURY_ADD_U8(builder, 0x0Au, packed, 20) != 0 ||
-            BURY_ADD_U8(builder, 0x0Bu, packed, 21) != 0) {
-            return -1;
-        }
     }
     return 0;
 }
@@ -232,7 +227,7 @@ static int data_bury_tlv_pack_pump_session_end(const uint8_t *packed, uint16_t p
         BURY_ADD_U8(builder, 5, packed, 12) != 0 || BURY_ADD_U32(builder, 6, packed, 13) != 0 ||
         BURY_ADD_U16(builder, 7, packed, 17) != 0 || BURY_ADD_U8(builder, 8, packed, 19) != 0 ||
         BURY_ADD_U8(builder, 9, packed, 20) != 0 || BURY_ADD_U8(builder, 10, packed, 21) != 0 ||
-        BURY_ADD_U8(builder, 11, packed, 22) != 0) {
+        BURY_ADD_U8(builder, 11, packed, 22) != 0 || BURY_ADD_U16(builder, 0x0Eu, packed, 23) != 0) {
         return -1;
     }
     if (used > 0u) {
@@ -272,6 +267,12 @@ static int data_bury_tlv_pack_pump_manual_adjust(const uint8_t *packed, uint16_t
         BURY_ADD_U8(builder, 5, packed, 12) != 0 || BURY_ADD_U8(builder, 6, packed, 13) != 0 ||
         BURY_ADD_U8(builder, 7, packed, 14) != 0) {
         return -1;
+    }
+    if (packed[12] == DATA_BURY_ADJUST_SUCTION_LEVEL) {
+        if (BURY_ADD_U16(builder, 0x09, packed, 15) != 0 ||
+            BURY_ADD_U16(builder, 0x0A, packed, 17) != 0) {
+            return -1;
+        }
     }
     return 0;
 }

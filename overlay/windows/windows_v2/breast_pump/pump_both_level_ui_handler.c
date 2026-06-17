@@ -181,11 +181,11 @@ void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase)
         data_bury_trigger_manual_adjust_t bury_adj = {
             .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
             .evt_type = DATA_BURY_ADJUST_SUCTION_LEVEL,
-            .adjust_from = DATA_BURY_PACK_SUCTION_LEVEL(setting_before.level[0], setting_before.level[1]),
-            .adjust_to = DATA_BURY_PACK_SUCTION_LEVEL(setting.level[0], setting.level[1]),
+            .adjust_from_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(setting_before.level[0], setting_before.level[1]),
+            .adjust_to_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(setting.level[0], setting.level[1]),
         };
 
-        if (bury_adj.adjust_from != bury_adj.adjust_to) {
+        if (bury_adj.adjust_from_desktop != bury_adj.adjust_to_desktop) {
             DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
         }
     }
