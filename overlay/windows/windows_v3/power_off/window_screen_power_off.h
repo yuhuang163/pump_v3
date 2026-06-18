@@ -53,6 +53,7 @@ typedef struct {
     battery_manager_context_t *battery;
     ble_manager_context_t *ble;
     key_input_context_t *key;
+    storage_manager_context_t *st;
     uint32_t margic; /// 窗口标识.
     uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
