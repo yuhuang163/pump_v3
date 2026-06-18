@@ -45,7 +45,7 @@ typedef enum {
 /** V3 设备异常类型（配合 APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL 首字节） */
 typedef enum {
     OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START = 0x01, ///< 电量不足无法启动
-    OLD_PUBLISH_ABNORMAL_LOW_BATTERY = 0x02,           ///< 设备低电
+    OLD_PUBLISH_ABNORMAL_LOW_BATTERY = 0x02,           ///< 设备低电运行
     OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON = 0x03, ///< 低电即将关机
     OLD_PUBLISH_ABNORMAL_AIR_LEAK = 0x04,              ///< 设备漏气提醒
     OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK = 0x05,           ///< 进入旅行锁
