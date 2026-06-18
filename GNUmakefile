@@ -128,7 +128,7 @@ CFG_BT_CALIB ?= 1
 # 产品型号
 ROOT_PRODUCT_V3_ID ?= 0x08
 ROOT_PRODUCT_V3PRO_ID ?= 0x09
-ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3_ID)
+ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3PRO_ID)
 
 # 产品UI版本
 ROOT_UI_V2 ?= 0x02
@@ -137,7 +137,11 @@ ROOT_UI_V4 ?= 0x04
 ROOT_UI_V5 ?= 0x05
 ROOT_UI_V6 ?= 0x06
 
-ROOT_UI_VERSION ?= $(ROOT_UI_V5)
+ROOT_UI_VERSION ?= $(ROOT_UI_V6)
+
+# 产品字库版本
+ROOT_FONT_V1 ?= 0x01
+ROOT_FONT_V2 ?= 0x02
 
 # V3 UI版本
 V3_UI_V2 ?= 0x02
@@ -165,22 +169,27 @@ ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V2))
 V3_UI_VERSION ?= $(V3PRO_UI_V2)
 V3_UX_VERSION ?= $(V3_UX_V1)
 PUMP_RHYTHM_MODE_NUM := 6
+ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V3))
 V3_UI_VERSION ?= $(V3PRO_UI_V3)
 V3_UX_VERSION ?= $(V3_UX_V1)
 PUMP_RHYTHM_MODE_NUM := 6
+ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V4))
 V3_UI_VERSION ?= $(V3PRO_UI_V4)
 V3_UX_VERSION ?= $(V3_UX_V2)
 PUMP_RHYTHM_MODE_NUM := 3
+ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V5))
 V3_UI_VERSION ?= $(V3PRO_UI_V5)
 V3_UX_VERSION ?= $(V3_UX_V4)
 PUMP_RHYTHM_MODE_NUM := 3
+ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V6))
 V3_UI_VERSION ?= $(V3PRO_UI_V6)
 V3_UX_VERSION ?= $(V3_UX_V4)
 PUMP_RHYTHM_MODE_NUM := 3
+ROOT_FONT_VERSION := $(ROOT_FONT_V2)
 else 
 $(warning Invalid UI version)
 endif
@@ -191,22 +200,27 @@ ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V2))
 V3_UI_VERSION ?= $(V3_UI_V2)
 V3_UX_VERSION ?= $(V3_UX_V1)
 PUMP_RHYTHM_MODE_NUM := 6
+ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V3))
 V3_UI_VERSION ?= $(V3_UI_V3)
 V3_UX_VERSION ?= $(V3_UX_V1)
 PUMP_RHYTHM_MODE_NUM := 6
+ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V4))
 V3_UI_VERSION ?= $(V3_UI_V4)
 V3_UX_VERSION ?= $(V3_UX_V2)
 PUMP_RHYTHM_MODE_NUM := 3
+ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V5))
 V3_UI_VERSION ?= $(V3_UI_V5)
 V3_UX_VERSION ?= $(V3_UX_V4)
 PUMP_RHYTHM_MODE_NUM := 3
+ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V6))
 V3_UI_VERSION ?= $(V3_UI_V6)
 V3_UX_VERSION ?= $(V3_UX_V4)
 PUMP_RHYTHM_MODE_NUM := 3
+ROOT_FONT_VERSION := $(ROOT_FONT_V2)
 else
 $(warning Invalid UI version)
 endif
@@ -397,6 +411,8 @@ SDK_LCD_INC_FLAGS := \
 # SDK JPEG 头文件
 SDK_JPEG_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/tests/hwtest/jpegdec \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/jpeg \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/graphic/gpu \
 
 # Boards 头文件
 BOARDS_INC_FLAGS := \
@@ -615,6 +631,7 @@ UI_MODULE_INC_FLAGS := \
 UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_FLAGS)
 
 # 字体模块头文件
+ifeq ($(ROOT_FONT_VERSION), $(ROOT_FONT_V1))
 FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_12 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_14 \
@@ -625,6 +642,21 @@ FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_96 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 
+else
+FONT_V2_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16 \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_12 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_14 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_16 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_20 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_24 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_72 \
+	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_96 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_80 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 
+endif
 
 FONT_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font
@@ -865,6 +897,10 @@ CPPFLAGS += -DROOT_UI_V2=$(ROOT_UI_V2)
 CPPFLAGS += -DROOT_UI_V3=$(ROOT_UI_V3)
 CPPFLAGS += -DROOT_UI_V4=$(ROOT_UI_V4)
 CPPFLAGS += -DROOT_UI_V5=$(ROOT_UI_V5)
+
+CPPFLAGS += -DROOT_FONT_VERSION=$(ROOT_FONT_VERSION)
+CPPFLAGS += -DROOT_FONT_V1=$(ROOT_FONT_V1)
+CPPFLAGS += -DROOT_FONT_V2=$(ROOT_FONT_V2)
 
 CPPFLAGS += -DV3_UX_VERSION=$(V3_UX_VERSION)
 CPPFLAGS += -DV3_UX_V1=$(V3_UX_V1)
@@ -1229,6 +1265,7 @@ UI_MODULE_SRCS := \
 UI_MODULE_SRCS += $(UI_LCD_DIRECT_SRCS)
 
 # 字体模块源码
+ifeq ($(ROOT_FONT_VERSION), $(ROOT_FONT_V1))
 FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_12/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_14/*.c) \
@@ -1238,7 +1275,22 @@ FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_72/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_96/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_80/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
+else
+FONT_V2_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_12/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_14/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_16/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_20/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_24/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_72/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_96/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
+endif
 
 FONT_MODULE_SRCS := \
    $(wildcard $(PROJECT_ROOT)/overlay/font/*.c)
