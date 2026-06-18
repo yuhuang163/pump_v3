@@ -968,24 +968,29 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     READ_PUMP_WORK_STATUS(pump_ctx, pump_status);
 
     if (ctrl_status != APP_OLD_COMM_PUMP_CTRL_RUN) {
+        LOG_SRV("ctrl_status not run, return false");
         return false;
     }
 
     if (pump_status != BREAST_PUMP_FINISH && pump_status != BREAST_PUMP_IDLE) {
+        LOG_SRV("pump_status not finish or idle, return false");
         return false;
     }
-
+    ///低电不足运行一次不允许启动
     if ((app_old_comm_get_battery_percent() <= FORBID_START_BAT_PERCENTAGE) && !batt_ctx->is_vbus_plug_in) {
+        LOG_SRV("battery percent low, return false");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START);
     }
-
+    
     ///适配器不适配，运行一次不允许启动
     if (batt_ctx->get_charge_status() == CHARGE_STATE_ERROR) {
+        LOG_SRV("adapter error, return false");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR);
     }
 
     ///旅行锁
     if (air_ctx->is_on_airplane_mode()) {
+        LOG_SRV("airplane mode, return false");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK);
     }
 
@@ -994,9 +999,14 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     EXCEPTION_CHECK_UINT(wm);
     if (wm->is_current_window(wm, ID_WINDOW_GUIDE) || wm->is_current_window(wm, ID_WINDOW_POWER_OFF)
         || wm->is_current_window(wm, ID_WINDOW_CHARGE)) {
+        LOG_SRV("guide window, return false");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
     }
-
+    //设备低电,运行启动，但是需要上报低电异常
+    if (app_old_comm_get_battery_percent() <= LOW_POWER_RUN_PERCENTAGE) {
+        LOG_SRV("battery percent low, report low battery abnormal");
+        app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_LOW_BATTERY);
+    }
     return false;
 }
 

@@ -62,17 +62,27 @@ static void on_ble_state_report(servers_manager_context_t *ctx, int state)
     app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_DISCON, &args);
 }
 
-static void on_battery_low_power_shutdown_report(servers_manager_context_t *ctx)
+static void on_battery_low_power_shutdown_report(servers_manager_context_t *ctx, int active)
 {
     EXCEPTION_CHECK_VOID(ctx);
     servers_publish_data_args_t args_temp = {
         .arg1 = OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON,
-        .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
+        .arg2 = active ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
         .val = NULL,
     };
     app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
 }
 
+static void on_battery_low_power_run_report(servers_manager_context_t *ctx, int active)
+{
+    EXCEPTION_CHECK_VOID(ctx);
+    servers_publish_data_args_t args_temp = {
+        .arg1 = OLD_PUBLISH_ABNORMAL_LOW_BATTERY,
+        .arg2 = active ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
+        .val = NULL,
+    };
+    app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+}
 static void on_charge_error_report(servers_manager_context_t *ctx, int state)
 {
     EXCEPTION_CHECK_VOID(ctx);
@@ -221,7 +231,13 @@ static int servers_work_thread_route(servers_manager_context_t *ctx, servers_pub
             on_pump_custom_mode_report(ctx);
             break;
         case SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_SHUTDOWN_REPORT:
-            on_battery_low_power_shutdown_report(ctx);
+            on_battery_low_power_shutdown_report(ctx, 1);
+            break;
+        case SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_REPORT:
+            on_battery_low_power_run_report(ctx, 1);
+            break;
+        case SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_RELEASE:
+            on_battery_low_power_run_report(ctx, 0);
             break;
         case SERVERS_PUBLISH_DATA_BATTERY_CHARGE_ERROR_REPORT:
             on_charge_error_report(ctx, servers_sys_info->battery.charge_status == CHARGE_STATE_ERROR);
@@ -342,11 +358,19 @@ static void on_servers_battery_state_cb(void *user_data, battery_state_info_t *i
     EXCEPTION_CHECK_VOID(servers_sys_info && info);
     battery_state_info_t *battery = &servers_sys_info->battery;
     if (info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-        info->battery_state == BATTERY_STATE_EMPTY) {
-        if (battery->battery_state != info->battery_state) {
-            ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_SHUTDOWN_REPORT);
-            battery->battery_state = info->battery_state;
-        }
+        info->battery_state == BATTERY_STATE_EMPTY || info->battery_state == BATTERY_STATE_LOW_POWER_RUN) {
+        if (info->charge_status != CHARGE_STATE_CHARGING && info->charge_status != CHARGE_STATE_FULL) {
+            ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_RELEASE);
+        } else  {
+            if (battery->battery_state != info->battery_state) {
+                if (info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || info->battery_state == BATTERY_STATE_EMPTY) {
+                    ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_SHUTDOWN_REPORT);
+                } else {
+                    ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_REPORT);
+                }
+                battery->battery_state = info->battery_state;
+            }
+        } 
         return;
     }
 

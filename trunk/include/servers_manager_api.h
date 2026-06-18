@@ -37,6 +37,8 @@ typedef enum {
     SERVERS_PUBLISH_DATA_MOTOR_TASTE_START_REPORT,     /// 马达体验模式启动上报
     SERVERS_PUBLISH_DATA_MOTOR_TASTE_STOP_REPORT,      /// 马达体验模式停止上报
     SERVERS_PUBLISH_DATA_LIGHT_STATUS_CHANGE,           /// 灯光状态变化上报
+    SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_REPORT, /// 电池仅低电低功耗运行上报
+    SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_RELEASE, /// 电池仅低电低功耗运行解除上报
 
     /* Momcozy 数据埋点 Data Service EVT_001~EVT_019（svc=0x07） */
     SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_STARTUP = 600,       /// EVT_001 泵启动
