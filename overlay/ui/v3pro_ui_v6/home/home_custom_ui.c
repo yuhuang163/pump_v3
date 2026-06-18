@@ -480,6 +480,7 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
         case HOME_UI_DISPLAY_RECORD:
             if (get_timestamp_ms(home_info->start_time) >= (IDLE_SUB_UI_TIME_1 + IDLE_SUB_UI_TIME_2)) {
                 home_info->start_time = get_timestamp();
+                home_info->label_force_update = true;
                 home_label_ui_update(thiz, HOME_TEXT_RECORD,
                     PUMP_RECORD_LABEL_AREA_X, PUMP_RECORD_LABEL_AREA_Y, true);
                 home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time,
