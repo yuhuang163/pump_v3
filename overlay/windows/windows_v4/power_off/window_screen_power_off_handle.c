@@ -76,8 +76,14 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
             msg.union_body.extra.window_id = ID_WINDOW_LOGO;
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
             break;
-        case POWER_OFF_HDR_DISCHARGE_POWER_OFF:
+        case POWER_OFF_HDR_DISCHARGE_POWER_OFF: 
             LOG_WM("%s", args->name);
+            if (proc->st && proc->st->hook && proc->st->hook->on_power_off_force_save_route) {
+                proc->st->flash_protect(false); /// 禁止flash读写操作. 
+                proc->st->hook->on_power_off_force_save_route(proc->st);
+                proc->st->flash_protect(true); /// 禁止flash读写操作.
+                msleep(100); /// 等待100ms，确保数据写入完成
+            }
             power_off_handle(proc);
             break;
         case POWER_OFF_HDR_DISPLAY_CHARGING:
@@ -260,6 +266,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    proc->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;
