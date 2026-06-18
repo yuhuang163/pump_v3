@@ -477,6 +477,26 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_RECORD:
+            if (get_timestamp_ms(home_info->start_time) >= (IDLE_SUB_UI_TIME_1 + IDLE_SUB_UI_TIME_2)) {
+                home_info->start_time = get_timestamp();
+                home_label_ui_update(thiz, HOME_TEXT_RECORD,
+                    PUMP_RECORD_LABEL_AREA_X, PUMP_RECORD_LABEL_AREA_Y, true);
+                home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time,
+                    0, PUMP_RECORD_LABEL_AREA_Y + 30, true);    
+            } else if (get_timestamp_ms(home_info->start_time) < IDLE_SUB_UI_TIME_1) {
+                home_label_ui_update(thiz, HOME_TEXT_RECORD,
+                    PUMP_RECORD_LABEL_AREA_X, PUMP_RECORD_LABEL_AREA_Y, true);
+                home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time,
+                    0, PUMP_RECORD_LABEL_AREA_Y + 30, true);   
+            } else {
+                home_label_ui_update(thiz, HOME_TEXT_CLOCK_ADJUST_TIP,
+                    CLOCK_ADJUST_LABEL_AREA_X, CLOCK_ADJUST_LABEL_AREA_Y, true);
+                home_record_time_ui_update(thiz, 0, 0, 0, false);
+            }
+            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
+                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+                HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
+            break;
         case HOME_UI_DISPLAY_CLOCK_AND_RECORD:
             home_label_ui_update(thiz, HOME_TEXT_RECORD,
                 PUMP_RECORD_LABEL_AREA_X, PUMP_RECORD_LABEL_AREA_Y, true);
