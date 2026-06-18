@@ -498,6 +498,8 @@ static uint8_t pump_custom_trial_mode_update_by_app(pump_mode_steps_info_t pump_
     LOG_SRV("put custom trial steps info to ram");
     motor_ctx->hook->generate_motor_para(motor_ctx, BREAST_PUMP_CUSTOM_TRIAL_MODE, &pump_steps_info, sizeof(pump_steps_info));
     //custom_trial_mode_update_by_steps_info(&pump_steps_info);
+    /// 用全局档位时，不要设置到本地setting中
+    #if !IS_PUMP_STEPS_USE_SAME_SETTING
     pump_setting_t setting;
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         if (i >= pump_steps_info.policy_num) {
@@ -509,7 +511,7 @@ static uint8_t pump_custom_trial_mode_update_by_app(pump_mode_steps_info_t pump_
         }
         storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, i, &setting);
     }
-
+    #endif
     ///同步参数到custom
     pump_copy_trial_mode_to_custom_mode();
     ///更新同步标志
@@ -536,6 +538,7 @@ static uint8_t pump_custom_mode_update_by_app(pump_mode_steps_info_t pump_steps_
     LOG_SRV("put custom steps info to ram");
     motor_ctx->hook->generate_motor_para(motor_ctx, BREAST_PUMP_CUSTOM_MODE, &pump_steps_info, sizeof(pump_steps_info));
     //custom_mode_update_by_steps_info(&pump_steps_info);
+    #if !IS_PUMP_STEPS_USE_SAME_SETTING
     pump_setting_t setting;
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         if (i >= pump_steps_info.policy_num) {
@@ -547,6 +550,7 @@ static uint8_t pump_custom_mode_update_by_app(pump_mode_steps_info_t pump_steps_
         }
         storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, i, &setting);
     }
+    #endif
     ///更新激活标识 自定义模式激活
     WRITE_PUMP_MODE_ACTIVATE(pump_ctx, BREAST_PUMP_CUSTOM_MODE, 1);
 
@@ -743,11 +747,11 @@ static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_ol
             }
             setting.level[1] = app_old_comm_pump_ctrl_date->user_define_pump_level;
             setting.level[0] = app_old_comm_pump_ctrl_date->user_define_pump_level;
-            LOG_SRV("all pump level %d, %d", setting.level[0], setting.level[1]);
+            LOG_SRV("all pump level %d, %d no set to local", setting.level[0], setting.level[1]);
             app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
             app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
             ///双边模式不要设置，通过EA设置
-            app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
+            //app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
             return false;
         }
     }

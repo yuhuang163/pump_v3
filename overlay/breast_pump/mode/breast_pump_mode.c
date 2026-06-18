@@ -139,11 +139,19 @@ void breast_pump_setting_reset(sys_pump_info_t *pump_info, int mode)
     }
     
     setting = pump_info->setting_wrap[mode].info;
+    #if IS_PUMP_STEPS_USE_SAME_SETTING
+    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+        setting[i].speed = BREAST_PUMP_SPEED_DEFAULT;
+        setting[i].level[0] = BREAST_PUMP_LEVEL_DEFAULT;
+        setting[i].level[1] = BREAST_PUMP_LEVEL_DEFAULT;
+    }
+    #else
     for (uint8_t i = 0; i < step_count; i++) {
         setting[i].speed = cfg[i].core.un.mapping.speed;
         setting[i].level[0] = cfg[i].core.un.mapping.level;
         setting[i].level[1] = cfg[i].core.un.mapping.level;
     }
+    #endif
 }
 
 void breast_pump_mode_steps_info_reset(sys_pump_mode_info_t *mode_info, int mode)

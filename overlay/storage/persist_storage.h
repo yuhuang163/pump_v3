@@ -233,6 +233,7 @@ typedef enum {
     BREAST_PUMP_SPEED_HIGH = 2,
     BREAST_PUMP_SPEED_MAX,
     BREAST_PUMP_SPEED_INVALID = 0xFF,
+    BREAST_PUMP_SPEED_DEFAULT = BREAST_PUMP_SPEED_MID,
 } breast_pump_speed_e;
 
 /// 泵奶控制类型
