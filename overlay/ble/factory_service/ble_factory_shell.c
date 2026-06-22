@@ -282,7 +282,7 @@ static void ble_shell_night_light_adaptive(const uint8_t *param, uint16_t len)
     LOG_BLE("shell night light adaptive %d", adaptive);
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_VOID(led && led->hook);
-#if NIGHT_LIGHT_ENABLE
+#if IS_SUPPORT_NIGHT_LIGHT
     if (led->hook->set_night_light_adaptive_dimming_switch) {
         led->hook->set_night_light_adaptive_dimming_switch(led, adaptive); /// 设置夜灯自适应开关.
     }
