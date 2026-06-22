@@ -128,7 +128,7 @@ CFG_BT_CALIB ?= 1
 # 产品型号
 ROOT_PRODUCT_V3_ID ?= 0x08
 ROOT_PRODUCT_V3PRO_ID ?= 0x09
-ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3PRO_ID)
+ROOT_PRODUCT_ID ?= $(ROOT_PRODUCT_V3_ID)
 
 # 产品UI版本
 ROOT_UI_V2 ?= 0x02
@@ -162,6 +162,7 @@ V3_UX_V1 ?= 0x01
 V3_UX_V2 ?= 0x02
 V3_UX_V3 ?= 0x03
 V3_UX_V4 ?= 0x04
+V3_UX_V5 ?= 0x05
 
 # 根据产品型号和UI版本确定V3/V3PRO UI版本
 ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
@@ -187,7 +188,7 @@ PUMP_RHYTHM_MODE_NUM := 3
 ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V6))
 V3_UI_VERSION ?= $(V3PRO_UI_V6)
-V3_UX_VERSION ?= $(V3_UX_V4)
+V3_UX_VERSION ?= $(V3_UX_V5)
 PUMP_RHYTHM_MODE_NUM := 3
 ROOT_FONT_VERSION := $(ROOT_FONT_V2)
 else 
@@ -218,7 +219,7 @@ PUMP_RHYTHM_MODE_NUM := 3
 ROOT_FONT_VERSION := $(ROOT_FONT_V1)
 else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V6))
 V3_UI_VERSION ?= $(V3_UI_V6)
-V3_UX_VERSION ?= $(V3_UX_V4)
+V3_UX_VERSION ?= $(V3_UX_V5)
 PUMP_RHYTHM_MODE_NUM := 3
 ROOT_FONT_VERSION := $(ROOT_FONT_V2)
 else
@@ -272,6 +273,8 @@ else ifeq ($(V3_UX_VERSION), $(V3_UX_V3))
 WINDOWS_OVERLAY_SUBDIR := windows_v3
 else ifeq ($(V3_UX_VERSION), $(V3_UX_V4))
 WINDOWS_OVERLAY_SUBDIR := windows_v4
+else ifeq ($(V3_UX_VERSION), $(V3_UX_V5))
+WINDOWS_OVERLAY_SUBDIR := windows_v5
 else
 $(warning Invalid UX version)
 endif
@@ -645,6 +648,8 @@ FONT_V2_INC_FLAGS := \
 else
 FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16 \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_18 \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_24 \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_12 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_14 \
@@ -654,7 +659,7 @@ FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_72 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_96 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
-	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_80 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_72 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 
 endif
 
@@ -907,6 +912,7 @@ CPPFLAGS += -DV3_UX_V1=$(V3_UX_V1)
 CPPFLAGS += -DV3_UX_V2=$(V3_UX_V2)
 CPPFLAGS += -DV3_UX_V3=$(V3_UX_V3)
 CPPFLAGS += -DV3_UX_V4=$(V3_UX_V4)
+CPPFLAGS += -DV3_UX_V5=$(V3_UX_V5)
 
 # 调试日志相关宏定义
 ifeq ($(REL_TRACE_ENABLE),1)
@@ -1275,7 +1281,6 @@ FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_72/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_96/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_80/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
 else
 FONT_V2_SRCS := \
@@ -1289,6 +1294,7 @@ FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_72/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_96/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_72/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
 endif
 
