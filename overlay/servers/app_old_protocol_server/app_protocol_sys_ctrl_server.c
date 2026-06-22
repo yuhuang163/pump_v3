@@ -61,7 +61,7 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
 
     memset(status, 0, sizeof(*status));
     if (led && led->hook) {
-#if NIGHT_LIGHT_ENABLE
+#if IS_SUPPORT_NIGHT_LIGHT
         if (led->hook->get_night_light_switch) {
             status->night_light_switch = led->hook->get_night_light_switch(led) > 0 ? 1 : 0;
         }
@@ -101,7 +101,7 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
         }
     }
 
-#if NIGHT_LIGHT_ENABLE
+#if IS_SUPPORT_NIGHT_LIGHT
     if (led->hook->get_night_light_switch &&
         status->night_light_switch != (uint8_t)led->hook->get_night_light_switch(led)) {
         if (led->hook->set_night_light_switch) {
