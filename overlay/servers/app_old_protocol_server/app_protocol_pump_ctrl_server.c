@@ -863,19 +863,22 @@ static uint8_t app_old_comm_pump_run_status_ctrl(uint8_t status)
     if (pump_status == BREAST_PUMP_FINISH || pump_status == BREAST_PUMP_IDLE) {
         if (status == APP_OLD_COMM_PUMP_CTRL_RUN) {
             //WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 1);
+            WRITE_PUMP_IS_START_FROM_APP(pump_ctx, true);
+            WRITE_PUMP_CONTROL_SOURCE(pump_ctx, true);
             app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
             app_pump_safe_start_key_sim_task();
-            WRITE_PUMP_IS_START_FROM_APP(pump_ctx, true);
         }
     } else if (pump_status == BREAST_PUMP_START || pump_status == BREAST_PUMP_CONTINUE) {
         if (status == APP_OLD_COMM_PUMP_CTRL_STOP) {
             //WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 1);
+            WRITE_PUMP_CONTROL_SOURCE(pump_ctx, true);
             app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE,OLD_BROADCAST_ALL_CT);
             app_pump_safe_start_key_sim_task();
         }
     } else if (pump_status == BREAST_PUMP_PAUSE) {
         if (status == APP_OLD_COMM_PUMP_CTRL_RUN) {
             //WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_CONTINUE, 1);
+            WRITE_PUMP_CONTROL_SOURCE(pump_ctx, true);
             app_broadcast_pump_status_to_window(BREAST_PUMP_CONTINUE,OLD_BROADCAST_ALL_CT);
             app_pump_safe_start_key_sim_task();
         }
@@ -1224,6 +1227,7 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
         LOG_SRV("charge or dummy, dispatch pump window.");
         multi_func_msg_data_t msg = {0};       
         ///先把参数和模式发给pump组件，再dispatch窗口
+        WRITE_PUMP_CONTROL_SOURCE(pump_ctx, true);///切换窗口如果就会启动pump
         app_old_comm_pump_control_handler(&app_old_comm_pump_ctrl_date);
         msg.union_body.extra.window_id = ID_WINDOW_PUMP;
         wm->dispatch_new_window_args(wm, &msg);

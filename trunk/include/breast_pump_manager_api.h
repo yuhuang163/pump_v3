@@ -137,6 +137,11 @@ typedef enum {
 #define READ_PUMP_POLICY_REMAINING_TIME_MS(ctx, remaining_time_ms) \
     ctx->get_pump_composite_state(BREAST_PUMP_POLICY_REMAINING_TIME_MS, 0, 0, &remaining_time_ms, sizeof(remaining_time_ms))
 
+#define READ_PUMP_CONTROL_SOURCE(ctx, control_source) \
+    ctx->get_pump_composite_state(BREAST_PUMP_CONTROL_SOURCE, 0, 0, &control_source, sizeof(control_source))
+#define WRITE_PUMP_CONTROL_SOURCE(ctx, control_source) \
+    ctx->set_pump_composite_state(BREAST_PUMP_CONTROL_SOURCE, control_source, 0, 0, NULL)
+
 #define ADD_BREAST_PUMP_RESULT_CB(ctx, user_data, cb) \
 do { \
     if (ctx) { \
@@ -196,6 +201,7 @@ typedef struct breast_pump_info_t {
     uint8_t auto_pause_onoff;      /// 自动暂停开关
     uint8_t custom_activate;       /// 个性化韵律激活
     uint8_t is_start_from_app;     /// 当前是否由APP启动pump控制
+    uint8_t control_source;        /// 泵奶控制来源: 0-本地, 1-APP
 } breast_pump_info_t;
 
 /// 吸奶结果ID
@@ -233,6 +239,7 @@ typedef enum{
     BREAST_PUMP_CURRENT_MODE_TYPE,    /// 当前模式类型
     BREAST_PUMP_NEXT_MODE_TYPE,       /// 下一个模式类型
     BREAST_PUMP_TIME_POLICY_INDEX,    /// 当前时间策略索引
+    BREAST_PUMP_CONTROL_SOURCE,      /// 泵奶控制来源: 0-本地, 1-APP
 } pump_state_type_e;
 
 struct peripheral_bus_context;

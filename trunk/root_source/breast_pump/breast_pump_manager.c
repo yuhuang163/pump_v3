@@ -99,7 +99,7 @@ static void start_breast_pump_work(uint8_t is_continue_work)
     STOP_TIMER(ctx->priv.breast_pump_work_timer);
     START_TIMER(ctx->priv.breast_pump_work_timer, PUMP_WORK_STEP_TIME_MS);
     LOG_PMP("is_continue_work: %d", is_continue_work);
-    // 如果接续工作，则触发泵奶启动埋点事件
+    // 如果一个新启动工作，则触发泵奶启动埋点事件
     if (!is_continue_work) {
         DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START, 0, 0);
     }
@@ -545,6 +545,18 @@ static uint8_t get_pump_status_start_from_app(void)
     return m_info->is_start_from_app;
 }
 
+static uint8_t get_pump_control_source(void)
+{
+    breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
+    return m_info->control_source;
+}
+
+static void set_pump_control_source(uint8_t source)
+{
+    breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
+    m_info->control_source = source;
+}
+
 static int get_pump_mode_steps_update_state(uint8_t mode)
 {
     return 0;
@@ -712,6 +724,16 @@ static void get_pump_composite_state(pump_state_type_e type, int arg1, int arg2,
             *is_start_from_app = get_pump_status_start_from_app();
             break;
         }
+        case BREAST_PUMP_CONTROL_SOURCE: {
+            EXCEPTION_CHECK_VOID(out_data);
+            if (data_size != sizeof(int)) {
+                LOG_PMP("data_size error, ignore.");
+                return;
+            }
+            int *control_source = (int *)out_data;
+            *control_source = get_pump_control_source();
+            break;
+        }
         default:
             LOG_PMP("unknow type!!!!");
             break;
@@ -741,6 +763,9 @@ static void set_pump_composite_state(pump_state_type_e type, int arg1, int arg2,
             break;
         case BREAST_PUMP_IS_START_FROM_APP:
             set_pump_status_start_from_app(arg1);
+            break;
+        case BREAST_PUMP_CONTROL_SOURCE:
+            set_pump_control_source(arg1);
             break;
         default:
             LOG_PMP("unknow type!!!!");
