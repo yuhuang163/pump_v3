@@ -144,6 +144,17 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         }
         
         int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;    
+        ///状态变化 触发泵奶启动埋点事件
+        {
+            int control_source = 0;
+            READ_PUMP_CONTROL_SOURCE(proc->pump, control_source);
+            data_bury_trigger_user_evt_t bury_evt = {
+                .evt_source = (control_source == true ? DATA_BURY_EVT_SOURCE_REMOTE_APP : DATA_BURY_EVT_SOURCE_LOCAL),
+                .evt_type = DATA_BURY_USER_EVT_START,
+            };
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
+            WRITE_PUMP_CONTROL_SOURCE(proc->pump, false);
+        }
         WRITE_PUMP_WORK_STATUS(proc->pump, next_status, 1);
         if (proc->led)  {
             proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
@@ -154,6 +165,17 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
     } else {
         proc->forbid_start_pump = false;
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, 1);
+        ///状态变化 触发泵奶停止埋点事件
+        {
+            int control_source = 0;
+            READ_PUMP_CONTROL_SOURCE(proc->pump, control_source);
+            data_bury_trigger_user_evt_t bury_evt = {
+                .evt_source = (control_source == true ? DATA_BURY_EVT_SOURCE_REMOTE_APP : DATA_BURY_EVT_SOURCE_LOCAL),
+                .evt_type = DATA_BURY_USER_EVT_PAUSE,
+            };
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
+            WRITE_PUMP_CONTROL_SOURCE(proc->pump, false);
+        }
         if (proc->led)  {
             proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
         }

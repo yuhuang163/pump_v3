@@ -30,7 +30,7 @@ static void on_packet_subscribe_callback(int err_code, uint8_t *data, uint16_t l
     ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     EXCEPTION_CHECK_VOID(ble_ctx);
     /// 发送数据主要ack应答
-    ble_ctx->dispatch_ble_event_wrapper(ble_ctx, BLE_MSG_FAC_SEND_DATA, (uint8_t *)data, len);
+    ble_ctx->dispatch_ble_event_wrapper(ble_ctx, BLE_MSG_REMOT_SEND_DATA, (uint8_t *)data, len);
 }
 
 static void on_ota_server_event_cb(void *user_data, uint8_t *data, uint16_t data_len)   
