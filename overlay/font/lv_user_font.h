@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#if (ROOT_FONT_VERSION == ROOT_FONT_V1)
 #include "lv_font_oppo_sans_12.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_14.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_16.h" // IWYU pragma: keep
@@ -15,8 +16,23 @@ extern "C" {
 #include "lv_font_oppo_sans_72.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_96.h" // IWYU pragma: keep
 #include "lv_font_quicksand_64.h" // IWYU pragma: keep
-// #include "lv_font_quicksand_80.h" // IWYU pragma: keep
 #include "lv_font_quicksand_96.h" // IWYU pragma: keep
+#else
+#include "lv_font_aeonik_soft_16.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_18.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_24.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_26.h" // IWYU pragma: keep
+#include "lv_font_oppo_sans_12.h" // IWYU pragma: keep
+#include "lv_font_oppo_sans_14.h" // IWYU pragma: keep
+#include "lv_font_oppo_sans_16.h" // IWYU pragma: keep
+#include "lv_font_oppo_sans_20.h" // IWYU pragma: keep
+#include "lv_font_oppo_sans_24.h" // IWYU pragma: keep
+#include "lv_font_oppo_sans_72.h" // IWYU pragma: keep
+#include "lv_font_oppo_sans_96.h" // IWYU pragma: keep
+#include "lv_font_quicksand_64.h" // IWYU pragma: keep
+#include "lv_font_quicksand_72.h" // IWYU pragma: keep
+#include "lv_font_quicksand_96.h" // IWYU pragma: keep
+#endif
 
 #define LV_FONT_PACK_MAX_PACKAGE_SIZE     (102400u)
 #define LV_FONT_PACK_MAGIC                (0x5046564Cu)

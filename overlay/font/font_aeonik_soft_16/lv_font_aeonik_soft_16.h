@@ -1,5 +1,5 @@
-#ifndef __FONT_AEONIK_SOFT_12_H__
-#define __FONT_AEONIK_SOFT_12_H__
+#ifndef __FONT_AEONIK_SOFT_16_H__
+#define __FONT_AEONIK_SOFT_16_H__
 
 #ifdef __cplusplus
 extern "C" {
