@@ -13,6 +13,7 @@ extern "C" {
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "resource_manager_api.h" // IWYU pragma: keep
 #include "common_ui_png_decode.h" // IWYU pragma: keep
+#include "common_wave_ui.h" // IWYU pragma: keep
 
 /*
 * DEFINES
