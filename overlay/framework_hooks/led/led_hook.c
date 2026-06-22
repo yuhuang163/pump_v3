@@ -61,7 +61,7 @@ static void led_hook_fill_state_snapshot(led_manager_context_t *thiz, led_broadc
                                          led_state_info_t *info)
 {
     info->evt_id = (uint8_t)evt;
-#if NIGHT_LIGHT_ENABLE
+#if IS_SUPPORT_NIGHT_LIGHT
     info->night_light_switch = thiz->priv.night_light_switch;
     info->night_light_gear = thiz->priv.night_light_gear;
 #endif
@@ -496,7 +496,7 @@ static int get_key_backlight_adaptive_dimming_switch(led_manager_context_t *thiz
 static void set_global_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    if (onoff !=thiz->priv.global_adaptive_dimming_switch)
+    if (onoff != thiz->priv.global_adaptive_dimming_switch)
     {
         thiz->priv.global_adaptive_dimming_switch = onoff ? 1u : 0u;
         LOG_MISC("global_adaptive_dimming_switch (ram): %d", thiz->priv.global_adaptive_dimming_switch);
@@ -565,7 +565,7 @@ static void on_led_battery_state_change_cb(void *user_data, battery_state_info_t
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
         info->battery_state == BATTERY_STATE_FORBID_START ||
         info->battery_state == BATTERY_STATE_LOW_POWER_RUN) {
-#if NIGHT_LIGHT_ENABLE
+#if IS_SUPPORT_NIGHT_LIGHT
         if (get_night_light_onoff(thiz) > 0) {
             toggle_night_light(thiz);
         }
