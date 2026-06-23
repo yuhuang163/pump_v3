@@ -53,49 +53,49 @@ static battery_display_info_t *battery_info;
 static int get_battery_img_id(uint8_t battery_percent)
 {
     if (battery_percent >= 80) {
-        return RESOURCE_ID_BATT_CAP_100_ICON;
+        return BASE_RES_ID_BATT_CAP_100_ICON;
     } else if (battery_percent >= 60) {
-        return RESOURCE_ID_BATT_CAP_80_ICON;
+        return BASE_RES_ID_BATT_CAP_80_ICON;
     } else if (battery_percent >= 40) {
-        return RESOURCE_ID_BATT_CAP_60_ICON;
+        return BASE_RES_ID_BATT_CAP_60_ICON;
     } else if (battery_percent >= 20) {
-        return RESOURCE_ID_BATT_CAP_40_ICON;
+        return BASE_RES_ID_BATT_CAP_40_ICON;
     } else if (battery_percent >= 5) {
-        return RESOURCE_ID_BATT_CAP_20_ICON;
+        return BASE_RES_ID_BATT_CAP_20_ICON;
     }
-    return RESOURCE_ID_BATT_CAP_0_ICON;
+    return BASE_RES_ID_BATT_CAP_0_ICON;
 }
 
 static uint8_t get_charge_battery_img_id(uint8_t battery_percent)
 {
-    uint8_t result = RESOURCE_ID_BATT_CAP_0_ICON;
+    uint8_t result = BASE_RES_ID_BATT_CAP_0_ICON;
     if (battery_percent >= 100) {
-        result = RESOURCE_ID_BATT_CAP_100_ICON;
+        result = BASE_RES_ID_BATT_CAP_100_ICON;
     } else if (battery_percent >= 80) {
         if (battery_info->animation_index > 1) {
             battery_info->animation_index = 0;
         }
-        result = RESOURCE_ID_BATT_CAP_80_ICON + battery_info->animation_index;
+        result = BASE_RES_ID_BATT_CAP_80_ICON + battery_info->animation_index;
     } else if (battery_percent >= 60) {
         if (battery_info->animation_index > 2) {
             battery_info->animation_index = 0;
         }
-        result = RESOURCE_ID_BATT_CAP_60_ICON + battery_info->animation_index;
+        result = BASE_RES_ID_BATT_CAP_60_ICON + battery_info->animation_index;
     } else if (battery_percent >= 40) {
         if (battery_info->animation_index > 3) {
             battery_info->animation_index = 0;
         }
-        result = RESOURCE_ID_BATT_CAP_40_ICON + battery_info->animation_index;
+        result = BASE_RES_ID_BATT_CAP_40_ICON + battery_info->animation_index;
     } else if (battery_percent >= 20) {
         if (battery_info->animation_index > 4) {
             battery_info->animation_index = 0;
         }
-        result = RESOURCE_ID_BATT_CAP_20_ICON + battery_info->animation_index;
+        result = BASE_RES_ID_BATT_CAP_20_ICON + battery_info->animation_index;
     } else {
         if (battery_info->animation_index > 5) {
             battery_info->animation_index = 0;
         }
-        result = RESOURCE_ID_BATT_CAP_0_ICON + battery_info->animation_index;
+        result = BASE_RES_ID_BATT_CAP_0_ICON + battery_info->animation_index;
     }
 
     if (get_timestamp_ms(battery_info->start_time) > 1000) {
@@ -115,7 +115,7 @@ int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manage
     uint8_t percent = battery->get_battery_percent();
     uint8_t battery_status = UI_BATTERY_STATE_NONE;
     uint8_t charge_status = battery->get_charge_status();
-    uint16_t battery_img_id = RESOURCE_ID_BATT_CAP_0_ICON;   
+    uint16_t battery_img_id = BASE_RES_ID_BATT_CAP_0_ICON;   
     if (BATTERY_IS_CHARGING(charge_status)) {
         battery_img_id = get_charge_battery_img_id(percent);
         battery_status = is_display_state > 0 ? UI_BATTERY_STATE_CHARGING : UI_BATTERY_STATE_NONE;
@@ -155,10 +155,10 @@ int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manage
 
     if (battery_status == UI_BATTERY_STATE_CHARGING) {
         lv_obj_clear_flag(battery_info->state_icon, LV_OBJ_FLAG_HIDDEN);
-        common_ui_img_resource_init(thiz, RESOURCE_ID_CHARGE_ICON, &battery_info->stat_icon_info);
+        common_ui_img_resource_init(thiz, BASE_RES_ID_CHARGE_ICON, &battery_info->stat_icon_info);
     } else if (battery_status == UI_BATTERY_STATE_LOW_POWER) {
         lv_obj_clear_flag(battery_info->state_icon, LV_OBJ_FLAG_HIDDEN);
-        common_ui_img_resource_init(thiz, RESOURCE_ID_LOW_POWER_ICON, &battery_info->stat_icon_info);
+        common_ui_img_resource_init(thiz, BASE_RES_ID_LOW_POWER_ICON, &battery_info->stat_icon_info);
     } else {
         lv_obj_add_flag(battery_info->state_icon, LV_OBJ_FLAG_HIDDEN);
         goto DISPLAY_EXIT;
@@ -185,7 +185,7 @@ void battery_ui_init(ui_manager_context_t *thiz)
         battery_info = (battery_display_info_t *)u_malloz(sizeof(battery_display_info_t));
         EXCEPTION_CHECK_VOID(battery_info);
     }
-    battery_info->img_id = RESOURCE_ID_BATT_CAP_0_ICON;
+    battery_info->img_id = BASE_RES_ID_BATT_CAP_0_ICON;
     battery_info->status = UI_BATTERY_STATE_NONE;
     battery_info->force_update = true;
 }

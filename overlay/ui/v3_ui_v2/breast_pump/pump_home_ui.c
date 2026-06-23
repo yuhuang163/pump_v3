@@ -129,9 +129,9 @@ static const char *bf_mode_name[HOME_BF_MODE_COUNT] = {
 };
 
 const static uint16_t home_speed_icon_ids[HOME_SPEED_MAX_COUNT] = {
-    RESOURCE_ID_PUMP_SPEED_SLOW_ICON,
-    RESOURCE_ID_PUMP_SPEED_REGULAR_ICON,
-    RESOURCE_ID_PUMP_SPEED_FAST_ICON,
+    BASE_RES_ID_PUMP_SPEED_SLOW_ICON,
+    BASE_RES_ID_PUMP_SPEED_REGULAR_ICON,
+    BASE_RES_ID_PUMP_SPEED_FAST_ICON,
 };
 
 static pump_display_info_t *pump_info;
@@ -674,12 +674,12 @@ static void pump_home_animation_update(ui_manager_context_t *thiz, uint8_t is_re
 
     if (pump_info->animation_id > pump_info->animation_end_id) {
         if (is_regular_mode) {
-            pump_info->animation_id = RESOURCE_ID_NM_ANIM_IP_START;
-            pump_info->animation_end_id = RESOURCE_ID_NM_ANIM_IP_END;
+            pump_info->animation_id = BASE_RES_ID_NM_ANIM_IP_START;
+            pump_info->animation_end_id = BASE_RES_ID_NM_ANIM_IP_END;
             lv_obj_align(pump_info->animation, LV_ALIGN_TOP_MID, 0, 168); 
         } else {
-            pump_info->animation_id = RESOURCE_ID_PM_ANIM_IP_START;
-            pump_info->animation_end_id = RESOURCE_ID_PM_ANIM_IP_END;
+            pump_info->animation_id = BASE_RES_ID_PM_ANIM_IP_START;
+            pump_info->animation_end_id = BASE_RES_ID_PM_ANIM_IP_END;
             lv_obj_align(pump_info->animation, LV_ALIGN_TOP_MID, 0, 108); 
         }
         LOG_UI("===> animation start id:%d, end id:%d", 
@@ -717,7 +717,7 @@ void ui_display_pump_home_screen_prepare(ui_manager_context_t *thiz)
     ble_ui_init(thiz);
     pump_info->force_update = true;
     pump_info->popup_ui_index = ID_POPUP_UI_NONE;
-    pump_info->animation_end_id = RESOURCE_ID_HD_ANIM_IP_END;
+    pump_info->animation_end_id = BASE_RES_ID_HD_ANIM_IP_END;
     pump_info->animation_id = pump_info->animation_end_id + 1;
 }
 

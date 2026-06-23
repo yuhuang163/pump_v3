@@ -16,10 +16,12 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 CONFIG_NAME_LEGACY="resource_config.json"
 CONFIG_NAME_BASE="resource_base_config.json"
 CONFIG_NAME_CUSTOM="resource_custom_config.json"
+CONFIG_SUBDIR_BASE="base"
+CONFIG_SUBDIR_CUSTOM="custom"
 
 show_usage() {
     echo "使用方法:"
-    echo "  ./pack.sh [-m] [-d resource_dir] [-t base|custom|multi|all|auto] [V2|V3|V4|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3|v3_res_v4|v3pro_res_v4] [config.json] [output.bin]"
+    echo "  ./pack.sh [-m] [-d resource_dir] [-t base|custom|multi|all|auto] [V2|V3|V4|V5|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3|v3_res_v4|v3pro_res_v4|v3_res_v5|v3pro_res_v5|v3_res_v6|v3pro_res_v6] [config.json] [output.bin]"
     echo ""
     echo "选项:"
     echo "  -m, --menu               通过数字菜单选择资源目录"
@@ -44,12 +46,39 @@ show_usage() {
     echo "  ./pack.sh -d v3pro_res_v2                       # 通过目录选项切换资源目录"
     echo "  ./pack.sh --dir /abs/path/to/v3_res_v2 -t multi # 使用绝对路径指定资源目录"
     echo "  ./pack.sh v3_res_v2 ../v3_res_v2/resource_config.json    # 兼容旧单配置文件方式"
-    echo "  ./pack.sh ../v3_res_v2/resource_base_config.json         # 显式指定 base 配置文件"
+    echo "  ./pack.sh ../v3_res_v5/base/resource_base_config.json     # 显式指定 base 配置文件"
+}
+
+config_file_exists() {
+    local resource_root="$1"
+    local pack_mode="$2"
+    local config_path
+    config_path="$(resolve_config_for_mode "$resource_root" "$pack_mode")"
+    [ -n "$config_path" ] && [ -f "$config_path" ]
+}
+
+resolve_resource_root_from_config() {
+    local config_path="$1"
+    local config_dir
+    local parent_name
+
+    config_dir="$(cd "$(dirname "$config_path")" && pwd)"
+    parent_name="$(basename "$config_dir")"
+    case "$parent_name" in
+        "$CONFIG_SUBDIR_BASE"|"$CONFIG_SUBDIR_CUSTOM")
+            (cd "$config_dir/.." && pwd)
+            ;;
+        *)
+            printf "%s" "$config_dir"
+            ;;
+    esac
 }
 
 has_resource_config() {
     local dir="$1"
-    [ -f "$dir/$CONFIG_NAME_LEGACY" ] || [ -f "$dir/$CONFIG_NAME_BASE" ] || [ -f "$dir/$CONFIG_NAME_CUSTOM" ]
+    [ -f "$dir/$CONFIG_NAME_LEGACY" ] \
+        || config_file_exists "$dir" "base" \
+        || config_file_exists "$dir" "custom"
 }
 
 list_packable_resource_dirs() {
@@ -101,16 +130,16 @@ select_pack_type_from_menu() {
     local available_modes=()
     local idx=0
 
-    if [ -f "$resource_root/$CONFIG_NAME_LEGACY" ]; then
+    if config_file_exists "$resource_root" "legacy"; then
         available_modes+=("legacy")
     fi
-    if [ -f "$resource_root/$CONFIG_NAME_BASE" ]; then
+    if config_file_exists "$resource_root" "base"; then
         available_modes+=("base")
     fi
-    if [ -f "$resource_root/$CONFIG_NAME_CUSTOM" ]; then
+    if config_file_exists "$resource_root" "custom"; then
         available_modes+=("custom")
     fi
-    if [ -f "$resource_root/$CONFIG_NAME_BASE" ] && [ -f "$resource_root/$CONFIG_NAME_CUSTOM" ]; then
+    if config_file_exists "$resource_root" "base" && config_file_exists "$resource_root" "custom"; then
         available_modes+=("multi" "all")
     fi
 
@@ -125,8 +154,8 @@ select_pack_type_from_menu() {
     for idx in "${!available_modes[@]}"; do
         case "${available_modes[$idx]}" in
             legacy) printf "%d) legacy  (resource_config.json)\n" "$((idx + 1))" >&2 ;;
-            base) printf "%d) base    (resource_base_config.json)\n" "$((idx + 1))" >&2 ;;
-            custom) printf "%d) custom  (resource_custom_config.json)\n" "$((idx + 1))" >&2 ;;
+            base) printf "%d) base    (base/resource_base_config.json)\n" "$((idx + 1))" >&2 ;;
+            custom) printf "%d) custom  (custom/resource_custom_config.json)\n" "$((idx + 1))" >&2 ;;
             multi) printf "%d) multi   (base + custom，按偏移拼接)\n" "$((idx + 1))" >&2 ;;
             all) printf "%d) all     (同时生成 base/custom/multi)\n" "$((idx + 1))" >&2 ;;
         esac
@@ -191,12 +220,32 @@ resolve_version_dir() {
                 printf "%s" "$PARENT_DIR/v3_res_v4"
             fi
             ;;
+        V5)
+            device_name="$(resolve_root_device_name)"
+            if [ "$device_name" = "V3Pro" ] && [ -d "$PARENT_DIR/v3pro_res_v5" ]; then
+                printf "%s" "$PARENT_DIR/v3pro_res_v5"
+            else
+                printf "%s" "$PARENT_DIR/v3_res_v5"
+            fi
+            ;;
+        V6)
+            device_name="$(resolve_root_device_name)"
+            if [ "$device_name" = "V3Pro" ] && [ -d "$PARENT_DIR/v3pro_res_v6" ]; then
+                printf "%s" "$PARENT_DIR/v3pro_res_v6"
+            else
+                printf "%s" "$PARENT_DIR/v3_res_v6"
+            fi
+            ;;
         v3_res_v2) printf "%s" "$PARENT_DIR/v3_res_v2" ;;
         v3pro_res_v2|v3pro_V2|V3PRO_V2) printf "%s" "$PARENT_DIR/v3pro_res_v2" ;;
         v3_res_v3|V3_V3) printf "%s" "$PARENT_DIR/v3_res_v3" ;;
         v3pro_res_v3|v3pro_V3|V3PRO_V3) printf "%s" "$PARENT_DIR/v3pro_res_v3" ;;
         v3_res_v4|V3_V4) printf "%s" "$PARENT_DIR/v3_res_v4" ;;
         v3pro_res_v4|v3pro_V4|V3PRO_V4) printf "%s" "$PARENT_DIR/v3pro_res_v4" ;;
+        v3_res_v5|V3_V5) printf "%s" "$PARENT_DIR/v3_res_v5" ;;
+        v3pro_res_v5|v3pro_V5|V3PRO_V5) printf "%s" "$PARENT_DIR/v3pro_res_v5" ;;
+        v3_res_v6|V3_V6) printf "%s" "$PARENT_DIR/v3_res_v6" ;;
+        v3pro_res_v6|v3pro_V6|V3PRO_V6) printf "%s" "$PARENT_DIR/v3pro_res_v6" ;;
         *) printf "%s" "$PARENT_DIR/$version" ;;
     esac
 }
@@ -210,6 +259,10 @@ detect_version_from_path() {
         */v3pro_res_v3/*|*/v3pro_V3/*|*/V3PRO_V3/*) printf "%s" "v3pro_res_v3" ;;
         */v3_res_v4/*|*/V3_V4/*) printf "%s" "v3_res_v4" ;;
         */v3pro_res_v4/*|*/v3pro_V4/*|*/V3PRO_V4/*) printf "%s" "v3pro_res_v4" ;;
+        */v3_res_v5/*|*/V5/*) printf "%s" "v3_res_v5" ;;
+        */v3pro_res_v5/*|*/v3pro_V5/*|*/V3PRO_V5/*) printf "%s" "v3pro_res_v5" ;;
+        */v3_res_v6/*|*/V6/*) printf "%s" "v3_res_v6" ;;
+        */v3pro_res_v6/*|*/v3pro_V6/*|*/V3PRO_V6/*) printf "%s" "v3pro_res_v6" ;;
         *) printf "%s" "" ;;
     esac
 }
@@ -226,13 +279,13 @@ detect_pack_mode_from_config_path() {
 
 resolve_default_pack_mode() {
     local resource_root="$1"
-    if [ -f "$resource_root/$CONFIG_NAME_BASE" ] && [ -f "$resource_root/$CONFIG_NAME_CUSTOM" ]; then
+    if config_file_exists "$resource_root" "base" && config_file_exists "$resource_root" "custom"; then
         printf "%s" "multi"
-    elif [ -f "$resource_root/$CONFIG_NAME_BASE" ]; then
+    elif config_file_exists "$resource_root" "base"; then
         printf "%s" "base"
-    elif [ -f "$resource_root/$CONFIG_NAME_CUSTOM" ]; then
+    elif config_file_exists "$resource_root" "custom"; then
         printf "%s" "custom"
-    elif [ -f "$resource_root/$CONFIG_NAME_LEGACY" ]; then
+    elif config_file_exists "$resource_root" "legacy"; then
         printf "%s" "legacy"
     else
         printf "%s" ""
@@ -242,12 +295,45 @@ resolve_default_pack_mode() {
 resolve_config_for_mode() {
     local resource_root="$1"
     local pack_mode="$2"
+    local config_name=""
+    local subdir=""
+
     case "$pack_mode" in
-        legacy) printf "%s" "$resource_root/$CONFIG_NAME_LEGACY" ;;
-        base) printf "%s" "$resource_root/$CONFIG_NAME_BASE" ;;
-        custom) printf "%s" "$resource_root/$CONFIG_NAME_CUSTOM" ;;
-        *) printf "%s" "" ;;
+        legacy) config_name="$CONFIG_NAME_LEGACY"; subdir="" ;;
+        base) config_name="$CONFIG_NAME_BASE"; subdir="$CONFIG_SUBDIR_BASE" ;;
+        custom) config_name="$CONFIG_NAME_CUSTOM"; subdir="$CONFIG_SUBDIR_CUSTOM" ;;
+        *) printf "%s" ""; return 0 ;;
     esac
+
+    if [ -n "$subdir" ] && [ -f "$resource_root/$subdir/$config_name" ]; then
+        printf "%s" "$resource_root/$subdir/$config_name"
+    elif [ -f "$resource_root/$config_name" ]; then
+        printf "%s" "$resource_root/$config_name"
+    else
+        printf "%s" ""
+    fi
+}
+
+resolve_header_for_mode() {
+    local resource_root="$1"
+    local pack_mode="$2"
+
+    case "$pack_mode" in
+        base)
+            if [ -f "$resource_root/base/resource_base_id_define.h" ]; then
+                printf "%s" "$resource_root/base/resource_base_id_define.h"
+                return 0
+            fi
+            ;;
+        custom)
+            if [ -f "$resource_root/custom/resource_custom_id_define.h" ]; then
+                printf "%s" "$resource_root/custom/resource_custom_id_define.h"
+                return 0
+            fi
+            ;;
+    esac
+
+    printf "%s" "$resource_root/resource_id_define.h"
 }
 
 append_output_suffix() {
@@ -460,6 +546,27 @@ apply_pack_suffix_if_needed() {
         fi
     fi
     printf "%s" "$file_path"
+}
+
+resolve_asset_dir_for_config() {
+    local config_file="$1"
+    local resource_root="$2"
+    local config_dir
+
+    if [ -z "$config_file" ] || [ -z "$resource_root" ]; then
+        printf "%s" "$resource_root"
+        return 0
+    fi
+
+    config_dir="$(cd "$(dirname "$config_file")" && pwd)"
+    case "$config_dir" in
+        "$resource_root"/base|"$resource_root"/custom)
+            printf "%s" "$config_dir"
+            ;;
+        *)
+            printf "%s" "$resource_root"
+            ;;
+    esac
 }
 
 run_pack_resources_for_mode() {
@@ -927,8 +1034,8 @@ case "$PACK_TYPE" in
         ;;
 esac
 
-# 检查第一个参数是否是版本号或资源目录别名（V2 / V3 / V4 / v3_res_v2 / v3pro_res_v2 / v3_res_v3 / v3pro_res_v3 / v3_res_v4 / v3pro_res_v4）
-if [ $# -gt 0 ] && [[ "$1" =~ ^(V2|V3|V4|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3|v3_res_v4|v3pro_res_v4|v3pro_V2|V3PRO_V2|v3pro_V3|V3PRO_V3|V3_V3|v3pro_V4|V3PRO_V4|V3_V4)$ ]]; then
+# 检查第一个参数是否是版本号或资源目录别名
+if [ $# -gt 0 ] && [[ "$1" =~ ^(V2|V3|V4|V5|V6|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3|v3_res_v4|v3pro_res_v4|v3_res_v5|v3pro_res_v5|v3_res_v6|v3pro_res_v6|v3pro_V2|V3PRO_V2|v3pro_V3|V3PRO_V3|V3_V3|v3pro_V4|V3PRO_V4|V3_V4|v3pro_V5|V3PRO_V5|V3_V5|v3pro_V6|V3PRO_V6|V3_V6)$ ]]; then
     VERSION="$1"
     shift
 fi
@@ -994,7 +1101,19 @@ if [ ! -d "$RESOURCE_ROOT" ]; then
     return 1
 fi
 
-HEADER_FILE="$RESOURCE_ROOT/resource_id_define.h"
+if [ -n "$EXPLICIT_CONFIG_FILE" ]; then
+    CONFIG_DIR="$(dirname "$EXPLICIT_CONFIG_FILE")"
+    if [ ! -d "$CONFIG_DIR" ]; then
+        echo "❌ 错误: 配置文件目录不存在: $CONFIG_DIR"
+        return 1
+    fi
+    EXPLICIT_CONFIG_FILE="$(cd "$CONFIG_DIR" && pwd)/$(basename "$EXPLICIT_CONFIG_FILE")"
+    if [ ! -f "$EXPLICIT_CONFIG_FILE" ]; then
+        echo "❌ 错误: 配置文件不存在: $EXPLICIT_CONFIG_FILE"
+        return 1
+    fi
+    RESOURCE_ROOT="$(resolve_resource_root_from_config "$EXPLICIT_CONFIG_FILE")"
+fi
 
 if [ -n "$EXPLICIT_OUTPUT_FILE" ]; then
     OUTPUT_TEMPLATE="$EXPLICIT_OUTPUT_FILE"
@@ -1012,20 +1131,6 @@ else
     else
         OUTPUT_TEMPLATE="$PARENT_DIR/resource_pack.bin"
     fi
-fi
-
-if [ -n "$EXPLICIT_CONFIG_FILE" ]; then
-    CONFIG_DIR="$(dirname "$EXPLICIT_CONFIG_FILE")"
-    if [ ! -d "$CONFIG_DIR" ]; then
-        echo "❌ 错误: 配置文件目录不存在: $CONFIG_DIR"
-        return 1
-    fi
-    EXPLICIT_CONFIG_FILE="$(cd "$CONFIG_DIR" && pwd)/$(basename "$EXPLICIT_CONFIG_FILE")"
-    if [ ! -f "$EXPLICIT_CONFIG_FILE" ]; then
-        echo "❌ 错误: 配置文件不存在: $EXPLICIT_CONFIG_FILE"
-        return 1
-    fi
-    RESOURCE_ROOT="$(cd "$(dirname "$EXPLICIT_CONFIG_FILE")" && pwd)"
 fi
 
 if [ -n "$EXPLICIT_CONFIG_FILE" ]; then
@@ -1049,6 +1154,8 @@ if [ -z "$RESOLVED_PACK_MODE" ]; then
     echo "资源目录: $RESOURCE_ROOT"
     return 1
 fi
+
+HEADER_FILE="$(resolve_header_for_mode "$RESOURCE_ROOT" "$RESOLVED_PACK_MODE")"
 
 if [ -n "$EXPLICIT_CONFIG_FILE" ] && [[ "$RESOLVED_PACK_MODE" =~ ^(multi|all)$ ]]; then
     echo "❌ 错误: 指定单个配置文件时，不支持 $RESOLVED_PACK_MODE 模式"
@@ -1124,7 +1231,7 @@ case "$RESOLVED_PACK_MODE" in
             echo "❌ 错误: 配置文件不存在: $CONFIG_FILE"
             return 1
         fi
-        if run_pack_resources_for_mode "$RESOLVED_PACK_MODE" "$CONFIG_FILE" "$OUTPUT_TEMPLATE" "$HEADER_FILE" "$RESOURCE_ROOT"; then
+        if run_pack_resources_for_mode "$RESOLVED_PACK_MODE" "$CONFIG_FILE" "$OUTPUT_TEMPLATE" "$HEADER_FILE" "$(resolve_asset_dir_for_config "$CONFIG_FILE" "$RESOURCE_ROOT")"; then
             OUTPUT_FILE="$PACK_RESULT_OUTPUT"
             GENERATED_OUTPUTS+=("$OUTPUT_FILE")
         else
@@ -1161,7 +1268,7 @@ case "$RESOLVED_PACK_MODE" in
             CUSTOM_OUTPUT_TEMPLATE="$(append_output_subdir "${OUTPUT_TEMPLATE%/*/*}/resource_pack.bin" "custom")"
         fi
 
-        if run_pack_resources_for_mode "base" "$BASE_CONFIG_FILE" "$BASE_OUTPUT_TEMPLATE" "$HEADER_FILE" "$RESOURCE_ROOT"; then
+        if run_pack_resources_for_mode "base" "$BASE_CONFIG_FILE" "$BASE_OUTPUT_TEMPLATE" "$(resolve_header_for_mode "$RESOURCE_ROOT" "base")" "$(resolve_asset_dir_for_config "$BASE_CONFIG_FILE" "$RESOURCE_ROOT")"; then
             BASE_PACK_OUTPUT="$PACK_RESULT_OUTPUT"
             if [ "$RESOLVED_PACK_MODE" = "all" ]; then
                 GENERATED_OUTPUTS+=("$BASE_PACK_OUTPUT")
@@ -1172,7 +1279,7 @@ case "$RESOLVED_PACK_MODE" in
         fi
 
         if [ $PACK_EXIT_CODE -eq 0 ]; then
-            if run_pack_resources_for_mode "custom" "$CUSTOM_CONFIG_FILE" "$CUSTOM_OUTPUT_TEMPLATE" "$HEADER_FILE" "$RESOURCE_ROOT"; then
+            if run_pack_resources_for_mode "custom" "$CUSTOM_CONFIG_FILE" "$CUSTOM_OUTPUT_TEMPLATE" "$(resolve_header_for_mode "$RESOURCE_ROOT" "custom")" "$(resolve_asset_dir_for_config "$CUSTOM_CONFIG_FILE" "$RESOURCE_ROOT")"; then
                 CUSTOM_PACK_OUTPUT="$PACK_RESULT_OUTPUT"
                 if [ "$RESOLVED_PACK_MODE" = "all" ]; then
                     GENERATED_OUTPUTS+=("$CUSTOM_PACK_OUTPUT")

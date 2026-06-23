@@ -309,12 +309,12 @@ static void common_operation_ui_update(ui_manager_context_t *thiz, popup_ui_id_e
         case ID_POPUP_UI_PUMP_PAUSE_TIMEOUT:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, pump_pause_timeout_infos);
-            common_operation_tip_icon_update(thiz, RESOURCE_ID_PUMP_PAUSE_ICON, 118);
+            common_operation_tip_icon_update(thiz, BASE_RES_ID_PUMP_PAUSE_ICON, 118);
             break;
         case ID_POPUP_UI_PUMP_PAUSE_MANUAL:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, pump_pause_manual_infos);
-            common_operation_tip_icon_update(thiz, RESOURCE_ID_PUMP_PAUSE_ICON, 118);
+            common_operation_tip_icon_update(thiz, BASE_RES_ID_PUMP_PAUSE_ICON, 118);
             break;
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
             common_operation_tip_mask_layer_update(thiz);
@@ -343,30 +343,30 @@ static void common_operation_ui_update(ui_manager_context_t *thiz, popup_ui_id_e
         case ID_POPUP_UI_OP_SUCCESS:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, operation_success_infos);
-            common_operation_tip_icon_update(thiz, RESOURCE_ID_ALLOW_ICON, 130);
+            common_operation_tip_icon_update(thiz, BASE_RES_ID_ALLOW_ICON, 130);
             common_operation_tip_display_complete(thiz, popup_type);
             break;
         case ID_POPUP_UI_OP_SUCCESS_PRESET:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, operation_success_preset_infos);
-            common_operation_tip_icon_update(thiz, RESOURCE_ID_ALLOW_ICON, 130);
+            common_operation_tip_icon_update(thiz, BASE_RES_ID_ALLOW_ICON, 130);
             common_operation_tip_display_complete(thiz, popup_type);
             break;
         case ID_POPUP_UI_OP_FAILED:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, operation_failed_infos);
-            common_operation_tip_icon_update(thiz, RESOURCE_ID_BAN_ICON, 130);
+            common_operation_tip_icon_update(thiz, BASE_RES_ID_BAN_ICON, 130);
             common_operation_tip_display_complete(thiz, popup_type);
             break;
         case ID_POPUP_UI_LEVEL_ADJUST_WARNING:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, level_adjust_waring_infos);
-            common_operation_tip_icon_update(thiz, RESOURCE_ID_WARNING_ICON, 130);
+            common_operation_tip_icon_update(thiz, BASE_RES_ID_WARNING_ICON, 130);
             break;
         case ID_POPUP_UI_ONLY_AVAILABLE_IN_PUMPING:
             common_operation_tip_mask_layer_update(thiz);
             common_operation_tip_text_update(thiz, pumping_only_infos);
-            common_operation_tip_icon_update(thiz, RESOURCE_ID_WARNING_ICON, 130);
+            common_operation_tip_icon_update(thiz, BASE_RES_ID_WARNING_ICON, 130);
             common_operation_tip_display_complete(thiz, popup_type);
             break;
         case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:

@@ -17,11 +17,11 @@
 */
 static lv_draw_buf_t *lv_snap_shot[UI_SNAP_SHOT_ID_MAX] = {NULL};  /// 背景快照，避免重复解码
 const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
-    {RESOURCE_ID_COMMON_BG, false},
-    {RESOURCE_ID_PUMP_LEVEL_BG, false},
-    {RESOURCE_ID_REGULAR_PUMPING_BG, false},
-    {RESOURCE_ID_EXPERT_PUMPING_BG, false},
-    {RESOURCE_ID_PUMP_LEVEL_BOTH_SIDES_BG, false},
+    {BASE_RES_ID_COMMON_BG, false},
+    {BASE_RES_ID_PUMP_LEVEL_BG, false},
+    {BASE_RES_ID_REGULAR_PUMPING_BG, false},
+    {BASE_RES_ID_EXPERT_PUMPING_BG, false},
+    {BASE_RES_ID_PUMP_LEVEL_BOTH_SIDES_BG, false},
 };
 
 /*

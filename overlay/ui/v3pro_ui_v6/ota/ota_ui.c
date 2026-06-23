@@ -316,7 +316,7 @@ static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, ui
             }
             break;
         case OTA_UI_STATUS_ERROR:
-            ui_ota_icon_update(thiz, RESOURCE_ID_BAN_ICON, true);
+            ui_ota_icon_update(thiz, BASE_RES_ID_BAN_ICON, true);
             if (info.object == OTA_OBJECT_MAIN_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_error_text_infos);
                 ui_ota_progress_arc_update(thiz, info.progress, false, 188);
@@ -332,7 +332,7 @@ static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, ui
             }
             break;
         case OTA_UI_STATUS_COMPLETE:
-            ui_ota_icon_update(thiz, RESOURCE_ID_ALLOW_ICON, true);
+            ui_ota_icon_update(thiz, BASE_RES_ID_ALLOW_ICON, true);
             if (info.object == OTA_OBJECT_MAIN_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_suceess_text_infos);
                 ui_ota_progress_arc_update(thiz, info.progress, false, 188);

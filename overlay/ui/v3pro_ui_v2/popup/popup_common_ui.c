@@ -279,31 +279,31 @@ static void popup_window_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
         case ID_POPUP_UI_BT_CONNECT:
             popup_window_ui_mask_layer_update(thiz);
             popup_window_ui_text_update(thiz, ble_connect_infos);
-            popup_window_ui_icon_update(thiz, RESOURCE_ID_BLE_CONNECT_POPUP_ICON, 130);
+            popup_window_ui_icon_update(thiz, BASE_RES_ID_BLE_CONNECT_POPUP_ICON, 130);
             popup_window_ui_display_complete(thiz, popup_type);
             break;
         case ID_POPUP_UI_BT_DISCONNECT:
             popup_window_ui_mask_layer_update(thiz);
             popup_window_ui_text_update(thiz, ble_disconnect_infos);
-            popup_window_ui_icon_update(thiz, RESOURCE_ID_BLE_DISCONNECT_POPUP_ICON, 130);
+            popup_window_ui_icon_update(thiz, BASE_RES_ID_BLE_DISCONNECT_POPUP_ICON, 130);
             popup_window_ui_display_complete(thiz, popup_type);
             break;
         case ID_POPUP_UI_BT_CONNECTING:
             popup_window_ui_mask_layer_update(thiz);
             popup_window_ui_text_update(thiz, ble_connecting_infos);
-            popup_window_ui_icon_update(thiz, RESOURCE_ID_BLE_DISCONNECT_POPUP_ICON, 130);
+            popup_window_ui_icon_update(thiz, BASE_RES_ID_BLE_DISCONNECT_POPUP_ICON, 130);
             popup_window_ui_display_complete(thiz, popup_type);
             break;
         case ID_POPUP_UI_DEVICE_BIND:
             popup_window_ui_mask_layer_update(thiz);
             popup_window_ui_text_update(thiz, device_bind_infos);
-            popup_window_ui_icon_update(thiz, RESOURCE_ID_BIND_ICON, 130);
+            popup_window_ui_icon_update(thiz, BASE_RES_ID_BIND_ICON, 130);
             popup_window_ui_display_complete(thiz, popup_type);
             break;
         case ID_POPUP_UI_DEVICE_UNBIND:
             popup_window_ui_mask_layer_update(thiz);
             popup_window_ui_text_update(thiz, device_unbind_infos);
-            popup_window_ui_icon_update(thiz, RESOURCE_ID_UNBIND_ICON, 130);
+            popup_window_ui_icon_update(thiz, BASE_RES_ID_UNBIND_ICON, 130);
             popup_window_ui_display_complete(thiz, popup_type);
             break;
         case ID_POPUP_UI_COUNT_DOWN:

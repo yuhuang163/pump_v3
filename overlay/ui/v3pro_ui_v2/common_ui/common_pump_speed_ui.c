@@ -71,15 +71,15 @@ typedef struct {
 static speed_display_info_t *speed_info;
 
 static const uint16_t speed_component_ids[SPEED_COUNT] = {
-    RESOURCE_ID_SPEED_PAGE_SLOW_ICON, /// 舒适
-    RESOURCE_ID_SPEED_PAGE_REGULAR_ICON, /// 常规
-    RESOURCE_ID_SPEED_PAGE_FAST_ICON, /// 快速
+    BASE_RES_ID_SPEED_PAGE_SLOW_ICON, /// 舒适
+    BASE_RES_ID_SPEED_PAGE_REGULAR_ICON, /// 常规
+    BASE_RES_ID_SPEED_PAGE_FAST_ICON, /// 快速
 };
 
 static const uint16_t dots_img_ids[SPEED_COUNT] = {
-    RESOURCE_ID_SELECTED_LOCATE_3_START,
-    RESOURCE_ID_SELECTED_LOCATE_3_START + 1,
-    RESOURCE_ID_SELECTED_LOCATE_3_END,
+    BASE_RES_ID_SELECTED_LOCATE_3_START,
+    BASE_RES_ID_SELECTED_LOCATE_3_START + 1,
+    BASE_RES_ID_SELECTED_LOCATE_3_END,
 };
 
 static const char *speed_name[SPEED_COUNT] = {

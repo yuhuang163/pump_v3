@@ -99,6 +99,30 @@ def _strip_c_comments(text: str) -> str:
     return text
 
 
+def _expand_local_includes(text: str, base_dir: str, visited: Optional[set] = None) -> str:
+    """展开本地 #include \"...\"，供 resource_id_define.h 分片解析使用。"""
+    if visited is None:
+        visited = set()
+
+    def _replace_include(match: re.Match) -> str:
+        include_path = match.group(1)
+        if include_path.startswith("<") and include_path.endswith(">"):
+            return match.group(0)
+
+        resolved = os.path.normpath(os.path.join(base_dir, include_path))
+        if resolved in visited or not os.path.isfile(resolved):
+            return match.group(0)
+
+        visited.add(resolved)
+        with open(resolved, "r", encoding="utf-8", errors="ignore") as f:
+            included = f.read()
+        included = _strip_c_comments(included)
+        included = _expand_local_includes(included, os.path.dirname(resolved), visited)
+        return included
+
+    return re.sub(r'^\s*#include\s+"([^"]+)"\s*$', _replace_include, text, flags=re.MULTILINE)
+
+
 def _extract_make_assignment(make_text: str, name: str) -> Optional[str]:
     m = re.search(rf'^\s*{re.escape(name)}\s*\?=\s*(.+?)\s*$', make_text, flags=re.MULTILINE)
     if not m:
@@ -306,6 +330,7 @@ def parse_resource_header(header_file: str) -> Tuple[Dict[str, int], Optional[in
         raw = f.read()
 
     raw = _strip_c_comments(raw)
+    raw = _expand_local_includes(raw, os.path.dirname(os.path.abspath(header_file)))
 
     # 解析头部固定大小宏
     header_size = None
@@ -326,8 +351,32 @@ def parse_resource_header(header_file: str) -> Tuple[Dict[str, int], Optional[in
             val = val[1:-1]
         name_prefix = val.strip() or None
 
-    # 解析 enum
+    # 解析 enum（支持 resource_id_type_e 及 *_res_id_type_e 分主题枚举）
     enum_map: Dict[str, int] = {}
+    for enum_block in re.finditer(r'typedef\s+enum\s*\{([\s\S]*?)\}\s*(\w+_res_id_type_e|resource_id_type_e)\s*;', raw):
+        current = -1
+        for item in enum_block.group(1).split(","):
+            item = item.strip()
+            if not item:
+                continue
+            if "=" in item:
+                name, val = item.split("=", 1)
+                name = name.strip()
+                val = val.strip()
+                try:
+                    current = int(val, 0)
+                except Exception as e:
+                    raise ValueError(f"Failed to parse enum value {val!r} for {name} in {header_file}") from e
+            else:
+                name = item.strip()
+                current = current + 1
+            if name and not name.endswith("_TYPE_MAX"):
+                enum_map[name] = current
+
+    if enum_map:
+        return enum_map, header_size, name_prefix
+
+    # 兼容旧版单一 resource_id_type_e 枚举
     enum_block = re.search(r'typedef\s+enum\s*\{([\s\S]*?)\}\s*resource_id_type_e\s*;', raw)
     if not enum_block:
         return enum_map, header_size, name_prefix
@@ -526,6 +575,35 @@ class ResourcePacker:
         self.version_current: int = IMG_RES_VERSION_CURRENT
         self.missing_files: List[str] = []
 
+    def _resource_root(self) -> str:
+        """资源版本根目录（base/custom/test 子目录的上一级）。"""
+        base_dir_abs = os.path.abspath(self.base_dir)
+        theme_name = os.path.basename(base_dir_abs)
+        if theme_name in ("base", "custom", "test"):
+            return os.path.dirname(base_dir_abs)
+        return base_dir_abs
+
+    def resolve_asset_path(self, rel_path: str) -> str:
+        """
+        解析资源文件路径：
+        1. 相对当前主题目录（base_dir，如 .../v3_res_v6/base）
+        2. 回退到资源版本根目录（兼容 base/xxx、custom/xxx 旧写法或跨主题引用）
+        """
+        rel_path = rel_path.replace("\\", "/").lstrip("./")
+        candidates = [
+            os.path.join(self.base_dir, rel_path),
+            os.path.join(self._resource_root(), rel_path),
+        ]
+        seen = set()
+        for candidate in candidates:
+            norm = os.path.normpath(candidate)
+            if norm in seen:
+                continue
+            seen.add(norm)
+            if os.path.exists(norm):
+                return norm
+        return os.path.normpath(candidates[0])
+
     def _record_missing_file(self, relative_path: str):
         """记录缺失的资源文件（相对 base_dir），避免逐条刷屏。"""
         rel = relative_path.replace("\\", "/").lstrip("./")
@@ -550,9 +628,13 @@ class ResourcePacker:
         # 解析头文件（资源ID映射）
         header_path = self.header_file
         if not header_path:
-            candidate = os.path.join(self.base_dir, "resource_id_define.h")
-            if os.path.exists(candidate):
-                header_path = candidate
+            for candidate in (
+                os.path.join(self.base_dir, "resource_id_define.h"),
+                os.path.join(self._resource_root(), "resource_id_define.h"),
+            ):
+                if os.path.exists(candidate):
+                    header_path = candidate
+                    break
 
         if header_path and os.path.exists(header_path):
             print(f"📎 解析头文件: {header_path}")
@@ -565,29 +647,15 @@ class ResourcePacker:
         # 从 resource_info.h 读取头部分区大小/版本/命名前缀（优先从版本目录查找）
         # 1. 优先从版本目录下的 resource_info.h 查找（V1/V2）
         resource_info_path = None
-        base_dir_abs = os.path.abspath(self.base_dir)
-        
-        # 检测版本目录（V1 或 V2）
-        version_dir = None
-        if "/V1/" in base_dir_abs or base_dir_abs.endswith("/V1"):
-            version_dir = "V1"
-        elif "/V2/" in base_dir_abs or base_dir_abs.endswith("/V2"):
-            version_dir = "V2"
-        
-        # 如果检测到版本目录，优先查找版本目录下的 resource_info.h
-        if version_dir:
-            candidate_path = os.path.join(self.base_dir, "resource_info.h")
+        for candidate_path in (
+            os.path.join(self.base_dir, "resource_info.h"),
+            os.path.join(self._resource_root(), "resource_info.h"),
+        ):
             if os.path.exists(candidate_path):
                 resource_info_path = candidate_path
-                print(f"📎 检测到版本目录: {version_dir}")
+                break
         
-        # 2. 如果版本目录下没找到，尝试从 base_dir 直接查找
-        if not resource_info_path:
-            candidate_path = os.path.join(self.base_dir, "resource_info.h")
-            if os.path.exists(candidate_path):
-                resource_info_path = candidate_path
-        
-        # 3. 如果还是没找到，回退到旧的路径（保持兼容性）
+        # 回退到旧的路径（保持兼容性）
         if not resource_info_path:
             img_define_rel = "trunk/root_source/resource/resource_img_define.h"
             resource_info_path = find_file_upwards(self.base_dir, img_define_rel)
@@ -670,7 +738,7 @@ class ResourcePacker:
                     }
                     
                     # 使用与普通资源相同的处理逻辑
-                    file_path = os.path.join(self.base_dir, range_res['file'])
+                    file_path = self.resolve_asset_path(range_res['file'])
                     
                     if not os.path.exists(file_path):
                         self._record_missing_file(range_res['file'])
@@ -722,7 +790,7 @@ class ResourcePacker:
                 res_id = int(res_id_raw) if isinstance(res_id_raw, str) else res_id_raw
                 res_name = res.get('resource_name', f'RESOURCE_{res_id}')
             
-            file_path = os.path.join(self.base_dir, res['file'])
+            file_path = self.resolve_asset_path(res['file'])
             
             if not os.path.exists(file_path):
                 self._record_missing_file(res['file'])
@@ -793,8 +861,7 @@ class ResourcePacker:
             return False
         
         if not self.resources:
-            print("❌ 错误: 没有可打包的资源")
-            return False
+            print("⚠️  警告: 配置中无资源，将生成空资源包（仅头部）")
 
         # 按资源ID排序（必须先排序再计算offset，否则offset会与body顺序不一致）
         self.resources.sort(key=lambda x: x['img_id'])

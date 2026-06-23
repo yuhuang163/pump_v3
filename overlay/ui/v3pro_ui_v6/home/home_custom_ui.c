@@ -161,42 +161,42 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
 static home_display_info_t *home_info;
 
 const static home_text_info_t home_text_infos[HOME_TEXT_ID_MAX] = {
-    {"Click         to start pumping", RESOURCE_ID_HOME_NARROW_LABLE, 
+    {"Click         to start pumping", BASE_RES_ID_HOME_NARROW_LABLE, 
         IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
-    {"since last pumping session", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"since last pumping session", BASE_RES_ID_HOME_WIDTH_LABLE, 
         0, PUMP_RECORD_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
-    {"Time not updated. Connect\ndevice to sync.", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Time not updated. Connect\ndevice to sync.", BASE_RES_ID_HOME_WIDTH_LABLE, 
         0, CLOCK_ADJUST_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Battery too low. Connect to a\ncharger.", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Battery too low. Connect to a\ncharger.", BASE_RES_ID_HOME_WIDTH_LABLE, 
         0, LOW_POWER_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Fast, gentle suction to\ntrigger let-down", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Fast, gentle suction to\ntrigger let-down", BASE_RES_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Slow, deep suction for\nefficient milk expression", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Slow, deep suction for\nefficient milk expression", BASE_RES_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Efficiently promote let-\ndown and better emptying", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Efficiently promote let-\ndown and better emptying", BASE_RES_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Most suitable for daily use\nafter successful lactation", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Most suitable for daily use\nafter successful lactation", BASE_RES_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Increase milk supply, no\nmore than once a day", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Increase milk supply, no\nmore than once a day", BASE_RES_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
-    {"Edit and sync anytime via\nthe Momcozy App", RESOURCE_ID_HOME_WIDTH_LABLE, 
+    {"Edit and sync anytime via\nthe Momcozy App", BASE_RES_ID_HOME_WIDTH_LABLE, 
         0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},   
 };
 
 const static uint16_t home_speed_icon_ids[HOME_SPEED_MAX_COUNT] = {
-    RESOURCE_ID_PUMP_SPEED_SLOW_ICON,
-    RESOURCE_ID_PUMP_SPEED_REGULAR_ICON,
-    RESOURCE_ID_PUMP_SPEED_FAST_ICON,
+    BASE_RES_ID_PUMP_SPEED_SLOW_ICON,
+    BASE_RES_ID_PUMP_SPEED_REGULAR_ICON,
+    BASE_RES_ID_PUMP_SPEED_FAST_ICON,
 };
 
 const static home_mode_info_t home_mode_infos[HOME_MODE_MAX_COUNT] = {
-    {"Stimulate", RESOURCE_ID_PUMP_SIMULATION_ICON, 122, 40},
-    {"Expression", RESOURCE_ID_PUMP_EXPRESSION_ICON, 134, 40},
-    {"Mixed", RESOURCE_ID_PUMP_MIXED_ICON, 98, 40},
-    {"Relax", RESOURCE_ID_PUMP_MIXED_ICON, 98, 40},
-    {"Milk Boost", RESOURCE_ID_PUMP_MILK_BOOST_ICON, 130, 40},
-    {"Power Pumping", RESOURCE_ID_PUMP_MILK_BOOST_ICON, 168, 40},
-    {"Customize", RESOURCE_ID_PUMP_CUSTOMIZE_ICON, 168, 40},
+    {"Stimulate", BASE_RES_ID_PUMP_SIMULATION_ICON, 122, 40},
+    {"Expression", BASE_RES_ID_PUMP_EXPRESSION_ICON, 134, 40},
+    {"Mixed", BASE_RES_ID_PUMP_MIXED_ICON, 98, 40},
+    {"Relax", BASE_RES_ID_PUMP_MIXED_ICON, 98, 40},
+    {"Milk Boost", BASE_RES_ID_PUMP_MILK_BOOST_ICON, 130, 40},
+    {"Power Pumping", BASE_RES_ID_PUMP_MILK_BOOST_ICON, 168, 40},
+    {"Customize", BASE_RES_ID_PUMP_CUSTOMIZE_ICON, 168, 40},
 };
 
 /*
@@ -341,7 +341,7 @@ static void home_label_ui_update(ui_manager_context_t *thiz, home_text_id_e text
         }
         /// 更新按钮图标
         lv_obj_clear_flag(home_info->button_icon, LV_OBJ_FLAG_HIDDEN);
-        common_ui_theme_img_resource_init(thiz, RESOURCE_ID_HOME_START_BUTTON_ICON, RES_THEME_TYPE_CUSTOM,
+        common_ui_theme_img_resource_init(thiz, BASE_RES_ID_HOME_START_BUTTON_ICON, RES_THEME_TYPE_CUSTOM,
             &home_info->button_info);
         EXCEPTION_CHECK_VOID(home_info->button_info.data);
         lv_fs_path_ex_t button_img_path;
@@ -465,16 +465,16 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                     CLOCK_ADJUST_LABEL_AREA_X, CLOCK_ADJUST_LABEL_AREA_Y, true);
             }
             home_record_time_ui_update(thiz, 0, 0, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START, 
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START, 
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_CLOCK:
             home_label_ui_update(thiz, HOME_TEXT_IDLE,
                 IDLE_LABEL_AREA_ICON_X, IDLE_LABEL_AREA_ICON_Y, true);
             home_record_time_ui_update(thiz, 0, 0, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START, 
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START, 
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_RECORD:
@@ -495,8 +495,8 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                     CLOCK_ADJUST_LABEL_AREA_X, CLOCK_ADJUST_LABEL_AREA_Y, true);
                 home_record_time_ui_update(thiz, 0, 0, 0, false);
             }
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START,
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_CLOCK_AND_RECORD:
@@ -504,8 +504,8 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
                 PUMP_RECORD_LABEL_AREA_X, PUMP_RECORD_LABEL_AREA_Y, true);
             home_record_time_ui_update(thiz, rtc_timestamp - proc->pump_record_time,
                 0, PUMP_RECORD_LABEL_AREA_Y + 30, true);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START,
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_LOW_POWER:
@@ -513,56 +513,56 @@ static void home_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
             home_label_ui_update(thiz, HOME_TEXT_LOW_POWER_TIP,
                 LOW_POWER_LABEL_AREA_X, LOW_POWER_LABEL_AREA_Y, true);
             home_record_time_ui_update(thiz, 0, 0, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START,
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;        
         case HOME_UI_DISPLAY_SIMULATE_MODE_DESC:
             home_label_ui_update(thiz, HOME_TEXT_SIMULATE_MODE_DESC,
                 PUMP_RECORD_LABEL_AREA_X, PUMP_RECORD_LABEL_AREA_Y, true);
             home_record_time_ui_update(thiz, 0, 0, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START,
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_EXPRESSION_MODE_DESC:
             home_label_ui_update(thiz, HOME_TEXT_EXPRESSION_MODE_DESC,
                 MODE_DESC_LABEL_AREA_ICON_X, MODE_DESC_LABEL_AREA_ICON_Y, true);
             home_record_time_ui_update(thiz, 0, 0, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START,
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_MIXED_MODE_DESC:
             home_label_ui_update(thiz, HOME_TEXT_MIXED_MODE_DESC,
                 MODE_DESC_LABEL_AREA_ICON_X, MODE_DESC_LABEL_AREA_ICON_Y, true);
             home_record_time_ui_update(thiz, 0, 0, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START,
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_MILK_BOOST_DESC:
             home_label_ui_update(thiz, HOME_TEXT_MILK_BOOST_DESC,
                 MODE_DESC_LABEL_AREA_ICON_X, MODE_DESC_LABEL_AREA_ICON_Y, true);
             home_record_time_ui_update(thiz, 0, 0, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START,
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_POWER_PUMPING_DESC:
             home_label_ui_update(thiz, HOME_TEXT_POWER_PUMPING_DESC,
                 MODE_DESC_LABEL_AREA_ICON_X, MODE_DESC_LABEL_AREA_ICON_Y, true);
             home_record_time_ui_update(thiz, 0, 0, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START,
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
         case HOME_UI_DISPLAY_CUSTOMIZE_DESC:
             home_label_ui_update(thiz, HOME_TEXT_CUSTOMIZE_DESC,
                 MODE_DESC_LABEL_AREA_ICON_X, MODE_DESC_LABEL_AREA_ICON_Y, true);
             home_record_time_ui_update(thiz, 0, 0, 0, false);
-            home_root_animation_update(thiz, RESOURCE_ID_HD_ANIM_IP_START,
-                RESOURCE_ID_HD_ANIM_IP_END - RESOURCE_ID_HD_ANIM_IP_START + 1,
+            home_root_animation_update(thiz, BASE_RES_ID_HD_ANIM_IP_START,
+                BASE_RES_ID_HD_ANIM_IP_END - BASE_RES_ID_HD_ANIM_IP_START + 1,
                 HOME_IDLE_ANIMATION_X, HOME_IDLE_ANIMATION_Y);
             break;
     }
