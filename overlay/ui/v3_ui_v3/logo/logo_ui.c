@@ -144,7 +144,7 @@ static void sys_logo_label_update(ui_manager_context_t *thiz)
     if (logo_info->force_update == false) {
         return;
     }
-    common_ui_img_resource_init(thiz, RESOURCE_ID_START_LOGO_ICON, &logo_info->img_info);
+    common_ui_img_resource_init(thiz, BASE_RES_ID_START_LOGO_ICON, &logo_info->img_info);
     EXCEPTION_CHECK_VOID(logo_info->img_info.data);
     if (logo_info->logo_icon == NULL || !lv_obj_is_valid(logo_info->logo_icon)) {
         logo_info->logo_icon = lv_image_create(logo_info->root);

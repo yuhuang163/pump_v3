@@ -104,7 +104,7 @@ static int get_img_res_version(res_theme_type_e theme_type)
 
 static int get_current_theme_type(void)
 {
-    thiz->priv.theme_type = RES_THEME_TYPE_CUSTOM;
+    thiz->priv.theme_type = RES_THEME_TYPE_BASE;
     return thiz->priv.theme_type;
 }
 

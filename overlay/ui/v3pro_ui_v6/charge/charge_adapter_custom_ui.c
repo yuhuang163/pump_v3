@@ -119,7 +119,7 @@ static int charge_adapter_object_update(ui_manager_context_t *thiz)
         adapter_info->charge_adapter_icon = lv_image_create(adapter_info->root);
         EXCEPTION_CHECK_INT(adapter_info->charge_adapter_icon);
     }
-    common_ui_theme_img_resource_init(thiz, RESOURCE_ID_CHARGE_ADAPTER_IP, RES_THEME_TYPE_CUSTOM,
+    common_ui_theme_img_resource_init(thiz, BASE_RES_ID_CHARGE_ADAPTER_IP, RES_THEME_TYPE_CUSTOM,
         &adapter_info->charge_adapter_icon_info);
     EXCEPTION_CHECK_INT(adapter_info->charge_adapter_icon_info.data);
     lv_fs_path_ex_t charge_adapter_icon_img_path;

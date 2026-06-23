@@ -131,9 +131,9 @@ static const char *bf_mode_name[HOME_BF_MODE_COUNT] = {
 };
 
 const static uint16_t home_speed_icon_ids[HOME_SPEED_MAX_COUNT] = {
-    RESOURCE_ID_PUMP_SPEED_SLOW_ICON,
-    RESOURCE_ID_PUMP_SPEED_REGULAR_ICON,
-    RESOURCE_ID_PUMP_SPEED_FAST_ICON,
+    BASE_RES_ID_PUMP_SPEED_SLOW_ICON,
+    BASE_RES_ID_PUMP_SPEED_REGULAR_ICON,
+    BASE_RES_ID_PUMP_SPEED_FAST_ICON,
 };
 
 static pump_display_info_t *pump_info;
@@ -677,29 +677,29 @@ static void pump_home_animation_update(ui_manager_context_t *thiz, uint8_t mode_
         if (mode_type == PUMP_MODE_STIMULATION) {
             if (pump_info->mode_type != mode_type) {
                 pump_info->mode_type = mode_type;
-                pump_info->animation_id = RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_START;
-                pump_info->animation_end_id = RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_END;
+                pump_info->animation_id = BASE_RES_ID_SHAKE_BOTTLE_ANIM_IP_START;
+                pump_info->animation_end_id = BASE_RES_ID_SHAKE_BOTTLE_ANIM_IP_END;
             } else {
-                pump_info->animation_id = RESOURCE_ID_SUCTION_ANIM_IP_START;
-                pump_info->animation_end_id = RESOURCE_ID_SUCTION_ANIM_IP_END;
+                pump_info->animation_id = BASE_RES_ID_SUCTION_ANIM_IP_START;
+                pump_info->animation_end_id = BASE_RES_ID_SUCTION_ANIM_IP_END;
             }
         } else if (mode_type == PUMP_MODE_LACTATION) {
             if (pump_info->mode_type != mode_type) {
                 pump_info->mode_type = mode_type;
-                pump_info->animation_id = RESOURCE_ID_YAWN_ANIM_IP_START;
-                pump_info->animation_end_id = RESOURCE_ID_YAWN_ANIM_IP_END;
+                pump_info->animation_id = BASE_RES_ID_YAWN_ANIM_IP_START;
+                pump_info->animation_end_id = BASE_RES_ID_YAWN_ANIM_IP_END;
             } else {
-                pump_info->animation_id = RESOURCE_ID_SUCTION_ANIM_IP_START;
-                pump_info->animation_end_id = RESOURCE_ID_SUCTION_ANIM_IP_END;
+                pump_info->animation_id = BASE_RES_ID_SUCTION_ANIM_IP_START;
+                pump_info->animation_end_id = BASE_RES_ID_SUCTION_ANIM_IP_END;
             }
         } else if (mode_type == PUMP_MODE_MIX) {
             pump_info->mode_type = mode_type;
-            pump_info->animation_id = RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_START;
-            pump_info->animation_end_id = RESOURCE_ID_SHAKE_BOTTLE_ANIM_IP_END;
+            pump_info->animation_id = BASE_RES_ID_SHAKE_BOTTLE_ANIM_IP_START;
+            pump_info->animation_end_id = BASE_RES_ID_SHAKE_BOTTLE_ANIM_IP_END;
         } else {
             pump_info->mode_type = mode_type;
-            pump_info->animation_id = RESOURCE_ID_YAWN_ANIM_IP_START;
-            pump_info->animation_end_id = RESOURCE_ID_YAWN_ANIM_IP_END;
+            pump_info->animation_id = BASE_RES_ID_YAWN_ANIM_IP_START;
+            pump_info->animation_end_id = BASE_RES_ID_YAWN_ANIM_IP_END;
         }
         LOG_UI("===> animation start id:%d, end id:%d; mode_type:%d", 
             pump_info->animation_id, pump_info->animation_end_id, pump_info->mode_type);

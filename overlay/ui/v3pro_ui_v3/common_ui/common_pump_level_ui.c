@@ -199,7 +199,7 @@ static void pump_level_direction_update(ui_manager_context_t *thiz, bool is_left
             if (level_info->animation_status == LEVEL_ANIMATION_TYPE_NONE) {
                 level_info->animation_status = LEVEL_ANIMATION_TYPE_ZOOM_OUT;
                 common_ui_img_resource_init(thiz, level_info->display_direction > 0 ? \
-                    RESOURCE_ID_PUMP_LEFT_LEVEL_ICON : RESOURCE_ID_PUMP_RIGHT_LEVEL_ICON, &level_info->direction_info);
+                    BASE_RES_ID_PUMP_LEFT_LEVEL_ICON : BASE_RES_ID_PUMP_RIGHT_LEVEL_ICON, &level_info->direction_info);
                 EXCEPTION_CHECK_VOID(level_info->direction_info.data);
                 lv_fs_path_ex_t direction_path;
                 lv_fs_make_path_from_buffer(&direction_path, LV_FS_MEMFS_LETTER, level_info->direction_info.data,
@@ -209,7 +209,7 @@ static void pump_level_direction_update(ui_manager_context_t *thiz, bool is_left
                 pump_level_scale_to(level_info->level_direction, 256, 0, PUMP_LEVEL_ANIMATION_TIME);  // 缩小
             } else if (level_info->animation_status == LEVEL_ANIMATION_TYPE_ZOOM_OUT) {
                 common_ui_img_resource_init(thiz, is_left > 0 ? \
-                    RESOURCE_ID_PUMP_LEFT_LEVEL_ICON : RESOURCE_ID_PUMP_RIGHT_LEVEL_ICON, &level_info->direction_info);
+                    BASE_RES_ID_PUMP_LEFT_LEVEL_ICON : BASE_RES_ID_PUMP_RIGHT_LEVEL_ICON, &level_info->direction_info);
                 EXCEPTION_CHECK_VOID(level_info->direction_info.data);
                 lv_fs_path_ex_t direction_path;
                 lv_fs_make_path_from_buffer(&direction_path, LV_FS_MEMFS_LETTER, level_info->direction_info.data,
@@ -225,7 +225,7 @@ static void pump_level_direction_update(ui_manager_context_t *thiz, bool is_left
         }
     } else {
         common_ui_img_resource_init(thiz, is_left > 0 ? \
-            RESOURCE_ID_PUMP_LEFT_LEVEL_ICON : RESOURCE_ID_PUMP_RIGHT_LEVEL_ICON, &level_info->direction_info);
+            BASE_RES_ID_PUMP_LEFT_LEVEL_ICON : BASE_RES_ID_PUMP_RIGHT_LEVEL_ICON, &level_info->direction_info);
         EXCEPTION_CHECK_VOID(level_info->direction_info.data);
         lv_fs_path_ex_t direction_path;
         lv_fs_make_path_from_buffer(&direction_path, LV_FS_MEMFS_LETTER, level_info->direction_info.data,
@@ -249,7 +249,7 @@ static int pump_level_progress_update(ui_manager_context_t *thiz, uint8_t level)
         return 0;
     }
     lv_obj_clear_flag(level_info->level_progress, LV_OBJ_FLAG_HIDDEN);
-    common_ui_img_resource_init(thiz, (RESOURCE_ID_PUMP_LEVEL_START + level - 1), &level_info->level_progress_info);
+    common_ui_img_resource_init(thiz, (BASE_RES_ID_PUMP_LEVEL_START + level - 1), &level_info->level_progress_info);
     EXCEPTION_CHECK_INT(level_info->level_progress_info.data);
     lv_fs_path_ex_t level_progress_path;
     lv_fs_make_path_from_buffer(&level_progress_path, LV_FS_MEMFS_LETTER, 

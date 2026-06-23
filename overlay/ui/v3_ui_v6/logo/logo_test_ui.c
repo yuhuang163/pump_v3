@@ -199,55 +199,6 @@ static void sys_logo_label_update(ui_manager_context_t *thiz, uint8_t index)
     logo_info->force_update = false;
     logo_info->test_page_index = page_id;
 }
-#elif IS_SUPPORT_LOGO_TEST_PAGE
-static void sys_logo_test_page_update(ui_manager_context_t *thiz, uint8_t index)
-{
-    if (logo_info->test_page == NULL || !lv_obj_is_valid(logo_info->test_page)) {
-        logo_info->test_page = lv_image_create(logo_info->root);
-        EXCEPTION_CHECK_VOID(logo_info->test_page);
-    }
-    
-    uint8_t page_id = index % 11;
-    if (logo_info->test_page_index == page_id && logo_info->force_update == false) {
-        return;
-    }
-
-    common_ui_img_resource_init(thiz, RESOURCE_ID_TEST_PAGE_01 + page_id, &logo_info->test_img_info);
-    EXCEPTION_CHECK_VOID(logo_info->test_img_info.data);
-    lv_fs_path_ex_t test_img_path;
-    lv_fs_make_path_from_buffer(&test_img_path, LV_FS_MEMFS_LETTER, logo_info->test_img_info.data,
-        logo_info->test_img_info.size, "jpg");
-    lv_image_set_src(logo_info->test_page, (const void *)&test_img_path);
-    lv_obj_align(logo_info->test_page, LV_ALIGN_CENTER, 0, 0);    /// 设置测试页面位置
-    logo_info->force_update = false;
-    logo_info->test_page_index = page_id;
-}
-
-static void sys_logo_test_anim_update(ui_manager_context_t *thiz)
-{
-    if (logo_info->test_page == NULL || !lv_obj_is_valid(logo_info->test_page)) {
-        logo_info->test_page = lv_image_create(logo_info->root);
-        EXCEPTION_CHECK_VOID(logo_info->test_page);
-    }  
-    
-    if (logo_info->animation_index >= (RESOURCE_ID_TEST_ANIM_END - RESOURCE_ID_TEST_ANIM_START + 1)) {
-        logo_info->animation_index = 0;
-    }
-
-    lv_obj_align(logo_info->test_page, LV_ALIGN_CENTER, 0, 0); 
-    if (logo_info->test_img_info.data != NULL) {
-        common_ui_img_resource_deinit(thiz, &logo_info->test_img_info);
-        memset(&logo_info->test_img_info, 0, sizeof(logo_info->test_img_info));
-    }
-    common_ui_img_resource_init_with_theme(thiz, 
-        RESOURCE_ID_TEST_ANIM_START + logo_info->animation_index, &logo_info->test_img_info);
-    EXCEPTION_CHECK_VOID(logo_info->test_img_info.data);
-    lv_fs_path_ex_t animation_img_path;
-    lv_fs_make_path_from_buffer(&animation_img_path, LV_FS_MEMFS_LETTER, 
-        logo_info->test_img_info.data, logo_info->test_img_info.size, "jpg");
-    lv_image_set_src(logo_info->test_page, (const void *)&animation_img_path);
-    logo_info->animation_index++;
-}
 #endif
 
 /*
@@ -290,23 +241,6 @@ int logo_test_ui_process(ui_manager_context_t *thiz)
     ui_proc_logo_t *proc = (ui_proc_logo_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
     sys_logo_label_update(thiz, proc->test_page_count);
-#elif (IS_SUPPORT_LOGO_TEST_PAGE == 1)
-    ui_proc_logo_t *proc = (ui_proc_logo_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
-    if (proc->is_test_anim == 1) {
-        if (logo_info->is_test_anim == 0) {
-            logo_info->is_test_anim = 1;
-            logo_info->animation_index = 0;
-        }
-        sys_logo_test_anim_update(thiz);
-    } else {
-        if (logo_info->is_test_anim == 1) {
-            logo_info->is_test_anim = 0;
-            logo_info->test_page_index = 0;
-            logo_info->force_update = true;
-        }
-        sys_logo_test_page_update(thiz, proc->test_page_count);
-    }
 #elif IS_SUPPORT_LOGO_WAVE_TEST
     ui_proc_logo_t *proc = (ui_proc_logo_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);

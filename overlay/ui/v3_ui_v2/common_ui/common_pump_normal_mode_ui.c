@@ -73,15 +73,15 @@ typedef struct ui_display_mode_info {
 static mode_display_info_t *mode_info;
 
 static const uint16_t mode_component_ids[MODE_COUNT] = {
-    RESOURCE_ID_MODE_STIMULATE_ICON, /// 舒适
-    RESOURCE_ID_MODE_LACTATION_ICON, /// 常规
-    RESOURCE_ID_MODE_MIX_ICON, /// 快速
+    BASE_RES_ID_MODE_STIMULATE_ICON, /// 舒适
+    BASE_RES_ID_MODE_LACTATION_ICON, /// 常规
+    BASE_RES_ID_MODE_MIX_ICON, /// 快速
 };
 
 static const uint16_t dots_img_ids[MODE_COUNT] = {
-    RESOURCE_ID_SELECTED_LOCATE_3_START,
-    RESOURCE_ID_SELECTED_LOCATE_3_START + 1,
-    RESOURCE_ID_SELECTED_LOCATE_3_END,
+    BASE_RES_ID_SELECTED_LOCATE_3_START,
+    BASE_RES_ID_SELECTED_LOCATE_3_START + 1,
+    BASE_RES_ID_SELECTED_LOCATE_3_END,
 };
 
 static const char *mode_name[MODE_COUNT] = {

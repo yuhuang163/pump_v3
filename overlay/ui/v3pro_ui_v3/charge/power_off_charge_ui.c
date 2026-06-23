@@ -185,7 +185,7 @@ static void power_off_charge_icon_update(ui_manager_context_t *thiz)
     if (charge_info->charge_icon == NULL || !lv_obj_is_valid(charge_info->charge_icon)) {
         charge_info->charge_icon = lv_image_create(charge_info->root);
         EXCEPTION_CHECK_VOID(charge_info->charge_icon);
-        common_ui_img_resource_init(thiz, RESOURCE_ID_CHARGE_PAGE_ICON, &charge_info->charge_icon_info);
+        common_ui_img_resource_init(thiz, BASE_RES_ID_CHARGE_PAGE_ICON, &charge_info->charge_icon_info);
         EXCEPTION_CHECK_VOID(charge_info->charge_icon_info.data);
         lv_fs_path_ex_t charge_icon_img_path;
         lv_fs_make_path_from_buffer(&charge_icon_img_path, LV_FS_MEMFS_LETTER,

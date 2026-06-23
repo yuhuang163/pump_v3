@@ -190,10 +190,10 @@ static void pump_both_level_symbol_update(ui_manager_context_t *thiz, int8_t lev
     }
 
     if (symbol_status == PUMP_BOTH_LEVEL_SYMBOL_ADD) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_PUMP_LEVEL_ADD_ICON, &level_info->symbol_info);
+        common_ui_img_resource_init(thiz, BASE_RES_ID_PUMP_LEVEL_ADD_ICON, &level_info->symbol_info);
         EXCEPTION_CHECK_VOID(level_info->symbol_info.data);
     } else if (symbol_status == PUMP_BOTH_LEVEL_SYMBOL_SUB) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_PUMP_LEVEL_SUB_ICON, &level_info->symbol_info);
+        common_ui_img_resource_init(thiz, BASE_RES_ID_PUMP_LEVEL_SUB_ICON, &level_info->symbol_info);
         EXCEPTION_CHECK_VOID(level_info->symbol_info.data);
     } else {
         level_info->symbol_status = symbol_status;    

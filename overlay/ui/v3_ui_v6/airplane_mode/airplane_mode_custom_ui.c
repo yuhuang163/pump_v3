@@ -61,7 +61,7 @@ const static airplane_mode_text_info_t airplane_mode_text_infos[AIRPLANE_MODE_TE
 };
 
 const static airplane_mode_icon_info_t airplane_mode_icon_infos[AIRPLANE_MODE_ICON_COUNT] = {
-    { "unlock_button_icon", RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON, (106), (188 + 16)},
+    { "unlock_button_icon", BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, (106), (188 + 16)},
 };
 
 /*
@@ -130,7 +130,7 @@ static void airplane_mode_button_icon_update(ui_manager_context_t *thiz)
         !lv_obj_is_valid(airplane_info->unlock_button_icon)) {
         airplane_info->unlock_button_icon = lv_image_create(airplane_info->root);
     }
-    common_ui_theme_img_resource_init(thiz, RESOURCE_ID_AIRPLANE_UNLOCK_BUTTON_ICON, RES_THEME_TYPE_CUSTOM,
+    common_ui_theme_img_resource_init(thiz, BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, RES_THEME_TYPE_CUSTOM,
         &airplane_info->unlock_button_icon_info);
     EXCEPTION_CHECK_VOID(airplane_info->unlock_button_icon_info.data);
     lv_fs_path_ex_t unlock_button_img_path;

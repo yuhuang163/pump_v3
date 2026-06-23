@@ -84,29 +84,29 @@ typedef struct {
 static bf_mode_display_info_t *bf_mode_info;
 
 static const uint16_t bf_mode_component_ids[BF_MODE_COUNT] = {
-    RESOURCE_ID_MODE_EXPERT_ICON,  
-    RESOURCE_ID_MODE_EXPERT_ICON,  
-    RESOURCE_ID_MODE_EXPERT_ICON,  
-    RESOURCE_ID_MODE_EXPERT_ICON, 
-    RESOURCE_ID_MODE_EXPERT_ICON,  
-    RESOURCE_ID_MODE_CUSTOM_ICON, 
+    BASE_RES_ID_MODE_EXPERT_ICON,  
+    BASE_RES_ID_MODE_EXPERT_ICON,  
+    BASE_RES_ID_MODE_EXPERT_ICON,  
+    BASE_RES_ID_MODE_EXPERT_ICON, 
+    BASE_RES_ID_MODE_EXPERT_ICON,  
+    BASE_RES_ID_MODE_CUSTOM_ICON, 
 };
 
 static const uint16_t dots_5_img_ids[BF_MODE_COUNT - 1] = {
-    RESOURCE_ID_SELECTED_LOCATE_5_START,
-    RESOURCE_ID_SELECTED_LOCATE_5_START + 1,
-    RESOURCE_ID_SELECTED_LOCATE_5_START + 2,
-    RESOURCE_ID_SELECTED_LOCATE_5_START + 3,
-    RESOURCE_ID_SELECTED_LOCATE_5_END,
+    BASE_RES_ID_SELECTED_LOCATE_5_START,
+    BASE_RES_ID_SELECTED_LOCATE_5_START + 1,
+    BASE_RES_ID_SELECTED_LOCATE_5_START + 2,
+    BASE_RES_ID_SELECTED_LOCATE_5_START + 3,
+    BASE_RES_ID_SELECTED_LOCATE_5_END,
 };
 
 static const uint16_t dots_6_img_ids[BF_MODE_COUNT] = {
-    RESOURCE_ID_SELECTED_LOCATE_6_START,
-    RESOURCE_ID_SELECTED_LOCATE_6_START + 1,
-    RESOURCE_ID_SELECTED_LOCATE_6_START + 2,
-    RESOURCE_ID_SELECTED_LOCATE_6_START + 3,
-    RESOURCE_ID_SELECTED_LOCATE_6_START + 4,
-    RESOURCE_ID_SELECTED_LOCATE_6_END,
+    BASE_RES_ID_SELECTED_LOCATE_6_START,
+    BASE_RES_ID_SELECTED_LOCATE_6_START + 1,
+    BASE_RES_ID_SELECTED_LOCATE_6_START + 2,
+    BASE_RES_ID_SELECTED_LOCATE_6_START + 3,
+    BASE_RES_ID_SELECTED_LOCATE_6_START + 4,
+    BASE_RES_ID_SELECTED_LOCATE_6_END,
 };
 
 static const char *bf_mode_name[BF_MODE_COUNT] = {
@@ -414,7 +414,7 @@ static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_ci
 
     /// 上一次使用模式图标资源  
     if (bf_mode_info->last_usage_icon_info.data == NULL) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_LAST_USED_MODE_ICON, &bf_mode_info->last_usage_icon_info);
+        common_ui_img_resource_init(thiz, BASE_RES_ID_LAST_USED_MODE_ICON, &bf_mode_info->last_usage_icon_info);
         EXCEPTION_CHECK_VOID(bf_mode_info->last_usage_icon_info.data);
     }
 
@@ -433,7 +433,7 @@ static void create_mode_item(ui_manager_context_t *thiz, lv_obj_t *parent, bf_ci
 
     /// 新模式未确认图标资源
     if (bf_mode_info->unconfirmed_icon_info.data == NULL) {
-        common_ui_img_resource_init(thiz, RESOURCE_ID_NEW_MODE_STEPS_ICON, &bf_mode_info->unconfirmed_icon_info);
+        common_ui_img_resource_init(thiz, BASE_RES_ID_NEW_MODE_STEPS_ICON, &bf_mode_info->unconfirmed_icon_info);
         EXCEPTION_CHECK_VOID(bf_mode_info->unconfirmed_icon_info.data);
     }
     

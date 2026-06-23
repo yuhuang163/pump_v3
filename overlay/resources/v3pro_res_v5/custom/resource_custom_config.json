@@ -1,0 +1,12 @@
+{
+  "meta": {
+    "version": "2.0",
+    "description": "custom 资源包配置文件（预留，当前无资源）",
+    "resource_type": "IMG_RES_TYPE_UI",
+    "language": "IMG_RES_LANG_TYPE_ZH",
+    "compressed": false,
+    "config_hint": "custom 主题资源 ID 区间 [10000 .. 20000]，后续扩展资源在此维护。"
+  },
+  "resource_ranges": [],
+  "resources": []
+}

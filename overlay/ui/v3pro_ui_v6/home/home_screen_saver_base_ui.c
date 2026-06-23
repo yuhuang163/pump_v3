@@ -125,7 +125,7 @@ static void home_screen_saver_dummy_icon_update(ui_manager_context_t *thiz, int1
         EXCEPTION_CHECK_VOID(saver_info->saver_icon);
     }
     
-    common_ui_theme_img_resource_init(thiz, RESOURCE_ID_HOME_IDLE_IP, RES_THEME_TYPE_BASE,
+    common_ui_theme_img_resource_init(thiz, BASE_RES_ID_HOME_IDLE_IP, RES_THEME_TYPE_BASE,
         &saver_info->saver_img_info);
     EXCEPTION_CHECK_VOID(saver_info->saver_img_info.data);
     lv_fs_path_ex_t saver_icon_img_path;
@@ -167,7 +167,7 @@ static void home_screen_saver_clock_ui_update(ui_manager_context_t *thiz, bool i
     if (saver_info->clock_colon == NULL || !lv_obj_is_valid(saver_info->clock_colon)) {
         saver_info->clock_colon = lv_image_create(saver_info->root);
         EXCEPTION_CHECK_VOID(saver_info->clock_colon);
-        common_ui_theme_img_resource_init(thiz, RESOURCE_ID_CLOCK_COLON_ICON, RES_THEME_TYPE_BASE,
+        common_ui_theme_img_resource_init(thiz, BASE_RES_ID_CLOCK_COLON_ICON, RES_THEME_TYPE_BASE,
             &saver_info->clock_colon_info);
         EXCEPTION_CHECK_VOID(saver_info->clock_colon_info.data);
         lv_fs_path_ex_t clock_colon_img_path;

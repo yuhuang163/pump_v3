@@ -14,7 +14,7 @@
 #if IS_SUPPORT_LOGO_UI_TEST
 #define IS_SUPPORT_LOGO_COMP_BG                                (0)
 #define IS_SUPPORT_LOGO_IMG_TEST                               (0)
-#define IS_SUPPORT_LOGO_TEST_PAGE                              (1)
+#define IS_SUPPORT_LOGO_TEST_PAGE                              (0)
 #else
 #define IS_SUPPORT_LOGO_COMP_BG                                (0)
 #define IS_SUPPORT_LOGO_IMG_TEST                               (0)
@@ -160,7 +160,7 @@ static void sys_logo_test_page_update(ui_manager_context_t *thiz, uint8_t index)
         return;
     }
 
-    common_ui_img_resource_init(thiz, RESOURCE_ID_TEST_PAGE_01 + page_id, &logo_info->test_img_info);
+    common_ui_img_resource_init(thiz, TEST_RES_ID_PAGE_01 + page_id, &logo_info->test_img_info);
     EXCEPTION_CHECK_VOID(logo_info->test_img_info.data);
     lv_fs_path_ex_t test_img_path;
     lv_fs_make_path_from_buffer(&test_img_path, LV_FS_MEMFS_LETTER, logo_info->test_img_info.data,
@@ -178,7 +178,7 @@ static void sys_logo_test_anim_update(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(logo_info->test_page);
     }  
     
-    if (logo_info->animation_index >= (RESOURCE_ID_TEST_ANIM_END - RESOURCE_ID_TEST_ANIM_START + 1)) {
+    if (logo_info->animation_index >= (TEST_RES_ID_ANIM_END - TEST_RES_ID_ANIM_START + 1)) {
         logo_info->animation_index = 0;
     }
 
@@ -188,7 +188,7 @@ static void sys_logo_test_anim_update(ui_manager_context_t *thiz)
         memset(&logo_info->test_img_info, 0, sizeof(logo_info->test_img_info));
     }
     common_ui_img_resource_init_with_theme(thiz, 
-        RESOURCE_ID_TEST_ANIM_START + logo_info->animation_index, &logo_info->test_img_info);
+        TEST_RES_ID_ANIM_START + logo_info->animation_index, &logo_info->test_img_info);
     EXCEPTION_CHECK_VOID(logo_info->test_img_info.data);
     lv_fs_path_ex_t animation_img_path;
     lv_fs_make_path_from_buffer(&animation_img_path, LV_FS_MEMFS_LETTER, 
@@ -202,7 +202,7 @@ static void sys_logo_label_update(ui_manager_context_t *thiz)
     if (logo_info->force_update == false) {
         return;
     }
-    common_ui_img_resource_init(thiz, RESOURCE_ID_START_LOGO_ICON, &logo_info->img_info);
+    common_ui_img_resource_init(thiz, BASE_RES_ID_START_LOGO_ICON, &logo_info->img_info);
     EXCEPTION_CHECK_VOID(logo_info->img_info.data);
     if (logo_info->logo_icon == NULL || !lv_obj_is_valid(logo_info->logo_icon)) {
         logo_info->logo_icon = lv_image_create(logo_info->root);

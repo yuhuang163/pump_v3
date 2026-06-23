@@ -115,9 +115,9 @@ static const mode_label_anim_param_t mode_switch_anim_param[2][LABEL_NUM][2] = {
 };
 
 static const uint16_t mode_icon_ids[MODE_NUM] = {
-    RESOURCE_ID_MODE_STIMULATE_ICON, /// 舒适
-    RESOURCE_ID_MODE_LACTATION_ICON, /// 常规
-    RESOURCE_ID_MODE_MIX_ICON, /// 快速
+    BASE_RES_ID_MODE_STIMULATE_ICON, /// 舒适
+    BASE_RES_ID_MODE_LACTATION_ICON, /// 常规
+    BASE_RES_ID_MODE_MIX_ICON, /// 快速
 };
 
 #ifdef UI_SNAP_SHOT_STIMULATION_WAVE_ICON
@@ -128,9 +128,9 @@ static const ui_snap_shot_id_e mode_wave_snap_ids[MODE_NUM] = {
 };
 #else
 static const uint16_t mode_wave_res_ids[MODE_NUM] = {
-    RESOURCE_ID_STIMULATION_WAVE_ICON, /// 舒适
-    RESOURCE_ID_LACTATION_WAVE_ICON, /// 常规
-    RESOURCE_ID_MIX_WAVE_ICON, /// 快速
+    BASE_RES_ID_STIMULATION_WAVE_ICON, /// 舒适
+    BASE_RES_ID_LACTATION_WAVE_ICON, /// 常规
+    BASE_RES_ID_MIX_WAVE_ICON, /// 快速
 };
 #endif
 
@@ -142,9 +142,9 @@ static const ui_snap_shot_id_e slider_snap_ids[MODE_NUM] = {
 };
 #else 
 static const uint16_t slider_res_ids[MODE_NUM] = {
-    RESOURCE_ID_VERTICAL_SLIDER_1,
-    RESOURCE_ID_VERTICAL_SLIDER_2,
-    RESOURCE_ID_VERTICAL_SLIDER_3,
+    BASE_RES_ID_VERTICAL_SLIDER_1,
+    BASE_RES_ID_VERTICAL_SLIDER_2,
+    BASE_RES_ID_VERTICAL_SLIDER_3,
 };
 #endif
 

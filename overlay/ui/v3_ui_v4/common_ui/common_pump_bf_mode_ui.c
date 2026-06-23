@@ -123,9 +123,9 @@ static const mode_label_anim_param_t mode_switch_anim_param[2][LABEL_NUM][2] = {
 };
 
 static const uint16_t mode_icon_ids[MODE_NUM] = {
-    RESOURCE_ID_MODE_EXPERT_ICON,  
-    RESOURCE_ID_MODE_EXPERT_ICON,  
-    RESOURCE_ID_MODE_CUSTOM_ICON, 
+    BASE_RES_ID_MODE_EXPERT_ICON,  
+    BASE_RES_ID_MODE_EXPERT_ICON,  
+    BASE_RES_ID_MODE_CUSTOM_ICON, 
 };
 
 #ifdef UI_SNAP_SHOT_VERTICAL_SLIDER_1
@@ -136,9 +136,9 @@ static const ui_snap_shot_id_e slider_snap_ids[MODE_NUM] = {
 };
 #else
 static const uint16_t slider_res_ids[MODE_NUM] = {
-    RESOURCE_ID_VERTICAL_SLIDER_1,
-    RESOURCE_ID_VERTICAL_SLIDER_2,
-    RESOURCE_ID_VERTICAL_SLIDER_3,
+    BASE_RES_ID_VERTICAL_SLIDER_1,
+    BASE_RES_ID_VERTICAL_SLIDER_2,
+    BASE_RES_ID_VERTICAL_SLIDER_3,
 };
 #endif
 
@@ -708,8 +708,8 @@ void common_pump_bf_mode_ui_prepare(ui_manager_context_t *thiz)
     mode_info->custom_mode_id = 0;
     mode_info->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     mode_info->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    common_ui_img_resource_init(thiz, RESOURCE_ID_LAST_USED_MODE_ICON, &mode_info->used_icon_info);
-    common_ui_img_resource_init(thiz, RESOURCE_ID_NEW_MODE_STEPS_ICON, &mode_info->new_icon_info);
+    common_ui_img_resource_init(thiz, BASE_RES_ID_LAST_USED_MODE_ICON, &mode_info->used_icon_info);
+    common_ui_img_resource_init(thiz, BASE_RES_ID_NEW_MODE_STEPS_ICON, &mode_info->new_icon_info);
     int last_mode_idx = 0;
     if (mode_info->pump) {
         READ_PUMP_EXPERT_MODE(mode_info->pump, true, last_mode_idx);

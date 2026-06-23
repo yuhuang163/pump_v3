@@ -171,6 +171,7 @@ void home_pump_result_ui_exit(ui_proc_home_t *proc);
 void show_home_night_light_adjust_ui(ui_proc_home_t *proc);
 void switch_home_night_light_adjust(ui_proc_home_t *proc, bool is_increase);
 void home_night_light_adjust_ui_exit(ui_proc_home_t *proc);
+#endif
 
 /// 主界面UI显示类型更新
 void home_page_display_type_update(ui_proc_home_t *proc);
@@ -179,6 +180,6 @@ void home_page_display_type_update(ui_proc_home_t *proc);
 }
 #endif
 
-#endif 
+#endif
 
 
