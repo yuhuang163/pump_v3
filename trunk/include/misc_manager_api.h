@@ -21,6 +21,7 @@ typedef enum {
     MISC_TASK_ID_UI_BACKLIGHT_ADAPTIVE = 6,
     MISC_TASK_ID_KEY_LIGHT_ADAPTIVE = 7,
     MISC_TASK_ID_ADAPTIVE_DIMMING_SLEW = 8,  /// 键灯 slew + 屏/夜灯 target 下发
+    MISC_TASK_ID_SYS_ABNORMAL_POLLING = 9,   /// 系统异常状态轮询
     MISC_TASK_ID_MAX
 } misc_task_id_e;
 

@@ -17,7 +17,18 @@ extern "C" {
 typedef enum {
     OP_CODE_FLASH_ERASE = 1,
     OP_CODE_FLASH_ERASE_ALL = 2,
+    OP_CODE_FLASH_GET_FAIL_STATS = 3, /// 获取失败次数统计
 } flash_dev_op_code_e;
+
+/**
+ * @brief 描述FLASH失败次数统计信息
+*/
+typedef struct flash_fail_stats {
+    uint32_t erase_fail_count;   /// 擦除失败次数
+    uint32_t read_fail_count;    /// 读取失败次数
+    uint32_t write_fail_count;   /// 写入失败次数
+    uint32_t total_fail_count;   /// 总失败次数
+} flash_fail_stats_t;
 
 /**
  * @brief 描述FLASH设备信息

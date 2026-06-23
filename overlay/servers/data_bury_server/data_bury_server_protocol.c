@@ -10,6 +10,8 @@
 #include "app_data_bury_protocol_builder.h"
 #include "data_bury_persist_defs.h"
 
+#define DEBUG_DATA_BURY_ENABLE 1
+
 static int data_bury_server_send_tlv(uint8_t svc_id, uint8_t cmd_id,
                                      const uint8_t *tlv, uint16_t tlv_len)
 {
@@ -57,7 +59,9 @@ int data_bury_server_send_packed(uint8_t svc_id, uint8_t cmd_id,
         }
         return -1;
     }
-
+#if DEBUG_DATA_BURY_ENABLE
+    LOG_HEX("data bury tlv", tlv_buf, tlv_len);
+#endif
     ret = data_bury_server_send_tlv(svc_id, cmd_id, tlv_buf, tlv_len);
     if (ret != 0) {
         LOGE("data bury ble send fail cmd=0x%02x packed=%u tlv=%u ret=%d",
