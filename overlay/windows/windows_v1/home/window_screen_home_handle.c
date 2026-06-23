@@ -110,10 +110,13 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
     
     if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
         switch_home_pump_speed(proc, false);
+        return;
+    } 
+    
 #if IS_SUPPORT_NIGHT_LIGHT
-    } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
+    if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         switch_home_night_light_adjust(proc, false);
-#endif
+        return;
     }
 #endif
 }
@@ -144,10 +147,13 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
     
     if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
         switch_home_pump_speed(proc, true);
-#if IS_SUPPORT_NIGHT_LIGHT  
-    } else if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
+        return;
+    } 
+    
+#if IS_SUPPORT_NIGHT_LIGHT
+    if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         switch_home_night_light_adjust(proc, true);
-#endif
+        return;
     }
 #endif
 }
