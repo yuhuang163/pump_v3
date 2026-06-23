@@ -30,6 +30,7 @@ void register_airplane_mode_hook(airplane_mode_context_t *ctx);
 void register_algo_hook(algo_manager_context_t *ctx);
 void register_servers_manager_hook(servers_manager_context_t *ctx);
 void register_led_hook(led_manager_context_t *ctx);
+void register_abnormal_hook(abnormal_manager_context_t *ctx);
 void register_ota_hook(ota_manager_context_t *ctx);
 void register_ble_hook(ble_manager_context_t *ctx);
 #ifdef __cplusplus

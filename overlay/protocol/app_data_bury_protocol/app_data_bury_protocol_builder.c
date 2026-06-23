@@ -10,6 +10,7 @@
 #include "app_data_bury_protocol_builder.h"
 
 #include <string.h>
+#define DEBUG_DATA_BURY_ENABLE 0
 
 static ble_manager_context_t *s_ble_ctx;
 
@@ -63,6 +64,9 @@ static int app_data_bury_protocol_send_raw_frame(const uint8_t *frame, uint16_t 
     if (!s_ble_ctx->ble_is_connected()) {
         return -3;
     }
+#if DEBUG_DATA_BURY_ENABLE
+    LOG_HEX("bury_send_data hex", frame, frame_len);
+#endif
     return s_ble_ctx->dispatch_ble_event_wrapper(s_ble_ctx, BLE_MSG_DATA_BURY_SEND_DATA,
                                                   (uint8_t *)frame, frame_len);
 }
