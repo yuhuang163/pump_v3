@@ -3,9 +3,12 @@
 *****************************************************************************************
 */
 #include "abnormal_manager_api.h"
+#include "bsp_common.h"
 #include "root_common.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "root_log_define.h"
+#include "stdbool.h"
+#include "time_utils.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -13,7 +16,7 @@
 */
 #define ABNORMAL_MONITOR_POLL_MS    5000 //5s
 #define FLASH_FAILURE_THRESHOLD     10  /// Flash失败次数阈值
-#define ABNORMAL_HOOK_DEBUG     0
+#define ABNORMAL_HOOK_DEBUG     1
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -53,6 +56,7 @@ static void check_peripheral_communication_abnormal(void)
             for (uint8_t i = 0; i < AIR_PRESSURE_NUM; i++) {
                 if (pressure_is_ready_status[i] == 0) {
                     comm_error = 1;
+                    LOGE("sys_abnormal_report_communication_erro  air");
                     break;
                 }
             }
@@ -61,13 +65,14 @@ static void check_peripheral_communication_abnormal(void)
     #endif
     
     // 检查电池状态
-    #if IS_SUPPORT_DEVICE_BATTERY
+    #if IS_SUPPORT_DEVICE_CHARGE
     {
         rt_device_node_t *battery_dev = (rt_device_node_t *)pbus->find_device(ID_DEVICE_BATTERY);
         if (battery_dev) {
             DEVICE_IOCTL_HAS_RET(battery_dev, OP_CODE_BAT_IS_READY, ret);
             if (ret <= 0) {
                 comm_error = 1;
+                LOGE("sys_abnormal_report_communication_erro  charge");
             }
         }
     }
@@ -82,6 +87,7 @@ static void check_peripheral_communication_abnormal(void)
             DEVICE_IOCTL_ARGS_NO_RET(input_key_dev, OP_CODE_INPUT_TOUCH_IS_READY, &touch_is_ready_status);
             if (touch_is_ready_status == 0) {
                 comm_error = 1;
+                LOGE("sys_abnormal_report_communication_erro  key");
             }
         }
     }
@@ -96,6 +102,7 @@ static void check_peripheral_communication_abnormal(void)
             DEVICE_IOCTL_ARGS_NO_RET(led_dev, OP_CODE_LED_IS_READY, &led_is_ready_status);
             if (led_is_ready_status == 0) {
                 comm_error = 1;
+                LOGE("sys_abnormal_report_communication_erro  led");
             }
         }
     }
@@ -104,12 +111,12 @@ static void check_peripheral_communication_abnormal(void)
     // 检查PD充电状态
     #if IS_SUPPORT_PD_CHARGE
     {
-        uint8_t charge_pd_is_ready_status = 0;
         rt_device_node_t *battery_dev = (rt_device_node_t *)pbus->find_device(ID_DEVICE_BATTERY);
         if (battery_dev) {
-            DEVICE_IOCTL_ARGS_NO_RET(battery_dev, OP_CODE_BAT_PD_IS_READY, &charge_pd_is_ready_status);
-            if (charge_pd_is_ready_status == 0) {
+            DEVICE_IOCTL_HAS_RET(battery_dev, OP_CODE_BAT_PD_IS_READY, charge_pd_is_ready_status);
+            if (charge_pd_is_ready_status == false) {
                 comm_error = 1;
+                LOGE("sys_abnormal_report_communication_erro charge pd");
             }
         }
     }
@@ -124,6 +131,7 @@ static void check_peripheral_communication_abnormal(void)
             lcd_is_ready_status = lcd_dev->ioctl(lcd_dev, OP_CODE_PANEL_IS_READY, NULL);
             if (lcd_is_ready_status == 0) {
                 comm_error = 1;
+                LOGE("sys_abnormal_report_communication_error lcd");
             }
         }
     }
@@ -185,7 +193,12 @@ static void abnormal_monitor_thread(void *user_data)
     /// 检查Flash存储失败次数异常
     check_flash_failure_abnormal();
     #if ABNORMAL_HOOK_DEBUG
-    LOGI("abnormal_monitor_thread runing");
+    uint32_t rtc_timestamp = platform_get_utc_time();
+    utc_time_t utc_time = {0};
+    timestamp_to_utc_time(rtc_timestamp, &utc_time);
+    LOGI("abnormal_monitor_thread runing, rtc_time: %u, %04u-%02u-%02u %02u:%02u:%02u", 
+         (unsigned int)rtc_timestamp, utc_time.year + 2000, utc_time.month, utc_time.day, 
+         utc_time.hour, utc_time.minute, utc_time.second);
     #endif
 }
 
