@@ -7,6 +7,7 @@
 #include "bsp_i2c.h"
 #include "bsp_charge_pd.h" 
 #include "bsp_battery_internal.h"
+#include "stdbool.h"
 
 /*
 * DEFINES
@@ -18,6 +19,7 @@
 #define CHARGE_PD_VERSION_1                    0    /// PD1.0
 #define CHARGE_PD_VERSION_2                    1    /// PD2.0
 #define CHARGE_PD_VERSION_3                    2    /// PD3.0
+#define CHARGE_PD_DEBUG                        1 
 
 typedef enum {
     CHARGE_PD_ADAPTER_PLUG_OUT = 0, /// 适配器拔出
@@ -30,6 +32,7 @@ typedef enum {
 *****************************************************************************************
 */
 static bool s_charge_pd_onoff = false;
+static bool s_charge_pd_isready = false;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -121,9 +124,10 @@ static bool charge_pd_power_is_ready(void)
 {
     if (charge_pd_device_is_ready() != BSP_OK) {
         // LOG_PBUS("charge pd device not ready");
+        s_charge_pd_isready = false;
         return false;
     }
-
+    s_charge_pd_isready = true;
     int version = charge_pd_version_get();
     if (version < CHARGE_PD_VERSION_2) {
         // LOG_PBUS("charge pd version too low, version: %d", version);
@@ -153,10 +157,7 @@ static void charge_pd_gpio_init(void)
  */
 int bsp_charge_pd_is_ready(void)
 {
-    if (s_charge_pd_onoff == false) {
-        return false;
-    }
-    return charge_pd_device_is_ready();
+    return s_charge_pd_isready;
 }
 
 void charge_pd_status_poll(bool plug_in_debounce)

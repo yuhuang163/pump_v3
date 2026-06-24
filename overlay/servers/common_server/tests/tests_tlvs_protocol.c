@@ -1050,11 +1050,10 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
     // 查询PD充电状态
     #if IS_SUPPORT_PD_CHARGE
     {
-        uint8_t charge_pd_is_ready_status = 0;
         rt_device_node_t *battery_dev = pbus->find_device(ID_DEVICE_BATTERY);
         if (battery_dev) {
-            DEVICE_IOCTL_ARGS_NO_RET(battery_dev, OP_CODE_BAT_PD_IS_READY, &charge_pd_is_ready_status);
-            response[sensor_count] = charge_pd_is_ready_status;
+            DEVICE_IOCTL_HAS_RET(battery_dev, OP_CODE_BAT_PD_IS_READY, pdret);
+            response[sensor_count] = pdret > 0 ? 1 : 0;
             sensor_count++;
         }
     }
