@@ -415,7 +415,11 @@ SDK_LCD_INC_FLAGS := \
 SDK_JPEG_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/tests/hwtest/jpegdec \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/jpeg \
-	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/graphic/gpu \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/graphic/gpu
+
+# SDK GRABOX/BAJ 头文件
+SDK_GRABOX_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/services/grabox/inc
 
 # Boards 头文件
 BOARDS_INC_FLAGS := \
@@ -804,6 +808,7 @@ SDK_INCLUDE_PATHS := \
 	$(SDK_LVGL_INC_FLAGS) \
 	$(SDK_LCD_INC_FLAGS) \
 	$(SDK_JPEG_INC_FLAGS) \
+	$(SDK_GRABOX_INC_FLAGS) \
 	$(DRIVERS_INC_FLAGS) \
 	$(BASE_INC_FLAGS) \
 	$(EXTERNAL_INC_FLAGS) \
@@ -1285,6 +1290,8 @@ FONT_V2_SRCS := \
 else
 FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_18/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_24/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_12/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_14/*.c) \

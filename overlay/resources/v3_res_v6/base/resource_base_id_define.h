@@ -1,6 +1,7 @@
 #ifndef __RESOURCE_BASE_ID_DEFINE_H__
 #define __RESOURCE_BASE_ID_DEFINE_H__
 
+#include "project_partitions.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -41,62 +42,49 @@ typedef enum {
     BASE_RES_ID_GUIDE_PAGE5_IMG, /// 引导-页5图片
     BASE_RES_ID_GUIDE_PAGE6_IMG, /// 引导-页6图片
 
-    /* 模式相关组 [301..400]（大图 + 小图标） */
-    BASE_RES_ID_PUMP_SPEED_SLOW_ICON = 200, /// 泵奶首页-慢速图标
-    BASE_RES_ID_PUMP_SPEED_REGULAR_ICON, /// 泵奶首页-常规图标
-    BASE_RES_ID_PUMP_SPEED_FAST_ICON, /// 泵奶首页-快速图标
-    BASE_RES_ID_REGULAR_PUMPING_BG, /// 泵奶首页-常规泵奶背景
-    BASE_RES_ID_EXPERT_PUMPING_BG, /// 泵奶首页-专家泵奶背景
-    BASE_RES_ID_PUMP_SIMULATION_ICON, /// 泵奶首页-刺激图标
-    BASE_RES_ID_PUMP_EXPRESSION_ICON, /// 泵奶首页-泌乳图标
-    BASE_RES_ID_PUMP_MIXED_ICON, /// 泵奶首页-混合图标
-    BASE_RES_ID_PUMP_MILK_BOOST_ICON, /// 泵奶首页-奶量提升图标
-    BASE_RES_ID_PUMP_POWER_PUMPING_ICON, /// 泵奶首页-pp追奶图标
-    BASE_RES_ID_PUMP_CUSTOMIZE_ICON, /// 泵奶首页-自定义图标
-    BASE_RES_ID_SPEED_PAGE_FAST_ICON, /// 频率页-快频率图标
-    BASE_RES_ID_SPEED_PAGE_REGULAR_ICON, /// 频率页-常规频率图标
-    BASE_RES_ID_SPEED_PAGE_SLOW_ICON, /// 频率页-慢频率图标
-    BASE_RES_ID_LAST_USED_MODE_ICON, /// 上一次使用模式图标
-    BASE_RES_ID_NEW_MODE_STEPS_ICON, /// 新模式未确认图标
-    BASE_RES_ID_MODE_LACTATION_ICON, /// 模式-泌乳图标
-    BASE_RES_ID_MODE_MIX_ICON, /// 模式-混合图标
-    BASE_RES_ID_MODE_STIMULATE_ICON, /// 模式-刺激图标
-    BASE_RES_ID_MODE_RELAX_ICON, /// 模式-放松图标
-    BASE_RES_ID_MODE_CUSTOM_ICON, /// 韵律-专家模式图标
-    BASE_RES_ID_MODE_EXPERT_ICON, /// 韵律-个性化模式图标
+    /* 模式相关组 [200..300]（大图 + 小图标） */
+    BASE_RES_ID_HOME_IDLE_ICON = 200, /// 空闲界面图标
+    BASE_RES_ID_PUMP_FINISH_ICON, /// 泵奶完成图标
+    BASE_RES_ID_CHARGE_ADAPTER_ICON, /// 充电适配器图标
     BASE_RES_ID_PUMP_PAUSE_ICON, /// 泵奶暂停图标
-    BASE_RES_ID_PUMP_LEVEL_BG, /// 泵奶档位背景
-    BASE_RES_ID_PUMP_LEVEL_BOTH_SIDES_BG, /// 泵奶档位双侧模式背景
-    BASE_RES_ID_PUMP_LEVEL_ADD_ICON, /// 泵奶档位文本加号图标
-    BASE_RES_ID_PUMP_LEVEL_SUB_ICON, /// 泵奶档位文本减号图标
-    BASE_RES_ID_PUMP_LEFT_LEVEL_ICON, /// 泵奶左档位图标
-    BASE_RES_ID_PUMP_RIGHT_LEVEL_ICON, /// 泵奶右档位图标
-    BASE_RES_ID_SELECT_LABEL, /// 选中标签图标
-    BASE_RES_ID_STIMULATION_WAVE_ICON, /// 刺激波形图标
-    BASE_RES_ID_LACTATION_WAVE_ICON, /// 泌乳波形图标
-    BASE_RES_ID_MIX_WAVE_ICON, /// 混合波形图标
-    BASE_RES_ID_MODE_STEP_LINE_ICON, /// 模式步骤线图标
 
-    /* 动画组 [300...] */
-    BASE_RES_ID_PUMP_LEVEL_START = 300, /// 泵奶档位图片-开始
-    BASE_RES_ID_PUMP_LEVEL_END = 314, /// 泵奶档位图片-结束
+    BASE_RES_ID_STIMULATION_WAVE = 220, /// 刺激波形
+    BASE_RES_ID_LACTATION_WAVE, /// 泌乳波形
+    BASE_RES_ID_MIX_WAVE, /// 混合波形
+    BASE_RES_ID_RELAX_WAVE, /// 放松波形
+    BASE_RES_ID_MILK_BOOST_WAVE, /// 2+8奶量提升波形
+    BASE_RES_ID_POWER_PUMPING_WAVE, /// 泵奶模式波形
+    BASE_RES_ID_CUSTOM_WAVE, /// 个性化模式波形
+    BASE_RES_ID_PUMP_LEVEL_SEPARATOR, /// 泵奶力度分割符
+    BASE_RES_ID_PUMP_LEVEL_BG, /// 泵奶力度背景
+    BASE_RES_ID_PUMP_LEVEL_INDICATOR, /// 泵奶力度指示符
+    BASE_RES_ID_PUMP_RHYTHM_ICON, /// 泵奶节奏图标
 
-    /* IP图标组 [1000..] */
-    BASE_RES_ID_HOME_IDLE_IP = 1000, /// dummy图标
-    BASE_RES_ID_HOME_BLE_IP, /// 首页蓝牙IP图标
-    BASE_RES_ID_PUMP_FINISH_IP, /// 泵奶完成图标
-    BASE_RES_ID_CHARGE_ADAPTER_IP, /// 首页充电适配器图标
-    BASE_RES_ID_YAWN_ANIM_IP_START = 1100, /// 打哈欠动画-开始
-    BASE_RES_ID_YAWN_ANIM_IP_END = 1180, /// 打哈欠动画-结束
-    BASE_RES_ID_SHAKE_BOTTLE_ANIM_IP_START = 1200, /// 摇奶瓶动画-开始
-    BASE_RES_ID_SHAKE_BOTTLE_ANIM_IP_END = 1280, /// 摇奶瓶动画-结束
-    BASE_RES_ID_SUCTION_ANIM_IP_START = 1300, /// 吸奶动画-开始
-    BASE_RES_ID_SUCTION_ANIM_IP_END = 1326, /// 吸奶动画-结束
-    BASE_RES_ID_HD_ANIM_IP_START = 1500, /// 首页默认动画-开始
-    BASE_RES_ID_HD_ANIM_IP_END = 1619, /// 首页默认动画-结束
+    /* 动画组 [1000..] */
+    BASE_RES_ID_LONG_SUCTION_ANIM_START = 1000, /// 长吸动画-开始
+    BASE_RES_ID_LONG_SUCTION_ANIM_END = 1080, /// 长吸动画-结束 (1000 + 80)
+    BASE_RES_ID_SHORT_SUCTION_ANIM_START = 1100, /// 短吸动画-开始
+    BASE_RES_ID_SHORT_SUCTION_ANIM_END = 1126, /// 短吸动画-结束 (1100 + 26)
+    BASE_RES_ID_MIXED_SUCTION_ANIM_START = 1200, /// 混合吸吮动画-开始
+    BASE_RES_ID_MIXED_SUCTION_ANIM_END = 1280, /// 混合吸吮动画-结束 (1200 + 80)
+    BASE_RES_ID_RELAX_SUCTION_ANIM_START = 1300, /// 放松吸吮动画-开始
+    BASE_RES_ID_RELAX_SUCTION_ANIM_END = 1380, /// 放松吸吮动画-结束 (1300 + 80)
 
     BASE_RES_ID_TYPE_MAX
 } base_res_id_type_e;
+
+/// 长吸动画帧数
+#define BASE_LONG_SUCTION_ANIM_NUM \
+    (BASE_RES_ID_LONG_SUCTION_ANIM_END - BASE_RES_ID_LONG_SUCTION_ANIM_START + 1)
+/// 短吸动画帧数
+#define BASE_SHORT_SUCTION_ANIM_NUM \
+    (BASE_RES_ID_SHORT_SUCTION_ANIM_END - BASE_RES_ID_SHORT_SUCTION_ANIM_START + 1)
+/// 混合吸吮动画帧数
+#define BASE_MIXED_SUCTION_ANIM_NUM \
+    (BASE_RES_ID_MIXED_SUCTION_ANIM_END - BASE_RES_ID_MIXED_SUCTION_ANIM_START + 1)
+/// 放松吸吮动画帧数
+#define BASE_RELAX_SUCTION_ANIM_NUM \
+    (BASE_RES_ID_RELAX_SUCTION_ANIM_END - BASE_RES_ID_RELAX_SUCTION_ANIM_START + 1)
 
 #ifdef __cplusplus
 }
