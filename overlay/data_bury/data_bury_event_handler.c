@@ -2,6 +2,7 @@
  * overlay 数据埋点事件处理：外部 trigger -> 埋点 payload 采集与上报
  */
 
+#include "root_common.h"
 #include "root_common_api.h"
 #include "data_bury_persist_defs.h"
 #include "data_bury_event_handler.h"
@@ -416,7 +417,7 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
 {
     breast_pump_manager_context_t *pump =
         (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    uint8_t buf[DATA_BURY_EVT_PUMP_SESSION_END_MAX_LEN];
+    uint8_t buf[DATA_BURY_EVT_PUMP_SESSION_END_MAX_LEN] = {0};
     data_bury_evt_pump_session_end_fixed_t *evt =
         (data_bury_evt_pump_session_end_fixed_t *)buf;
     data_bury_evt_program_duration_t *program_durations;
@@ -556,7 +557,7 @@ static void data_bury_event_publish_firmware_update_start(data_bury_manager_cont
     evt.device_side = ctx->data_bury_get_device_side();
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
-    evt.update_from = (uint16_t)ROOT_FIRMWARE_VERSION;
+    evt.update_from = (uint16_t)(((ROOT_FIRMWARE_VERSION / 100) << 8) | (ROOT_FIRMWARE_VERSION % 100));
     evt.update_result = is_success ? DATA_BURY_FIRMWARE_UPDATE_RESULT_SUCCESS : DATA_BURY_FIRMWARE_UPDATE_RESULT_FAILURE;
     evt.update_err = update_err_code;
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_FIRMWARE_UPDATE,
@@ -613,17 +614,32 @@ int data_bury_event_process_pump_session_start(data_bury_manager_context_t *ctx,
 int data_bury_event_process_pump_mode_switch(data_bury_manager_context_t *ctx,
                                                     const data_bury_trigger_args_t *args)
 {
-    uint8_t adjust_from;
-    uint8_t adjust_to;
+    uint32_t adjust_from;
+    uint32_t adjust_to;
     uint16_t duration_sec = 0u;
-
+    pump_mode_steps_info_t steps_info;
+    storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_INT(storage_ctx);
     (void)ctx;
     if (!args || !args->val) {
         return -1;
     }
-    adjust_from = (uint8_t)args->arg1;
-    adjust_to = (uint8_t)args->arg2;
+    adjust_from = args->arg1;
+    adjust_to = args->arg2;
     duration_sec = *(const uint16_t *)args->val;
+    if(adjust_from == BREAST_PUMP_CUSTOM_MODE)
+    {
+      //转化为pragram id
+      storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
+      adjust_from = steps_info.id.dat32;
+    }
+    if(adjust_to == BREAST_PUMP_CUSTOM_MODE)
+    { 
+      //转化为pragram id
+      storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
+      adjust_to = steps_info.id.dat32;
+    }
+
     data_bury_event_record_pump_mode_switch(adjust_from, adjust_to, duration_sec);
     return 0;
 }

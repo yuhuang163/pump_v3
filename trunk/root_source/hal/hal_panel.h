@@ -20,6 +20,7 @@ typedef enum {
     OP_CODE_PANEL_ADD_READY_CB = 3,
     OP_CODE_PANEL_EVENT_CB = 4,
     OP_CODE_PANEL_DATA_SEND = 5,
+    OP_CODE_PANEL_IS_READY = 6,
 } panel_dev_op_code_e;
 
 /// 面板数据类型
