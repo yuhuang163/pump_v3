@@ -34,7 +34,7 @@ typedef struct {
     uint8_t is_test_anim;
     lv_obj_t * logo_icon;
 #if IS_SUPPORT_LOGO_WAVE_TEST
-    common_wave_ui_t *wave_ui;
+    ui_wave_t *wave_ui;
     uint8_t wave_type;
 #endif
     uint32_t start_time;
@@ -49,15 +49,15 @@ typedef struct {
 static logo_display_info_t *logo_info = NULL;
 #if IS_SUPPORT_LOGO_IMG_TEST
 static PSRAM_DATA_LOC uint8_t logo_img_data1[] = {
-    #include "comparison_png2txt/pump_home_11_360x360.txt"
+    #include "comparison_png2txt/pump_home_17_360x360.txt"
 };    
 
 static PSRAM_DATA_LOC uint8_t logo_img_data2[] = {
-    #include "comparison_png2txt/pump_home_12_360x360.txt"
+    #include "comparison_png2txt/pump_home_18_360x360.txt"
 };    
 
 static PSRAM_DATA_LOC uint8_t logo_img_data3[] = {
-    #include "comparison_png2txt/pump_home_13_360x360.txt"
+    #include "comparison_png2txt/pump_home_19_360x360.txt"
 };    
   
 static PSRAM_DATA_LOC uint8_t logo_img_data4[] = {
@@ -112,20 +112,20 @@ static void ui_logo_root_init(void)
 
 static void ui_logo_bg_update(ui_manager_context_t *thiz)
 {
-    common_ui_bg_update(thiz, logo_info->root);
+    ui_bg_update(thiz, logo_info->root);
 }
 
 #if IS_SUPPORT_LOGO_WAVE_TEST
-static common_wave_type_e logo_wave_type_from_page(uint8_t page_id)
+static ui_wave_type_e logo_wave_type_from_page(uint8_t page_id)
 {
     switch (page_id % 3U) {
     case 0:
-        return COMMON_WAVE_TYPE_MIX;
+        return UI_WAVE_TYPE_MIX;
     case 1:
-        return COMMON_WAVE_TYPE_STIMULATION;
+        return UI_WAVE_TYPE_STIMULATION;
     case 2:
     default:
-        return COMMON_WAVE_TYPE_LACTATION;
+        return UI_WAVE_TYPE_LACTATION;
     }
 }
 
@@ -135,22 +135,22 @@ static void logo_wave_ui_prepare(void)
         return;
     }
 
-    common_wave_ui_cfg_t cfg;
-    common_wave_ui_cfg_init_default(&cfg);
+    ui_wave_cfg_t cfg;
+    ui_wave_cfg_init_default(&cfg);
     cfg.color = LOGO_WAVE_COLOR;
     cfg.shadow_enable = 0U;
     cfg.shadow_color = LOGO_WAVE_SHADOW_COLOR;
     cfg.shadow_y_offset = LOGO_WAVE_SHADOW_Y_OFFSET;
-    cfg.type = COMMON_WAVE_TYPE_MIX;
-    cfg.anim_mode = COMMON_WAVE_ANIM_SCROLL;
+    cfg.type = UI_WAVE_TYPE_MIX;
+    cfg.anim_mode = UI_WAVE_ANIM_SCROLL;
 
-    logo_info->wave_ui = common_wave_ui_create(logo_info->root, &cfg);
+    logo_info->wave_ui = ui_wave_create(logo_info->root, &cfg);
     EXCEPTION_CHECK_VOID(logo_info->wave_ui);
-    if (common_wave_ui_get_shadow_obj(logo_info->wave_ui) != NULL) {
-        lv_obj_align(common_wave_ui_get_shadow_obj(logo_info->wave_ui),
+    if (ui_wave_get_shadow_obj(logo_info->wave_ui) != NULL) {
+        lv_obj_align(ui_wave_get_shadow_obj(logo_info->wave_ui),
             LV_ALIGN_TOP_MID, LOGO_WAVE_X, LOGO_WAVE_Y);
     }
-    lv_obj_align(common_wave_ui_get_obj(logo_info->wave_ui),
+    lv_obj_align(ui_wave_get_obj(logo_info->wave_ui),
         LV_ALIGN_TOP_MID, LOGO_WAVE_X, LOGO_WAVE_Y);
     logo_info->wave_type = 0xFF;
 }
@@ -160,9 +160,9 @@ static void logo_wave_ui_update(uint8_t page_id)
     logo_wave_ui_prepare();
     EXCEPTION_CHECK_VOID(logo_info->wave_ui);
 
-    const common_wave_type_e wave_type = logo_wave_type_from_page(page_id);
+    const ui_wave_type_e wave_type = logo_wave_type_from_page(page_id);
     if (logo_info->wave_type != (uint8_t)wave_type) {
-        common_wave_ui_set_type(logo_info->wave_ui, wave_type);
+        ui_wave_set_type(logo_info->wave_ui, wave_type);
         logo_info->wave_type = (uint8_t)wave_type;
         LOG_UI("logo wave type: %d", wave_type);
     }
@@ -171,7 +171,7 @@ static void logo_wave_ui_update(uint8_t page_id)
 static void logo_wave_ui_remove(void)
 {
     if (logo_info->wave_ui != NULL) {
-        common_wave_ui_delete(logo_info->wave_ui);
+        ui_wave_delete(logo_info->wave_ui);
         logo_info->wave_ui = NULL;
         logo_info->wave_type = 0xFF;
     }
@@ -228,7 +228,7 @@ void logo_test_ui_remove(ui_manager_context_t *thiz)
 #if IS_SUPPORT_LOGO_WAVE_TEST
     logo_wave_ui_remove();
 #endif
-    common_ui_img_resource_deinit(thiz, &logo_info->test_img_info);
+    ui_img_resource_deinit(thiz, &logo_info->test_img_info);
     LVGL_OBJ_DELETE(logo_info->root);
     u_free(logo_info);
     logo_info = NULL;

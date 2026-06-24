@@ -117,7 +117,7 @@ static void airplane_mode_bg_update(ui_manager_context_t *thiz)
 #else
 static void airplane_mode_bg_update(ui_manager_context_t *thiz)
 {
-    common_ui_bg_update(thiz, airplane_info->root);
+    ui_bg_update(thiz, airplane_info->root);
 }
 #endif
 
@@ -130,7 +130,7 @@ static void airplane_mode_button_icon_update(ui_manager_context_t *thiz)
         !lv_obj_is_valid(airplane_info->unlock_button_icon)) {
         airplane_info->unlock_button_icon = lv_image_create(airplane_info->root);
     }
-    common_ui_theme_img_resource_init(thiz, BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, RES_THEME_TYPE_CUSTOM,
+    ui_theme_img_resource_init(thiz, BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, RES_THEME_TYPE_CUSTOM,
         &airplane_info->unlock_button_icon_info);
     EXCEPTION_CHECK_VOID(airplane_info->unlock_button_icon_info.data);
     lv_fs_path_ex_t unlock_button_img_path;
@@ -174,7 +174,7 @@ void airplane_mode_custom_ui_prepare(ui_manager_context_t *thiz)
     airplane_info->force_update = true;
     ble_ui_init(thiz);
     airplane_mode_root_init();
-    common_ui_bg_init(thiz);
+    ui_bg_init(thiz);
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
 }
@@ -183,9 +183,9 @@ void airplane_mode_custom_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && airplane_info && airplane_info->root); 
     ble_ui_deinit(thiz);
-    common_ui_bg_deinit(thiz);
-    common_ui_img_resource_deinit(thiz, &airplane_info->unlock_button_icon_info);
-    ui_common_operation_tip_custom_ui_remove(thiz);
+    ui_bg_deinit(thiz);
+    ui_img_resource_deinit(thiz, &airplane_info->unlock_button_icon_info);
+    ui_popup_custom_remove(thiz);
     LVGL_OBJ_DELETE(airplane_info->root); 
     u_free(airplane_info);
     airplane_info = NULL;
@@ -203,7 +203,7 @@ int airplane_mode_custom_ui_process(ui_manager_context_t *thiz)
     for (uint8_t i = 0; i < AIRPLANE_MODE_TEXT_COUNT; i++) {
         airplane_mode_texts_update(thiz, i);
     }
-    ui_common_operation_tip_custom_ui_update(thiz, proc->popup_ui_type, airplane_info->root,
+    ui_popup_custom_update(thiz, proc->popup_ui_type, airplane_info->root,
         &airplane_info->popup_ui_index);
     airplane_info->force_update = false;
     thiz->priv.fps_count++;

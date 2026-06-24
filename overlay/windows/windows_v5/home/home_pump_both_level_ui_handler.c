@@ -48,7 +48,7 @@ static void home_pump_both_level_ui_after_policy(ui_manager_context_t *ui, int i
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
-    ui_display_home_pump_both_level_process(ui);
+    // ui_display_home_pump_both_level_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
     if (proc->exit_current_ui || time_diff >= PUMP_LEVEL_DISPLAY_TIMEOUT) {
         proc->exit_current_ui = false;
@@ -82,14 +82,14 @@ static void home_pump_both_level_ui_display_prepare(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_home_pump_both_level_prepare(ui);
+    // ui_display_home_pump_both_level_prepare(ui);
 }
 
 static void home_pump_both_level_ui_display_remove(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_home_pump_both_level_remove(ui);
+    // ui_display_home_pump_both_level_remove(ui);
 }
 
 static void show_home_pump_both_level_ui(ui_proc_home_t *proc)

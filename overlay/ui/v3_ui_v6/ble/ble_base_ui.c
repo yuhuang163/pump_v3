@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "src/misc/lv_area.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
@@ -82,7 +83,7 @@ int ble_base_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_c
         }
         return 0;
     }
-    common_ui_theme_img_resource_init(thiz, is_connected > 0 ? BASE_RES_ID_BLE_CONNECT_ICON : BASE_RES_ID_BLE_DISCONNECT_ICON, RES_THEME_TYPE_BASE,
+    ui_theme_img_resource_init(thiz, is_connected > 0 ? BASE_RES_ID_BLE_CONNECT_ICON : BASE_RES_ID_BLE_DISCONNECT_ICON, RES_THEME_TYPE_BASE,
         &ble_info->img);
     EXCEPTION_CHECK_INT(ble_info->img.data);
     if (ble_info->ble_img == NULL || !lv_obj_is_valid(ble_info->ble_img)) {
@@ -93,7 +94,11 @@ int ble_base_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_c
     lv_fs_make_path_from_buffer(&ble_img_path, LV_FS_MEMFS_LETTER, ble_info->img.data,
         ble_info->img.size, "baj");
     lv_image_set_src(ble_info->ble_img, (const void *)&ble_img_path);
-    lv_obj_align(ble_info->ble_img, LV_ALIGN_TOP_LEFT, x, y);
+    if (x == 0) {
+        lv_obj_align(ble_info->ble_img, LV_ALIGN_TOP_MID, 0, y);
+    } else {
+        lv_obj_align(ble_info->ble_img, LV_ALIGN_TOP_LEFT, x, y);
+    }
     ble_info->is_connected = is_connected;
     ble_info->force_update = false;
     ble_info->fps_start_time = get_timestamp();
@@ -107,7 +112,7 @@ void ble_base_ui_deinit(ui_manager_context_t *thiz)
     ble_info->ble_img = NULL;
     ble_info->is_connected = 0;
     ble_info->force_update = false;
-    common_ui_img_resource_deinit(thiz, &ble_info->img);
+    ui_img_resource_deinit(thiz, &ble_info->img);
     u_free(ble_info);
     ble_info = NULL;
 }

@@ -90,7 +90,7 @@ static void pump_complete_tip_label_update(ui_manager_context_t *thiz)
     if (finish_info->icon == NULL || !lv_obj_is_valid(finish_info->icon)) {
         finish_info->icon = lv_image_create(finish_info->root);
     }
-    common_ui_theme_img_resource_init(thiz, BASE_RES_ID_PUMP_FINISH_IP, RES_THEME_TYPE_BASE,
+    ui_theme_img_resource_init(thiz, BASE_RES_ID_PUMP_FINISH_ICON, RES_THEME_TYPE_BASE,
         &finish_info->icon_info);
     EXCEPTION_CHECK_VOID(finish_info->icon_info.data);
     lv_fs_path_ex_t complete_tip_img_path;
@@ -146,7 +146,7 @@ static void pump_finish_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void pump_finish_root_bg_update(ui_manager_context_t *thiz)
 { 
-    common_ui_bg_update(thiz, finish_info->root);
+    ui_bg_update(thiz, finish_info->root);
 }
 #endif
 
@@ -163,7 +163,7 @@ void pump_finish_base_ui_prepare(ui_manager_context_t *thiz)
     }
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
-    common_ui_bg_init(thiz);
+    ui_bg_init(thiz);
     pump_complete_tip_root_init();
     finish_info->force_update = true;
 }
@@ -172,8 +172,8 @@ void pump_finish_base_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(finish_info);
-    common_ui_img_resource_deinit(thiz, &finish_info->icon_info);
-    common_ui_bg_deinit(thiz);
+    ui_img_resource_deinit(thiz, &finish_info->icon_info);
+    ui_bg_deinit(thiz);
     LVGL_OBJ_DELETE(finish_info->root); 
     u_free(finish_info);
     finish_info = NULL;

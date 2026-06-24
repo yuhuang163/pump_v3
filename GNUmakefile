@@ -630,9 +630,8 @@ INPUT_KEY_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/input_key \
 	-I$(PROJECT_ROOT)/trunk/root_source/key_input
 
-# UI 模块头文件
+# UI 模块头文件（ui_page_define.h / ui_img_define.h 位于各 UI_OVERLAY_DIR 根目录）
 UI_MODULE_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/overlay/ui \
 	-I$(PROJECT_ROOT)/trunk/root_source/ui \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/ui/
 UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_FLAGS)
