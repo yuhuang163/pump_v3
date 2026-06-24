@@ -11,7 +11,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define ABNORMAL_MONITOR_POLL_MS    10000 //10s
+#define ABNORMAL_MONITOR_POLL_MS    5000 //5s
 #define FLASH_FAILURE_THRESHOLD     10  /// Flash失败次数阈值
 #define ABNORMAL_HOOK_DEBUG     0
 /*
@@ -114,6 +114,20 @@ static void check_peripheral_communication_abnormal(void)
         }
     }
     #endif
+
+    // 检查LCD状态
+    #if IS_SUPPORT_DEVICE_LCD
+    {
+        int lcd_is_ready_status = 0;
+        rt_device_node_t *lcd_dev = (rt_device_node_t *)pbus->find_device(ID_DEVICE_DISPLAY_PANEL);
+        if (lcd_dev) {
+            lcd_is_ready_status = lcd_dev->ioctl(lcd_dev, OP_CODE_PANEL_IS_READY, NULL);
+            if (lcd_is_ready_status == 0) {
+                comm_error = 1;
+            }
+        }
+    }
+    #endif
     
     // 报告通信异常
     sys_abnormal_report_communication_error(comm_error);
@@ -143,6 +157,8 @@ static void check_battery_temperature_abnormal(abnormal_manager_context_t *abnor
         abnormal->set_abnormal_state(SYS_ABNORMAL_BATTERY_TEMP_HIGH, SYS_ABNORMAL_STATE_ACTIVE);
         ///弹窗
         LOGE("SYS_ABNORMAL_BATTERY_TEMP_HIGH: %d℃", temperature);
+        ///填入埋点
+        DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_BATTERY_TEMP_OUT_OF_RANGE, temperature);
     }
     else if (!current_temp_abnormal && prev_temp_abnormal) {
         ///恢复正常 - 首次低于阈值
@@ -169,7 +185,7 @@ static void abnormal_monitor_thread(void *user_data)
     /// 检查Flash存储失败次数异常
     check_flash_failure_abnormal();
     #if ABNORMAL_HOOK_DEBUG
-    LOGI("abnormal_monitor_thread");
+    LOGI("abnormal_monitor_thread runing");
     #endif
 }
 
@@ -206,6 +222,10 @@ void sys_abnormal_report_storage_failure(uint8_t active)
     }
     abnormal->set_abnormal_state(SYS_ABNORMAL_STORAGE_FAILURE,
         active ? SYS_ABNORMAL_STATE_ACTIVE : SYS_ABNORMAL_STATE_CLEARED);
+    if (active) {
+        ///填入埋点
+        DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_STORAGE_FAILURE, 0X00);
+    }
 }
 
 void sys_abnormal_report_communication_error(uint8_t active)
@@ -218,4 +238,8 @@ void sys_abnormal_report_communication_error(uint8_t active)
     }
     abnormal->set_abnormal_state(SYS_ABNORMAL_COMMUNICATION_ERROR,
         active ? SYS_ABNORMAL_STATE_ACTIVE : SYS_ABNORMAL_STATE_CLEARED);
+    if (active) {
+        ///填入埋点
+        DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_COMMUNICATION, 0X00);
+    }
 }

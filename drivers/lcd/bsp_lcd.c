@@ -66,6 +66,11 @@ static void bsp_add_lcd_ready_callback(void (*callback)(int type, int status))
     s_lcd_ready_callback = callback;
 }
 
+static int bsp_lcd_is_ready(void)
+{
+    return lcd_device_is_ready;
+}
+
 static int lcd_dev_open(struct rt_device_node *dev)
 {
     int ret = 0;
@@ -82,6 +87,7 @@ static int lcd_dev_open(struct rt_device_node *dev)
     if (s_lcd_ready_callback) {
         s_lcd_ready_callback(0, true);
     }
+    lcd_device_is_ready = true;
     return BSP_OK;
 }
 
@@ -108,6 +114,8 @@ static int lcd_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *arg
             }
             return 0;
         }
+        case OP_CODE_PANEL_IS_READY:
+            return bsp_lcd_is_ready();
         default:
             return -1;
     }

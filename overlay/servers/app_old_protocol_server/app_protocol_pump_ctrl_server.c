@@ -531,6 +531,26 @@ static uint8_t pump_custom_mode_update_by_app(pump_mode_steps_info_t pump_steps_
     EXCEPTION_CHECK_UINT(motor_ctx);
     EXCEPTION_CHECK_UINT(pump_ctx);
 
+    /// 运行中切换自定义参数，触发埋点
+    int is_pump_working = 0; 
+    READ_PUMP_IS_WORKING(pump_ctx, is_pump_working);
+    if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_MODE && is_pump_working) {
+        const pump_result_info_t *result_info = NULL;
+        READ_PUMP_RESULT_INFO(pump_ctx, BREAST_PUMP_RESULT_PUMPING, &result_info);
+        LOG_SRV("run time = %d", result_info->current_mode_work_time);
+
+        pump_mode_steps_info_t steps_info;
+        storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+        storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
+        uint32_t from_custom_id = steps_info.id.dat32;
+        uint32_t target_custom_id = pump_steps_info.id.dat32;
+        if (from_custom_id != target_custom_id) {
+            uint16_t duration_sec = (uint16_t)(result_info->current_mode_work_time / 1000u);
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH,
+                                        (int)from_custom_id, (int)target_custom_id, &duration_sec);
+        }
+    }
+
     //更新自定义模式名称
     storage_ctx->put_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE, 0, name);
     ///是否需要区分设备是否在用户自定义模式下运行，如果运行，是否直接替换用户自定义模式参数
