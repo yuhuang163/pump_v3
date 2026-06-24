@@ -90,7 +90,7 @@ static void charge_adapter_bg_update(ui_manager_context_t *thiz)
 #else
 static void charge_adapter_bg_update(ui_manager_context_t *thiz)
 {
-    common_ui_bg_update(thiz, adapter_info->root);
+    ui_bg_update(thiz, adapter_info->root);
 }
 #endif
 
@@ -119,7 +119,7 @@ static int charge_adapter_object_update(ui_manager_context_t *thiz)
         adapter_info->charge_adapter_icon = lv_image_create(adapter_info->root);
         EXCEPTION_CHECK_INT(adapter_info->charge_adapter_icon);
     }
-    common_ui_theme_img_resource_init(thiz, BASE_RES_ID_CHARGE_ADAPTER_IP, RES_THEME_TYPE_BASE,
+    ui_theme_img_resource_init(thiz, BASE_RES_ID_CHARGE_ADAPTER_ICON, RES_THEME_TYPE_BASE,
         &adapter_info->charge_adapter_icon_info);
     EXCEPTION_CHECK_INT(adapter_info->charge_adapter_icon_info.data);
     lv_fs_path_ex_t charge_adapter_icon_img_path;
@@ -143,7 +143,7 @@ void charge_adapter_base_ui_prepare(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(adapter_info);
     }
     charge_adapter_ui_root_init(thiz);  
-    common_ui_bg_init(thiz);
+    ui_bg_init(thiz);
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     adapter_info->force_update = true;
@@ -152,8 +152,8 @@ void charge_adapter_base_ui_prepare(ui_manager_context_t *thiz)
 void charge_adapter_base_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && adapter_info);
-    common_ui_img_resource_deinit(thiz, &adapter_info->charge_adapter_icon_info);
-    common_ui_bg_deinit(thiz);
+    ui_img_resource_deinit(thiz, &adapter_info->charge_adapter_icon_info);
+    ui_bg_deinit(thiz);
     LVGL_OBJ_DELETE(adapter_info->root);
     u_free(adapter_info);
     adapter_info = NULL;

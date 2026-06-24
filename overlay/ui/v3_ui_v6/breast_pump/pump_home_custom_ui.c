@@ -134,10 +134,10 @@ const static char *home_mode_names[HOME_MODE_MAX_COUNT] = {
 };
 
 const static uint16_t home_mode_icons[HOME_MODE_MAX_COUNT] = {
-    BASE_RES_ID_PUMP_SIMULATION_ICON,
-    BASE_RES_ID_PUMP_EXPRESSION_ICON,
-    BASE_RES_ID_PUMP_MIXED_ICON,
-    BASE_RES_ID_PUMP_MIXED_ICON
+    BASE_RES_ID_BAN_ICON,
+    BASE_RES_ID_BAN_ICON,
+    BASE_RES_ID_BAN_ICON,
+    BASE_RES_ID_BAN_ICON
 };
 
 static const char *bf_mode_name[HOME_BF_MODE_COUNT] = {
@@ -145,12 +145,6 @@ static const char *bf_mode_name[HOME_BF_MODE_COUNT] = {
     "Power Pumping", /// PP追奶模式
     "Customize", /// 已使用过的个性化模式
     "Customize", /// 试用个性化模式
-};
-
-const static uint16_t home_speed_icon_ids[HOME_SPEED_MAX_COUNT] = {
-    BASE_RES_ID_PUMP_SPEED_SLOW_ICON,
-    BASE_RES_ID_PUMP_SPEED_REGULAR_ICON,
-    BASE_RES_ID_PUMP_SPEED_FAST_ICON,
 };
 
 static pump_display_info_t *pump_info;
@@ -217,13 +211,7 @@ static void pump_home_bg_update(ui_manager_context_t *thiz)
         lv_obj_align(pump_info->background, LV_ALIGN_CENTER, 0, 0);
     }
 
-#if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_REGULAR_PUMPING_BG);
-    EXCEPTION_CHECK_VOID(background_snapshot);
-    lv_image_set_src(pump_info->background, background_snapshot);
-#else
     lv_obj_add_flag(pump_info->background, LV_OBJ_FLAG_HIDDEN); /// 隐藏
-#endif
 }
 #endif
 
@@ -392,7 +380,7 @@ static int pump_home_left_level_text_update(ui_manager_context_t *thiz, uint8_t 
     }
     snprintf(level_text, sizeof(level_text), "%d", level);
     lv_label_set_text(pump_info->left_progress_text, level_text);
-    common_ui_text_place_in_circle(pump_info->left_progress_text, 
+    ui_text_place_in_circle(pump_info->left_progress_text, 
         end_angle, PUMP_LEVEL_RING_R + 15, false); /// 设置文字位置
     return 0;
 }
@@ -433,7 +421,7 @@ static int pump_home_left_level_circle_update(ui_manager_context_t *thiz, uint16
         lv_obj_set_style_bg_color(pump_info->left_level_circle, lv_color_hex(PUMP_LEVEL_CIRCLE_COLOR), 0);
         lv_obj_set_style_bg_opa(pump_info->left_level_circle, LV_OPA_COVER, 0);
     }
-    common_ui_place_dot_on_arc(pump_info->left_level_arc, pump_info->left_level_circle, end_angle,
+    ui_place_dot_on_arc(pump_info->left_level_arc, pump_info->left_level_circle, end_angle,
                                PUMP_LEVEL_ARC_WIDTH,   /// 弧线宽度
                                PUMP_LEVEL_CIRCLE_SIZE,   /// 白点直径
                                0,   /// 额外内边距: 需要更靠里就填 1~2
@@ -487,7 +475,7 @@ static int pump_home_right_level_text_update(ui_manager_context_t *thiz, uint8_t
     } 
     snprintf(level_text, sizeof(level_text), "%d", level);
     lv_label_set_text(pump_info->right_progress_text, level_text);
-    common_ui_text_place_in_circle(pump_info->right_progress_text, 
+    ui_text_place_in_circle(pump_info->right_progress_text, 
         end_angle, PUMP_LEVEL_RING_R + 15, false);
     return 0;
 }
@@ -527,7 +515,7 @@ static int pump_home_right_level_circle_update(ui_manager_context_t *thiz, uint1
         lv_obj_set_style_bg_color(pump_info->right_level_circle, lv_color_hex(PUMP_LEVEL_CIRCLE_COLOR), 0);
         lv_obj_set_style_bg_opa(pump_info->right_level_circle, LV_OPA_COVER, 0);
     }
-    common_ui_place_dot_on_arc(pump_info->right_level_arc, pump_info->right_level_circle, end_angle,
+    ui_place_dot_on_arc(pump_info->right_level_arc, pump_info->right_level_circle, end_angle,
                                PUMP_LEVEL_ARC_WIDTH,      /// 弧线宽度
                                PUMP_LEVEL_CIRCLE_SIZE,      /// 白点直径
                                -0.5,     /// 额外内边距: 需要更靠里就填 1~2
@@ -571,27 +559,7 @@ static void pump_home_right_level_update(ui_manager_context_t *thiz, uint8_t lev
 
 static void pump_home_speed_label_update(ui_manager_context_t *thiz, uint8_t speed)
 {
-    if (speed >= HOME_SPEED_MAX_COUNT) {
-        return;
-    }
 
-    if (pump_info->speed == speed && pump_info->force_update == false) {
-        return;
-    } 
-    
-    lv_fs_path_ex_t speed_icon_path;
-    if (pump_info->speed_icon == NULL || !lv_obj_is_valid(pump_info->speed_icon)) {
-        pump_info->speed_icon = lv_image_create(pump_info->root);
-        EXCEPTION_CHECK_VOID(pump_info->speed_icon);
-    } 
-    common_ui_theme_img_resource_init(thiz, home_speed_icon_ids[speed], RES_THEME_TYPE_CUSTOM,
-        &pump_info->speed_icon_info);
-    EXCEPTION_CHECK_VOID(pump_info->speed_icon_info.data);
-    lv_fs_make_path_from_buffer(&speed_icon_path, LV_FS_MEMFS_LETTER, 
-        pump_info->speed_icon_info.data, pump_info->speed_icon_info.size, "baj");
-    lv_image_set_src(pump_info->speed_icon, (const void *)&speed_icon_path);
-    lv_obj_align(pump_info->speed_icon, LV_ALIGN_TOP_LEFT, PUMP_SPEED_ICON_X, PUMP_SPEED_ICON_Y);
-    pump_info->speed = speed; 
 }
 
 static void pump_home_common_mode_update(ui_manager_context_t *thiz, uint8_t mode_index, 
@@ -653,7 +621,7 @@ static void pump_home_common_mode_update(ui_manager_context_t *thiz, uint8_t mod
 
     /// 设置icon
     lv_obj_clear_flag(pump_info->mode_icon, LV_OBJ_FLAG_HIDDEN); /// 显示
-    common_ui_theme_img_resource_init(thiz, home_mode_icons[mode_index], RES_THEME_TYPE_CUSTOM,
+    ui_theme_img_resource_init(thiz, home_mode_icons[mode_index], RES_THEME_TYPE_CUSTOM,
         &pump_info->mode_icon_info);
     EXCEPTION_CHECK_VOID(pump_info->mode_icon_info.data);
     lv_fs_path_ex_t mode_icon_path;
@@ -722,20 +690,6 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         lv_obj_align(pump_info->bf_mode_center_text, LV_ALIGN_TOP_MID, 0, 59); /// 设置label文字位置
     } 
 
-    /// 设置中间
-    if (pump_info->bf_mode_step_line == NULL || !lv_obj_is_valid(pump_info->bf_mode_step_line)) {
-        pump_info->bf_mode_step_line = lv_image_create(pump_info->root);
-        EXCEPTION_CHECK_VOID(pump_info->bf_mode_step_line);
-        lv_obj_align(pump_info->bf_mode_step_line, LV_ALIGN_TOP_MID, 0, 83); /// 设置label文字位置
-        common_ui_theme_img_resource_init(thiz, BASE_RES_ID_MODE_STEP_LINE_ICON, RES_THEME_TYPE_CUSTOM,
-            &pump_info->bf_mode_step_line_info);
-        EXCEPTION_CHECK_VOID(pump_info->bf_mode_step_line_info.data);
-        lv_fs_path_ex_t step_line_path;
-        lv_fs_make_path_from_buffer(&step_line_path, LV_FS_MEMFS_LETTER, 
-            pump_info->bf_mode_step_line_info.data, pump_info->bf_mode_step_line_info.size, "baj");
-        lv_image_set_src(pump_info->bf_mode_step_line, (const void *)&step_line_path);
-    } 
-
     if (is_show == false) {
         lv_obj_add_flag(pump_info->bf_mode_left_label, LV_OBJ_FLAG_HIDDEN); /// 隐藏
         lv_obj_add_flag(pump_info->bf_mode_left_text, LV_OBJ_FLAG_HIDDEN); /// 隐藏
@@ -789,6 +743,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
 
 static void pump_home_animation_update(ui_manager_context_t *thiz, uint8_t mode_type)
 {
+#if 0
     if (pump_info->animation == NULL || !lv_obj_is_valid(pump_info->animation)) {
         pump_info->animation = lv_image_create(pump_info->root);
         EXCEPTION_CHECK_VOID(pump_info->animation);
@@ -828,10 +783,10 @@ static void pump_home_animation_update(ui_manager_context_t *thiz, uint8_t mode_
  
     lv_obj_align(pump_info->animation, LV_ALIGN_TOP_MID, 0, PUMP_ANIMATION_Y); 
     if (pump_info->animation_info.data != NULL) {
-        common_ui_img_resource_deinit(thiz, &pump_info->animation_info);
+        ui_img_resource_deinit(thiz, &pump_info->animation_info);
         memset(&pump_info->animation_info, 0, sizeof(pump_info->animation_info));
     }
-    common_ui_theme_img_resource_init(thiz, pump_info->animation_id, RES_THEME_TYPE_CUSTOM,
+    ui_theme_img_resource_init(thiz, pump_info->animation_id, RES_THEME_TYPE_CUSTOM,
         &pump_info->animation_info);
     EXCEPTION_CHECK_VOID(pump_info->animation_info.data);
     lv_fs_path_ex_t animation_img_path;
@@ -839,6 +794,7 @@ static void pump_home_animation_update(ui_manager_context_t *thiz, uint8_t mode_
         pump_info->animation_info.data, pump_info->animation_info.size, "baj");
     lv_image_set_src(pump_info->animation, (const void *)&animation_img_path);
     pump_info->animation_id++;
+#endif
 }
 
 /*
@@ -865,13 +821,13 @@ void pump_home_custom_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(pump_info);
-    common_ui_img_resource_deinit(thiz, &pump_info->speed_icon_info);
-    common_ui_img_resource_deinit(thiz, &pump_info->animation_info);
-    common_ui_img_resource_deinit(thiz, &pump_info->background_info);
-    common_ui_img_resource_deinit(thiz, &pump_info->mode_icon_info);
-    common_ui_img_resource_deinit(thiz, &pump_info->bf_mode_step_line_info);
+    ui_img_resource_deinit(thiz, &pump_info->speed_icon_info);
+    ui_img_resource_deinit(thiz, &pump_info->animation_info);
+    ui_img_resource_deinit(thiz, &pump_info->background_info);
+    ui_img_resource_deinit(thiz, &pump_info->mode_icon_info);
+    ui_img_resource_deinit(thiz, &pump_info->bf_mode_step_line_info);
     ble_ui_deinit(thiz);
-    ui_common_operation_tip_custom_ui_remove(thiz);
+    ui_popup_custom_remove(thiz);
     LVGL_OBJ_DELETE(pump_info->root);
     u_free(pump_info);
     pump_info = NULL;
@@ -910,7 +866,7 @@ int pump_home_custom_ui_process(ui_manager_context_t *thiz)
     pump_home_left_level_update(thiz, setting.level[0]);
     pump_home_right_level_update(thiz, setting.level[1]);
     pump_home_speed_label_update(thiz, setting.speed);
-    ui_common_operation_tip_custom_ui_update(thiz, proc->popup_ui_type, pump_info->root, &pump_info->popup_ui_index);
+    ui_popup_custom_update(thiz, proc->popup_ui_type, pump_info->root, &pump_info->popup_ui_index);
     pump_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

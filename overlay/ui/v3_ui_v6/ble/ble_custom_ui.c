@@ -82,7 +82,7 @@ int ble_custom_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager
         }
         return 0;
     }
-    common_ui_theme_img_resource_init(thiz, is_connected > 0 ? BASE_RES_ID_BLE_CONNECT_ICON : BASE_RES_ID_BLE_DISCONNECT_ICON, RES_THEME_TYPE_CUSTOM,
+    ui_theme_img_resource_init(thiz, is_connected > 0 ? BASE_RES_ID_BLE_CONNECT_ICON : BASE_RES_ID_BLE_DISCONNECT_ICON, RES_THEME_TYPE_CUSTOM,
         &ble_info->img);
     EXCEPTION_CHECK_INT(ble_info->img.data);
     if (ble_info->ble_img == NULL || !lv_obj_is_valid(ble_info->ble_img)) {
@@ -107,7 +107,7 @@ void ble_custom_ui_deinit(ui_manager_context_t *thiz)
     ble_info->ble_img = NULL;
     ble_info->is_connected = 0;
     ble_info->force_update = false;
-    common_ui_img_resource_deinit(thiz, &ble_info->img);
+    ui_img_resource_deinit(thiz, &ble_info->img);
     u_free(ble_info);
     ble_info = NULL;
 }

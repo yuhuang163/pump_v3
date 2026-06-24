@@ -52,7 +52,7 @@ static void ui_logo_root_init(void)
 
 static void ui_logo_bg_update(ui_manager_context_t *thiz)
 {
-    common_ui_bg_update(thiz, logo_info->root);
+    ui_bg_update(thiz, logo_info->root);
 }
 
 static void sys_logo_label_update(ui_manager_context_t *thiz)
@@ -60,7 +60,7 @@ static void sys_logo_label_update(ui_manager_context_t *thiz)
     if (logo_info->force_update == false) {
         return;
     }
-    common_ui_theme_img_resource_init(thiz, BASE_RES_ID_START_LOGO_ICON, RES_THEME_TYPE_BASE,
+    ui_theme_img_resource_init(thiz, BASE_RES_ID_START_LOGO_ICON, RES_THEME_TYPE_BASE,
         &logo_info->img_info);
     EXCEPTION_CHECK_VOID(logo_info->img_info.data);
     if (logo_info->logo_icon == NULL || !lv_obj_is_valid(logo_info->logo_icon)) {
@@ -88,15 +88,15 @@ void logo_base_ui_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     ui_logo_root_init(); /// 初始化 root 容器
-    common_ui_bg_init(thiz);
+    ui_bg_init(thiz);
     logo_info->force_update = true;
 }
 
 void logo_base_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && logo_info && logo_info->root);
-    common_ui_img_resource_deinit(thiz, &logo_info->img_info);
-    common_ui_bg_deinit(thiz);
+    ui_img_resource_deinit(thiz, &logo_info->img_info);
+    ui_bg_deinit(thiz);
     LVGL_OBJ_DELETE(logo_info->root);
     u_free(logo_info);
     logo_info = NULL;

@@ -217,7 +217,7 @@ static void ui_ota_icon_update(ui_manager_context_t *thiz, uint16_t img_id, bool
     } else {
         lv_obj_clear_flag(ota_info->icon, LV_OBJ_FLAG_HIDDEN);
     }
-    common_ui_theme_img_resource_init(thiz, img_id, ota_info->res_theme_type ,
+    ui_theme_img_resource_init(thiz, img_id, ota_info->res_theme_type ,
         &ota_info->icon_info);
     EXCEPTION_CHECK_VOID(ota_info->icon_info.data);
     lv_fs_path_ex_t ota_icon_img_path;
@@ -408,7 +408,7 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
 void ui_display_ota_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && ota_info && ota_info->root); 
-    common_ui_img_resource_deinit(thiz, &ota_info->icon_info);
+    ui_img_resource_deinit(thiz, &ota_info->icon_info);
     LVGL_OBJ_DELETE(ota_info->root);
     u_free(ota_info);
     ota_info = NULL;
