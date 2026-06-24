@@ -6,6 +6,7 @@
 #include "norflash_api.h"
 #include "app_flash_api.h"
 #include "hal_norflash.h"
+#include "hal_flash.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -17,6 +18,9 @@
 *****************************************************************************************
 */
 static rt_device_node_t *node = NULL;
+
+/// Flash操作失败次数统计
+static flash_fail_stats_t flash_fail_stats = {0};
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -89,6 +93,7 @@ static int flash_dev_read(struct rt_device_node *dev, void *buf, uint32_t n_byte
     platform_int_unlock_global(lock);
     if (ret != BSP_OK) {
         LOGE("flash dev read failure! result = %d.",ret);
+        flash_fail_stats.read_fail_count++;
         return BSP_ERROR;
     }
     return BSP_OK;
@@ -106,6 +111,7 @@ static int flash_dev_write(struct rt_device_node *dev, const void *buf, uint32_t
     platform_int_unlock_global(lock);
     if (ret != BSP_OK) {
         LOGE("flash dev write failure! result = %d.",ret);
+        flash_fail_stats.write_fail_count++;
         return BSP_ERROR;
     }
     return BSP_OK;
@@ -123,12 +129,28 @@ static int flash_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *a
             platform_int_unlock_global(lock);
             if (ret != BSP_OK) {
                 LOGE("flash dev erase failure! result = %d.",ret);
+                flash_fail_stats.erase_fail_count++;
                 return BSP_ERROR;
             }
             return BSP_OK;
 
         case OP_CODE_FLASH_ERASE_ALL:
             return 0;
+
+        case OP_CODE_FLASH_GET_FAIL_STATS:
+        {
+            flash_fail_stats_t *stats = (flash_fail_stats_t *)args;
+            if (stats) {
+                stats->erase_fail_count = flash_fail_stats.erase_fail_count;
+                stats->read_fail_count = flash_fail_stats.read_fail_count;
+                stats->write_fail_count = flash_fail_stats.write_fail_count;
+                stats->total_fail_count = flash_fail_stats.erase_fail_count + 
+                                         flash_fail_stats.read_fail_count + 
+                                         flash_fail_stats.write_fail_count;
+                return BSP_OK;
+            }
+            return BSP_ERROR;
+        }
 
         default:
             LOGE("database err op_code: %lx", op_code);

@@ -31,6 +31,7 @@ extern "C" {
 #define IS_SUPPORT_MODULE_SERVERS                        (1)
 #define IS_SUPPORT_MODULE_BATTERY                        (1)
 #define IS_SUPPORT_MODULE_LED                            (1)
+#define IS_SUPPORT_MODULE_SYS_ABNORMAL                   (1)
 
 /// 设备支持
 #if IS_SUPPORT_MODULE_BATTERY

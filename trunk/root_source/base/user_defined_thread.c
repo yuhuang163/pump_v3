@@ -504,7 +504,7 @@ static int data_bury_pressure_test_cb(void)
              (unsigned)(case_idx + 1u), (unsigned)LENGTH_OF_ARRAY(cases), cases[case_idx].name,
              (int)cases[case_idx].id, cases[case_idx].arg1, ret);
     case_idx++;
-    return 300;
+    return 30000;
 }
 
 static void hdr_run_pressure_test_cb(hdr_post_args_t *args)

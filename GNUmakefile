@@ -798,6 +798,11 @@ LED_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/led \
 	-I$(PROJECT_ROOT)/trunk/root_source/led
 
+# 系统异常模块头文件
+ABNORMAL_MODULE_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/abnormal \
+	-I$(PROJECT_ROOT)/trunk/root_source/abnormal
+
 # 汇总所有 SDK 头文件路径
 SDK_INCLUDE_PATHS := \
 	$(SDK_CORE_INC_FLAGS) \
@@ -834,7 +839,8 @@ SDK_INCLUDE_PATHS := \
 	$(PRODUCT_TESTS_INC_FLAGS) \
 	$(DATA_BURY_MODULE_INC_FLAGS) \
 	$(RESOURCE_INC_FLAGS) \
-	$(LED_MODULE_INC_FLAGS) 
+	$(LED_MODULE_INC_FLAGS) \
+	$(ABNORMAL_MODULE_INC_FLAGS) 
 
 # 添加项目根目录和 SDK 头文件路径
 CPPFLAGS ?= -I$(PROJECT_ROOT) -I$(PROJECT_ROOT)/trunk $(SDK_INCLUDE_PATHS)
@@ -1401,6 +1407,11 @@ LED_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/led/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/led/*.c)
 
+# 系统异常模块源码
+ABNORMAL_MODULE_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/abnormal/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/abnormal/*.c)
+
 # 汇总所有应用源码
 EXTRA_SRCS := \
 	$(OS_BASE_SRCS) \
@@ -1429,7 +1440,8 @@ EXTRA_SRCS := \
 	$(PRODUCT_TESTS_MODULE_SRCS) \
 	$(DATA_BURY_MODULE_SRCS) \
 	$(FRAMEWORK_HOOKS_BASE_SRCS) \
-	$(LED_MODULE_SRCS)
+	$(LED_MODULE_SRCS) \
+	$(ABNORMAL_MODULE_SRCS)
 
 CC := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)gcc,gcc)
 AR := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)ar,ar)

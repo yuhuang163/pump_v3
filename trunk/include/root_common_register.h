@@ -69,6 +69,7 @@ DECLARE_MODULE_REGISTER(register_module_for_video_capture_manager_new);
 DECLARE_MODULE_REGISTER(register_module_for_data_burial_new);
 DECLARE_MODULE_REGISTER(register_module_for_protocol_manager_new);
 DECLARE_MODULE_REGISTER(register_module_for_servers_new);
+DECLARE_MODULE_REGISTER(register_module_for_abnormal_manager_new);
 
 #ifdef __cplusplus
 }
