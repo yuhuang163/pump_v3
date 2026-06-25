@@ -326,14 +326,14 @@ static void data_bury_event_buffer_pump_session_start(data_bury_manager_context_
              (unsigned)evt.evt_timestamp, (unsigned)DATA_BURY_PUMP_SESSION_MIN_DURATION_SEC);
 }
 
-static void data_bury_event_record_pump_mode_switch(uint8_t adjust_from, uint8_t adjust_to,
+static void data_bury_event_record_pump_mode_switch(uint32_t adjust_from, uint32_t adjust_to,
                                                     uint16_t duration_sec)
 {
     if (!s_event_rt.mode_queue_tracking || adjust_from == adjust_to) {
         return;
     }
 
-    (void)data_bury_session_mode_queue_push((uint32_t)adjust_from, duration_sec);
+    (void)data_bury_session_mode_queue_push(adjust_from, duration_sec);
     LOG_BURY("mode switch queue: from=%u to=%u dur=%u count=%u",
              (unsigned)adjust_from, (unsigned)adjust_to, (unsigned)duration_sec,
              (unsigned)s_event_rt.mode_queue_count);
@@ -481,9 +481,9 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
     }
 
     READ_PUMP_WORK_MODE(pump, mode);
-    (void)pump->get_pump_composite_state(BREAST_PUMP_RESULT_INFO, BREAST_PUMP_RESULT_PUMPING, 0,
-                                          &result, (int)sizeof(result));
-    duration_sec = (uint16_t)(result.current_mode_work_time / 1000u);
+    const pump_result_info_t *result_info = NULL;
+    READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
+    duration_sec = result_info ? (uint16_t)(result_info->current_mode_work_time / 1000u) : 0u;
     uint8_t bury_mode = (uint8_t)data_bury_convert_pump_mode((uint8_t)mode);
     uint32_t mode_or_program_id = (uint32_t)bury_mode;
     if (s_event_rt.mode_queue_tracking) {
@@ -664,21 +664,21 @@ int data_bury_event_process_pump_mode_switch(data_bury_manager_context_t *ctx,
     adjust_from = args->arg1;
     adjust_to = args->arg2;
     duration_sec = *(const uint16_t *)args->val;
-    
-    // 将应用层模式转换为埋点模式
-    adjust_from = (uint32_t)data_bury_convert_pump_mode((uint8_t)adjust_from);
-    adjust_to = (uint32_t)data_bury_convert_pump_mode((uint8_t)adjust_to);
-    
-    // 如果是 CUSTOM 模式，额外获取 program id
-    if(args->arg1 == BREAST_PUMP_CUSTOM_MODE)
-    {
-      storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
-      adjust_from = steps_info.id.dat32;
+
+    if (adjust_from <= BREAST_PUMP_MODE_MAX) {
+        adjust_from = (uint32_t)data_bury_convert_pump_mode((uint8_t)adjust_from);
+        if ((uint8_t)args->arg1 == BREAST_PUMP_CUSTOM_MODE) {
+            storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
+            adjust_from = steps_info.id.dat32;
+        }
     }
-    if(args->arg2 == BREAST_PUMP_CUSTOM_MODE)
-    { 
-      storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
-      adjust_to = steps_info.id.dat32;
+
+    if (adjust_to <= BREAST_PUMP_MODE_MAX) {
+        adjust_to = (uint32_t)data_bury_convert_pump_mode((uint8_t)adjust_to);
+        if ((uint8_t)args->arg2 == BREAST_PUMP_CUSTOM_MODE) {
+            storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
+            adjust_to = steps_info.id.dat32;
+        }
     }
 
     data_bury_event_record_pump_mode_switch(adjust_from, adjust_to, duration_sec);

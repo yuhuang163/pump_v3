@@ -99,10 +99,6 @@ static void start_breast_pump_work(uint8_t is_continue_work)
     STOP_TIMER(ctx->priv.breast_pump_work_timer);
     START_TIMER(ctx->priv.breast_pump_work_timer, PUMP_WORK_STEP_TIME_MS);
     LOG_PMP("is_continue_work: %d", is_continue_work);
-    // 如果一个新启动工作，则触发泵奶启动埋点事件
-    if (!is_continue_work) {
-        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START, 0, 0);
-    }
 }
 
 static void stop_breast_pump_work(int breast_pump_state)

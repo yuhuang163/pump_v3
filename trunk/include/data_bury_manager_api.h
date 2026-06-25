@@ -66,6 +66,7 @@ typedef enum {
     DATA_BURY_PUMP_MODE_RHYTHM = 0x03,
     DATA_BURY_PUMP_MODE_MILK_BOOST = 0x04,
     DATA_BURY_PUMP_MODE_MILK_TRACK = 0x05,
+    DATA_BURY_PUMP_MODE_MAX,
 } data_bury_pump_mode_e;
 
 typedef enum {
