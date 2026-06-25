@@ -59,8 +59,14 @@ typedef enum {
     DATA_BURY_ERROR_FLANGE_SHORT = 0x55,
 } data_bury_error_code_e;
 
-/** 韵律模式（initial_mode_type=0x03 时附带 program TLV） */
-#define DATA_BURY_PUMP_MODE_RHYTHM              0x03u
+typedef enum {
+    DATA_BURY_PUMP_MODE_STIMULATION = 0x00,
+    DATA_BURY_PUMP_MODE_EXPRESSION = 0x01,
+    DATA_BURY_PUMP_MODE_MIX = 0x02,
+    DATA_BURY_PUMP_MODE_RHYTHM = 0x03,
+    DATA_BURY_PUMP_MODE_MILK_BOOST = 0x04,
+    DATA_BURY_PUMP_MODE_MILK_TRACK = 0x05,
+} data_bury_pump_mode_e;
 
 typedef enum {
     DATA_BURY_END_REASON_MANUAL = 0,

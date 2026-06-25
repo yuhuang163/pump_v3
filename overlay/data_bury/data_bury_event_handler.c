@@ -6,6 +6,7 @@
 #include "root_common_api.h"
 #include "data_bury_persist_defs.h"
 #include "data_bury_event_handler.h"
+#include "persist_storage.h" // IWYU pragma: keep
 
 typedef struct {
     uint8_t session_start_mode;
@@ -73,6 +74,27 @@ static uint8_t data_bury_event_get_battery_percent(void)
         return bat->get_battery_percent();
     }
     return 0u;
+}
+
+static data_bury_pump_mode_e data_bury_convert_pump_mode(uint8_t app_mode)
+{
+    switch (app_mode) {
+        case BREAST_PUMP_STIMULATION_MODE:
+            return DATA_BURY_PUMP_MODE_STIMULATION;
+        case BREAST_PUMP_LACTATION_MODE:
+            return DATA_BURY_PUMP_MODE_EXPRESSION;
+        case BREAST_PUMP_MIX_MODE:
+            return DATA_BURY_PUMP_MODE_MIX;
+        case BREAST_PUMP_CUSTOM_MODE:
+        case BREAST_PUMP_CUSTOM_TRIAL_MODE:
+            return DATA_BURY_PUMP_MODE_RHYTHM;
+        case BREAST_PUMP_MILK_BOOST_MODE:
+            return DATA_BURY_PUMP_MODE_MILK_BOOST;
+        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+            return DATA_BURY_PUMP_MODE_MILK_TRACK;
+        default:
+            return DATA_BURY_PUMP_MODE_STIMULATION;
+    }
 }
 
 typedef struct {
@@ -281,16 +303,17 @@ static void data_bury_event_buffer_pump_session_start(data_bury_manager_context_
         return;
     }
     READ_PUMP_WORK_MODE(pump, mode);
+    uint8_t bury_mode = (uint8_t)data_bury_convert_pump_mode((uint8_t)mode);
     if (ctx->data_bury_pump_session_begin) {
         ctx->data_bury_pump_session_begin();
     }
-    s_event_rt.session_start_mode = (uint8_t)mode;
+    s_event_rt.session_start_mode = bury_mode;
 
     evt.device_side = ctx->data_bury_get_device_side();
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt.evt_timestamp = platform_get_utc_time();
     evt.pump_session_id = 0u;
-    evt.initial_mode_type = (uint8_t)mode;
+    evt.initial_mode_type = bury_mode;
     evt.initial_suction_level = 0u;
     evt.initial_suction_level_desktop = data_bury_event_get_suction_level_desktop(pump);
     evt.initial_battery_level = data_bury_event_get_battery_percent();
@@ -346,6 +369,9 @@ static void data_bury_event_publish_pump_manual_adjust(data_bury_manager_context
     if (adj->evt_type == DATA_BURY_ADJUST_SUCTION_LEVEL) {
         evt.adjust_from_desktop = adj->adjust_from_desktop;
         evt.adjust_to_desktop = adj->adjust_to_desktop;
+    } else if (adj->evt_type == DATA_BURY_ADJUST_PUMP_MODE) {
+        evt.adjust_from = (uint8_t)data_bury_convert_pump_mode(adj->adjust_from);
+        evt.adjust_to = (uint8_t)data_bury_convert_pump_mode(adj->adjust_to);
     } else {
         evt.adjust_from = adj->adjust_from;
         evt.adjust_to = adj->adjust_to;
@@ -458,8 +484,19 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
     (void)pump->get_pump_composite_state(BREAST_PUMP_RESULT_INFO, BREAST_PUMP_RESULT_PUMPING, 0,
                                           &result, (int)sizeof(result));
     duration_sec = (uint16_t)(result.current_mode_work_time / 1000u);
+    uint8_t bury_mode = (uint8_t)data_bury_convert_pump_mode((uint8_t)mode);
+    uint32_t mode_or_program_id = (uint32_t)bury_mode;
     if (s_event_rt.mode_queue_tracking) {
-        (void)data_bury_session_mode_queue_push((uint32_t)mode, duration_sec);
+        ///如果是custom，需要填写program id
+        if (mode == BREAST_PUMP_CUSTOM_MODE) {
+            pump_mode_steps_info_t steps_info;
+            storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+            if (storage_ctx) {
+                storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
+                mode_or_program_id = steps_info.id.dat32;
+            }
+        }
+        (void)data_bury_session_mode_queue_push(mode_or_program_id, duration_sec);
     }
 
     used_mode_count = s_event_rt.mode_queue_count;
@@ -472,7 +509,7 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
     evt->use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt->evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
     evt->pump_session_id = session_id;
-    evt->final_mode_type = (uint8_t)mode;
+    evt->final_mode_type = bury_mode;
     evt->final_suction_level = 0u;
     evt->final_battery_level = data_bury_event_get_battery_percent();
     evt->end_reason = end_reason;
@@ -485,7 +522,7 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
             program_durations[i] = s_event_rt.mode_queue[i];
         }
     } else {
-        program_durations[0].mode_or_program_id = (uint32_t)mode;
+        program_durations[0].mode_or_program_id = mode_or_program_id;
         program_durations[0].duration_sec = (uint16_t)(result.work_valid_time / 1000u);
     }
 
@@ -627,15 +664,19 @@ int data_bury_event_process_pump_mode_switch(data_bury_manager_context_t *ctx,
     adjust_from = args->arg1;
     adjust_to = args->arg2;
     duration_sec = *(const uint16_t *)args->val;
-    if(adjust_from == BREAST_PUMP_CUSTOM_MODE)
+    
+    // 将应用层模式转换为埋点模式
+    adjust_from = (uint32_t)data_bury_convert_pump_mode((uint8_t)adjust_from);
+    adjust_to = (uint32_t)data_bury_convert_pump_mode((uint8_t)adjust_to);
+    
+    // 如果是 CUSTOM 模式，额外获取 program id
+    if(args->arg1 == BREAST_PUMP_CUSTOM_MODE)
     {
-      //转化为pragram id
       storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
       adjust_from = steps_info.id.dat32;
     }
-    if(adjust_to == BREAST_PUMP_CUSTOM_MODE)
+    if(args->arg2 == BREAST_PUMP_CUSTOM_MODE)
     { 
-      //转化为pragram id
       storage_ctx->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &steps_info);
       adjust_to = steps_info.id.dat32;
     }
