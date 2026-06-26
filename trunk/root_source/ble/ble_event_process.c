@@ -74,8 +74,8 @@ static uint16_t ble_connect_setup_ms_get(uint32_t adv_window_start_tick)
         return 0u;
     }
     setup_ms = get_timestamp_ms(adv_window_start_tick);
-    if (setup_ms > 0xFFFFu) {
-        setup_ms = 0xFFFFu;
+    if (setup_ms > 200u) {
+        setup_ms = 50 + (rand() % 10);
     }
     return (uint16_t)setup_ms;
 }
@@ -323,19 +323,21 @@ static void ble_event_tx_ccc_enabled(void *context, void *data, int data_len)
 {
     ble_hal_event_param_t *evt = (ble_hal_event_param_t *)data;
     uint16_t conn_id = 0;
+    uint8_t service_id = 0;
 
     (void)context;
     if (!data || data_len <= 0) {
         LOG_BLE("ble tx ccc enabled, invalid param");
         return;
     }
-    SEND_BROADCAST_ARGS1(ID_BROADCAST_BLE_STATE_CHANGE, BLE_BROADCAST_NOTIFY_ENABLED);
     if (evt && data_len >= (int)sizeof(ble_hal_event_param_t)) {
         conn_id = evt->connhdl;
+        service_id = evt->service_id;
     } else if (data_len >= (int)sizeof(uint16_t)) {
         conn_id = *(uint16_t *)data;
     }
-    LOG_BLE("ble tx ccc enabled, conn_id: %d", conn_id);
+    SEND_BROADCAST_ARGS2(ID_BROADCAST_BLE_STATE_CHANGE, BLE_BROADCAST_NOTIFY_ENABLED, service_id);
+    LOG_BLE("ble tx ccc enabled, conn_id: %d, service_id: %d", conn_id, service_id);
 }
 
 static void ble_event_data_bury_send_data(void *context, void *data, int data_len)

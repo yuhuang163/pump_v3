@@ -23,7 +23,7 @@ extern "C" {
 ******************************************************************************
 */
 uint16_t ble_custom_mtu_size_get(void);
-void ble_custom_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, bool notify_enabled);
+void ble_custom_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, bool notify_enabled, uint8_t service_id);
 #ifdef __cplusplus
 }
 #endif

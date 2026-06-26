@@ -75,7 +75,7 @@ static void ble_master_service_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, 
     notification_enabled = notify_enabled;
     conn_idx = conidx;
     LOG_PBUS("master service tx ccc changed %d", notify_enabled);
-    ble_custom_tx_ccc_changed(conidx, connhdl, notify_enabled);
+    ble_custom_tx_ccc_changed(conidx, connhdl, notify_enabled, BLE_SRV_ID_MASTER);
 }
 
 static void ble_master_service_tx_done(uint8_t conidx, uint16_t connhdl)

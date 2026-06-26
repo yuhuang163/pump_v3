@@ -341,20 +341,22 @@ int ble_custom_event_callback(uintptr_t connhdl, gap_adv_event_t event, gap_adv_
     return 0;
 }
 
-void ble_custom_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, bool notify_enabled)
+void ble_custom_tx_ccc_changed(uint8_t conidx, uint16_t connhdl, bool notify_enabled, uint8_t service_id)
 {
-    LOG_PBUS("ble tx ccc changed %d", notify_enabled);
+    LOG_PBUS("ble tx ccc changed %d, service_id=%d", notify_enabled, service_id);
     if (!s_ble_event_callback) {
         return;
     }
     if (notify_enabled) {
         ble_hal_event_param_t hal_param = {
             .connhdl = connhdl,
+            .service_id = service_id,
         };
         s_ble_event_callback(BLE_EVENT_TX_CCC_ENABLED, (uintptr_t)connhdl, &hal_param);
     } else {
         ble_hal_event_param_t hal_param = {
             .connhdl = connhdl,
+            .service_id = service_id,
         };
         s_ble_event_callback(BLE_EVENT_TX_CCC_DISABLED, (uintptr_t)connhdl, &hal_param);
     }

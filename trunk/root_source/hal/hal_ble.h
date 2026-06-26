@@ -92,6 +92,7 @@ typedef struct {
     uint8_t error_code;
     uint8_t con_idx;
     uint16_t mtu;
+    uint8_t service_id;
 } ble_hal_event_param_t;
 
 /**
