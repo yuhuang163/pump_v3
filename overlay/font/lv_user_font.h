@@ -20,8 +20,10 @@ extern "C" {
 #else
 #include "lv_font_aeonik_soft_16.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_18.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_20.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_24.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_26.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_28.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_12.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_14.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_16.h" // IWYU pragma: keep
@@ -29,6 +31,7 @@ extern "C" {
 #include "lv_font_oppo_sans_24.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_72.h" // IWYU pragma: keep
 #include "lv_font_oppo_sans_96.h" // IWYU pragma: keep
+#include "lv_font_quicksand_60.h" // IWYU pragma: keep
 #include "lv_font_quicksand_64.h" // IWYU pragma: keep
 #include "lv_font_quicksand_72.h" // IWYU pragma: keep
 #include "lv_font_quicksand_96.h" // IWYU pragma: keep

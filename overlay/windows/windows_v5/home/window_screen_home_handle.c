@@ -40,8 +40,6 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-
-
 static void home_start_key_event_ui_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = args->user_data;
@@ -66,50 +64,25 @@ static void home_start_key_event_ui_cb(hdr_post_args_t *args)
 
 static void home_knob_left_event_cb(ui_proc_home_t *proc)
 {
-    if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
-        switch_home_pump_both_control_type_ui(proc, false);
-        return;
-    } 
-
-    if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
-        switch_home_pump_level(proc, false);
-        return;
-    } 
-    if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
-        switch_home_pump_both_level_ui(proc, false);
-        return;
-    }
-
 #if IS_SUPPORT_NIGHT_LIGHT
     if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         switch_home_night_light_adjust(proc, false);
         return;
     }
 #endif
+    home_pump_level_adjust_handler(proc, false);
 }
 
 static void home_knob_right_event_cb(ui_proc_home_t *proc)
 {
-    if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
-        switch_home_pump_both_control_type_ui(proc, true);
-        return;
-    }
-    
-    if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
-        switch_home_pump_level(proc, true);
-    } 
-    
-    if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
-        switch_home_pump_both_level_ui(proc, true);
-        return;
-    }
-
 #if IS_SUPPORT_NIGHT_LIGHT
     if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         switch_home_night_light_adjust(proc, true);
         return;
     }
 #endif
+    home_pump_level_adjust_handler(proc, true);
+
 }
 
 static void home_power_key_event_cb(ui_proc_home_t *proc)
@@ -167,11 +140,11 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 
     switch (keycode) {
         case KEY_CODE_MODE:
-            home_pump_normal_mode_key_click_handler(proc);
+            home_pump_mode_adjust_handler(proc, false);
             break;
         case KEY_CODE_BREASTFEEDING:
             #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
-            home_pump_bf_mode_key_click_handler(proc);
+            home_pump_mode_adjust_handler(proc, true);
             #endif
             break;
         case KEY_CODE_POWER:
@@ -191,10 +164,10 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             home_knob_right_event_cb(proc);
             break;
         case KEY_CODE_RIGHT_CONTROL:
-            switch_home_pump_level_control_type(proc, BREAST_PUMP_CONTROL_TYPE_RIGHT);
+            home_pump_level_adjust_type_update(proc, false);
             break;
         case KEY_CODE_LEFT_CONTROL:
-            switch_home_pump_level_control_type(proc, BREAST_PUMP_CONTROL_TYPE_LEFT);
+            home_pump_level_adjust_type_update(proc, true);
             break;
         default:
             break;

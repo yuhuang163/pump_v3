@@ -17,7 +17,8 @@ extern "C" {
 #include "battery_ui.h" // IWYU pragma: keepin
 #include "charge_ui.h" // IWYU pragma: keepin
 #include "ble_ui.h" // IWYU pragma: keepin
-#include "breast_pump_ui.h" // IWYU pragma: keepin
+#include "pump_home_ui.h" // IWYU pragma: keepin
+#include "pump_finish_ui.h" // IWYU pragma: keepin
 #include "airplane_mode_ui.h" // IWYU pragma: keepin
 #include "guide_ui.h" // IWYU pragma: keepin
 #include "logo_ui.h" // IWYU pragma: keepin
@@ -25,6 +26,14 @@ extern "C" {
 #include "product_tests_ui.h" // IWYU pragma: keepin
 #include "system_ui.h" // IWYU pragma: keepin
 #include "ui_popup_window.h" // IWYU pragma: keep
+#include "ui_img_resource.h" // IWYU pragma: keep
+#include "ui_img_baj_decode.h" // IWYU pragma: keep
+#include "ui_img_png_decode.h" // IWYU pragma: keep
+#include "ui_img_jpg_decode.h" // IWYU pragma: keep
+#include "ui_wave.h" // IWYU pragma: keep
+#include "ui_bg.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
+#include "ui_popup.h" // IWYU pragma: keep
 #endif
 
 typedef struct {

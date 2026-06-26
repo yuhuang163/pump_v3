@@ -311,7 +311,7 @@ static void home_label_ui_update(ui_manager_context_t *thiz, home_text_id_e text
         }
         /// 更新按钮图标
         lv_obj_clear_flag(home_info->button_icon, LV_OBJ_FLAG_HIDDEN);
-        ui_theme_img_resource_init(thiz, BASE_RES_ID_HOME_START_BUTTON_ICON, RES_THEME_TYPE_CUSTOM,
+        ui_theme_img_resource_init(thiz, BASE_RES_ID_START_BUTTON_ICON, RES_THEME_TYPE_CUSTOM,
             &home_info->button_info);
         EXCEPTION_CHECK_VOID(home_info->button_info.data);
         lv_fs_path_ex_t button_img_path;
@@ -741,7 +741,7 @@ int home_custom_ui_process(ui_manager_context_t *thiz)
         }
     } 
     home_root_bg_update(thiz);
-    ble_ui_update(thiz, home_info->root, proc->ble, PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y);
+    ble_ui_update(thiz, home_info->root, proc->ble, PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y, NULL);
     home_pump_left_level_update(thiz, setting.level[0]);
     home_pump_right_level_update(thiz, setting.level[1]);
     home_pump_speed_label_update(thiz, setting.speed);

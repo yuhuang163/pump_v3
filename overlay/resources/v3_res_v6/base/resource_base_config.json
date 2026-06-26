@@ -118,6 +118,20 @@
       "y_offset": 0
     },
     {
+      "resource_id": "BASE_RES_ID_START_BUTTON_ICON",
+      "description": "开始按钮图标",
+      "file": "baj/icon_start_button_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_RETURN_BUTTON_ICON",
+      "description": "返回按钮图标",
+      "file": "baj/icon_return_button_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "BASE_RES_ID_COMMON_BG",
       "description": "通用背景",
       "file": "png/bg_common_ui.png",
@@ -134,14 +148,14 @@
     {
       "resource_id": "BASE_RES_ID_HOME_WIDTH_LABLE",
       "description": "主页宽标签",
-      "file": "baj/label_home_width_280x106_a8_q99_444.baj",
+      "file": "baj/label_home_width_270x152_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_HOME_START_BUTTON_ICON",
-      "description": "主页开始按钮图标",
-      "file": "baj/icon_home_start_button_24x24_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_HOME_NARROW_LABLE",
+      "description": "主页窄标签",
+      "file": "baj/label_home_narrow_270x128_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -149,13 +163,6 @@
       "resource_id": "BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON",
       "description": "飞行界面解锁按钮图标",
       "file": "baj/icon_travel_unlock_148x56_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_HOME_NARROW_LABLE",
-      "description": "主页窄标签",
-      "file": "baj/label_home_narrow_300x86_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -170,13 +177,6 @@
       "resource_id": "BASE_RES_ID_HOME_IDLE_ICON",
       "description": "首页空闲图标",
       "file": "baj/icon_home_idle_220x176_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_PUMP_FINISH_ICON",
-      "description": "泵奶完成图标",
-      "file": "baj/icon_pump_finish_188x188_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -197,14 +197,14 @@
     {
       "resource_id": "BASE_RES_ID_LACTATION_WAVE",
       "description": "泌乳波形",
-      "file": "baj/wave_lactation_315x32_a8_q99_444.baj",
+      "file": "baj/wave_lactation_314x32_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_MIX_WAVE",
       "description": "混合波形",
-      "file": "baj/wave_mixed_315x32_a8_q99_444.baj",
+      "file": "baj/wave_mixed_314x32_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -218,7 +218,7 @@
     {
       "resource_id": "BASE_RES_ID_MILK_BOOST_WAVE",
       "description": "2+8奶量提升波形",
-      "file": "baj/wave_milk_boost_314x32_a8_q99_444.baj",
+      "file": "baj/wave_milk_boost_314x34_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -239,14 +239,14 @@
     {
       "resource_id": "BASE_RES_ID_PUMP_LEVEL_SEPARATOR",
       "description": "泵奶力度分割符",
-      "file": "baj/separator_pump_level_19x16_a8_q99_444.baj",
+      "file": "baj/separator_pump_level_19x17_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_PUMP_LEVEL_BG",
       "description": "泵奶力度背景",
-      "file": "baj/bg_pump_level_44x44_a8_q99_444.baj",
+      "file": "baj/bg_pump_level_40x40_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },

@@ -36,6 +36,7 @@ static ui_page_ops_t s_ops = {0};
 */
 void ui_display_home_prepare(ui_manager_context_t *thiz)
 {
+    #if 1
     void (*prepare)(ui_manager_context_t *thiz) = NULL;
     int res_theme_type = RES_THEME_TYPE_BASE;
 
@@ -55,21 +56,32 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
     if (prepare) {
         prepare(thiz);
     }
+    #else
+    ui_display_pump_complete_tip_prepare(thiz);
+    #endif
 }
 
 void ui_display_home_remove(ui_manager_context_t *thiz)
 {
+    #if 1
     if (s_ops.remove) {
         s_ops.remove(thiz);
     } else {
         LOGE("remove is null");
     }
+    #else
+    ui_display_pump_complete_tip_remove(thiz);
+    #endif
 }
 
 int ui_display_home_process(ui_manager_context_t *thiz)
 {
+    #if 1
     if (s_ops.process) {
         return s_ops.process(thiz);
     }
+    #else
+    ui_display_pump_complete_tip_process(thiz);
+    #endif
     return 0;
 }

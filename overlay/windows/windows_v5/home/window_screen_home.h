@@ -18,7 +18,7 @@ extern "C" {
 #if (ROOT_UI_VERSION == ROOT_UI_V3 || ROOT_UI_VERSION == ROOT_UI_V2)
 #define HOME_ANIMATION_FREQ                    (24)
 #else
-#define HOME_ANIMATION_FREQ                    (16)
+#define HOME_ANIMATION_FREQ                    (25)
 #endif
 
 #define HOME_PUMP_MODE_ANIMATION_FREQ          (25) 
@@ -32,19 +32,10 @@ extern "C" {
 #define HOME_BIND_QRCODE_DISPLAY_TIMEOUT       (3000) /// 3s
 
 /// 模式选择界面动画展示时间
-#define HOME_MODE_SELECT_DISPLAY_TIME          (10000) /// 10s
+#define HOME_MODE_SELECT_DISPLAY_TIME          (5000) /// 5s
 
 /// 档位调节界面动画展示时间
-#define HOME_PUMP_LEVEL_DISPLAY_TIMEOUT        (10000) /// 10s
-#define HOME_PUMP_LEVEL_SYNC_TIMEOUT           (3000) /// 3s
-
-/// 双档位调节界面动画展示时间
-#define HOME_PUMP_BOTH_LEVEL_DISPLAY_TIMEOUT    (10000) /// 10s
-#define HOME_PUMP_BOTH_LEVEL_SYNC_TIMEOUT       (3000) /// 3s
-
-/// 速度调节界面动画展示时间
-#define HOME_PUMP_SPEED_DISPLAY_TIMEOUT         (10000) /// 10s
-#define HOME_PUMP_SPEED_SYNC_TIMEOUT            (3000) /// 3s
+#define HOME_PUMP_LEVEL_DISPLAY_TIMEOUT        (5000) /// 5s
 
 /// 夜灯调节界面动画展示时间
 #define HOME_NIGHT_LIGHT_ADJUST_DISPLAY_TIMEOUT (10000) /// 10s
@@ -64,12 +55,8 @@ typedef enum {
     HOME_UI_TYPE_NONE = 0,
     HOME_UI_TYPE_HOME,
     HOME_UI_TYPE_HOME_IDLE,
-    HOME_UI_TYPE_BIND_QRCODE,
     HOME_UI_TYPE_BF_MODE_SELECT,
     HOME_UI_TYPE_NORMAL_MODE_SELECT,
-    HOME_UI_TYPE_LEVEL_ADJUST,
-    HOME_UI_TYPE_BOTH_LEVEL_ADJUST,
-    HOME_UI_TYPE_SPEED_ADJUST,
     HOME_UI_TYPE_PUMP_RESULT,
     HOME_UI_TYPE_NIGHT_LIGHT_ADJUST, /// 夜灯调节
     HOME_UI_TYPE_MAX
@@ -92,6 +79,19 @@ typedef enum {
     HOME_UI_DISPLAY_MAX
 } home_page_display_type_e;
 
+typedef enum {
+    HOME_PUMP_LEVEL_DISPLAY_DEFAULT = 0,     /// 默认 UI
+    HOME_PUMP_LEVEL_DISPLAY_LEFT_ADJUST,     /// 左档位调节
+    HOME_PUMP_LEVEL_DISPLAY_RIGHT_ADJUST,    /// 右档位调节
+    HOME_PUMP_LEVEL_DISPLAY_BOTH_ADJUST,     /// 双档位调节
+} home_pump_level_display_type_e;
+
+typedef enum {
+    HOME_PUMP_MODE_DISPLAY_DEFAULT = 0,      /// 默认 UI
+    HOME_PUMP_MODE_DISPLAY_BF_MODE,          /// 追奶模式
+    HOME_PUMP_MODE_DISPLAY_NORMAL_MODE,      /// 普通模式
+} home_pump_mode_display_type_e;
+
 /// 主界面UI结构体
 typedef struct {
     window_context_t w_ctx;
@@ -108,18 +108,21 @@ typedef struct {
     uint32_t margic; /// 窗口标识.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint8_t window_run_state; /// WM是否运行.
-    uint8_t ui_bf_mode_index; /// 追奶模式索引.
-    uint8_t ui_normal_mode_index; /// 普通模式索引.
     uint16_t current_ui_type; /// 当前UI类型. home_ui_type_e
     uint16_t popup_ui_type; /// 当前弹窗类型. home_popup_ui_type_e
-    pump_setting_t setting; /// 当前泵奶设置信息.
-    uint8_t control_type; /// 当前控制类型.
-    int8_t level_change; /// 当前档位变化值.
-    int8_t both_level_change; /// 当前档位变化值.
-    uint8_t level_sync_flag; /// 档位同步标志.
-    uint8_t speed_sync_flag; /// 速度同步标志.
     uint8_t exit_current_ui; /// 退出当前UI标志.
-    uint8_t pump_priming;
+    uint8_t pump_priming; /// 泵奶准备标志.
+    /// 模式相关
+    uint8_t ui_mode_index; /// 当前模式索引.
+    uint8_t pump_mode_display_type; /// 当前泵奶模式显示类型
+    uint32_t pump_mode_adjust_time; /// 泵奶模式调节显示时间
+    /// 档位调节相关
+    uint8_t level_adjust_pump_num;   /// 档位调节泵数
+    uint8_t level_adjust_pump_index; /// 档位调节泵索引
+    uint8_t pump_level_display_type; /// 当前泵奶档位调节类型
+    pump_setting_t setting; /// 当前泵奶设置信息.
+    uint32_t level_adjust_time; /// 档位调节显示时间
+    /// 夜灯调节相关
     uint8_t night_light_gear; /// 夜灯调节亮度等级
     home_page_display_type_e home_display_type;
     uint32_t pump_record_time;
@@ -135,21 +138,14 @@ void stop_home_common_ui(ui_proc_home_t *proc);
 void home_start_key_event_handler(ui_proc_home_t *proc);
 
 /// 模式选择界面按键处理
-void home_pump_normal_mode_key_click_handler(ui_proc_home_t *proc);
-void home_pump_normal_mode_ui_exit(ui_proc_home_t *proc);
+int home_pump_mode_adjust_handler(ui_proc_home_t *proc, bool is_bf_mode);
+void home_pump_mode_adjust_timeout_handler(ui_proc_home_t *proc);
+void home_pump_mode_adjust_ui_exit(ui_proc_home_t *proc);
 
-/// 追奶模式选择界面按键处理
-void home_pump_bf_mode_key_click_handler(ui_proc_home_t *proc);
-void home_pump_bf_mode_ui_exit(ui_proc_home_t *proc);
-
-/// 档位调节界面按键处理
-void switch_home_pump_level(ui_proc_home_t *proc, bool is_increase);
-void home_pump_level_ui_exit(ui_proc_home_t *proc);
-void switch_home_pump_level_control_type(ui_proc_home_t *proc, uint8_t control_type);
-/// 双档位调节界面处理
-void switch_home_pump_both_level_ui(ui_proc_home_t *proc, bool is_increase);
-void switch_home_pump_both_control_type_ui(ui_proc_home_t *proc, bool is_increase);
-void home_pump_both_level_ui_exit(ui_proc_home_t *proc);
+/// 档位调节功能处理
+int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase);
+int home_pump_level_adjust_type_update(ui_proc_home_t *proc, uint8_t is_left);
+void home_pump_level_adjust_timeout_handler(ui_proc_home_t *proc);
 
 /// 弹窗类型更新
 void home_popup_ui_type_update(ui_proc_home_t *proc, popup_ui_id_e type);
@@ -171,9 +167,6 @@ void home_cancel_key_event_handler(ui_proc_home_t *proc);
 
 /// 主界面UI显示类型更新
 void home_page_display_type_update(ui_proc_home_t *proc);
-
-/// 模式切换UI展示
-void home_mode_change_ui_update(ui_proc_home_t *proc);
 #ifdef __cplusplus
 }
 #endif

@@ -652,8 +652,10 @@ else
 FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16 \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_18 \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_20 \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_24 \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26 \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_28 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_12 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_14 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_16 \
@@ -661,6 +663,7 @@ FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_24 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_72 \
 	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_96 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_60 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_72 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 
@@ -1296,8 +1299,10 @@ else
 FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_18/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_20/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_24/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_28/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_12/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_14/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_16/*.c) \
@@ -1305,6 +1310,7 @@ FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_24/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_72/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_96/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_60/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_72/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 

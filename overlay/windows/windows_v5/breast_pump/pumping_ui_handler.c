@@ -50,6 +50,8 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    pump_level_adjust_timeout_handler(proc);
+    pump_mode_adjust_timeout_handler(proc);
     ui_display_pump_home_screen_process(ui);
     // ui->priv.play_info.reset_play_count_cb(&ui->priv.play_info);
 }
@@ -136,11 +138,7 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         }
         
         if (pump_status != BREAST_PUMP_PAUSE) {
-            if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE) {
-                WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_normal_mode_index, true, 1);
-            } else if (proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE) {
-                WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_bf_mode_index, true, 1);
-            }
+            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_mode_index, true, 1);
         }
         
         int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;    

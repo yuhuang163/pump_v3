@@ -6,7 +6,6 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "window_screen_logo.h" // IWYU pragma: keep
-#include "common_ui.h" // IWYU pragma: keep
 
 /*
 * DEFINES

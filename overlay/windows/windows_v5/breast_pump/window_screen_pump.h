@@ -18,7 +18,7 @@ extern "C" {
 #if (ROOT_UI_VERSION == ROOT_UI_V2)
 #define PUMP_ANIMATION_FREQ                    (24)
 #else
-#define PUMP_ANIMATION_FREQ                    (16)
+#define PUMP_ANIMATION_FREQ                    (25)
 #endif
 #define PUMP_MODE_ANIMATION_FREQ               (25) 
 #define PUMP_SPEED_ANIMATION_FREQ              (25) 
@@ -44,6 +44,10 @@ extern "C" {
 /// 泵奶档位显示超时时间
 #define PUMP_LEVEL_DISPLAY_TIMEOUT             (3000) /// 3s 
 #define PUMP_LEVEL_SYNC_TIMEOUT                (1000) /// 3s 
+/// 泵奶主界面模式选择展示时间
+#define PUMP_HOME_MODE_SELECT_DISPLAY_TIME     (5000) /// 5s
+/// 泵奶主界面档位调节展示时间
+#define PUMP_HOME_LEVEL_DISPLAY_TIMEOUT        (5000) /// 5s
 /// 泵奶结果显示超时时间
 #define PUMP_RESULT_DISPLAY_TIMEOUT            (3000) /// 3s
 /// 泵奶背光灯周期
@@ -88,13 +92,21 @@ typedef enum {
     PUMP_UI_TYPE_HOME = 100,
     PUMP_UI_TYPE_PUMPING,
     PUMP_UI_TYPE_RESULT,
-    PUMP_UI_TYPE_LEVEL,
-    PUMP_UI_TYPE_BOTH_LEVEL,
-    PUMP_UI_TYPE_SPEED,
-    PUMP_UI_TYPE_BREASTFEEDING_MODE,
-    PUMP_UI_TYPE_COMMON_MODE,
     PUMP_UI_TYPE_MAX
 } pump_ui_type_e;
+
+typedef enum {
+    PUMP_LEVEL_DISPLAY_DEFAULT = 0,     /// 默认 UI
+    PUMP_LEVEL_DISPLAY_LEFT_ADJUST,     /// 左档位调节
+    PUMP_LEVEL_DISPLAY_RIGHT_ADJUST,    /// 右档位调节
+    PUMP_LEVEL_DISPLAY_BOTH_ADJUST,     /// 双档位调节
+} pump_level_display_type_e;
+
+typedef enum {
+    PUMP_MODE_DISPLAY_DEFAULT = 0,      /// 默认 UI
+    PUMP_MODE_DISPLAY_BF_MODE,          /// 追奶模式
+    PUMP_MODE_DISPLAY_NORMAL_MODE,      /// 普通模式
+} pump_mode_display_type_e;
 
 /// 泵奶信息结构体
 typedef struct {    
@@ -121,26 +133,27 @@ typedef struct {
     broadcast_obj_t receiver;
     window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;
-    breast_pump_result_t pump_result; /// 泵奶结果.
     uint8_t window_run_state; /// WM是否运行.
-    uint8_t ui_normal_mode_index; /// UI普通模式索引.
-    uint8_t ui_bf_mode_index; /// UI追奶模式索引.
+    uint8_t exit_current_ui; /// 退出当前UI标志.
     uint16_t current_ui_type; /// 当前UI类型
     uint16_t start_ui_type;   
+    uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
-    ui_pump_info_t info; /// 当前泵奶信息.
-    pump_setting_t setting; /// 当前泵奶设置信息.
-    int8_t level_change; /// 当前档位变化值.
-    int8_t both_level_change; /// 当前档位变化值.
-    uint8_t exit_current_ui; /// 退出当前UI标志.
-
-#if IS_SUPPORT_AIR_LEAKAGE_WARNING
-    uint8_t is_air_leakage_popup_show; /// 是否显示空气泄漏弹窗提示.
-    uint8_t hide_air_leakage_popup_wm; /// 是否隐藏空气泄漏弹窗提示.
-#endif
+    /// 泵奶信息
     uint8_t forbid_start_pump; /// 是否禁止开始泵奶.
     uint8_t pump_will_finish; /// 泵奶即将完成标志.
-    uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
+    ui_pump_info_t info; /// 当前泵奶信息.
+    breast_pump_result_t pump_result; /// 泵奶结果.
+    /// 模式相关
+    uint8_t ui_mode_index; /// 当前模式索引.
+    uint8_t pump_mode_display_type; /// 当前泵奶模式显示类型
+    uint32_t pump_mode_adjust_time; /// 泵奶模式调节显示时间
+    /// 档位调节相关
+    uint8_t level_adjust_pump_num;   /// 档位调节泵数
+    uint8_t level_adjust_pump_index; /// 档位调节泵索引
+    uint8_t pump_level_display_type; /// 当前泵奶档位调节类型
+    uint32_t level_adjust_time; /// 档位调节显示时间
+    pump_setting_t setting; /// 当前泵奶设置信息.
 } ui_proc_pump_t;
 
 /*
@@ -149,25 +162,19 @@ typedef struct {
 */
 /// 显示泵奶主界面
 void show_pump_home_ui(ui_proc_pump_t *proc);
-/// 普通模式UI相关
-void pump_mode_key_click_handler(ui_proc_pump_t *proc);
-void pump_mode_ui_exit(ui_proc_pump_t *proc);
 
-/// 追奶模式UI相关
-void breastfeeding_mode_key_click_handler(ui_proc_pump_t *proc);
-void breastfeeding_mode_ui_exit(ui_proc_pump_t *proc);
+/// 模式调节
+int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_bf_mode);
+void pump_mode_adjust_timeout_handler(ui_proc_pump_t *proc);
+void pump_mode_adjust_ui_exit(ui_proc_pump_t *proc);
 
-/// 档位UI相关
-void switch_pump_level_ui(ui_proc_pump_t *proc, bool is_increase);
-void switch_pump_control_type_ui(ui_proc_pump_t *proc, uint8_t control_type);
-void pump_level_ui_exit(ui_proc_pump_t *proc);
-void switch_pump_both_control_type_ui(ui_proc_pump_t *proc, bool is_increase);
-void switch_pump_both_level_ui(ui_proc_pump_t *proc, bool is_increase);
-void pump_both_level_ui_exit(ui_proc_pump_t *proc);
+/// 档位调节
+int pump_level_adjust_type_update(ui_proc_pump_t *proc, uint8_t is_left);
+int pump_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
+void pump_level_adjust_timeout_handler(ui_proc_pump_t *proc);
 
 /// 泵奶状态UI相关
 void switch_pump_status_ui(ui_proc_pump_t *proc);
-
 /// 移除UI相关
 void pump_ui_change_hdr_remove(ui_proc_pump_t *proc);
 /// 停止泵奶UI动画

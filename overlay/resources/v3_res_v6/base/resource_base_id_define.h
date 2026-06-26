@@ -23,15 +23,17 @@ typedef enum {
     BASE_RES_ID_ALLOW_ICON, /// 允许图标
     BASE_RES_ID_BAN_ICON, /// 禁止图标
     BASE_RES_ID_WARNING_ICON, /// 警告图标
-    BASE_RES_ID_CLOCK_COLON_ICON = 99, /// 时钟冒号图标
+    BASE_RES_ID_START_BUTTON_ICON, /// 开始按钮指示图标
+    BASE_RES_ID_RETURN_BUTTON_ICON, /// 返回按钮指示图标
 
+    BASE_RES_ID_CLOCK_COLON_ICON = 99, /// 时钟冒号图标
+  
     /* 主界面组 [100..150] */
     BASE_RES_ID_COMMON_BG = 100, /// 通用背景
     BASE_RES_ID_START_LOGO_ICON, /// 启动LOGO
     BASE_RES_ID_HOME_WIDTH_LABLE, /// 主页宽标签
-    BASE_RES_ID_HOME_START_BUTTON_ICON, /// 空闲界面开始按钮指示图标
-    BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, /// 飞行模式解锁按钮图标
     BASE_RES_ID_HOME_NARROW_LABLE, /// 主页窄标签
+    BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, /// 飞行模式解锁按钮图标
     BASE_RES_ID_HOME_BLE_LABEL, /// 主页蓝牙标签
 
     /* 引导组 [150..200] */

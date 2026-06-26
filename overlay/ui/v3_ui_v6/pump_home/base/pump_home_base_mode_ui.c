@@ -1,0 +1,162 @@
+/*
+* INCLUDE FILES
+*****************************************************************************************
+*/
+#include "ui_img_define.h"   // IWYU pragma: keep
+#include "ui_page_define.h" // IWYU pragma: keep
+#include "ui_manager.h" // IWYU pragma: keep
+#include "pump_home_base_ui_internal.h" // IWYU pragma: keep
+
+/*
+* DEFINES
+*****************************************************************************************
+*/
+#define PUMP_HOME_MODE_TITLE_COLOR                 (0xBD4060)
+#define PUMP_HOME_MODE_NAME_COLOR                  (0xD36682)
+#define PUMP_HOME_MODE_TITLE_Y                     (70)
+#define PUMP_HOME_MODE_NAME_X                      (0)
+#define PUMP_HOME_MODE_NAME_Y                      (155)
+
+/*
+* LOCAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+static const char *pump_home_mode_type_name_get(uint8_t mode_type)
+{
+    switch (mode_type) {
+        default:
+        case PUMP_MODE_STIMULATION:
+            return "STIMULATION";
+        case PUMP_MODE_LACTATION:
+            return "EXPRESSION";
+        case PUMP_MODE_MIX:
+            return "MIXED";
+        case PUMP_MODE_IDLE:
+            return "RELAX";
+    }
+}
+
+static void pump_home_mode_title_update(pump_home_base_ui_info_t *info, const char *title)
+{
+    if (info->mode.title == NULL || !lv_obj_is_valid(info->mode.title)) {
+        info->mode.title = lv_label_create(info->root);
+        EXCEPTION_CHECK_VOID(info->mode.title);
+        lv_obj_set_style_text_color(info->mode.title, lv_color_hex(PUMP_HOME_MODE_TITLE_COLOR), 0);
+        lv_obj_set_style_text_font(info->mode.title, &lv_font_aeonik_soft_24_bold, 0);
+    }
+
+    if (title == NULL) {
+        lv_obj_add_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
+    lv_obj_clear_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(info->mode.title, title);
+    lv_obj_align(info->mode.title, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MODE_TITLE_Y);
+}
+
+static void pump_home_mode_name_update(pump_home_base_ui_info_t *info, const char *name,
+    uint16_t x_offset, uint16_t y_offset)
+{
+    if (info->mode.mode == NULL || !lv_obj_is_valid(info->mode.mode)) {
+        info->mode.mode = lv_label_create(info->root);
+        EXCEPTION_CHECK_VOID(info->mode.mode);
+        lv_obj_set_style_text_color(info->mode.mode, lv_color_hex(PUMP_HOME_MODE_NAME_COLOR), 0);
+        lv_obj_set_style_text_font(info->mode.mode, &lv_font_aeonik_soft_18_medium, 0);
+    }
+
+    if (name == NULL) {
+        lv_obj_add_flag(info->mode.mode, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
+    lv_obj_clear_flag(info->mode.mode, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(info->mode.mode, name);
+    if (x_offset == 0) {
+        lv_obj_align(info->mode.mode, LV_ALIGN_TOP_MID, 0, y_offset);
+    } else {
+        lv_obj_align(info->mode.mode, LV_ALIGN_TOP_LEFT, x_offset, y_offset);
+    }
+}
+
+static void pump_home_mode_title_blink_apply(pump_home_base_ui_info_t *info)
+{
+    if (info->mode.title == NULL || !lv_obj_is_valid(info->mode.title)) {
+        return;
+    }
+    if (info->mode.mode_blink_state == 0) {
+        lv_obj_clear_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    if (pump_home_base_blink_visible_get(info)) {
+        lv_obj_clear_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static bool pump_home_mode_need_update(pump_home_base_ui_info_t *info)
+{
+    if (info->force_update) {
+        return true;
+    }
+    if (info->mode.index != info->mode.new_index) {
+        return true;
+    }
+    if (info->mode.mode_type != info->mode.new_mode_type) {
+        return true;
+    }
+    return false;
+}
+
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+void pump_home_base_mode_ui_remove(pump_home_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+}
+
+void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info)
+{
+    char rhythm_name[24] = {0};
+
+    EXCEPTION_CHECK_VOID(info);
+    if (pump_home_mode_need_update(info)) {
+        switch (info->mode.new_index) {
+            default:
+            case BREAST_PUMP_STIMULATION_MODE:
+                pump_home_mode_title_update(info, "STIMULATION");
+                pump_home_mode_name_update(info, NULL, 0, 0);
+                break;
+            case BREAST_PUMP_LACTATION_MODE:
+                pump_home_mode_title_update(info, "EXPRESSION");
+                pump_home_mode_name_update(info, NULL, 0, 0);
+                break;
+            case BREAST_PUMP_MIX_MODE:
+                pump_home_mode_title_update(info, "MIXED");
+                pump_home_mode_name_update(info, NULL, 0, 0);
+                break;
+            case BREAST_PUMP_MILK_BOOST_MODE:
+                pump_home_mode_title_update(info,
+                    pump_home_mode_type_name_get(info->mode.new_mode_type));
+                pump_home_mode_name_update(info, "Milk Boost", PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+                break;
+            case BREAST_PUMP_PP_MILK_TRACK_MODE:
+                pump_home_mode_title_update(info,
+                    pump_home_mode_type_name_get(info->mode.new_mode_type));
+                pump_home_mode_name_update(info, "Power Pumping", PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+                break;
+            case BREAST_PUMP_CUSTOM_MODE:
+                pump_home_mode_title_update(info,
+                    pump_home_mode_type_name_get(info->mode.new_mode_type));
+                snprintf(rhythm_name, sizeof(rhythm_name), "Customize_%02u", info->mode.custom_mode_id % 100);
+                pump_home_mode_name_update(info, rhythm_name, PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+                break;
+        }
+        info->mode.index = info->mode.new_index;
+        info->mode.mode_type = info->mode.new_mode_type;
+    }
+    pump_home_mode_title_blink_apply(info);
+}
