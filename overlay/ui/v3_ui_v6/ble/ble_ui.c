@@ -2,10 +2,11 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "ui_img_define.h"   // IWYU pragma: keep
+#include "ui_img_define.h" // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
-#include "ui_manager.h"   // IWYU pragma: keep
-#include "ble_ui_internal.h" // IWYU pragma: keep
+#include "ui_manager.h" // IWYU pragma: keep
+#include "ble_base_ui_internal.h" // IWYU pragma: keep
+#include "ble_custom_ui_internal.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -19,7 +20,7 @@
 typedef struct {
     ui_module_lifecycle_ops_t life;
     int (*update)(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_context_t *ble,
-        uint16_t x, uint16_t y);
+        uint16_t x, uint16_t y, const ble_ui_blink_sync_t *sync);
 } ble_ui_ops_t;
 
 static ble_ui_ops_t s_ops = {0};
@@ -62,10 +63,11 @@ void ble_ui_init(ui_manager_context_t *thiz)
     }
 }
 
-int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_context_t *ble, uint16_t x, uint16_t y)
+int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_context_t *ble,
+    uint16_t x, uint16_t y, const ble_ui_blink_sync_t *sync)
 {
     if (s_ops.update) {
-        return s_ops.update(thiz, root, ble, x, y);
+        return s_ops.update(thiz, root, ble, x, y, sync);
     }
     LOG_UI("ble update skipped: s_ops.update is null");
     return 0;

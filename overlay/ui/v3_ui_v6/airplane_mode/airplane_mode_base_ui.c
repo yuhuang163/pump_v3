@@ -199,7 +199,7 @@ int airplane_mode_base_ui_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(proc->ble);
     airplane_mode_bg_update(thiz);
     airplane_mode_button_icon_update(thiz);
-    ble_ui_update(thiz, airplane_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
+    ble_ui_update(thiz, airplane_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y, NULL);
     for (uint8_t i = 0; i < AIRPLANE_MODE_TEXT_COUNT; i++) {
         airplane_mode_texts_update(thiz, i);
     }

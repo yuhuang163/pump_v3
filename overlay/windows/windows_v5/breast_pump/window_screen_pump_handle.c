@@ -88,21 +88,8 @@ static void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
         return;
     }
 #endif
-    
-    switch (proc->current_ui_type) {
-        case PUMP_UI_TYPE_LEVEL:
-            switch_pump_level_ui(proc, is_left ? false : true);
-            break;
-        case PUMP_UI_TYPE_BOTH_LEVEL:
-            switch_pump_both_level_ui(proc, is_left ? false : true);
-            break;
-        case PUMP_UI_TYPE_HOME:
-            switch_pump_both_control_type_ui(proc, is_left ? false : true);
-            break;
-        default:
-            LOG_WM("unknow ui type: %d, ignore.", proc->current_ui_type);
-            break;
-    }
+
+    pump_level_adjust_handler(proc, is_left ? false : true);
 }
 
 static void pump_long_press_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
@@ -137,12 +124,9 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 
     switch (keycode) {
         case KEY_CODE_MODE:
-            pump_mode_key_click_handler(proc);
+            pump_mode_adjust_handler(proc, false);
             break;
         case KEY_CODE_BREASTFEEDING:
-            #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
-            breastfeeding_mode_key_click_handler(proc);
-            #endif
             break;
         case KEY_CODE_CANCEL:
             pump_cancel_key_handler(proc);
@@ -154,10 +138,10 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
             switch_pump_status_ui(proc);
             break;
         case KEY_CODE_RIGHT_CONTROL:
-            switch_pump_control_type_ui(proc, BREAST_PUMP_CONTROL_TYPE_RIGHT);
+            pump_level_adjust_type_update(proc, false);
             break;
         case KEY_CODE_LEFT_CONTROL:
-            switch_pump_control_type_ui(proc, BREAST_PUMP_CONTROL_TYPE_LEFT);
+            pump_level_adjust_type_update(proc, true);
             break;
         case KEY_CODE_KNOB_LEFT:
         case KEY_CODE_KNOB_RIGHT:
@@ -174,13 +158,6 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
-
-    #if IS_SUPPORT_AIR_LEAKAGE_WARNING
-    if (proc->is_air_leakage_popup_show == true) {
-        proc->hide_air_leakage_popup_wm = true;     /// 隐藏空气泄漏弹窗提示.
-    }
-    #endif
-
     if (keytype == KEY_EVENT_LONG_2S) {
         pump_long_press_event_cb(proc, keycode);
     } else {
@@ -347,6 +324,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         READ_PUMP_WORK_MODE(proc->pump, mode_index);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 100);
+            proc->led->set_led_level(PUMP_BREASTFEEDING_BL, 0);
         }
         switch_pump_status_ui(proc);
     }
@@ -364,6 +342,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_pump_ui_animation(proc); 
+            proc->led->set_led_level(PUMP_BREASTFEEDING_BL, LED_LEVEL_MAX);
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);

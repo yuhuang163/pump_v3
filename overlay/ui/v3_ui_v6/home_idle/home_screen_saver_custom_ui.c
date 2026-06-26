@@ -276,7 +276,7 @@ int home_screen_saver_custom_ui_process(ui_manager_context_t *thiz)
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->ble);
     home_screen_saver_root_bg_update(thiz);
-    ble_ui_update(thiz, saver_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y);
+    ble_ui_update(thiz, saver_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y, NULL);
     home_screen_saver_ui_update(thiz, proc);
     saver_info->force_update = false;
     thiz->priv.fps_count++;

@@ -37,6 +37,8 @@ static void home_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    home_pump_level_adjust_timeout_handler(proc);
+    home_pump_mode_adjust_timeout_handler(proc);
     ui_display_home_process(ui);
 }
 

@@ -30,10 +30,7 @@
 */
 void stop_pump_ui_animation(ui_proc_pump_t *proc)
 {
-    pump_level_ui_exit(proc);
-    pump_both_level_ui_exit(proc);
-    pump_mode_ui_exit(proc);
-    breastfeeding_mode_ui_exit(proc);
+    pump_mode_adjust_ui_exit(proc);
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
@@ -43,15 +40,6 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc)
 void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    if (proc->current_ui_type == PUMP_UI_TYPE_LEVEL) {
-        pump_level_ui_exit(proc);
-        return;
-    } 
-   
-    if (proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL) {
-        pump_both_level_ui_exit(proc);
-        return;
-    }
 }
 
 void pump_power_key_handler(ui_proc_pump_t *proc)
@@ -74,20 +62,12 @@ void pump_power_key_handler(ui_proc_pump_t *proc)
 #endif
     }
 #endif
-
     LOG_WM("ignore power key event.");
 }
 
 void pump_cancel_key_handler(ui_proc_pump_t *proc)
 {
-    if (proc->current_ui_type == PUMP_UI_TYPE_COMMON_MODE ||
-        proc->current_ui_type == PUMP_UI_TYPE_BREASTFEEDING_MODE ||
-        proc->current_ui_type == PUMP_UI_TYPE_LEVEL ||
-        proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL) {
-        proc->exit_current_ui = true;
-    } else {
-        LOG_WM("ignore cancel key event.");
-    }
+
 }
 
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)
