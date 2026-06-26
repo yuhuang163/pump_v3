@@ -139,6 +139,8 @@ typedef struct ble_manager_context {
         uint16_t connect_idx;
         /** 广播窗口起点 tick(get_timestamp)，建连时用于计算 setup_ms */
         uint32_t connect_timestamp_use;
+        /** 各服务notify使能状态数组，索引为 ble_service_id_e */
+        uint8_t notify_enabled[BLE_SRV_ID_MAX];
     } priv;
 /// public
     int (*get_mac_addr)(uint8_t *addr);
@@ -158,6 +160,8 @@ typedef struct ble_manager_context {
     void (*dispatch_ble_client)(struct ble_manager_context *obj, int msg_channel, uint8_t *data, uint16_t size);
     void (*on_connect_status_change)(struct ble_manager_context *ctx, int new_status, int popup);
     int (*dispatch_ble_event_wrapper)(struct ble_manager_context *ctx, uint8_t _msg_id, uint8_t *_data, int _data_len);
+    int (*notify_enabled_check)(uint8_t srv_id);
+    uint8_t (*notify_enabled_get)(uint8_t srv_id);
     /// 钩子函数指针.
     struct __ble_manager_hook {
         int (*on_post_init_route)(struct ble_manager_context *ctx);

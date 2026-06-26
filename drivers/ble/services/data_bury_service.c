@@ -57,7 +57,7 @@ static void ble_data_bury_service_notify_ccc_changed(uint8_t conidx, uint16_t co
 {
     s_notification_enabled = notify_enabled;
     s_conn_idx             = conidx;
-    ble_custom_tx_ccc_changed(conidx, connhdl, notify_enabled);
+    ble_custom_tx_ccc_changed(conidx, connhdl, notify_enabled, BLE_SRV_ID_DATA_BURY);
 }
 
 static void ble_data_bury_service_notify_done(uint8_t conidx, uint16_t connhdl)

@@ -818,8 +818,11 @@ void data_bury_event_handler_init_params(void)
 
 int data_bury_event_handler_on_ble_notify_broadcast(data_bury_manager_context_t *ctx, int arg1, int arg2)
 {
-    (void)arg2;
     if (arg1 != BLE_BROADCAST_NOTIFY_ENABLED) {
+        return 0;
+    }
+    if (arg2 != BLE_SRV_ID_DATA_BURY) {
+        LOG_BLE("data bury event handler on ble notify broadcast, service_id: %d", arg2);
         return 0;
     }
     data_bury_event_flush_pending_if_connected(ctx);

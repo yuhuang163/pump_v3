@@ -1,6 +1,7 @@
 #ifndef __DATA_BURY_MANAGER_API_H__
 #define __DATA_BURY_MANAGER_API_H__
 
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif

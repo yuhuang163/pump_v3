@@ -28,6 +28,31 @@ static ble_manager_context_t *ble_obj = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+
+static void ble_notify_enabled_update(ble_manager_context_t *ctx, uint8_t service_id, bool enabled)
+{
+    if (service_id < (uint8_t)BLE_SRV_ID_MAX) {
+        ctx->priv.notify_enabled[service_id] = enabled ? 1u : 0u;
+    }
+    LOG_BLE("ble tx ccc %s, service_id=%d", enabled ? "enabled" : "disabled", service_id);
+}
+
+static int ble_notify_enabled_check(uint8_t srv_id)
+{
+    if (srv_id >= (uint8_t)BLE_SRV_ID_MAX) {
+        return 0;
+    }
+    return (ble_obj->priv.notify_enabled[srv_id] != 0u) ? 1 : 0;
+}
+
+static uint8_t ble_notify_enabled_get(uint8_t srv_id)
+{
+    if (srv_id >= (uint8_t)BLE_SRV_ID_MAX) {
+        return 0u;
+    }
+    return ble_obj->priv.notify_enabled[srv_id];
+}
+
 static void ble_pm_change_handler(int arg1)
 {
     ble_manager_context_t *ctx = ble_obj;
@@ -330,18 +355,28 @@ static void ble_event_callback(ble_event_e event, uintptr_t connhdl, void *param
         case BLE_EVENT_ADVERTISE_STOPPED:
             ble_obj->priv.ble_adv_state = 0;
             break;
-        case BLE_EVENT_TX_CCC_DISABLED:
-            LOG_BLE("ble tx ccc disabled");
+        case BLE_EVENT_TX_CCC_DISABLED: {
+            ble_hal_event_param_t *hal_param = (ble_hal_event_param_t *)param;
+            if (hal_param) {
+                ble_notify_enabled_update(ble_obj, hal_param->service_id, false);
+            }
             break;
-        case BLE_EVENT_TX_CCC_ENABLED:
+        }
+        case BLE_EVENT_TX_CCC_ENABLED: {
+            ble_hal_event_param_t *hal_param = (ble_hal_event_param_t *)param;
+            if (hal_param) {
+                ble_notify_enabled_update(ble_obj, hal_param->service_id, true);
+            }
             ble_event_dispatch_hal_param(BLE_MSG_TX_CCC_ENABLED, connhdl, param);
             break;
+        }
         case BLE_EVENT_CONN_OPENED:
         case BLE_EVENT_CONN_MTU_EXCHANGED:
         case BLE_EVENT_CONN_PARAMS_UPDATE:
             ble_event_dispatch_hal_param(BLE_MSG_PERIPH_CONNECT_SUC, connhdl, param);
             break;
         case BLE_EVENT_CONN_CLOSED:
+            memset(ble_obj->priv.notify_enabled, 0, sizeof(ble_obj->priv.notify_enabled));
             ble_event_dispatch_hal_param(BLE_MSG_PERIPH_DISCONN_SUC, connhdl, param);
             break;
         case BLE_EVENT_CONN_FAILED:
@@ -497,6 +532,8 @@ void *register_module_for_ble_manager_new(list_head_t *list_head)
     ptr->add_ble_evt_lisenser = add_ble_evt_lisenser;
     ptr->remove_ble_evt_lisenser = remove_ble_evt_lisenser;
     ptr->dispatch_ble_client = dispatch_ble_client;
+    ptr->notify_enabled_check = ble_notify_enabled_check;
+    ptr->notify_enabled_get = ble_notify_enabled_get;
     ble_obj = ptr;
     return ADD_MODULE("ble_module", ID_MODULE_BLE, 0, on_post_init, 
         ptr, list_head, sizeof(ble_manager_context_t));

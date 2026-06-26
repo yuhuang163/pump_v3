@@ -195,6 +195,33 @@ typedef struct {
     const char *name;
 } data_bury_pressure_test_case_t;
 
+/**
+ * @brief 埋点压力测试数据初始化函数 - 用于生成固定的测试数据，方便接收方验证数据格式
+ * 
+ * @param[in]  sid            - 测试会话ID (固定值: 0x20260608u 表示2026-06-08)
+ * @param[in]  ts             - 事件时间戳 (固定值: 1796812800u = 2026-06-08 00:00:00 UTC)
+ * @param[out] startup        - 设备启动事件: firmware_version=0x0102, battery_level=85%
+ * @param[out] shutdown       - 设备关机事件: battery_level=80%, reason=手动关机
+ * @param[out] bt_connect     - 蓝牙连接事件: result=成功, rssi=-55, setup_ms=320
+ * @param[out] session_start  - 吸乳会话开始: session_id=1001, mode=1, level=3
+ * @param[out] session_end_buf- 吸乳会话结束(变长): session_id=1001, volume=120ml, 模式时长: mode=1(60s), mode=2(120s)
+ * @param[out] manual_adjust  - 手动调节事件: level从3调至4
+ * @param[out] user_evt       - 用户事件: type=开始
+ * @param[out] milk_ejection  - 喷乳检测: 检测1次, 30ml->45ml, 持续5秒
+ * @param[out] charge_start   - 充电开始: 20%, 3.6V, 500mA, 25°C
+ * @param[out] charge_end     - 充电结束: 100%, 4.2V, reason=充满
+ * @param[out] exception      - 异常事件: error_code=0x42(通信错误), error_data=0
+ * @param[out] fw_update      - 固件升级: from=0x0100, result=成功
+ * @param[out] overflow       - 溢乳事件: volume=150ml
+ * @param[out] milk_volume_buf- 乳汁体积采样(变长): 3个采样点 [10, 25, 40]ml
+ * @param[out] heat_start     - 热敷开始: session_id=2001, level=2, temp=36°C
+ * @param[out] heat_end       - 热敷结束: top_temp=40°C, final_temp=38°C
+ * @param[out] massage_start  - 按摩开始: session_id=3001, level=1
+ * @param[out] massage_end    - 按摩结束: level=2
+ * @param[out] wear           - 佩戴检测: type=1, data=0x55AA
+ * 
+ * @note 所有测试数据均为固定值，用于压力测试和数据格式验证，实际使用时应替换为真实数据
+ */
 static void data_bury_pressure_test_init_payloads(
     uint32_t sid, uint32_t ts,
     data_bury_evt_pump_startup_t *startup,
@@ -338,8 +365,8 @@ static void data_bury_pressure_test_init_payloads(
     exception->device_side = device_side;
     exception->use_session_id = sid;
     exception->evt_timestamp = ts;
-    exception->error_code = 0x1001u;
-    exception->error_data = 0xDEADBEEFu;
+    exception->error_code = DATA_BURY_ERROR_COMMUNICATION;  /* 0x42 - 通信错误 */
+    exception->error_data = 0u;                             /* 无附加数据时填0 */
 
     memset(fw_update, 0, sizeof(*fw_update));
     fw_update->device_side = device_side;
@@ -470,7 +497,7 @@ static int data_bury_pressure_test_cb(void)
     }
 
     if (!inited) {
-        data_bury_pressure_test_init_payloads(0x20260608u, get_timestamp(),
+        data_bury_pressure_test_init_payloads(0x20260608u, 1796812800u,
                                               &evt_startup, &evt_shutdown, &evt_bt_connect, &evt_session_start,
                                               evt_session_end_buf, &evt_manual_adjust, &evt_user_evt,
                                               &evt_milk_ejection, &evt_charge_start, &evt_charge_end,
