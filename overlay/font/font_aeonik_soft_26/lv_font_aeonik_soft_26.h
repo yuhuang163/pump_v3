@@ -10,7 +10,8 @@ extern "C" {
 
 /// LVGL 字体声明 - Aeonik soft 26px
 /// 包含字符: 0-9, A-Z, a-z, ' ' ',' '.' '!'
-extern const lv_font_t lv_font_aeonik_soft_26_regular;
+extern const lv_font_t lv_font_aeonik_soft_26_bold;
+extern const lv_font_t lv_font_aeonik_soft_26_semibold;
 
 #ifdef __cplusplus
 }
