@@ -11,7 +11,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_CHARGE_ADAPTER_COMP_BG              (1)
+#define IS_SUPPORT_CHARGE_ADAPTER_COMP_BG              (0)
 #define CHARGE_ADAPTER_TEXT_COUNT                      (2)
 #define CHARGE_ADAPTER_ICON_Y                          (104)
 #define CHARGE_ADAPTER_TITLE_Y                         (193)

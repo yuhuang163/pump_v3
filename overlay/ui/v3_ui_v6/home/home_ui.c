@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_message.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
@@ -14,7 +13,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_HOME_UI_TEST                         (1)
+#define IS_SUPPORT_HOME_UI_TEST                         (0)
 #define HOME_POPUP_WINDOW_ID                            (ID_POPUP_UI_BT_CONNECTING)
 
 /*

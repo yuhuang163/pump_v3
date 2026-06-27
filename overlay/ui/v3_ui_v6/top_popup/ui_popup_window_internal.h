@@ -22,7 +22,7 @@ extern "C" {
 #define POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME                      (100)
 
 /// 支持窗口背景图片
-#define IS_SUPPORT_POPUP_WINDOW_COMP_BG                            (1)
+#define IS_SUPPORT_POPUP_WINDOW_COMP_BG                            (0)
 
 typedef struct {
     lv_obj_t *obj;
