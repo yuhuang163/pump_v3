@@ -3,6 +3,8 @@
 *****************************************************************************************
 */
 #include "home_base_ui_internal.h" // IWYU pragma: keep
+#include "breast_pump_manager_api.h" // IWYU pragma: keep
+#include "root_message.h"
 #include "window_screen_home.h" // IWYU pragma: keep
 
 /*
@@ -10,6 +12,11 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_ROOT_HOME_COMP_BG                (0)
+#if IS_SUPPORT_ROOT_HOME_COMP_BG
+#define IS_SUPPORT_HOME_UI_TEST                     (1)
+#else
+#define IS_SUPPORT_HOME_UI_TEST                     (0)
+#endif
 #define PUMP_TIME_TEXT_COLOR                        (0xB25962)
 
 /*
@@ -18,7 +25,10 @@
 */
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
-    #include "comparison_png2txt/home_ip3_360x360.txt"
+    // #include "comparison_png2txt/home_ip3_360x360.txt"
+    // #include "comparison_png2txt/pump_pause_popup_360x360.txt"
+    // #include "comparison_png2txt/pumping_timeout_360x360.txt"
+    #include "comparison_png2txt/pump_30m_tip_360x360.txt"
     // #include "comparison_png2txt/home_ip2_360x360.txt"
     // #include "comparison_png2txt/home_ip3_360x360.txt"
     // #include "comparison_png2txt/home_idle2_360x360.txt"
@@ -38,6 +48,63 @@ static home_base_ui_info_t *home_info;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+bool home_base_blink_visible_get(const home_base_ui_info_t *info)
+{
+    if (info->mode.mode_blink_state == 0 && info->mode.icon_blink_state == 0 &&
+        info->level.left_blink_state == 0 && info->level.right_blink_state == 0) {
+        return true;
+    }
+    return BLE_UI_BLINK_VISIBLE(info->state_blink_time);
+}
+
+void home_base_blink_state_update(home_base_ui_info_t *info,
+    uint8_t pump_mode_display_type, int pump_mode, uint8_t pump_level_display_type)
+{
+    uint8_t new_mode_blink = 0;
+    uint8_t new_icon_blink = 0;
+    uint8_t new_left_level_blink = 0;
+    uint8_t new_right_level_blink = 0;
+
+    if (pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_NORMAL_MODE &&
+        PUMP_IS_COMMON_MODE(pump_mode)) {
+        new_mode_blink = 1;
+    } else if (pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_BF_MODE &&
+        PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
+        new_mode_blink = 1;
+        new_icon_blink = 1;
+    }
+
+    switch (pump_level_display_type) {
+        case HOME_PUMP_LEVEL_DISPLAY_LEFT_ADJUST:
+            new_left_level_blink = 1;
+            break;
+        case HOME_PUMP_LEVEL_DISPLAY_RIGHT_ADJUST:
+            new_right_level_blink = 1;
+            break;
+        case HOME_PUMP_LEVEL_DISPLAY_BOTH_ADJUST:
+            new_left_level_blink = 1;
+            new_right_level_blink = 1;
+            break;
+        default:
+            break;
+    }
+
+    const uint8_t old_any_blink = (info->mode.mode_blink_state != 0 ||
+        info->mode.icon_blink_state != 0 ||
+        info->level.left_blink_state != 0 ||
+        info->level.right_blink_state != 0);
+    const uint8_t new_any_blink = (new_mode_blink != 0 || new_icon_blink != 0 ||
+        new_left_level_blink != 0 || new_right_level_blink != 0);
+    if (old_any_blink == 0 && new_any_blink != 0) {
+        info->state_blink_time = get_timestamp();
+    }
+
+    info->mode.mode_blink_state = new_mode_blink;
+    info->mode.icon_blink_state = new_icon_blink;
+    info->level.left_blink_state = new_left_level_blink;
+    info->level.right_blink_state = new_right_level_blink;
+}
+
 static void home_root_init(void)
 {
     if (home_info->root == NULL || !lv_obj_is_valid(home_info->root)) {
@@ -133,7 +200,7 @@ void home_base_ui_remove(ui_manager_context_t *thiz)
     home_pump_level_ui_remove(home_info);
     home_pump_mode_ui_remove(home_info);
     home_pump_label_ui_remove(home_info);
-    ui_popup_base_remove(thiz);
+    ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(home_info->root);
     u_free(home_info);
     home_info = NULL;
@@ -161,12 +228,27 @@ int home_base_ui_process(ui_manager_context_t *thiz)
         }
     } 
     home_root_bg_update(thiz);
+    
+    #if IS_SUPPORT_HOME_UI_TEST
+    proc->popup_ui_type = ID_POPUP_UI_PUMP_PAUSE_TIMEOUT;
+    #else
+    home_base_blink_state_update(home_info, proc->pump_mode_display_type, pump_mode,
+        proc->pump_level_display_type);
     home_pump_mode_ui_update(home_info);
     home_pump_level_ui_update(home_info);
     home_pump_label_ui_update(home_info);
+    const ble_ui_blink_sync_t ble_sync = {
+        .sync_enable = (home_info->mode.mode_blink_state != 0 ||
+            home_info->mode.icon_blink_state != 0 ||
+            home_info->level.left_blink_state != 0 ||
+            home_info->level.right_blink_state != 0) ? 1 : 0,
+        .blink_time = home_info->state_blink_time,
+    };
     ble_ui_update(thiz, home_info->root, proc->ble,
-        PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y, NULL);
-    ui_popup_base_update(thiz, proc->popup_ui_type, 
+        PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y, &ble_sync);
+    #endif
+
+    ui_popup_update(thiz, proc->popup_ui_type,
         home_info->root, &home_info->popup_ui_index);
     home_info->force_update = false;
     thiz->priv.fps_count++;

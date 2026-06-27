@@ -35,6 +35,7 @@ int pump_level_adjust_type_update(ui_proc_pump_t *proc, uint8_t is_left)
     if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
         show_pump_home_ui(proc);
     }
+    pump_mode_adjust_exit_handler(proc);
     proc->level_adjust_time = get_timestamp();
     if (is_left) {
         proc->pump_level_display_type = PUMP_LEVEL_DISPLAY_LEFT_ADJUST;
@@ -59,6 +60,7 @@ int pump_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase)
         proc->pump_level_display_type = PUMP_LEVEL_DISPLAY_BOTH_ADJUST;
         proc->level_adjust_pump_num = 2;
         proc->level_adjust_pump_index = 0;
+        pump_mode_adjust_exit_handler(proc);
     }
     READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
     pump_setting_t setting_before = proc->setting;
@@ -106,6 +108,16 @@ void pump_level_adjust_timeout_handler(ui_proc_pump_t *proc)
     }
 
     if (get_timestamp_ms(proc->level_adjust_time) < PUMP_LEVEL_DISPLAY_TIMEOUT) {
+        return;
+    }
+    proc->pump_level_display_type = PUMP_LEVEL_DISPLAY_DEFAULT;
+    proc->level_adjust_time = get_timestamp();
+}
+
+void pump_level_adjust_exit_handler(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->pump_level_display_type == PUMP_LEVEL_DISPLAY_DEFAULT) {
         return;
     }
     proc->pump_level_display_type = PUMP_LEVEL_DISPLAY_DEFAULT;

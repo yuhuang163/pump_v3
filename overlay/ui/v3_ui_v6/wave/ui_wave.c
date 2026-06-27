@@ -6,6 +6,7 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "lvgl.h" // IWYU pragma: keep
 
+#if IS_SUPPORT_WAVE_OBJECT_ENABLE
 /*
 * DEFINES
 *****************************************************************************************
@@ -833,3 +834,4 @@ void ui_wave_refresh(ui_wave_t *wave)
         wave_redraw_full(wave);
     }
 }
+#endif

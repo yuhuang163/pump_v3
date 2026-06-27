@@ -16,12 +16,10 @@
 #define PAGE_NAME_STR                               "home"
 #define HOME_UI_KEY_CODE                            ALL_KEY_CODE_NO_COMBINE
 #define HOME_UI_KEY_TYPE                            KEY_EVENT_CLICK
-#define HOME_START_KEY_EVENT_TASK_NAME              "home_start_key_event_task"
 #define HOME_BROADCAST_TASK_NAME                    "home_broadcast_task"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(HOME_START_KEY_EVENT_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_BROADCAST_TASK_NAME); \
 } while (0)
 
@@ -40,9 +38,8 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void home_start_key_event_ui_cb(hdr_post_args_t *args)
+static void home_start_key_event_handler(ui_proc_home_t *proc)
 {
-    ui_proc_home_t *proc = args->user_data;
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
     EXCEPTION_CHECK_VOID(proc->battery);
     uint8_t battery_state = proc->battery->get_battery_state();
@@ -154,7 +151,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
                 LOG_WM("pump result, ignore key event.");
             } else {
-                POST_WM_TASK_HANDLER_NO_DELAY(home_start_key_event_ui_cb, proc, HOME_START_KEY_EVENT_TASK_NAME);
+                home_start_key_event_handler(proc);
             }
             break;
         case KEY_CODE_KNOB_LEFT:

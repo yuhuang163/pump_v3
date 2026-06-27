@@ -41,19 +41,19 @@ static const motor_policy_manager_t *breast_pump_mode_policy_get(struct motor_ma
         LIST_FOR_EACH(pos, head) {
             breast_pump_policy_node_t *node = CONTAINER_OF(pos, breast_pump_policy_node_t, list);
             if (node->breast_pump_mode == breast_pump_mode) {
-                LOG_MOTOR("==> find name: %s, breast_pump_mode: %d", node->name, breast_pump_mode);
+                LOG_MOTOR("==> find name: %s/%d", node->name, breast_pump_mode);
                 if (node->get_policy_cb == NULL) {
-                    LOGE("policy get cb null, name: %s, breast_pump_mode: %d", node->name, breast_pump_mode);
+                    LOGE("policy get cb null, name: %s/%d", node->name, breast_pump_mode);
                     return NULL;
                 }
                 const motor_policy_manager_t *policy_obj = node->get_policy_cb(node->user_data);
 
                 if (!is_valid_motor_policy_obj(policy_obj)) {
-                    LOGE("invalid policy obj: %p, name: %s, breast_pump_mode: %d",
+                    LOGE("invalid policy obj: %p, name: %s/%d",
                         policy_obj, node->name, breast_pump_mode);
                     return NULL;
                 } else {
-                    LOG_MOTOR("==> policy obj: %p, name: %s, breast_pump_mode: %d",
+                    LOG_MOTOR("==> policy obj: %p, name: %s/%d",
                         policy_obj, node->name, breast_pump_mode);
                 }
                 return policy_obj;
@@ -301,7 +301,7 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
     LOG_MOTOR("%s mode policy", mode_name);
     if (!is_valid_motor_policy_obj(policy_obj)) {
-        LOGE("invalid policy obj: %p, mode: %s, breast_pump_mode: %d",
+        LOGE("invalid policy obj: %p, mode: %s/%d",
             policy_obj, mode_name, body->breast_pump_mode);
         // return; /// 不返回, 触发重启复现问题
     }

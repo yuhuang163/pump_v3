@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "persist_storage.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
@@ -93,6 +94,43 @@ static void home_pump_mode_title_update(home_base_ui_info_t *info, const char *t
     lv_obj_align(info->mode.title, LV_ALIGN_TOP_LEFT, title_x, HOME_MODE_TITLE_Y);
 }
 
+static void home_pump_mode_obj_visible_set(lv_obj_t *obj, bool visible)
+{
+    if (obj == NULL || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    if (visible) {
+        lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void home_pump_mode_title_blink_apply(home_base_ui_info_t *info)
+{
+    const bool visible = (info->mode.mode_blink_state == 0) ||
+        home_base_blink_visible_get(info);
+    home_pump_mode_obj_visible_set(info->mode.title, visible);
+}
+
+static void home_pump_mode_icon_blink_apply(home_base_ui_info_t *info)
+{
+    if (info->mode.icon == NULL || !lv_obj_is_valid(info->mode.icon)) {
+        return;
+    }
+    const bool visible = (info->mode.icon_blink_state == 0) ||
+        home_base_blink_visible_get(info);
+    home_pump_mode_obj_visible_set(info->mode.icon, visible);
+}
+
+static bool home_pump_mode_need_update(home_base_ui_info_t *info)
+{
+    if (info->force_update) {
+        return true;
+    }
+    return info->mode.index != info->mode.new_index;
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -106,42 +144,43 @@ void home_pump_mode_ui_remove(home_base_ui_info_t *info)
 
 void home_pump_mode_ui_update(home_base_ui_info_t *info)
 {
-    if (info->mode.index == info->mode.new_index && info->force_update == false) {
-        return;
+    // info->mode.new_index = BREAST_PUMP_CUSTOM_MODE;
+    if (home_pump_mode_need_update(info)) {
+        switch (info->mode.new_index) {
+            default:
+            case BREAST_PUMP_STIMULATION_MODE: {
+                home_pump_mode_idle_wave_update(info, BASE_RES_ID_STIMULATION_WAVE);
+                home_pump_mode_title_update(info, "Stimulation", 0);
+                break;
+            }
+            case BREAST_PUMP_LACTATION_MODE: {
+                home_pump_mode_idle_wave_update(info, BASE_RES_ID_LACTATION_WAVE);
+                home_pump_mode_title_update(info, "Expression", 0);
+                break;
+            }
+            case BREAST_PUMP_MIX_MODE: {
+                home_pump_mode_idle_wave_update(info, BASE_RES_ID_MIX_WAVE);
+                home_pump_mode_title_update(info, "Mixed", 0);
+                break;
+            }
+            case BREAST_PUMP_CUSTOM_MODE: {
+                home_pump_mode_idle_wave_update(info, 0);
+                char custom_str[24] = {0};
+                sprintf(custom_str, "Customized %02d", info->mode.custom_mode_id);
+                home_pump_mode_title_update(info, custom_str, BASE_RES_ID_PUMP_RHYTHM_ICON);
+                break;
+            }
+            case BREAST_PUMP_MILK_BOOST_MODE:
+                home_pump_mode_idle_wave_update(info, BASE_RES_ID_MILK_BOOST_WAVE);
+                home_pump_mode_title_update(info, "Milk Boost", BASE_RES_ID_PUMP_RHYTHM_ICON);
+                break;
+            case BREAST_PUMP_PP_MILK_TRACK_MODE:
+                home_pump_mode_idle_wave_update(info, BASE_RES_ID_POWER_PUMPING_WAVE);
+                home_pump_mode_title_update(info, "Power Pumping", BASE_RES_ID_PUMP_RHYTHM_ICON);
+                break;
+        }
+        info->mode.index = info->mode.new_index;
     }
-    // info->mode.new_index = BREAST_PUMP_LACTATION_MODE;
-    switch (info->mode.new_index) {
-        default:
-        case BREAST_PUMP_STIMULATION_MODE: {
-            home_pump_mode_idle_wave_update(info, BASE_RES_ID_STIMULATION_WAVE);
-            home_pump_mode_title_update(info, "STIMULATION", 0);
-            break;
-        }
-        case BREAST_PUMP_LACTATION_MODE: {
-            home_pump_mode_idle_wave_update(info, BASE_RES_ID_LACTATION_WAVE);
-            home_pump_mode_title_update(info, "EXPRESSION", 0);
-            break;
-        }
-        case BREAST_PUMP_MIX_MODE: {
-            home_pump_mode_idle_wave_update(info, BASE_RES_ID_MIX_WAVE);
-            home_pump_mode_title_update(info, "MIXED", 0);
-            break;
-        }
-        case BREAST_PUMP_CUSTOM_MODE: {
-            home_pump_mode_idle_wave_update(info, 0);
-            char custom_str[24] = {0};
-            sprintf(custom_str, "Customized %02d", info->mode.custom_mode_id);
-            home_pump_mode_title_update(info, custom_str, BASE_RES_ID_PUMP_RHYTHM_ICON);
-            break;
-        }
-        case BREAST_PUMP_MILK_BOOST_MODE:
-            home_pump_mode_idle_wave_update(info, BASE_RES_ID_MILK_BOOST_WAVE);
-            home_pump_mode_title_update(info, "Milk Boost", BASE_RES_ID_PUMP_RHYTHM_ICON);
-            break;
-        case BREAST_PUMP_PP_MILK_TRACK_MODE:
-            home_pump_mode_idle_wave_update(info, BASE_RES_ID_POWER_PUMPING_WAVE);
-            home_pump_mode_title_update(info, "Power Pumping", BASE_RES_ID_PUMP_RHYTHM_ICON);
-            break;
-    }
-    info->mode.index = info->mode.new_index;
+    home_pump_mode_title_blink_apply(info);
+    home_pump_mode_icon_blink_apply(info);
 }

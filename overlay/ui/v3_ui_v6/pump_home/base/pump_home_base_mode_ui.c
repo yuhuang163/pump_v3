@@ -127,15 +127,15 @@ void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info)
         switch (info->mode.new_index) {
             default:
             case BREAST_PUMP_STIMULATION_MODE:
-                pump_home_mode_title_update(info, "STIMULATION");
+                pump_home_mode_title_update(info, "Stimulation");
                 pump_home_mode_name_update(info, NULL, 0, 0);
                 break;
             case BREAST_PUMP_LACTATION_MODE:
-                pump_home_mode_title_update(info, "EXPRESSION");
+                pump_home_mode_title_update(info, "Expression");
                 pump_home_mode_name_update(info, NULL, 0, 0);
                 break;
             case BREAST_PUMP_MIX_MODE:
-                pump_home_mode_title_update(info, "MIXED");
+                pump_home_mode_title_update(info, "Mixed");
                 pump_home_mode_name_update(info, NULL, 0, 0);
                 break;
             case BREAST_PUMP_MILK_BOOST_MODE:

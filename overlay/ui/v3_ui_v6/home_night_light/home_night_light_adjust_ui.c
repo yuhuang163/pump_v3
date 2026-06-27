@@ -5,7 +5,8 @@
 #include "ui_img_define.h" // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
-#include "home_night_light_adjust_ui_internal.h" // IWYU pragma: keep
+#include "home_night_light_adjust_base_ui_internal.h" // IWYU pragma: keep
+#include "home_night_light_adjust_custom_ui_internal.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
 
 /*

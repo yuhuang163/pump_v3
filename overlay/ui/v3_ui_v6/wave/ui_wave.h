@@ -17,6 +17,7 @@ typedef struct _lv_obj_t lv_obj_t;
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_WAVE_OBJECT_ENABLE            (0) // 是否支持动画效果
 #define UI_WAVE_WIDTH                314
 #define UI_WAVE_HEIGHT               21
 #define UI_WAVE_NARROW_COUNT         8

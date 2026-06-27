@@ -30,12 +30,15 @@ typedef struct {
     lv_obj_t *progress_bg;
     uint8_t value;
     uint8_t new_value;
+    uint8_t adjust_active; /// 0: 默认样式, 1: 调节样式.
 } pump_home_base_level_t;
 
 typedef struct {
     pump_home_base_level_t left;
     pump_home_base_level_t right;
     lv_obj_t *separator;
+    uint8_t left_blink_state; /// 左力度闪烁: 0: 不闪烁, 1: 闪烁.
+    uint8_t right_blink_state; /// 右力度闪烁: 0: 不闪烁, 1: 闪烁.
 } pump_home_base_level_info_t;
 
 typedef struct {
@@ -124,7 +127,8 @@ void pump_home_base_animation_ui_update(pump_home_base_ui_info_t *info);
 
 bool pump_home_base_blink_visible_get(const pump_home_base_ui_info_t *info);
 void pump_home_base_blink_state_update(pump_home_base_ui_info_t *info,
-    uint8_t pump_mode_display_type, int pump_mode, int pump_status);
+    uint8_t pump_mode_display_type, int pump_mode, int pump_status,
+    uint8_t pump_level_display_type);
 
 void pump_home_base_ui_prepare(ui_manager_context_t *thiz);
 void pump_home_base_ui_remove(ui_manager_context_t *thiz);

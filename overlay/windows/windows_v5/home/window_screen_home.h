@@ -135,17 +135,18 @@ typedef struct {
 void start_home_ui_animation(ui_proc_home_t *proc);
 void start_home_idle_ui_animation(ui_proc_home_t *proc);
 void stop_home_common_ui(ui_proc_home_t *proc);
-void home_start_key_event_handler(ui_proc_home_t *proc);
 
 /// 模式选择界面按键处理
 int home_pump_mode_adjust_handler(ui_proc_home_t *proc, bool is_bf_mode);
 void home_pump_mode_adjust_timeout_handler(ui_proc_home_t *proc);
 void home_pump_mode_adjust_ui_exit(ui_proc_home_t *proc);
+void home_pump_mode_adjust_exit_handler(ui_proc_home_t *proc);
 
 /// 档位调节功能处理
 int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase);
 int home_pump_level_adjust_type_update(ui_proc_home_t *proc, uint8_t is_left);
 void home_pump_level_adjust_timeout_handler(ui_proc_home_t *proc);
+void home_pump_level_adjust_exit_handler(ui_proc_home_t *proc);
 
 /// 弹窗类型更新
 void home_popup_ui_type_update(ui_proc_home_t *proc, popup_ui_id_e type);

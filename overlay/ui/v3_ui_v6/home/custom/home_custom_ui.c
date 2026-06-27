@@ -149,21 +149,21 @@ static home_display_info_t *home_info;
 
 const static home_text_info_t home_text_infos[HOME_TEXT_ID_MAX] = {
     {"Click         to start pumping", BASE_RES_ID_HOME_NARROW_LABLE, 
-        IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
+        IDLE_LABEL_TEXT_X, IDLE_LABEL_TEXT_Y, false, &lv_font_aeonik_soft_16_medium},
     {"since last pumping session", BASE_RES_ID_HOME_WIDTH_LABLE, 
-        0, IDLE_RECORD_LABEL_TEXT_Y, false, &lv_font_oppo_sans_16_medium},
+        0, IDLE_RECORD_LABEL_TEXT_Y, false, &lv_font_aeonik_soft_16_medium},
     {"Fast, gentle suction to\ntrigger let-down", BASE_RES_ID_HOME_WIDTH_LABLE, 
-        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
+        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_aeonik_soft_16_medium},
     {"Slow, deep suction for\nefficient milk expression", BASE_RES_ID_HOME_WIDTH_LABLE, 
-        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
+        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_aeonik_soft_16_medium},
     {"Efficiently promote let-\ndown and better emptying", BASE_RES_ID_HOME_WIDTH_LABLE, 
-        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
+        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_aeonik_soft_16_medium},
     {"Most suitable for daily use\nafter successful lactation", BASE_RES_ID_HOME_WIDTH_LABLE, 
-        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
+        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_aeonik_soft_16_medium},
     {"Increase milk supply, no\nmore than once a day", BASE_RES_ID_HOME_WIDTH_LABLE, 
-        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},
+        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_aeonik_soft_16_medium},
     {"Edit and sync anytime via\nthe Momcozy App", BASE_RES_ID_HOME_WIDTH_LABLE, 
-        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_oppo_sans_16_medium},   
+        0, MODE_DESC_LABEL_TEXT_Y, true, &lv_font_aeonik_soft_16_medium},   
 };
 
 const static home_mode_info_t home_mode_infos[HOME_MODE_MAX_COUNT] = {
@@ -426,7 +426,7 @@ static int home_pump_left_level_text_update(ui_manager_context_t *thiz, uint8_t 
         home_info->left_progress_text = lv_label_create(home_info->root);
         EXCEPTION_CHECK_INT(home_info->left_progress_text);
         lv_obj_set_style_text_color(home_info->left_progress_text, lv_color_hex(PUMP_TIME_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(home_info->left_progress_text, &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(home_info->left_progress_text, &lv_font_aeonik_soft_16_medium, 0);
     }
     snprintf(level_text, sizeof(level_text), "%d", level);
     lv_label_set_text(home_info->left_progress_text, level_text);
@@ -522,7 +522,7 @@ static int home_pump_right_level_text_update(ui_manager_context_t *thiz, uint8_t
         home_info->right_progress_text = lv_label_create(home_info->root);
         EXCEPTION_CHECK_INT(home_info->right_progress_text);
         lv_obj_set_style_text_color(home_info->right_progress_text, lv_color_hex(PUMP_TIME_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(home_info->right_progress_text, &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(home_info->right_progress_text, &lv_font_aeonik_soft_16_medium, 0);
     } 
     snprintf(level_text, sizeof(level_text), "%d", level);
     lv_label_set_text(home_info->right_progress_text, level_text);
@@ -641,7 +641,7 @@ static void home_pump_mode_update(ui_manager_context_t *thiz, uint8_t mode_index
         home_info->mode_text = lv_label_create(home_info->mode_label);
         EXCEPTION_CHECK_VOID(home_info->mode_text);
         lv_obj_set_style_text_color(home_info->mode_text, lv_color_hex(MODE_TEXT_SEL_COLOR), 0);
-        lv_obj_set_style_text_font(home_info->mode_text, &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(home_info->mode_text, &lv_font_aeonik_soft_16_medium, 0);
         lv_obj_align(home_info->mode_text, LV_ALIGN_LEFT_MID, 40, 0); /// 设置label文字位置
     } 
     
@@ -713,7 +713,7 @@ void home_custom_ui_remove(ui_manager_context_t *thiz)
     ui_img_resource_deinit(thiz, &home_info->speed_icon_info);
     ui_img_resource_deinit(thiz, &home_info->mode_icon_info);
     ble_ui_deinit(thiz);
-    ui_popup_custom_remove(thiz);
+    ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(home_info->root);
     u_free(home_info);
     home_info = NULL;
@@ -747,7 +747,7 @@ int home_custom_ui_process(ui_manager_context_t *thiz)
     home_pump_speed_label_update(thiz, setting.speed);
     home_pump_mode_update(thiz, pump_mode);
     home_ui_update(thiz, proc);
-    ui_popup_custom_update(thiz, proc->popup_ui_type, home_info->root,
+    ui_popup_update(thiz, proc->popup_ui_type, home_info->root,
         &home_info->popup_ui_index);
     home_info->force_update = false;
     thiz->priv.fps_count++;

@@ -107,7 +107,7 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
         int pump_status = 0;
         READ_PUMP_WORK_STATUS(proc->pump, pump_status);
         if (pump_status == BREAST_PUMP_PAUSE) {
-            pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_MANUAL);
+            // pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_MANUAL);
         } else {
             pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         }
@@ -135,10 +135,6 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         if (proc->forbid_start_pump) {
             LOG_UI("forbid start pump, ignore.");
             return;
-        }
-        
-        if (pump_status != BREAST_PUMP_PAUSE) {
-            WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_mode_index, true, 1);
         }
         
         int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;    
@@ -178,7 +174,9 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
             proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
         }
         show_pump_home_ui(proc);
-        pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_MANUAL);
+        // pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_MANUAL);
+        pump_mode_adjust_exit_handler(proc);
+        pump_level_adjust_exit_handler(proc);
         LOG_UI("pump stop ui create: %d", pump_status);
     }
 }

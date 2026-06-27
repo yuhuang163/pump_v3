@@ -1,7 +1,6 @@
 #ifndef __RESOURCE_BASE_ID_DEFINE_H__
 #define __RESOURCE_BASE_ID_DEFINE_H__
 
-#include "project_partitions.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,6 +31,7 @@ typedef enum {
     BASE_RES_ID_COMMON_BG = 100, /// 通用背景
     BASE_RES_ID_START_LOGO_ICON, /// 启动LOGO
     BASE_RES_ID_HOME_WIDTH_LABLE, /// 主页宽标签
+    BASE_RES_ID_HOME_BIG_LABLE, /// 主页大标签
     BASE_RES_ID_HOME_NARROW_LABLE, /// 主页窄标签
     BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, /// 飞行模式解锁按钮图标
     BASE_RES_ID_HOME_BLE_LABEL, /// 主页蓝牙标签
@@ -43,6 +43,10 @@ typedef enum {
     BASE_RES_ID_GUIDE_PAGE4_IMG, /// 引导-页4图片
     BASE_RES_ID_GUIDE_PAGE5_IMG, /// 引导-页5图片
     BASE_RES_ID_GUIDE_PAGE6_IMG, /// 引导-页6图片
+    BASE_RES_ID_SYS_THEME_IMG, /// 系统主题引导背景
+    BASE_RES_ID_IP_THEME_IMG, /// IP主题引导背景
+    BASE_RES_ID_THEME_SELECT_ICON, /// 主题选择引导图标
+    BASE_RES_ID_THEME_UNSELECT_ICON, /// 主题未选择引导图标
 
     /* 模式相关组 [200..300]（大图 + 小图标） */
     BASE_RES_ID_HOME_IDLE_ICON = 200, /// 空闲界面图标
@@ -59,8 +63,11 @@ typedef enum {
     BASE_RES_ID_CUSTOM_WAVE, /// 个性化模式波形
     BASE_RES_ID_PUMP_LEVEL_SEPARATOR, /// 泵奶力度分割符
     BASE_RES_ID_PUMP_LEVEL_BG, /// 泵奶力度背景
+    BASE_RES_ID_PUMP_LEVEL_BIG_BG, /// 泵奶力度大背景
     BASE_RES_ID_PUMP_LEVEL_INDICATOR, /// 泵奶力度指示符
+    BASE_RES_ID_PUMP_LEVEL_BIG_INDICATOR, /// 泵奶力度大指示符
     BASE_RES_ID_PUMP_RHYTHM_ICON, /// 泵奶节奏图标
+    BASE_RES_ID_PUMP_RELAX_ICON, /// 泵奶放松图标
 
     /* 动画组 [1000..] */
     BASE_RES_ID_LONG_SUCTION_ANIM_START = 1000, /// 长吸动画-开始

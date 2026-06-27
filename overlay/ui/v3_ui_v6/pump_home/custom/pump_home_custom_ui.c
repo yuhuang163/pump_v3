@@ -376,7 +376,7 @@ static int pump_home_left_level_text_update(ui_manager_context_t *thiz, uint8_t 
         pump_info->left_progress_text = lv_label_create(pump_info->root);
         EXCEPTION_CHECK_INT(pump_info->left_progress_text);
         lv_obj_set_style_text_color(pump_info->left_progress_text, lv_color_hex(PUMP_TIME_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(pump_info->left_progress_text, &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(pump_info->left_progress_text, &lv_font_aeonik_soft_16_medium, 0);
     }
     snprintf(level_text, sizeof(level_text), "%d", level);
     lv_label_set_text(pump_info->left_progress_text, level_text);
@@ -471,7 +471,7 @@ static int pump_home_right_level_text_update(ui_manager_context_t *thiz, uint8_t
         pump_info->right_progress_text = lv_label_create(pump_info->root);
         EXCEPTION_CHECK_INT(pump_info->right_progress_text);
         lv_obj_set_style_text_color(pump_info->right_progress_text, lv_color_hex(PUMP_TIME_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(pump_info->right_progress_text, &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(pump_info->right_progress_text, &lv_font_aeonik_soft_16_medium, 0);
     } 
     snprintf(level_text, sizeof(level_text), "%d", level);
     lv_label_set_text(pump_info->right_progress_text, level_text);
@@ -582,7 +582,7 @@ static void pump_home_common_mode_update(ui_manager_context_t *thiz, uint8_t mod
         pump_info->common_mode_text = lv_label_create(pump_info->mode_label);
         EXCEPTION_CHECK_VOID(pump_info->common_mode_text);
         lv_obj_set_style_text_color(pump_info->common_mode_text, lv_color_hex(MODE_TEXT_SEL_COLOR), 0);
-        lv_obj_set_style_text_font(pump_info->common_mode_text, &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(pump_info->common_mode_text, &lv_font_aeonik_soft_16_medium, 0);
         lv_obj_align(pump_info->common_mode_text, LV_ALIGN_LEFT_MID, 40, 0); /// 设置label文字位置
     } 
 
@@ -655,7 +655,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         pump_info->bf_mode_left_text = lv_label_create(pump_info->bf_mode_left_label);
         EXCEPTION_CHECK_VOID(pump_info->bf_mode_left_text);
         lv_obj_set_style_text_color(pump_info->bf_mode_left_text, lv_color_hex(MODE_TEXT_SEL_COLOR), 0);
-        lv_obj_set_style_text_font(pump_info->bf_mode_left_text, &lv_font_oppo_sans_14_medium, 0);
+        lv_obj_set_style_text_font(pump_info->bf_mode_left_text, &lv_font_aeonik_soft_16_medium, 0);
         lv_obj_align(pump_info->bf_mode_left_text, LV_ALIGN_CENTER, 0, 0); /// 设置label文字位置
     } 
 
@@ -677,7 +677,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         pump_info->bf_mode_right_text = lv_label_create(pump_info->bf_mode_right_label);
         EXCEPTION_CHECK_VOID(pump_info->bf_mode_right_text);
         lv_obj_set_style_text_color(pump_info->bf_mode_right_text, lv_color_hex(MODE_TEXT_UNSEL_COLOR), 0);
-        lv_obj_set_style_text_font(pump_info->bf_mode_right_text, &lv_font_oppo_sans_14_medium, 0);
+        lv_obj_set_style_text_font(pump_info->bf_mode_right_text, &lv_font_aeonik_soft_16_medium, 0);
         lv_obj_align(pump_info->bf_mode_right_text, LV_ALIGN_CENTER, 0, 0); /// 设置label文字位置
     } 
 
@@ -686,7 +686,7 @@ static void pump_home_custom_mode_update(ui_manager_context_t *thiz, uint8_t mod
         pump_info->bf_mode_center_text = lv_label_create(pump_info->root);
         EXCEPTION_CHECK_VOID(pump_info->bf_mode_center_text);
         lv_obj_set_style_text_color(pump_info->bf_mode_center_text, lv_color_hex(0xB25962), 0);
-        lv_obj_set_style_text_font(pump_info->bf_mode_center_text, &lv_font_oppo_sans_14_medium, 0);
+        lv_obj_set_style_text_font(pump_info->bf_mode_center_text, &lv_font_aeonik_soft_16_medium, 0);
         lv_obj_align(pump_info->bf_mode_center_text, LV_ALIGN_TOP_MID, 0, 59); /// 设置label文字位置
     } 
 
@@ -827,7 +827,7 @@ void pump_home_custom_ui_remove(ui_manager_context_t *thiz)
     ui_img_resource_deinit(thiz, &pump_info->mode_icon_info);
     ui_img_resource_deinit(thiz, &pump_info->bf_mode_step_line_info);
     ble_ui_deinit(thiz);
-    ui_popup_custom_remove(thiz);
+    ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(pump_info->root);
     u_free(pump_info);
     pump_info = NULL;
@@ -866,7 +866,7 @@ int pump_home_custom_ui_process(ui_manager_context_t *thiz)
     pump_home_left_level_update(thiz, setting.level[0]);
     pump_home_right_level_update(thiz, setting.level[1]);
     pump_home_speed_label_update(thiz, setting.speed);
-    ui_popup_custom_update(thiz, proc->popup_ui_type, pump_info->root, &pump_info->popup_ui_index);
+    ui_popup_update(thiz, proc->popup_ui_type, pump_info->root, &pump_info->popup_ui_index);
     pump_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
