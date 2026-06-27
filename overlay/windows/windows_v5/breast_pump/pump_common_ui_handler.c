@@ -30,7 +30,8 @@
 */
 void stop_pump_ui_animation(ui_proc_pump_t *proc)
 {
-    pump_mode_adjust_ui_exit(proc);
+    pump_mode_adjust_exit_handler(proc);
+    pump_level_adjust_exit_handler(proc);
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
@@ -67,7 +68,10 @@ void pump_power_key_handler(ui_proc_pump_t *proc)
 
 void pump_cancel_key_handler(ui_proc_pump_t *proc)
 {
-
+    EXCEPTION_CHECK_VOID(proc);
+    proc->exit_current_ui = true;
+    pump_mode_adjust_exit_handler(proc);
+    pump_level_adjust_exit_handler(proc);
 }
 
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)

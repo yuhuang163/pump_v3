@@ -12,14 +12,46 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_OTA_COMP_BG                      (0)  
+#if IS_SUPPORT_OTA_COMP_BG
+#define IS_SUPPORT_OTA_TEST                         (1)
+#else
+#define IS_SUPPORT_OTA_TEST                         (0)
+#endif
 #define OTA_DESC_TEXT_NUM                           (2)   
 #define OTA_PROGRESS_LINE_WIDTH                     (8)
-#define OTA_PROGRESS_LINE_LENGHT                    (264)
+#define OTA_PROGRESS_LINE_LENGHT                    (272)
 #define OTA_PROGRESS_TEXT_COLOR                     (0x4F4D4D)
-#define OTA_RESULT_TEXT_COLOR                       (0x767676)
+#define OTA_RESULT_TEXT_COLOR                       (0x8C8C8C)
+#define OTA_THEME_DESC_COLOR                        (0x8C8C8C)
 #define OTA_TITL_TEXT_COLOR                         (0xFFFFFF)
-#define OTA_PROGRESS_BAR_COLOR                      (0xB25962)
-#define OTA_PROGRESS_BG_COLOR                       (0x4A4A4A)
+#define OTA_PROGRESS_BAR_COLOR                      (0xBD4060)
+#define OTA_PROGRESS_BG_COLOR                       (0x333232)
+
+#define OTA_FIRMWARE_PROGRESS_Y                     (220)
+#define OTA_RES_PROGRESS_Y                          (254)
+#define OTA_HW_PROGRESS_Y                           (220)
+
+#define OTA_FIRMWARE_SIZE_X                         (45)
+#define OTA_FIRMWARE_SIZE_Y                         (191)
+#define OTA_FIRMWARE_PERCENT_X                      (280)
+#define OTA_FIRMWARE_PERCENT_Y                      (OTA_FIRMWARE_SIZE_Y)
+#define OTA_FIRMWARE_TITLE_Y                        (138)
+
+#define OTA_RES_SIZE_X                              (45)
+#define OTA_RES_SIZE_Y                              (226)
+#define OTA_RES_PERCENT_X                           (280)
+#define OTA_RES_PERCENT_Y                           (OTA_RES_SIZE_Y)
+#define OTA_RES_TITLE_Y                             (104)
+#define OTA_RES_DESC_Y                              (146)
+
+#define OTA_HW_SIZE_X                               (45)
+#define OTA_HW_SIZE_Y                               (191)
+#define OTA_HW_PERCENT_X                            (280)
+#define OTA_HW_PERCENT_Y                            (OTA_HW_SIZE_Y)
+#define OTA_HW_TITLE_Y                              (138)
+
+#define OTA_RESULT_TEXT_Y                           (214)
+#define OTA_RESULT_ICON_Y                           (126)
 
 typedef struct {
     lv_obj_t * root;
@@ -60,57 +92,61 @@ typedef struct {
 static ota_display_info_t *ota_info = NULL;
 #if IS_SUPPORT_OTA_COMP_BG
 static PSRAM_DATA_LOC uint8_t factory_reset_confirm_bg_data[] = {
-    #include "comparison_png2txt/ota_running_360x360.txt"
+    // #include "comparison_png2txt/ota_hw_360x360.txt"
+    // #include "comparison_png2txt/ota_fw_360x360.txt"
+    // #include "comparison_png2txt/ota_them_360x360.txt"
+    // #include "comparison_png2txt/ota_them_fail_360x360.txt"
+    #include "comparison_png2txt/ota_them_ok_360x360.txt"
 };
 #endif
 
 const static ota_text_info_t ota_res_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Theme setting", 
-        &lv_font_oppo_sans_20_medium, OTA_TITL_TEXT_COLOR, 126},
-    {"Restore factory settings to reselect", 
-        &lv_font_oppo_sans_16_medium, OTA_RESULT_TEXT_COLOR, 158}
+        &lv_font_aeonik_soft_28_medium, OTA_TITL_TEXT_COLOR, OTA_RES_TITLE_Y},
+    {"Restore factory settings to\nreselect", 
+        &lv_font_aeonik_soft_24_medium, OTA_THEME_DESC_COLOR, OTA_RES_DESC_Y}
 };
 
 const static ota_text_info_t ota_res_error_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Theme update failed", 
-        &lv_font_oppo_sans_20_medium, OTA_RESULT_TEXT_COLOR, 212},
+    {"Set failed", 
+        &lv_font_aeonik_soft_24_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
     {"", 
-        &lv_font_oppo_sans_16_medium, 0, 0}
+        &lv_font_aeonik_soft_16_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_res_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Theme updated", 
-        &lv_font_oppo_sans_20_medium, OTA_RESULT_TEXT_COLOR, 212},
+    {"Set successfully", 
+        &lv_font_aeonik_soft_24_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
     {"", 
-        &lv_font_oppo_sans_16_medium, 0, 0}
+        &lv_font_aeonik_soft_16_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_app_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Firmware upgrading", 
-        &lv_font_oppo_sans_20_medium, OTA_TITL_TEXT_COLOR, 138},
+        &lv_font_aeonik_soft_28_medium, OTA_TITL_TEXT_COLOR, OTA_FIRMWARE_TITLE_Y},
     {"", 
-        &lv_font_oppo_sans_16_medium, 0, 0}
+        &lv_font_aeonik_soft_16_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_hw_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Hardware upgrading", 
-        &lv_font_oppo_sans_20_medium, OTA_TITL_TEXT_COLOR, 138},
+        &lv_font_aeonik_soft_28_medium, OTA_TITL_TEXT_COLOR, OTA_HW_TITLE_Y},
     {"", 
-        &lv_font_oppo_sans_16_medium, 0, 0}
+        &lv_font_aeonik_soft_16_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_error_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Upgrade failed", 
-        &lv_font_oppo_sans_20_medium, OTA_RESULT_TEXT_COLOR, 212},
+        &lv_font_aeonik_soft_24_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
     {"", 
-        &lv_font_oppo_sans_16_medium, 0, 0}
+        &lv_font_aeonik_soft_16_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Upgrade completed", 
-        &lv_font_oppo_sans_20_medium, OTA_RESULT_TEXT_COLOR, 212},
+        &lv_font_aeonik_soft_24_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
     {"", 
-        &lv_font_oppo_sans_16_medium, 0, 0}
+        &lv_font_aeonik_soft_16_medium, 0, 0}
 };
 
 /*
@@ -138,7 +174,7 @@ static void ui_ota_root_init(void)
 }
 
 static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t progress, bool is_show, 
-    uint16_t y_offset)
+    uint16_t y_offset, int16_t percent_x_offset, int16_t percent_y_offset)
 {
     if (progress > 100) {
         progress = 100;
@@ -149,26 +185,28 @@ static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t progr
     }
 
     if (ota_info->progress_bg == NULL || !lv_obj_is_valid(ota_info->progress_bg)) {
-        ota_info->progress_bg = lv_bar_create(ota_info->root); 
+        ota_info->progress_bg = lv_obj_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->progress_bg);
         lv_obj_set_size(ota_info->progress_bg, OTA_PROGRESS_LINE_LENGHT, OTA_PROGRESS_LINE_WIDTH);
         lv_obj_set_style_radius(ota_info->progress_bg, OTA_PROGRESS_LINE_WIDTH / 2, 0);
         lv_obj_set_style_border_width(ota_info->progress_bg, 0, 0);
         lv_obj_set_style_pad_all(ota_info->progress_bg, 0, 0);
-        lv_obj_set_style_bg_color(ota_info->progress_bg, lv_color_hex(OTA_PROGRESS_BG_COLOR), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(ota_info->progress_bg, LV_OPA_TRANSP, LV_PART_INDICATOR);
-        lv_obj_align(ota_info->progress_bg, LV_ALIGN_TOP_MID, 0, y_offset + 24);
+        lv_obj_set_style_bg_color(ota_info->progress_bg, lv_color_hex(OTA_PROGRESS_BG_COLOR), 0);
+        lv_obj_set_style_bg_opa(ota_info->progress_bg, LV_OPA_COVER, 0);
+        lv_obj_clear_flag(ota_info->progress_bg, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_align(ota_info->progress_bg, LV_ALIGN_TOP_MID, 0, y_offset);
     }
 
     if (ota_info->progress_bar == NULL || !lv_obj_is_valid(ota_info->progress_bar)) {
         ota_info->progress_bar = lv_bar_create(ota_info->progress_bg);
-        EXCEPTION_CHECK_VOID(ota_info->progress_bar);        
+        EXCEPTION_CHECK_VOID(ota_info->progress_bar);
         lv_obj_set_size(ota_info->progress_bar, OTA_PROGRESS_LINE_LENGHT, OTA_PROGRESS_LINE_WIDTH);
         lv_obj_align(ota_info->progress_bar, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_radius(ota_info->progress_bar, OTA_PROGRESS_LINE_WIDTH / 2, 0);
         lv_obj_set_style_border_width(ota_info->progress_bar, 0, 0);
         lv_obj_set_style_pad_all(ota_info->progress_bar, 0, 0);
         lv_obj_set_style_bg_opa(ota_info->progress_bar, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(ota_info->progress_bar, LV_OPA_COVER, LV_PART_INDICATOR);
         lv_obj_set_style_bg_color(ota_info->progress_bar, lv_color_hex(OTA_PROGRESS_BAR_COLOR), LV_PART_INDICATOR);
         lv_obj_set_style_radius(ota_info->progress_bar, OTA_PROGRESS_LINE_WIDTH / 2, LV_PART_INDICATOR);
     }
@@ -176,9 +214,9 @@ static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t progr
     if (ota_info->ota_percent == NULL || !lv_obj_is_valid(ota_info->ota_percent)) {
         ota_info->ota_percent = lv_label_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->ota_percent);
-        lv_obj_set_style_text_font(ota_info->ota_percent, &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(ota_info->ota_percent, &lv_font_aeonik_soft_16_medium, 0);
         lv_obj_set_style_text_color(ota_info->ota_percent, lv_color_hex(OTA_PROGRESS_TEXT_COLOR), 0);
-        lv_obj_align(ota_info->ota_percent, LV_ALIGN_TOP_LEFT, 277, y_offset);
+        lv_obj_align(ota_info->ota_percent, LV_ALIGN_TOP_LEFT, percent_x_offset, percent_y_offset);
         lv_obj_set_style_text_align(ota_info->ota_percent, LV_TEXT_ALIGN_LEFT, 0);
     }
 
@@ -208,7 +246,7 @@ static void ui_ota_icon_update(ui_manager_context_t *thiz, uint16_t img_id, bool
     if (ota_info->icon == NULL || !lv_obj_is_valid(ota_info->icon)) {
         ota_info->icon = lv_image_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->icon);
-        lv_obj_align(ota_info->icon, LV_ALIGN_TOP_MID, 0, 124); /// 设置icon位置
+        lv_obj_align(ota_info->icon, LV_ALIGN_TOP_MID, 0, OTA_RESULT_ICON_Y); /// 设置icon位置
     }
 
     if (!is_show) {
@@ -247,7 +285,7 @@ static void ui_ota_desc_update(ui_manager_context_t *thiz, const ota_text_info_t
 }
 
 static void ui_ota_size_update(ui_manager_context_t *thiz, uint32_t total_size, uint32_t recv_size, 
-    uint8_t is_show, uint16_t y_offset)
+    uint8_t is_show, int16_t x_offset, int16_t y_offset)
 {
     if (ota_info->force_update == false && ota_info->recv_size == recv_size && ota_info->total_size == total_size) {
         return;
@@ -256,9 +294,8 @@ static void ui_ota_size_update(ui_manager_context_t *thiz, uint32_t total_size, 
     if (ota_info->ota_size == NULL || !lv_obj_is_valid(ota_info->ota_size)) {
         ota_info->ota_size = lv_label_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->ota_size);
-        lv_obj_set_style_text_font(ota_info->ota_size, &lv_font_oppo_sans_16_medium, 0);
+        lv_obj_set_style_text_font(ota_info->ota_size, &lv_font_aeonik_soft_16_medium, 0);
         lv_obj_set_style_text_color(ota_info->ota_size, lv_color_hex(OTA_PROGRESS_TEXT_COLOR), 0);
-        lv_obj_align(ota_info->ota_size, LV_ALIGN_TOP_LEFT, 48, y_offset); /// 设置文本位置
         lv_obj_set_style_text_align(ota_info->ota_size, LV_TEXT_ALIGN_LEFT, 0);  /// 设置文本居中对齐
     }
 
@@ -285,6 +322,11 @@ static void ui_ota_size_update(ui_manager_context_t *thiz, uint32_t total_size, 
     }
     LOG_UI("ota progress %s, %d,%d", ota_percent, recv_size, total_size);
     lv_label_set_text(ota_info->ota_size, ota_percent);
+    if (x_offset == 0) {
+        lv_obj_align(ota_info->ota_size, LV_ALIGN_TOP_MID, 0, y_offset);
+    } else {
+        lv_obj_align(ota_info->ota_size, LV_ALIGN_TOP_LEFT, x_offset, y_offset);
+    }
     ota_info->recv_size = recv_size;
     ota_info->total_size = total_size;
 }
@@ -303,48 +345,61 @@ static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, ui
             ui_ota_icon_update(thiz, 0, false);
             if (info.object == OTA_OBJECT_MAIN_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_app_downloading_text_infos);
-                ui_ota_size_update(thiz, info.total_size, info.recv_size, true, 188);
-                ui_ota_progress_arc_update(thiz, info.progress, true, 188);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, true, 
+                    OTA_FIRMWARE_SIZE_X, OTA_FIRMWARE_SIZE_Y);
+                ui_ota_progress_arc_update(thiz, info.progress, true, 
+                    OTA_FIRMWARE_PROGRESS_Y, OTA_FIRMWARE_PERCENT_X, OTA_FIRMWARE_PERCENT_Y);
             } else if (info.object == OTA_OBJECT_IMAGE_RESOURCE) {
                 ui_ota_desc_update(thiz, ota_res_downloading_text_infos);
-                ui_ota_size_update(thiz, info.total_size, info.recv_size, true, 198);
-                ui_ota_progress_arc_update(thiz, info.progress, true, 198);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, true, 
+                    OTA_RES_SIZE_X, OTA_RES_SIZE_Y);
+                ui_ota_progress_arc_update(thiz, info.progress, true, 
+                    OTA_RES_PROGRESS_Y, OTA_RES_PERCENT_X, OTA_RES_PERCENT_Y);
             } else if (info.object == OTA_OBJECT_TOUCH_KEY_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_hw_downloading_text_infos);
-                ui_ota_size_update(thiz, info.total_size, info.recv_size, true, 188);
-                ui_ota_progress_arc_update(thiz, info.progress, true, 188);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, true, 
+                    OTA_HW_SIZE_X, OTA_HW_SIZE_Y);
+                ui_ota_progress_arc_update(thiz, info.progress, true, 
+                    OTA_HW_PROGRESS_Y, OTA_HW_PERCENT_X, OTA_HW_PERCENT_Y);
             }
             break;
         case OTA_UI_STATUS_ERROR:
             ui_ota_icon_update(thiz, BASE_RES_ID_BAN_ICON, true);
             if (info.object == OTA_OBJECT_MAIN_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_error_text_infos);
-                ui_ota_progress_arc_update(thiz, info.progress, false, 188);
-                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 188);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 
+                    OTA_FIRMWARE_SIZE_X, OTA_FIRMWARE_SIZE_Y);
+                ui_ota_progress_arc_update(thiz, info.progress, false, 
+                    OTA_FIRMWARE_PROGRESS_Y, OTA_FIRMWARE_PERCENT_X, OTA_FIRMWARE_PERCENT_Y);
             } else if (info.object == OTA_OBJECT_IMAGE_RESOURCE) {
                 ui_ota_desc_update(thiz, ota_res_error_text_infos);
-                ui_ota_progress_arc_update(thiz, info.progress, false, 198);
-                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 198);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 0, 0);
+                ui_ota_progress_arc_update(thiz, info.progress, false, 
+                    OTA_RES_PROGRESS_Y, OTA_RES_PERCENT_X, OTA_RES_PERCENT_Y);
             } else if (info.object == OTA_OBJECT_TOUCH_KEY_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_error_text_infos);
-                ui_ota_progress_arc_update(thiz, info.progress, false, 188);
-                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 188);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 0, 0);
+                ui_ota_progress_arc_update(thiz, info.progress, false, 
+                    OTA_HW_PROGRESS_Y, OTA_HW_PERCENT_X, OTA_HW_PERCENT_Y);
             }
             break;
         case OTA_UI_STATUS_COMPLETE:
             ui_ota_icon_update(thiz, BASE_RES_ID_ALLOW_ICON, true);
             if (info.object == OTA_OBJECT_MAIN_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_suceess_text_infos);
-                ui_ota_progress_arc_update(thiz, info.progress, false, 188);
-                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 188);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 0, 0);
+                ui_ota_progress_arc_update(thiz, info.progress, false, 
+                    OTA_FIRMWARE_PROGRESS_Y, OTA_FIRMWARE_PERCENT_X, OTA_FIRMWARE_PERCENT_Y);
             } else if (info.object == OTA_OBJECT_IMAGE_RESOURCE) {
                 ui_ota_desc_update(thiz, ota_res_suceess_text_infos);
-                ui_ota_progress_arc_update(thiz, info.progress, false, 198);
-                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 198);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 0, 0);
+                ui_ota_progress_arc_update(thiz, info.progress, false, 
+                    OTA_RES_PROGRESS_Y, OTA_RES_PERCENT_X, OTA_RES_PERCENT_Y);
             } else if (info.object == OTA_OBJECT_TOUCH_KEY_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_suceess_text_infos);
-                ui_ota_progress_arc_update(thiz, info.progress, false, 188);
-                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 188);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, false, 0, 0);
+                ui_ota_progress_arc_update(thiz, info.progress, false, 
+                    OTA_HW_PROGRESS_Y, OTA_HW_PERCENT_X, OTA_HW_PERCENT_Y);
             }
             break;
     }
@@ -393,6 +448,9 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
     ui_ota_root_init(); /// 初始化 root 容器
     ota_info->force_update = true;
     ota_info->progress = 0;
+#if IS_SUPPORT_OTA_TEST
+    ota_info->res_theme_type = RES_THEME_TYPE_BASE;
+#else
     ui_proc_ota_t *proc = (ui_proc_ota_t *)thiz->priv.play_info.user_data;
     if (proc) {
         ota_info_t ota_dev_info = {0};
@@ -403,6 +461,7 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
     if (thiz && thiz->priv.res) {
         ota_info->res_theme_type  = thiz->priv.res->get_current_theme_type();
     }
+#endif
 }
 
 void ui_display_ota_remove(ui_manager_context_t *thiz)
@@ -417,17 +476,26 @@ void ui_display_ota_remove(ui_manager_context_t *thiz)
 int ui_display_ota_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && ota_info && ota_info->root);
+#if IS_SUPPORT_OTA_TEST
+    static ota_info_t ota_dev_info = {0};
+    static uint8_t ota_status = OTA_UI_STATUS_COMPLETE;
+    ota_dev_info.object = OTA_OBJECT_IMAGE_RESOURCE;
+    ota_dev_info.total_size = 2 * 1024 * 1024;
+#else
     ui_proc_ota_t *proc = (ui_proc_ota_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
     ota_info_t ota_dev_info = {0};
     proc->ota->get_ota_info(&ota_dev_info); 
+    uint8_t ota_status = proc->ota_status; 
+#endif
+
 #if IS_SUPPORT_OTA_COMP_BG
     ui_ota_background_update(thiz);
 #endif
-    ui_ota_status_update(thiz, ota_dev_info, proc->ota_status);
+    ui_ota_status_update(thiz, ota_dev_info, ota_status);
     ota_info->force_update = false;
     thiz->priv.fps_count++;
-    if (proc->ota_status == OTA_UI_STATUS_DOWNLOADING) {
+    if (ota_status == OTA_UI_STATUS_DOWNLOADING) {
         ota_info->display_time = get_timestamp();
     } else {
         if (get_timestamp_ms(ota_info->display_time) > OTA_RESULT_DISPLAY_TIME) {
@@ -445,6 +513,13 @@ int ui_display_ota_process(ui_manager_context_t *thiz)
         ota_info->last_recv_size = ota_dev_info.recv_size;
         LOG_UI("===> ota fps: %d, %0.2fKB/s", thiz->priv.fps_count, speed);
         thiz->priv.fps_count = 0;
+        #if IS_SUPPORT_OTA_TEST
+        ota_dev_info.recv_size += 10 * 1024;
+        ota_dev_info.progress = ota_dev_info.recv_size * 100 / ota_dev_info.total_size;
+        if (ota_dev_info.progress >= 100) {
+            ota_status = OTA_UI_STATUS_COMPLETE;
+        }
+        #endif
     }
     
     return 0;

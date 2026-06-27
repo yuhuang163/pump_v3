@@ -5,12 +5,8 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
-#include "battery_ui_internal.h" // IWYU pragma: keep
-
-/*
-* DEFINES
-*****************************************************************************************
-*/
+#include "battery_base_ui_internal.h" // IWYU pragma: keep
+#include "battery_custom_ui_internal.h" // IWYU pragma: keep
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -24,22 +20,12 @@ typedef struct {
 
 static battery_ui_ops_t s_ops = {0};
 
-
-/*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-
-/*
-* LOCAL FUNCTION DEFINITIONS
-*****************************************************************************************
-*/
-
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manager_context_t *battery, uint8_t is_display_state)
+int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manager_context_t *battery,
+    uint8_t is_display_state)
 {
     if (s_ops.update) {
         return s_ops.update(thiz, root, battery, is_display_state);

@@ -91,7 +91,7 @@ static void aging_test_ui_battery_percent_update(ui_manager_context_t *thiz,  ui
     snprintf(battery_percent_str, sizeof(battery_percent_str), "battery-%d%%", battery_percent);
     lv_label_set_text(tests_info->battery_percent, battery_percent_str);
     lv_obj_set_style_text_color(tests_info->battery_percent, lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->battery_percent, &lv_font_oppo_sans_20_medium, 0);  /// 设置字体
+    lv_obj_set_style_text_font(tests_info->battery_percent, &lv_font_aeonik_soft_20_medium, 0);  /// 设置字体
     lv_obj_align(tests_info->battery_percent, LV_ALIGN_TOP_LEFT, 
         AGING_TEST_BATTERY_PERCENT_X, AGING_TEST_BATTERY_PERCENT_Y);
 }
@@ -123,7 +123,7 @@ static void aging_test_ui_mac_name_update(ui_manager_context_t *thiz, uint8_t *m
         lv_label_set_text(tests_info->mac_name, mac_name);
     }
     lv_obj_set_style_text_color(tests_info->mac_name, lv_color_hex(is_red ? AGING_TEST_TEXT_BLUE_COLOR : AGING_TEST_TEXT_RED_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->mac_name, &lv_font_oppo_sans_24_medium, 0);  /// 设置字体
+    lv_obj_set_style_text_font(tests_info->mac_name, &lv_font_aeonik_soft_24_medium, 0);  /// 设置字体
     // lv_obj_set_style_text_line_space(tests_info->mac_name, 4, 0);  /// 设置行间距（像素）
     // lv_obj_set_style_text_align(tests_info->mac_name, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
     lv_obj_align(tests_info->mac_name, LV_ALIGN_TOP_LEFT, 
@@ -173,7 +173,7 @@ static void aging_test_ui_aging_info_update(ui_manager_context_t *thiz, ui_proc_
         "aging-time-%02dh-%02dm-%02ds", hours, minutes, seconds);
     lv_label_set_text(tests_info->aging_info, aging_info_str);
     lv_obj_set_style_text_color(tests_info->aging_info, lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->aging_info, &lv_font_oppo_sans_20_medium, 0);
+    lv_obj_set_style_text_font(tests_info->aging_info, &lv_font_aeonik_soft_20_medium, 0);
     lv_obj_set_style_text_align(tests_info->aging_info, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_set_style_bg_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);  /// 背景透明
     lv_obj_set_style_border_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);  /// 边框透明

@@ -46,7 +46,7 @@ static void factory_reset_confirm_ui_after_policy(ui_manager_context_t *ui, int 
 {
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
-    ui_display_factory_reset_confirm_process(ui);
+    ui_display_factory_reset_confirm_process(ui, proc->display_fac_rst_confirm_progress);
 }
 
 static void factory_reset_confirm_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)

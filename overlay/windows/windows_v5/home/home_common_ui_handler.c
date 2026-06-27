@@ -46,6 +46,8 @@ void home_cancel_key_event_handler(ui_proc_home_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     proc->exit_current_ui = true;
+    home_pump_mode_adjust_exit_handler(proc);
+    home_pump_level_adjust_exit_handler(proc);
 }
 
 void home_ui_change_hdr_remove(ui_proc_home_t *proc)

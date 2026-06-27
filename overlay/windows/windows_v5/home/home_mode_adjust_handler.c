@@ -153,11 +153,10 @@ int home_pump_mode_adjust_handler(ui_proc_home_t *proc, bool is_bf_mode)
         proc->ui_mode_index = cycle_pump_mode(work_mode, is_bf_mode,
                 last_expert_mode, last_common_mode, activate_status);
     }
-
     WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_mode_index, true, 1);
     char *mode_name = "unknow";
     READ_PUMP_MODE_NAME(proc->pump, proc->ui_mode_index, &mode_name);
-    LOG_UI("switch %s rhythm: %d", mode_name, proc->ui_mode_index);
+    LOG_UI("switch %s mode: %d", mode_name, proc->ui_mode_index);
     proc->exit_current_ui = false;
     update_home_display_for_mode(proc);
     return 0;
@@ -177,4 +176,17 @@ void home_pump_mode_adjust_timeout_handler(ui_proc_home_t *proc)
     proc->pump_mode_adjust_time = get_timestamp();
     POST_WM_TASK_HANDLER_NO_DELAY(home_pump_mode_update_display_completed_cb,
          proc, HOME_PUMP_MODE_UPDATE_DISPLAY_TASK_NAME);
+}
+
+
+void home_pump_mode_adjust_exit_handler(ui_proc_home_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_DEFAULT) {
+        return;
+    }
+    proc->pump_mode_display_type = HOME_PUMP_MODE_DISPLAY_DEFAULT;
+    proc->pump_mode_adjust_time = get_timestamp();
+    POST_WM_TASK_HANDLER_NO_DELAY(home_pump_mode_update_display_completed_cb,
+        proc, HOME_PUMP_MODE_UPDATE_DISPLAY_TASK_NAME);
 }

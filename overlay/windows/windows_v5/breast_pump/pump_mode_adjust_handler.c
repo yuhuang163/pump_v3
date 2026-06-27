@@ -10,7 +10,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_MODE_UPDATE_DISPLAY_TASK_NAME                     "pump_mode_update_display_cmp"
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -85,11 +84,6 @@ static uint8_t cycle_pump_mode(int work_mode, bool is_bf_mode,
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void pump_mode_adjust_ui_exit(ui_proc_pump_t *proc)
-{
-    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_MODE_UPDATE_DISPLAY_TASK_NAME);
-}
-
 int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_bf_mode)
 {
     EXCEPTION_CHECK_INT(proc && proc->pump);
@@ -99,7 +93,7 @@ int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_bf_mode)
     proc->pump_mode_adjust_time = get_timestamp();
     bool entering_select = (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_DEFAULT);
     if (entering_select) {
-        pump_mode_adjust_ui_exit(proc);
+        pump_level_adjust_exit_handler(proc);
     }
     proc->pump_mode_display_type = is_bf_mode ?
             PUMP_MODE_DISPLAY_BF_MODE : PUMP_MODE_DISPLAY_NORMAL_MODE;
@@ -147,4 +141,12 @@ void pump_mode_adjust_timeout_handler(ui_proc_pump_t *proc)
     proc->pump_mode_adjust_time = get_timestamp();
 }
 
+void pump_mode_adjust_exit_handler(ui_proc_pump_t *proc)
+{
+    if (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_DEFAULT) {
+        return;
+    }
+    proc->pump_mode_display_type = PUMP_MODE_DISPLAY_DEFAULT;
+    proc->pump_mode_adjust_time = get_timestamp();
+}
 
