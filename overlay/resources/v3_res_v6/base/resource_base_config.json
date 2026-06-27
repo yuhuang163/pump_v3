@@ -71,14 +71,14 @@
     {
       "resource_id": "BASE_RES_ID_BLE_CONNECT_POPUP_ICON",
       "description": "蓝牙连接弹窗图标",
-      "file": "baj/icon_ble_connect_popup_64x64_a8_q99_444.baj",
+      "file": "baj/icon_ble_connect_tip_64x64_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_BLE_DISCONNECT_POPUP_ICON",
       "description": "蓝牙断开弹窗图标",
-      "file": "baj/icon_ble_disconnect_popup_64x64_a8_q99_444.baj",
+      "file": "baj/icon_ble_disconnect_tip_64x64_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -153,6 +153,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "BASE_RES_ID_HOME_BIG_LABLE",
+      "description": "主页大标签",
+      "file": "baj/label_home_big_270x172_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "BASE_RES_ID_HOME_NARROW_LABLE",
       "description": "主页窄标签",
       "file": "baj/label_home_narrow_270x128_a8_q99_444.baj",
@@ -162,7 +169,7 @@
     {
       "resource_id": "BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON",
       "description": "飞行界面解锁按钮图标",
-      "file": "baj/icon_travel_unlock_148x56_a8_q99_444.baj",
+      "file": "baj/icon_travel_unlock_160x56_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -174,9 +181,37 @@
       "y_offset": 0
     },
     {
+      "resource_id": "BASE_RES_ID_SYS_THEME_IMG",
+      "description": "系统主题引导图片",
+      "file": "baj/page_sys_theme_140x140_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_IP_THEME_IMG",
+      "description": "IP主题引导图片",
+      "file": "baj/page_ip_theme_140x140_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_THEME_SELECT_ICON",
+      "description": "主题选择引导图标",
+      "file": "baj/icon_theme_select_28x28_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_THEME_UNSELECT_ICON",
+      "description": "主题未选择引导图标",
+      "file": "baj/icon_theme_unselect_28x28_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "BASE_RES_ID_HOME_IDLE_ICON",
       "description": "首页空闲图标",
-      "file": "baj/icon_home_idle_220x176_a8_q99_444.baj",
+      "file": "baj/icon_home_idle_88x88_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -225,14 +260,7 @@
     {
       "resource_id": "BASE_RES_ID_POWER_PUMPING_WAVE",
       "description": "泵奶模式波形",
-      "file": "baj/wave_power_pumping_314x32_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_CUSTOM_WAVE",
-      "description": "个性化模式波形",
-      "file": "baj/wave_custom_314x32_a8_q99_444.baj",
+      "file": "baj/wave_power_pumping_315x32_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -244,9 +272,23 @@
       "y_offset": 0
     },
     {
+      "resource_id": "BASE_RES_ID_PUMP_LEVEL_BIG_BG",
+      "description": "泵奶力度大背景",
+      "file": "baj/bg_pump_level_big_49x49_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "BASE_RES_ID_PUMP_LEVEL_BG",
       "description": "泵奶力度背景",
       "file": "baj/bg_pump_level_40x40_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_PUMP_LEVEL_BIG_INDICATOR",
+      "description": "泵奶力度大指示符",
+      "file": "baj/Indicator_pump_level_big_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -261,6 +303,13 @@
       "resource_id": "BASE_RES_ID_PUMP_RHYTHM_ICON",
       "description": "泵奶节奏图标",
       "file": "baj/icon_pump_rhythm_32x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_PUMP_RELAX_ICON",
+      "description": "泵奶放松图标",
+      "file": "baj/icon_pump_relax_64x64_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     }
