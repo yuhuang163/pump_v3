@@ -116,10 +116,10 @@ extern "C" {
 #define CUSTOM_TRIAL_MODE_LEN                                         (CUSTOM_TRIAL_SUB_POLICY_NUM + CUSTOM_TRIAL_STEP_NUM)
 #endif
 
-/// Power Pumping模式参数长度（9个阶段）
-#ifndef PP_MODE_LEN 
+/// Power Pumping模式参数长度（8个阶段：刺激2min+吸乳13min+暂停5min+刺激2min+吸乳8min+暂停5min+刺激2min+吸乳8min）
+#ifndef PP_MODE_LEN
 #define PP_MODE_SUB_POLICY_NUM                                        (0) /// 子策略个数
-#define PP_MODE_STEP_NUM                                              (9) /// 阶段数
+#define PP_MODE_STEP_NUM                                              (8) /// 阶段数
 #define PP_MODE_LEN                                                   (PP_MODE_SUB_POLICY_NUM + PP_MODE_STEP_NUM)
 #endif
 
