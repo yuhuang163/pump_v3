@@ -49,14 +49,26 @@ static int abnormal_hook_get_highest_priority_abnormal(abnormal_manager_context_
     return (int)highest_priority_type;
 }
 
-static void trigger_abnormal_popup(void)
+/**
+ * @brief 异常弹窗调度 — 根据优先级决定显示/切换/解除弹窗
+ *
+ * 决策流程：
+ *  1. 无活动异常              → 解除当前弹窗，notify CLEARED
+ *  2. 当前无弹窗              → 直接弹出 highest，notify ACTIVE
+ *  3. current == highest     → 同优先级后出现替换先出现：若 triggered_type
+ *                              是另一个活动的同优先级异常，切换显示
+ *  4. current != highest     → new >= current 优先级才切换（低优先不覆盖高优）
+ *
+ * @param triggered_type  触发本次调度的异常类型，SYS_ABNORMAL_TYPE_MAX 表示非特定触发
+ */
+static void trigger_abnormal_popup(uint8_t triggered_type)
 {
     abnormal_manager_context_t *abnormal =
         (abnormal_manager_context_t *)find_module(ID_MODULE_SYS_ABNORMAL);
     EXCEPTION_CHECK_VOID(abnormal);
-    
+
     int highest_type = abnormal_hook_get_highest_priority_abnormal(abnormal);
-    
+
     // 如果没有活动异常
     if (highest_type == (int)SYS_ABNORMAL_TYPE_MAX) {
         // 所有异常恢复，解除设备限制并恢复可运行状态
@@ -72,7 +84,7 @@ static void trigger_abnormal_popup(void)
         }
         return;
     }
-    
+
     // 如果当前没有显示任何弹窗，直接显示最高优先级异常
     if (s_current_displayed_abnormal == SYS_ABNORMAL_TYPE_MAX) {
         LOG_MISC("show abnormal popup, type=%u", (uint8_t)highest_type);
@@ -84,16 +96,33 @@ static void trigger_abnormal_popup(void)
         abnormal->notify_abnormal_state_change(&info);
         return;
     }
-    
-    // 如果当前显示的异常就是最高优先级异常，无需操作
+
+    // 如果当前显示的异常就是最高优先级异常，检查是否被同优先级新异常触发
     if (s_current_displayed_abnormal == (uint8_t)highest_type) {
+        // 同优先级后出现替换先出现：如果触发源是另一个活动的同优先级异常，切换显示
+        if (triggered_type != SYS_ABNORMAL_TYPE_MAX &&
+            triggered_type != s_current_displayed_abnormal &&
+            abnormal->is_abnormal_active(triggered_type)) {
+            uint8_t current_priority = abnormal->get_abnormal_severity(s_current_displayed_abnormal);
+            uint8_t triggered_priority = abnormal->get_abnormal_severity(triggered_type);
+            if (triggered_priority == current_priority) {
+                LOG_MISC("switch to same-priority abnormal, from type=%u to type=%u(sev=%u)",
+                    s_current_displayed_abnormal, triggered_type, triggered_priority);
+                s_current_displayed_abnormal = triggered_type;
+                sys_abnormal_state_info_t info = {
+                    .type = triggered_type,
+                    .state = SYS_ABNORMAL_STATE_ACTIVE
+                };
+                abnormal->notify_abnormal_state_change(&info);
+            }
+        }
         return;
     }
-    
+
     // 如果有更高优先级或同优先级的异常出现，切换显示
     uint8_t current_priority = abnormal->get_abnormal_severity(s_current_displayed_abnormal);
     uint8_t new_priority = abnormal->get_abnormal_severity((uint8_t)highest_type);
-    
+
     if (new_priority >= current_priority) {
         LOG_MISC("switch to abnormal, from type=%u(sev=%u) to type=%u(sev=%u)",
             s_current_displayed_abnormal, current_priority,
@@ -253,14 +282,14 @@ static void check_battery_temperature_abnormal(abnormal_manager_context_t *abnor
         LOGE("SYS_ABNORMAL_BATTERY_TEMP_HIGH: %d℃", temperature);
         ///填入埋点
         DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_BATTERY_TEMP_OUT_OF_RANGE, temperature);
-        trigger_abnormal_popup();
+        trigger_abnormal_popup(SYS_ABNORMAL_BATTERY_TEMP_HIGH);
     }
     else if (!current_temp_abnormal && prev_temp_abnormal) {
         ///恢复正常 - 首次低于阈值
         abnormal->set_abnormal_state(SYS_ABNORMAL_BATTERY_TEMP_HIGH, SYS_ABNORMAL_STATE_CLEARED);
         ///解除弹窗
         LOGI("battery temperature normal: %d℃", temperature);
-        trigger_abnormal_popup();
+        trigger_abnormal_popup(SYS_ABNORMAL_BATTERY_TEMP_HIGH);
     }
     
     prev_temp_abnormal = current_temp_abnormal;
@@ -327,7 +356,7 @@ void sys_abnormal_report_storage_failure(uint8_t active)
         ///填入埋点
         DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_STORAGE_FAILURE, 0X00);
     }
-    trigger_abnormal_popup();
+    trigger_abnormal_popup(SYS_ABNORMAL_STORAGE_FAILURE);
 }
 
 void sys_abnormal_report_communication_error(uint8_t active)
@@ -344,5 +373,5 @@ void sys_abnormal_report_communication_error(uint8_t active)
         ///填入埋点
         DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_COMMUNICATION, 0X00);
     }
-    trigger_abnormal_popup();
+    trigger_abnormal_popup(SYS_ABNORMAL_COMMUNICATION_ERROR);
 }
