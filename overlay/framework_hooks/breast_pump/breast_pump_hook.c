@@ -13,7 +13,7 @@
 #define PUMP_WILL_FINISH_TIME_MS                           (2300)
 #define PUMP_WILL_FINISH_TIP_TIME_MS                       (10000)
 #define PUMP_TIME_TO_SECOND(time)                          (time / 1000)
-#if 0
+#if 1
 #define PUMP_RUNNING_TIP_TIME_MS                           (30 * 60 * 1000)
 #else
 #define PUMP_RUNNING_TIP_TIME_MS                           (10 * 1000)
