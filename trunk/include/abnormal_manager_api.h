@@ -21,9 +21,12 @@ typedef enum {
 } sys_abnormal_type_e;
 
 typedef enum {
-    SYS_ABNORMAL_SEVERITY_ERROR = 0, ///< E：停止相关功能，禁止新任务
-    SYS_ABNORMAL_SEVERITY_FATAL = 1, ///< F：立即停止，锁定核心功能
+    SYS_ABNORMAL_SEVERITY_ERROR = 0, ///< E：停止相关功能，禁止新任务（优先级：低）
+    SYS_ABNORMAL_SEVERITY_FATAL = 1, ///< F：立即停止，锁定核心功能（优先级：高）
 } sys_abnormal_severity_e;
+
+#define SYS_ABNORMAL_PRIORITY_LOW     SYS_ABNORMAL_SEVERITY_ERROR
+#define SYS_ABNORMAL_PRIORITY_HIGH    SYS_ABNORMAL_SEVERITY_FATAL
 
 typedef enum {
     SYS_ABNORMAL_STATE_CLEARED = 0x00, ///< 异常解除

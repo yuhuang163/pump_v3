@@ -17,10 +17,96 @@
 #define ABNORMAL_MONITOR_POLL_MS    5000 //5s
 #define FLASH_FAILURE_THRESHOLD     10  /// Flash失败次数阈值
 #define ABNORMAL_HOOK_DEBUG     1
+
+/*
+* LOCAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+/// 当前显示的异常类型（用于优先级管理）
+static uint8_t s_current_displayed_abnormal = SYS_ABNORMAL_TYPE_MAX;
+
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static int abnormal_hook_get_highest_priority_abnormal(abnormal_manager_context_t *abnormal)
+{
+    EXCEPTION_CHECK_INT(abnormal);
+    
+    int highest_priority = -1;
+    uint8_t highest_priority_type = SYS_ABNORMAL_TYPE_MAX;
+    
+    for (uint8_t i = 0; i < SYS_ABNORMAL_TYPE_MAX; i++) {
+        if (abnormal->is_abnormal_active(i)) {
+            uint8_t priority = abnormal->get_abnormal_severity(i);
+            if (priority > highest_priority) {
+                highest_priority = (int)priority;
+                highest_priority_type = i;
+            }
+        }
+    }
+    
+    return (int)highest_priority_type;
+}
+
+static void trigger_abnormal_popup(void)
+{
+    abnormal_manager_context_t *abnormal =
+        (abnormal_manager_context_t *)find_module(ID_MODULE_SYS_ABNORMAL);
+    EXCEPTION_CHECK_VOID(abnormal);
+    
+    int highest_type = abnormal_hook_get_highest_priority_abnormal(abnormal);
+    
+    // 如果没有活动异常
+    if (highest_type == (int)SYS_ABNORMAL_TYPE_MAX) {
+        // 所有异常恢复，解除设备限制并恢复可运行状态
+        if (s_current_displayed_abnormal != SYS_ABNORMAL_TYPE_MAX) {
+            LOG_MISC("all abnormal cleared, restore device state");
+            s_current_displayed_abnormal = SYS_ABNORMAL_TYPE_MAX;
+            // 触发解除弹窗和设备恢复逻辑
+            sys_abnormal_state_info_t info = {
+                .type = SYS_ABNORMAL_TYPE_MAX,
+                .state = SYS_ABNORMAL_STATE_CLEARED
+            };
+            abnormal->notify_abnormal_state_change(&info);
+        }
+        return;
+    }
+    
+    // 如果当前没有显示任何弹窗，直接显示最高优先级异常
+    if (s_current_displayed_abnormal == SYS_ABNORMAL_TYPE_MAX) {
+        LOG_MISC("show abnormal popup, type=%u", (uint8_t)highest_type);
+        s_current_displayed_abnormal = (uint8_t)highest_type;
+        sys_abnormal_state_info_t info = {
+            .type = (uint8_t)highest_type,
+            .state = SYS_ABNORMAL_STATE_ACTIVE
+        };
+        abnormal->notify_abnormal_state_change(&info);
+        return;
+    }
+    
+    // 如果当前显示的异常就是最高优先级异常，无需操作
+    if (s_current_displayed_abnormal == (uint8_t)highest_type) {
+        return;
+    }
+    
+    // 如果有更高优先级或同优先级的异常出现，切换显示
+    uint8_t current_priority = abnormal->get_abnormal_severity(s_current_displayed_abnormal);
+    uint8_t new_priority = abnormal->get_abnormal_severity((uint8_t)highest_type);
+    
+    if (new_priority >= current_priority) {
+        LOG_MISC("switch to abnormal, from type=%u(sev=%u) to type=%u(sev=%u)",
+            s_current_displayed_abnormal, current_priority,
+            (uint8_t)highest_type, new_priority);
+        s_current_displayed_abnormal = (uint8_t)highest_type;
+        sys_abnormal_state_info_t info = {
+            .type = (uint8_t)highest_type,
+            .state = SYS_ABNORMAL_STATE_ACTIVE
+        };
+        abnormal->notify_abnormal_state_change(&info);
+    }
+    // 低优先级异常不覆盖高优先级异常，低优先级保留在后台检测和记录
+}
 static void check_flash_failure_abnormal(void)
 {
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
@@ -167,12 +253,14 @@ static void check_battery_temperature_abnormal(abnormal_manager_context_t *abnor
         LOGE("SYS_ABNORMAL_BATTERY_TEMP_HIGH: %d℃", temperature);
         ///填入埋点
         DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_BATTERY_TEMP_OUT_OF_RANGE, temperature);
+        trigger_abnormal_popup();
     }
     else if (!current_temp_abnormal && prev_temp_abnormal) {
         ///恢复正常 - 首次低于阈值
         abnormal->set_abnormal_state(SYS_ABNORMAL_BATTERY_TEMP_HIGH, SYS_ABNORMAL_STATE_CLEARED);
         ///解除弹窗
         LOGI("battery temperature normal: %d℃", temperature);
+        trigger_abnormal_popup();
     }
     
     prev_temp_abnormal = current_temp_abnormal;
@@ -239,6 +327,7 @@ void sys_abnormal_report_storage_failure(uint8_t active)
         ///填入埋点
         DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_STORAGE_FAILURE, 0X00);
     }
+    trigger_abnormal_popup();
 }
 
 void sys_abnormal_report_communication_error(uint8_t active)
@@ -255,4 +344,5 @@ void sys_abnormal_report_communication_error(uint8_t active)
         ///填入埋点
         DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_COMMUNICATION, 0X00);
     }
+    trigger_abnormal_popup();
 }
