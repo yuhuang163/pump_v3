@@ -123,7 +123,6 @@ int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_bf_mode)
     READ_PUMP_MODE_NAME(proc->pump, proc->ui_mode_index, &mode_name);
     LOG_UI("switch %s mode: %d", mode_name, proc->ui_mode_index);
     proc->exit_current_ui = false;
-    proc->forbid_start_pump = false;
     return 0;
 }
 

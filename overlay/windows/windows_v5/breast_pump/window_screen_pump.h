@@ -140,7 +140,6 @@ typedef struct {
     uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     /// 泵奶信息
-    uint8_t forbid_start_pump; /// 是否禁止开始泵奶.
     uint8_t pump_will_finish; /// 泵奶即将完成标志.
     ui_pump_info_t info; /// 当前泵奶信息.
     breast_pump_result_t pump_result; /// 泵奶结果.
@@ -180,17 +179,18 @@ void switch_pump_status_ui(ui_proc_pump_t *proc);
 void pump_ui_change_hdr_remove(ui_proc_pump_t *proc);
 /// 停止泵奶UI动画
 void stop_pump_ui_animation(ui_proc_pump_t *proc);
-/// 按键处理相关
-void pump_power_key_handler(ui_proc_pump_t *proc);
 /// 泵奶完成事件处理
 void pump_complete_event_handler(ui_proc_pump_t *proc);
 /// 弹窗类型更新
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type);
 /// 子UI退出处理
 void pump_sub_ui_exit_handler(ui_proc_pump_t *proc);
-/// 取消按键处理相关
-void pump_cancel_key_handler(ui_proc_pump_t *proc);
-
+/// 电源按键事件处理
+void pump_power_key_event_handler(ui_proc_pump_t *proc);
+/// 取消按键事件处理
+void pump_cancel_key_event_handler(ui_proc_pump_t *proc);
+/// 开始按键事件处理
+void pump_start_key_event_handler(ui_proc_pump_t *proc);
 #ifdef __cplusplus
 }
 #endif

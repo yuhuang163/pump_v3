@@ -12,6 +12,7 @@
 * DEFINES
 *****************************************************************************************
 */
+#define PUMP_HOME_BASE_TIME_BLINK_ENABLE             (0) /// 0: 关闭时间闪烁, 1: 开启时间闪烁.
 #define PUMP_TIME_COLOR                              (0xBD4060)
 #define PUMP_TIME_2SEG                               (72)  /// 两段计时 MM:SS
 #define PUMP_TIME_3SEG                               (60)  /// 三段计时 HH:MM:SS
@@ -297,6 +298,7 @@ static void pump_home_time_s_update(pump_home_base_ui_info_t *info, uint8_t seco
     time->seconds = seconds;
 }
 
+#if PUMP_HOME_BASE_TIME_BLINK_ENABLE
 static void pump_home_time_blink_apply(pump_home_base_ui_info_t *info)
 {
     pump_home_base_time_t *time = &info->time;
@@ -318,6 +320,7 @@ static void pump_home_time_blink_apply(pump_home_base_ui_info_t *info)
         pump_home_time_symbol_label_set_hidden(&time->colon[i], colon_hidden);
     }
 }
+#endif
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -343,5 +346,7 @@ void pump_home_base_time_ui_update(pump_home_base_ui_info_t *info, uint16_t hold
     info->time.digit_size = digit_size;
     info->time.y_offset = y_offset;
     pump_home_time_remain_update(info, info->mode.new_index);
+#if PUMP_HOME_BASE_TIME_BLINK_ENABLE
     pump_home_time_blink_apply(info);
+#endif
 }

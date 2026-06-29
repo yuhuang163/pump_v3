@@ -249,6 +249,36 @@ void ui_popup_arc_update(ui_manager_context_t *thiz)
     lv_arc_set_angles(info->arc.obj, 0, end_angle);
 }
 
+void ui_popup_spin_arc_update(ui_manager_context_t *thiz, const ui_popup_spin_arc_info_t *cfg)
+{
+    ui_popup_disp_info_t *info = ui_popup_info_get();
+
+    EXCEPTION_CHECK_VOID(info);
+    EXCEPTION_CHECK_VOID(cfg);
+    (void)thiz;
+    if (info->arc.obj == NULL || !lv_obj_is_valid(info->arc.obj)) {
+        info->arc.obj = lv_arc_create(info->root.obj);
+        EXCEPTION_CHECK_VOID(info->arc.obj);
+        lv_obj_set_size(info->arc.obj, cfg->size, cfg->size);
+        lv_arc_set_bg_angles(info->arc.obj, 0, 360);
+        lv_obj_set_style_arc_color(info->arc.obj, lv_color_hex(cfg->bg_color), LV_PART_MAIN);
+        lv_obj_set_style_arc_width(info->arc.obj, cfg->width, LV_PART_MAIN);
+        lv_obj_set_style_arc_opa(info->arc.obj, cfg->bg_opa, LV_PART_MAIN);
+        lv_obj_set_style_arc_color(info->arc.obj, lv_color_hex(cfg->color), LV_PART_INDICATOR);
+        lv_obj_set_style_arc_width(info->arc.obj, cfg->width, LV_PART_INDICATOR);
+        lv_obj_set_style_arc_opa(info->arc.obj, LV_OPA_COVER, LV_PART_INDICATOR);
+        lv_obj_remove_style(info->arc.obj, NULL, LV_PART_KNOB);
+    }
+    lv_obj_align(info->arc.obj, cfg->align, cfg->x_offset, cfg->y_offset);
+    lv_obj_clear_flag(info->arc.obj, LV_OBJ_FLAG_HIDDEN);
+
+    uint32_t elapsed = get_timestamp_ms(info->runtime.start_time);
+    uint16_t start_angle = (uint16_t)((elapsed / cfg->loop_ms_per_deg) % 360);
+    uint16_t end_angle = start_angle + cfg->angle_span;
+    lv_arc_set_angles(info->arc.obj, start_angle, end_angle);
+    lv_obj_invalidate(info->arc.obj);
+}
+
 void ui_popup_num_update(ui_manager_context_t *thiz)
 {
     ui_popup_disp_info_t *info = ui_popup_info_get();
@@ -315,14 +345,18 @@ typedef struct {
 
 const static ui_popup_name_info_t ui_popup_name_infos[] = {
     { ID_POPUP_UI_PUMP_FINISH_TIMEOUT, "pump Ending" },
+    { ID_POPUP_UI_PUMP_WILL_FINISH_TIP, "pump Will Finish Tip" },
     { ID_POPUP_UI_PUMP_FINISH_MANUAL, "pump Manual Ending" },
     { ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR, "Incompatible adapter" },
     { ID_POPUP_UI_PUMP_FINISH_LOW_POWER, "Low power" },
+    { ID_POPUP_UI_PUMP_PAUSE_SETTLE, "pump Pausing Settle" },
     { ID_POPUP_UI_PUMP_PAUSE_TIMEOUT, "pump 30 Minutes Pausing" },
     { ID_POPUP_UI_PUMP_PAUSE_MANUAL, "pump Manual Pausing" },
+    { ID_POPUP_UI_PUMP_RUNING_30M_TIP, "pump Running 30 Minutes" },
     { ID_POPUP_UI_OP_SUCCESS, "operation success" },
     { ID_POPUP_UI_OP_FAILED, "operation failed" },
     { ID_POPUP_UI_AIRPLANE_MODE_PROMPT, "airplane mode prompt" },
+    { ID_POPUP_UI_THEME_RESELECT, "theme reselect" },
 };
 
 const char *ui_popup_name_get(ui_manager_context_t *thiz, uint16_t popup_type)
@@ -340,11 +374,12 @@ const char *ui_popup_name_get(ui_manager_context_t *thiz, uint16_t popup_type)
 uint16_t ui_popup_target_time_get(popup_ui_id_e type)
 {
     uint16_t time = 3000;
-
     if (type == ID_POPUP_UI_AIRPLANE_MODE_PROMPT) {
         time = 5000;
     } else if (type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
-        time = 0;
+        time = 3000;
+    } else if (type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
+        time = 10000;
     } else if (type == ID_POPUP_UI_OP_SUCCESS || type == ID_POPUP_UI_OP_FAILED) {
         time = 1000;
     }

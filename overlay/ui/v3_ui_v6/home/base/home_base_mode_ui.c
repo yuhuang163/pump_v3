@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "persist_storage.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
@@ -21,7 +20,6 @@
 #define HOME_MODE_ICON_WIDTH                       (32)
 #define HOME_MODE_ICON_TITLE_GAP                   (6)
 #define HOME_MODE_ICON_Y                           (66)
-
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -144,7 +142,7 @@ void home_pump_mode_ui_remove(home_base_ui_info_t *info)
 
 void home_pump_mode_ui_update(home_base_ui_info_t *info)
 {
-    // info->mode.new_index = BREAST_PUMP_CUSTOM_MODE;
+    // info->mode.new_index = BREAST_PUMP_MIX_MODE;
     if (home_pump_mode_need_update(info)) {
         switch (info->mode.new_index) {
             default:

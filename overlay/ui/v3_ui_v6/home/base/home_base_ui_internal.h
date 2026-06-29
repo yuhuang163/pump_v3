@@ -46,12 +46,14 @@ typedef struct {
     lv_obj_t *label;
     lv_obj_t *icon;
     lv_obj_t *text;
+    lv_obj_t *button[2];
     lv_obj_t *time; /// 模式时长
     uint8_t type; /// 标签类型
     uint8_t force_update; /// 强制更新
     uint8_t text_id;        /// 已显示文本索引
     uint16_t label_img_id; /// 已解码标签背景资源 ID，0 表示隐藏
     uint16_t icon_img_id; /// 已解码图标资源 ID，0 表示隐藏
+    uint16_t button_img_id[2]; /// 已解码按钮图标资源 ID，0 表示隐藏
     uint16_t label_bg_x; /// 标签背景 X 偏移
     uint16_t label_bg_y; /// 标签背景 Y 偏移
     char time_text[16]; /// 已显示时长文本

@@ -3,7 +3,7 @@
 *****************************************************************************************
 */
 #include "root_common_api.h"
-#include "breast_pump_mode.h"
+#include "breast_pump_mode.h" // IWYU pragma: keep
 #include "breast_pump_manager.h" // IWYU pragma: keep
 
 /*
@@ -11,6 +11,8 @@
 *****************************************************************************************
 */
 #define IS_PUMP_MODE_NOT_STORE_NORMAL_MODE          1 /// 是否存储常规模式，如果存储常规模式，则存储常规模式
+#define PUMP_NOTIFY_THROTTLE_MS                     5000
+#define PUMP_WILL_FINISH_TIP_THROTTLE_MS            10000
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -70,8 +72,13 @@ static void notify_breast_pump_completed(void)
         SEND_BROADCAST_ARGS4_EXTRA(ID_BROADCAST_PERSIST_INFO_UPDATE, 1, pdata, sizeof(pdata));
         LOG_PMP("save success, work total time: %lu", pumping_info->work_valid_time);
     }
+    /// 重置常规模式
+    breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
+    if (PUMP_IS_COMMON_MODE(m_info->mode)) {
+        m_info->mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
+    }
+    m_info->common_mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
 }
-
 static int get_breast_pump_status_async(void)
 {
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
@@ -769,29 +776,52 @@ static void set_pump_composite_state(pump_state_type_e type, int arg1, int arg2,
     }
 }
 
+static bool send_throttled_pump_broadcast(breast_pump_manager_context_t *ctx,
+    uint32_t *notify_time, uint32_t throttle_ms, breast_pump_broadcast_id_e broadcast_id)
+{
+    if (get_timestamp_ms(*notify_time) <= throttle_ms) {
+        return false;
+    }
+    *notify_time = get_timestamp();
+    SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, broadcast_id);
+    return true;
+}
+
 static void make_progress(breast_pump_manager_context_t *ctx)
 {
-    int notify_id = -1;
     struct __breast_pump_hook *hook = ctx->hook;
-    if (hook && hook->make_progress_route) {
-        notify_id = hook->make_progress_route(ctx, &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING]);
-        if (notify_id == RESULT_PUMP_FINISH) {
-            WRITE_PUMP_WORK_STATUS(ctx, BREAST_PUMP_FINISH, 1); /// 设置泵奶状态为完成.
-            if (get_timestamp_ms(ctx->priv.notify_time) > 5000) {
-                ctx->priv.notify_time = get_timestamp();
-                SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_COMPLETED);
-            }
-            /// 触发泵奶结束埋点
-            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
-        } else if (notify_id == RESULT_PUMP_WILL_FINISH) {
-            if (get_timestamp_ms(breast_pump_obj->priv.notify_time) > 5000) {
-                breast_pump_obj->priv.notify_time = get_timestamp();
-                SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH);
-            }
-        } else if (notify_id == RESULT_PUMP_AUTO_PAUSE) {
-            WRITE_PUMP_WORK_STATUS(breast_pump_obj, BREAST_PUMP_PAUSE, 1);
-            SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST);
+    if (!hook || !hook->make_progress_route) {
+        return;
+    }
+
+    int notify_id = hook->make_progress_route(ctx, &ctx->priv.result_info[BREAST_PUMP_RESULT_PUMPING]);
+
+    switch (notify_id) {
+    case RESULT_PUMP_FINISH:
+        WRITE_PUMP_WORK_STATUS(ctx, BREAST_PUMP_FINISH, 1);
+        send_throttled_pump_broadcast(ctx, &ctx->priv.completed_notify_time,
+            PUMP_NOTIFY_THROTTLE_MS, BREAST_PUMP_BROADCAST_COMPLETED);
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
+        break;
+    case RESULT_PUMP_WILL_FINISH:
+        send_throttled_pump_broadcast(ctx, &ctx->priv.will_finish_notify_time,
+            PUMP_NOTIFY_THROTTLE_MS, BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH);
+        break;
+    case RESULT_PUMP_AUTO_PAUSE:
+        WRITE_PUMP_WORK_STATUS(ctx, BREAST_PUMP_PAUSE, 1);
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST);
+        break;
+    case RESULT_PUMP_RUNNING_30M_TIP:
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_RUNNING_30M_TIP);
+        break;
+    case RESULT_PUMP_WILL_FINISH_TIP:
+        if (send_throttled_pump_broadcast(ctx, &ctx->priv.will_finish_tip_notify_time,
+                PUMP_WILL_FINISH_TIP_THROTTLE_MS, BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH_TIP)) {
+            LOG_PMP("will finish tip, notify.");
         }
+        break;
+    default:
+        break;
     }
 }
 
@@ -860,19 +890,30 @@ static int on_post_breast_pump_init(void *ptr)
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE, 0, 0, &store_value);
         if (store_value >= BREAST_PUMP_MODE_MAX) {
             store_value = BREAST_PUMP_PUMP_MODE_DEFAULT;   
-        } 
+        } else {
+            if (PUMP_IS_COMMON_MODE(store_value)) {
+                store_value = BREAST_PUMP_PUMP_MODE_DEFAULT;
+            }
+        }
         m_info->mode = store_value;
         /// 读取存储器中的泵奶设置
         for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
             ctx->priv.st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, &breast_pump_obj->priv.setting[i]);
         }
+
+        #if 0
         /// 读取存储器中的常规模式
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_MODE_TYPE_COMMON, 0, &store_value);
         if (store_value > BREAST_PUMP_NORMAL_MODE_UPPER) {
             m_info->common_mode = BREAST_PUMP_NORMAL_MODE_DEFAULT;
         } else {
-            m_info->common_mode = store_value;
+            // m_info->common_mode = store_value;
+            m_info->common_mode = BREAST_PUMP_NORMAL_MODE_DEFAULT;
         }
+        #else
+        m_info->common_mode = BREAST_PUMP_NORMAL_MODE_DEFAULT;
+        #endif
+
         /// 读取存储器中的追奶模式
         ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE, BREAST_PUMP_MODE_TYPE_BREASTFEEDING, 0, &store_value);
         if (store_value > BREAST_PUMP_EXPERT_MODE_UPPER) {

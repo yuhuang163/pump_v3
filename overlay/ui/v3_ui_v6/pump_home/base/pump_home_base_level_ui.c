@@ -35,6 +35,7 @@
 #define PUMP_LEFT_LEVEL_BG_Y                       (208)
 #define PUMP_RIGHT_LEVEL_BG_X                      (306)
 #define PUMP_RIGHT_LEVEL_BG_Y                      (PUMP_LEFT_LEVEL_BG_Y)
+#define PUMP_HOME_BASE_LEVEL_BLINK_ENABLE          (0) /// 0: 关闭力度闪烁, 1: 开启力度闪烁(不影响调节放大).
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -135,7 +136,13 @@ static void pump_home_level_progress_style_apply(pump_home_base_ui_info_t *info,
 static void pump_home_level_side_blink_apply(pump_home_base_ui_info_t *info,
     pump_home_base_level_t *level, uint8_t blink_state)
 {
+#if PUMP_HOME_BASE_LEVEL_BLINK_ENABLE
     const bool visible = (blink_state == 0) || pump_home_base_blink_visible_get(info);
+#else
+    (void)info;
+    (void)blink_state;
+    const bool visible = true;
+#endif
     pump_home_level_obj_visible_set(level->arc, visible);
     pump_home_level_obj_visible_set(level->progress_bg, visible);
 }
