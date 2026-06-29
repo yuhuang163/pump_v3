@@ -89,6 +89,23 @@ const static popup_text_info_t device_unbind_infos[POPUP_TIP_TEXT_COUNT] = {
     { "", 0, &lv_font_oppo_sans_16_medium, LV_OPA_70, POPUP_STATUS_TEXT_COLOR},
 };
 
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+const static popup_text_info_t sys_error_infos[POPUP_TIP_TEXT_COUNT] = {
+    { "System error", 200, &lv_font_oppo_sans_20_medium, LV_OPA_100, POPUP_STATUS_TEXT_COLOR},
+    { "Hold the round button 10s to restart.", 240, &lv_font_oppo_sans_14_medium, LV_OPA_100, POPUP_TIP_TEXT_COLOR},
+};
+#else
+const static popup_text_info_t sys_error_infos[POPUP_TIP_TEXT_COUNT] = {
+    { "System error", 200, &lv_font_oppo_sans_20_medium, LV_OPA_100, POPUP_STATUS_TEXT_COLOR},
+    { "Power off and restart.", 240, &lv_font_oppo_sans_14_medium, LV_OPA_100, POPUP_TIP_TEXT_COLOR},
+};
+#endif
+
+const static popup_text_info_t temp_error_infos[POPUP_TIP_TEXT_COUNT] = {
+    { "High battery temperature", 200, &lv_font_oppo_sans_20_medium, LV_OPA_100, POPUP_STATUS_TEXT_COLOR},
+    { "Device suspended.", 240, &lv_font_oppo_sans_14_medium, LV_OPA_100, POPUP_TIP_TEXT_COLOR},
+};
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -257,6 +274,10 @@ static const char *popup_window_ui_name_get(ui_manager_context_t *thiz, uint16_t
             return "low power";
         case ID_POPUP_UI_WILL_POWER_OFF:
             return "will power off";
+        case ID_POPUP_UI_SYS_ERROR:
+            return "system error";
+        case ID_POPUP_UI_TEMP_ERROR:
+            return "temperature error";
         default:
            return "Unknown";
     }
@@ -324,6 +345,18 @@ static void popup_window_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
             popup_window_ui_text_update(thiz, will_power_off_infos);
             popup_window_ui_arc_update(thiz);
             popup_window_ui_num_update(thiz);
+            popup_window_ui_display_complete(thiz, popup_type);
+            break;
+        case ID_POPUP_UI_SYS_ERROR:
+            popup_window_ui_mask_layer_update(thiz);
+            popup_window_ui_text_update(thiz, sys_error_infos);
+            popup_window_ui_icon_update(thiz, BASE_RES_ID_WARNING_ICON, 130);
+            popup_window_ui_display_complete(thiz, popup_type);
+            break;
+        case ID_POPUP_UI_TEMP_ERROR:
+            popup_window_ui_mask_layer_update(thiz);
+            popup_window_ui_text_update(thiz, temp_error_infos);
+            popup_window_ui_icon_update(thiz, BASE_RES_ID_WARNING_ICON, 130);
             popup_window_ui_display_complete(thiz, popup_type);
             break;
         default:

@@ -13,7 +13,7 @@ extern "C" {
 /* Flash 槽数据块与 PSRAM 环等大，每槽 1 块（不再拆 512B 分片） */
 #define DATA_BURY_RING_CHUNK_SIZE          DATA_BURY_RING_DATA_SIZE
 #define DATA_BURY_RING_CHUNK_NUM           1u
-#define DATA_BURY_FLASH_SLOT_NUM           8u
+#define DATA_BURY_FLASH_SLOT_NUM           16u
 
 /* 单条环记录 payload 上限（v1.0.3 EVT_005: 25 + 58*6 = 373） */
 #define DATA_BURY_EVENT_PAYLOAD_MAX        374u

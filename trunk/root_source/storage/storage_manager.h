@@ -12,7 +12,7 @@ extern "C" {
 
 /* Momcozy 埋点 Flash：8 槽 × 每槽 1 块 2048B（与 PSRAM 环对齐，须与 data_bury_persist_defs.h 一致） */
 #ifndef PERSIST_DATA_BURY_FLASH_SLOT_NUM
-#define PERSIST_DATA_BURY_FLASH_SLOT_NUM  8u
+#define PERSIST_DATA_BURY_FLASH_SLOT_NUM  DATA_BURY_FLASH_SLOT_NUM
 #endif
 #ifndef PERSIST_DATA_BURY_RING_CHUNK_PER_SLOT
 #define PERSIST_DATA_BURY_RING_CHUNK_PER_SLOT  1u
