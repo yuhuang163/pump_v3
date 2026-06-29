@@ -178,6 +178,7 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
     READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
     EXCEPTION_CHECK_INT(result_info);
     uint16_t hold_time = result_info->work_valid_time / 1000;
+    uint16_t target_valid_time = result_info->target_valid_time / 1000;
     pump_setting_t setting;
     int pump_mode = 0;
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
@@ -200,7 +201,7 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
     pump_home_base_blink_state_update(pump_info, proc);
     const bool blink_visible = proc->state_blink_visible != 0;
     pump_home_root_bg_update(thiz);
-    pump_info->time.remain_time = proc->motor->get_time_policy_remaining_time();
+    pump_info->time.remain_time = target_valid_time > hold_time ? (target_valid_time - hold_time) : 0;
     pump_home_base_time_ui_update(pump_info, hold_time, blink_visible);
     pump_home_base_mode_ui_update(pump_info, blink_visible);
     pump_home_base_animation_ui_update(pump_info);
