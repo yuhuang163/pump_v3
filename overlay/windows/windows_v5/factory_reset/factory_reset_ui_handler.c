@@ -32,6 +32,9 @@ static void factory_reset_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     ui_display_factory_reset_process(ui);
+    // if (get_timestamp_ms(proc->last_progress_ani_time) < 2000) {
+    //     return;
+    // }
     if (get_timestamp_ms(proc->led_blink_time) >= proc->led_blink_period) {
         proc->led_blink_time = get_timestamp();
         proc->led_blink_status = proc->led_blink_status == 0 ? LED_LEVEL_MAX : 0;
