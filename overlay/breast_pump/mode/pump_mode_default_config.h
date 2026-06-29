@@ -69,18 +69,16 @@ extern "C" {
 /// 开奶模式吸乳时长2分钟，单位：秒
 #define LACTATION_START_MODE_PUMP_TIME_2MIN          120
 
-/// 追奶模式默认工作时长60分钟，单位：秒
-#define POWER_PUMPING_MODE_WORK_TIME                 3600
-/// Power Pumping模式按摩时长3分钟，单位：秒
-#define POWER_PUMPING_MODE_MASSAGE_TIME_3MIN         180
-/// Power Pumping模式按摩时长5分钟，单位：秒
-#define POWER_PUMPING_MODE_MASSAGE_TIME_5MIN         300
-/// Power Pumping模式泌乳时长12分钟，单位：秒
-#define POWER_PUMPING_MODE_PUMP_TIME_12MIN           720
-/// Power Pumping模式泌乳时长7分钟，单位：秒
-#define POWER_PUMPING_MODE_PUMP_TIME_7MIN            420
-/// Power Pumping模式休息时长10分钟，单位：秒
-#define POWER_PUMPING_MODE_IDLE_TIME                 600
+/// 追奶模式默认工作时长45分钟，单位：秒
+#define POWER_PUMPING_MODE_WORK_TIME                 2700
+/// Power Pumping模式刺激时长2分钟，单位：秒
+#define POWER_PUMPING_MODE_MASSAGE_TIME_2MIN         120
+/// Power Pumping模式泌乳时长13分钟，单位：秒
+#define POWER_PUMPING_MODE_PUMP_TIME_13MIN           780
+/// Power Pumping模式泌乳时长8分钟，单位：秒
+#define POWER_PUMPING_MODE_PUMP_TIME_8MIN            480
+/// Power Pumping模式暂停时长5分钟，单位：秒
+#define POWER_PUMPING_MODE_PAUSE_TIME_5MIN           300
 
 /// Relax模式默认工作时长10分钟，单位：秒
 #define RELAX_MODE_WORK_TIME                         600
@@ -124,18 +122,16 @@ extern "C" {
 /// 开奶模式吸乳时长2分钟，单位：秒
 #define LACTATION_START_MODE_PUMP_TIME_2MIN          12
 
-/// 追奶模式默认工作时长60分钟，单位：秒
-#define POWER_PUMPING_MODE_WORK_TIME                 360
-/// Power Pumping模式按摩时长3分钟，单位：秒
-#define POWER_PUMPING_MODE_MASSAGE_TIME_3MIN         18
-/// Power Pumping模式按摩时长5分钟，单位：秒
-#define POWER_PUMPING_MODE_MASSAGE_TIME_5MIN         30
-/// Power Pumping模式泌乳时长12分钟，单位：秒
-#define POWER_PUMPING_MODE_PUMP_TIME_12MIN           72
-/// Power Pumping模式泌乳时长7分钟，单位：秒
-#define POWER_PUMPING_MODE_PUMP_TIME_7MIN            42
-/// Power Pumping模式休息时长10分钟，单位：秒
-#define POWER_PUMPING_MODE_IDLE_TIME                 60
+/// 追奶模式默认工作时长45分钟，单位：秒
+#define POWER_PUMPING_MODE_WORK_TIME                 270
+/// Power Pumping模式刺激时长2分钟，单位：秒
+#define POWER_PUMPING_MODE_MASSAGE_TIME_2MIN         12
+/// Power Pumping模式泌乳时长13分钟，单位：秒
+#define POWER_PUMPING_MODE_PUMP_TIME_13MIN           78
+/// Power Pumping模式泌乳时长8分钟，单位：秒
+#define POWER_PUMPING_MODE_PUMP_TIME_8MIN            48
+/// Power Pumping模式暂停时长5分钟，单位：秒
+#define POWER_PUMPING_MODE_PAUSE_TIME_5MIN           30
 /// Relax模式默认工作时长10分钟，单位：秒
 #define RELAX_MODE_WORK_TIME                         60
 #endif
@@ -196,8 +192,8 @@ static const motor_policy_cfg_t regular_pumping_default[REGULAR_PUMPING_MODE_LEN
         },
 };
 
-/// 4 Milk Boost 增加泌乳：丝滑渐进式的吸力分布，解决乳汁分泌不足问题
-/// 20 min：刺激 2min + 吸乳 8min+ 刺激 2min + 吸乳 8min
+/// 4 Milk Boost 高效泌乳：Most suitable for daily use after successful lactation
+/// ≈ 20 min：刺激 2min + 吸乳 8min + 刺激 2min + 吸乳 8min
 static const motor_policy_cfg_t milk_boost_default[MILK_BOOST_MODE_LEN] = {
     {MOTOR_TIME_POLICY, MILK_BOOST_MODE_DEFAULT_MASSAGE_TIME, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
@@ -217,42 +213,38 @@ static const motor_policy_cfg_t milk_boost_default[MILK_BOOST_MODE_LEN] = {
         },
 };
 
-/// 5 Power Pumping 密集追奶：轻柔频繁激活神经，触发多次喷乳反射
-/// 60 min：刺激 3min（高频）+吸乳12min（中频）+ 刺激5min（高频） + 10min休息（0档）+ 刺激3min（高频）+吸乳7min（中频） +10min休息（0档）+刺激3min（高频）+吸乳7min
+/// 5 Power Pumping 密集追奶：Increase milk supply, no more than once a day
+/// ≈ 45 min：刺激 2min + 吸乳 13min + 暂停 5min + 刺激 2min + 吸乳 8min + 暂停 5min + 刺激 2min + 吸乳 8min
 static const motor_policy_cfg_t pp_milk_track_default[PP_MODE_LEN] = {
-    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_MASSAGE_TIME_3MIN, {
+    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_MASSAGE_TIME_2MIN, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
-    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_PUMP_TIME_12MIN, {
+    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_PUMP_TIME_13MIN, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
-    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_MASSAGE_TIME_5MIN, {
-        MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
-        {1, PUMP_MODE_DEFAULT_PERIOD}}
-        },
-    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_IDLE_TIME, {
+    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_PAUSE_TIME_5MIN, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_0, SUCTION_MODE_IDLE},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
-    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_MASSAGE_TIME_3MIN, {
+    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_MASSAGE_TIME_2MIN, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
-    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_PUMP_TIME_7MIN, {
+    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_PUMP_TIME_8MIN, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
-    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_IDLE_TIME, {
+    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_PAUSE_TIME_5MIN, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_0, SUCTION_MODE_IDLE},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
-    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_MASSAGE_TIME_3MIN, {
+    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_MASSAGE_TIME_2MIN, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_SHORT},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
-    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_PUMP_TIME_7MIN, {
+    {MOTOR_TIME_POLICY, POWER_PUMPING_MODE_PUMP_TIME_8MIN, {
         MOTOR_PARAM_TABLE, {SUCTION_SPEED_MID, BREAST_PUMP_LEVEL_1, SUCTION_MODE_LONG},
         {1, PUMP_MODE_DEFAULT_PERIOD}}
         },
