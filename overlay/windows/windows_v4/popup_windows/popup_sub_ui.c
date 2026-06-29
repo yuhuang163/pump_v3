@@ -50,6 +50,10 @@ void start_popup_ui_animation(ui_proc_popup_t *proc)
         case ID_POPUP_UI_DEVICE_UNBIND:
             start_ble_status_ui_animation(proc, proc->popup_window_id);
             break;
+        case ID_POPUP_UI_SYS_ERROR:
+        case ID_POPUP_UI_TEMP_ERROR:
+            start_sys_error_ui_animation(proc, proc->popup_window_id);
+            break;
         default:
             LOG_UI("unknow popup window id: %d, ignore.", proc->popup_window_id);
             break;

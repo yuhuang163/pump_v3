@@ -30,6 +30,8 @@ void stop_count_down_ui_animation(ui_proc_popup_t *proc);
 void popup_window_exit_handler_cb(ui_proc_popup_t *proc);
 
 void start_ble_status_ui_animation(ui_proc_popup_t *proc, uint16_t popup_ui_type);
+
+void start_sys_error_ui_animation(ui_proc_popup_t *proc, uint16_t popup_ui_type);
 #ifdef __cplusplus
 }
 #endif
