@@ -24,10 +24,11 @@ typedef enum {
     BASE_RES_ID_WARNING_ICON, /// 警告图标
     BASE_RES_ID_START_BUTTON_ICON, /// 开始按钮指示图标
     BASE_RES_ID_RETURN_BUTTON_ICON, /// 返回按钮指示图标
-
-    BASE_RES_ID_CLOCK_COLON_ICON = 99, /// 时钟冒号图标
+    BASE_RES_ID_MODE_BUTTON_ICON, /// 模式按钮图标
+    BASE_RES_ID_PROGRAM_BUTTON_ICON, /// 程序按钮图标
   
-    /* 主界面组 [100..150] */
+    BASE_RES_ID_CLOCK_COLON_ICON = 99, /// 时钟冒号图标
+    /* 主界面组 [99..150] */
     BASE_RES_ID_COMMON_BG = 100, /// 通用背景
     BASE_RES_ID_START_LOGO_ICON, /// 启动LOGO
     BASE_RES_ID_HOME_WIDTH_LABLE, /// 主页宽标签
