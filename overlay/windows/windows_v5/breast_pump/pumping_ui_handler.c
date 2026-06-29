@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_log_define.h"
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_pump.h"
 
@@ -25,6 +24,11 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void pumping_ui_led_update(ui_proc_pump_t *proc)
+{
+
+}
+
 static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
@@ -38,8 +42,9 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
             pump_complete_event_handler(proc);
             break;
         case ID_POPUP_UI_PUMP_FINISH_MANUAL:
-            proc->forbid_start_pump = true;
-            pump_complete_event_handler(proc);
+            break;
+        case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
+        case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
             break;
         default:
             break;
@@ -53,6 +58,7 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
     pump_level_adjust_timeout_handler(proc);
     pump_mode_adjust_timeout_handler(proc);
     ui_display_pump_home_screen_process(ui);
+    pumping_ui_led_update(proc);
     // ui->priv.play_info.reset_play_count_cb(&ui->priv.play_info);
 }
 
@@ -132,11 +138,6 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
     int pump_status = 0;
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (pump_status == BREAST_PUMP_PAUSE || pump_status == BREAST_PUMP_IDLE || pump_status == BREAST_PUMP_FINISH) {
-        if (proc->forbid_start_pump) {
-            LOG_UI("forbid start pump, ignore.");
-            return;
-        }
-        
         int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;    
         ///状态变化 触发泵奶启动埋点事件
         {
@@ -157,7 +158,6 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         show_pump_home_ui(proc);
         LOG_UI("pump start ui create: %d", pump_status);
     } else {
-        proc->forbid_start_pump = false;
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, 1);
         ///状态变化 触发泵奶停止埋点事件
         {

@@ -3,8 +3,6 @@
 *****************************************************************************************
 */
 #include "home_base_ui_internal.h" // IWYU pragma: keep
-#include "breast_pump_manager_api.h" // IWYU pragma: keep
-#include "root_message.h"
 #include "window_screen_home.h" // IWYU pragma: keep
 
 /*
@@ -13,11 +11,10 @@
 */
 #define IS_SUPPORT_ROOT_HOME_COMP_BG                (0)
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
-#define IS_SUPPORT_HOME_UI_TEST                     (1)
+#define IS_SUPPORT_HOME_UI_TEST                     (0)
 #else
 #define IS_SUPPORT_HOME_UI_TEST                     (0)
 #endif
-#define PUMP_TIME_TEXT_COLOR                        (0xB25962)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -25,15 +22,19 @@
 */
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
-    // #include "comparison_png2txt/home_ip3_360x360.txt"
     // #include "comparison_png2txt/pump_pause_popup_360x360.txt"
     // #include "comparison_png2txt/pumping_timeout_360x360.txt"
-    #include "comparison_png2txt/pump_30m_tip_360x360.txt"
+    // #include "comparison_png2txt/pump_30m_tip_360x360.txt"
+    // #include "comparison_png2txt/them_select_popup_360x360.txt"
+    // #include "comparison_png2txt/pump_pause_popup_360x360.txt"
+    // #include "comparison_png2txt/home_ip1_360x360.txt"
     // #include "comparison_png2txt/home_ip2_360x360.txt"
     // #include "comparison_png2txt/home_ip3_360x360.txt"
-    // #include "comparison_png2txt/home_idle2_360x360.txt"
+    // #include "comparison_png2txt/home_ip4_360x360.txt"
     // #include "comparison_png2txt/home_ip5_360x360.txt"
     // #include "comparison_png2txt/home_ip6_360x360.txt"
+    #include "comparison_png2txt/home_ip7_360x360.txt"
+    // #include "comparison_png2txt/home_idle2_360x360.txt"
 };
 #endif
 
@@ -228,7 +229,6 @@ int home_base_ui_process(ui_manager_context_t *thiz)
         }
     } 
     home_root_bg_update(thiz);
-    
     #if IS_SUPPORT_HOME_UI_TEST
     proc->popup_ui_type = ID_POPUP_UI_PUMP_PAUSE_TIMEOUT;
     #else

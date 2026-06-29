@@ -76,6 +76,19 @@ typedef struct {
     uint8_t line_space;
 } ui_popup_text_info_t;
 
+typedef struct {
+    uint16_t size;
+    uint8_t width;
+    uint32_t bg_color;
+    uint8_t bg_opa;
+    uint32_t color;
+    uint16_t loop_ms_per_deg;
+    uint16_t angle_span;
+    lv_align_t align;
+    int16_t x_offset;
+    int16_t y_offset;
+} ui_popup_spin_arc_info_t;
+
 /*
 * GLOBAL FUNCTION DECLARATIONS
 *****************************************************************************************
@@ -91,6 +104,7 @@ void ui_popup_icon_update(ui_manager_context_t *thiz, uint8_t index, uint16_t im
 void ui_popup_single_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint16_t y_offset);
 void ui_popup_mask_layer_update(ui_manager_context_t *thiz);
 void ui_popup_arc_update(ui_manager_context_t *thiz);
+void ui_popup_spin_arc_update(ui_manager_context_t *thiz, const ui_popup_spin_arc_info_t *cfg);
 void ui_popup_num_update(ui_manager_context_t *thiz);
 void ui_popup_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type,
     const ui_popup_text_info_t *text_info, uint16_t img_id, uint16_t icon_y);
@@ -105,6 +119,7 @@ void ui_popup_pump_pause_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
 void ui_popup_pump_finish_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void ui_popup_airplane_mode_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void ui_popup_operation_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+void ui_popup_theme_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 
 #ifdef __cplusplus
 }

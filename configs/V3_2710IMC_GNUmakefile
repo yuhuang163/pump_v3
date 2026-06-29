@@ -667,9 +667,8 @@ FONT_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font
 FONT_INC_FLAGS += $(FONT_V2_INC_FLAGS)
 
-# 窗口模块头文件
+# 窗口模块头文件（windows_map_define 随 UX 版本位于 windows_v* 目录）
 WINDOWS_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/overlay/windows \
 	-I$(PROJECT_ROOT)/trunk/root_source/windows
 WINDOWS_INC_FLAGS += $(WINDOWS_UX_INC_FLAGS)
 
@@ -1302,9 +1301,8 @@ FONT_MODULE_SRCS := \
    $(wildcard $(PROJECT_ROOT)/overlay/font/*.c)
 FONT_MODULE_SRCS += $(FONT_V2_SRCS)
 
-# 窗口模块源码
+# 窗口模块源码（含各 UX 版本 windows_map_define.c）
 WINDOWS_MODULE_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/overlay/windows/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/windows/*.c)
 WINDOWS_MODULE_SRCS += $(WINDOWS_UX_SRCS)
 

@@ -11,11 +11,12 @@
 */
 #define PUMP_INFO_LOG_INTERVAL                             (2000 / PUMP_WORK_STEP_TIME_MS) 
 #define PUMP_WILL_FINISH_TIME_MS                           (2300)
+#define PUMP_WILL_FINISH_TIP_TIME_MS                       (10000)
 #define PUMP_TIME_TO_SECOND(time)                          (time / 1000)
-#if 1
-#define PUMP_AUTO_PAUSE_TIME_MS                            (30 * 60 * 1000)
+#if 0
+#define PUMP_RUNNING_TIP_TIME_MS                           (30 * 60 * 1000)
 #else
-#define PUMP_AUTO_PAUSE_TIME_MS                            (20 * 1000)
+#define PUMP_RUNNING_TIP_TIME_MS                           (10 * 1000)
 #endif
 
 /*
@@ -96,12 +97,12 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     result_info->hostory_work_time += result_info->current_mode_work_time;
     /// 清除模式更新标志
     ctx->priv.st->put_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, m_info->mode, false, NULL);
-    if (result_info->work_valid_time < PUMP_AUTO_PAUSE_TIME_MS) {
-        m_info->auto_pause_onoff = true;
+    if (result_info->work_valid_time < PUMP_RUNNING_TIP_TIME_MS) {
+        m_info->running_tip_onoff = true;
     }
     LOG_PMP("mode update:%d/%d; common:%d expert:%d; auto pause:%d time:%d/%d/%d", 
         result_info->mode, m_info->mode, m_info->common_mode, 
-        m_info->breastfeeding_mode, m_info->auto_pause_onoff,
+        m_info->breastfeeding_mode, m_info->running_tip_onoff,
         PUMP_TIME_TO_SECOND(result_info->current_mode_work_time), 
         PUMP_TIME_TO_SECOND(result_info->hostory_work_time),
         PUMP_TIME_TO_SECOND(result_info->target_valid_time));
@@ -139,12 +140,12 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     }
     /// 清除模式更新标志
     ctx->priv.st->put_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, m_info->mode, false, NULL);
-    if (result_info->work_valid_time < PUMP_AUTO_PAUSE_TIME_MS) {
-        m_info->auto_pause_onoff = true;
+    if (result_info->work_valid_time < PUMP_RUNNING_TIP_TIME_MS) {
+        m_info->running_tip_onoff = true;
     }
     LOG_PMP("mode update:%d/%d; common:%d expert:%d; auto pause:%d time:(%d/%d)%d/%d", 
         result_info->mode, m_info->mode, m_info->common_mode,
-        m_info->breastfeeding_mode, m_info->auto_pause_onoff,
+        m_info->breastfeeding_mode, m_info->running_tip_onoff,
         PUMP_TIME_TO_SECOND(result_info->current_mode_work_time), 
         PUMP_TIME_TO_SECOND(result_info->hostory_work_time),
         PUMP_TIME_TO_SECOND(result_info->work_valid_time),
@@ -155,6 +156,28 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
 }
 #endif
+const static char *get_pump_process_result_name(int result)
+{
+    switch (result) {
+        case RESULT_PUMP_NORMAL:
+            return "normal";
+        case RESULT_PUMP_FINISH:
+            return "finish";
+        case RESULT_PUMP_WILL_FINISH:
+            return "will finish";
+        case RESULT_PUMP_RUNNING_30M_TIP:
+            return "running 30m tip";
+        case RESULT_PUMP_AUTO_PAUSE:
+            return "auto pause";
+        case RESULT_PUMP_TIMEOUT:
+            return "timeout";
+        case RESULT_PUMP_WILL_FINISH_TIP:
+            return "will finish tip";
+        default:
+            return "unknown";
+    }
+}
+
 
 static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_result_info_t *result_info)
 {
@@ -186,9 +209,10 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     }
 #endif
     
+    #if (V3_UX_VERSION == V3_UX_V1 || V3_UX_VERSION == V3_UX_V2 || V3_UX_VERSION == V3_UX_V3 || V3_UX_VERSION == V3_UX_V4)
     /// 判断是否需要自动暂停
-    if (ctx->priv.m_info.auto_pause_onoff && result_info->work_valid_time >= PUMP_AUTO_PAUSE_TIME_MS) {
-        ctx->priv.m_info.auto_pause_onoff = false;
+    if (ctx->priv.m_info.running_tip_onoff && result_info->work_valid_time >= PUMP_RUNNING_TIP_TIME_MS) {
+        ctx->priv.m_info.running_tip_onoff = false;
         if (PUMP_IS_COMMON_MODE(ctx->priv.m_info.mode)) {
             ret = RESULT_PUMP_AUTO_PAUSE;
         }
@@ -198,6 +222,19 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     if ((result_info->work_valid_time + PUMP_WILL_FINISH_TIME_MS) >= result_info->target_valid_time) {
         ret = RESULT_PUMP_WILL_FINISH;
     }
+    #else
+    /// 判断是否需要自动暂停
+    if (ctx->priv.m_info.running_tip_onoff && result_info->work_valid_time >= PUMP_RUNNING_TIP_TIME_MS) {
+        ctx->priv.m_info.running_tip_onoff = false;
+        if (PUMP_IS_COMMON_MODE(ctx->priv.m_info.mode)) {
+            ret = RESULT_PUMP_RUNNING_30M_TIP;
+        }
+    }
+    /// 判断是否即将结束
+    if ((result_info->work_valid_time + PUMP_WILL_FINISH_TIP_TIME_MS) >= result_info->target_valid_time) {
+        ret = RESULT_PUMP_WILL_FINISH_TIP;
+    }
+    #endif  
 
     /// 状态输出
     if (log_timer > PUMP_INFO_LOG_INTERVAL) {
@@ -207,7 +244,7 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
         READ_PUMP_SETTING_INFO(ctx, time_index, setting);
         uint32_t time_policy_remaining_time = ctx->priv.motor->get_time_policy_remaining_time();
         LOG_PMP("%s, work_time=%d/%d/%d/%d, policy_rtime=%d, mode_time=%d, setting=%d/%d/%d", 
-            ret == RESULT_PUMP_WILL_FINISH ? "will finish" : "normal",
+            get_pump_process_result_name(ret),
             PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->hostory_work_time), 
             PUMP_TIME_TO_SECOND(result_info->target_valid_time), PUMP_TIME_TO_SECOND(result_info->setting_time), 
             time_policy_remaining_time, PUMP_TIME_TO_SECOND(result_info->current_mode_work_time), 
