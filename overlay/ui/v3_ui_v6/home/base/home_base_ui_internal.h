@@ -13,6 +13,7 @@ extern "C" {
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "ble_ui.h" // IWYU pragma: keep
+#include "window_screen_home.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -82,7 +83,6 @@ typedef struct {
     uint8_t popup_ui_index;
     uint8_t force_update;
     uint8_t sub_ui_status;
-    uint32_t state_blink_time; /// 状态闪烁时间.
 } home_base_ui_info_t;
 
 /*
@@ -90,17 +90,15 @@ typedef struct {
 *****************************************************************************************
 */
 void home_pump_mode_ui_remove(home_base_ui_info_t *info);
-void home_pump_mode_ui_update(home_base_ui_info_t *info);
+void home_pump_mode_ui_update(home_base_ui_info_t *info, bool blink_visible);
 
 void home_pump_level_ui_remove(home_base_ui_info_t *info);
-void home_pump_level_ui_update(home_base_ui_info_t *info);
+void home_pump_level_ui_update(home_base_ui_info_t *info, bool blink_visible);
 
 void home_pump_label_ui_remove(home_base_ui_info_t *info);
 void home_pump_label_ui_update(home_base_ui_info_t *info);
 
-bool home_base_blink_visible_get(const home_base_ui_info_t *info);
-void home_base_blink_state_update(home_base_ui_info_t *info,
-    uint8_t pump_mode_display_type, int pump_mode, uint8_t pump_level_display_type);
+void home_base_blink_state_update(home_base_ui_info_t *info, ui_proc_home_t *proc);
 
 void home_base_ui_prepare(ui_manager_context_t *thiz);
 void home_base_ui_remove(ui_manager_context_t *thiz);

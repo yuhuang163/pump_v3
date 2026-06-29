@@ -42,7 +42,9 @@ extern "C" {
 #define HOME_NIGHT_LIGHT_ADJUST_SYNC_TIMEOUT    (3000) /// 3s
 
 /// UTC 校准失效时间
-#define HOME_UTC_CALIB_EXPIRE_INTERVAL_SEC      (20 * 24 * 3600)  
+#define HOME_UTC_CALIB_EXPIRE_INTERVAL_SEC      (20 * 24 * 3600)
+/// 主界面状态闪烁半周期(ms)，与泵奶界面同频
+#define HOME_BLINK_PERIOD                       (500)
 
 /// 主界面UI动作枚举
 typedef enum {
@@ -92,6 +94,11 @@ typedef enum {
     HOME_PUMP_MODE_DISPLAY_NORMAL_MODE,      /// 普通模式
 } home_pump_mode_display_type_e;
 
+typedef enum {
+    HOME_LIGHT_STATUS_DEFAULT = 0,         /// 默认
+    HOME_LIGHT_STATUS_MODE_SELECT,         /// 模式选择闪烁
+} home_light_status_e;
+
 /// 主界面UI结构体
 typedef struct {
     window_context_t w_ctx;
@@ -126,6 +133,10 @@ typedef struct {
     uint8_t night_light_gear; /// 夜灯调节亮度等级
     home_page_display_type_e home_display_type;
     uint32_t pump_record_time;
+    /// 灯光相关
+    uint8_t home_light_status; /// 主界面灯光状态.
+    uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
+    uint8_t mode_select_blink_visible; /// 模式选择 start 灯上次闪烁相位.
 } ui_proc_home_t;
 
 /*

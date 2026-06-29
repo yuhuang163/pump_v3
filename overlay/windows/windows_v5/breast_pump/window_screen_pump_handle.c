@@ -73,25 +73,6 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
     }
 }
 
-static void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
-{
-    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER) {
-        LOG_WM("pump finish timeout, ignore knob event.");
-        return;
-    }
-
-#if (IS_ALLLOW_PUMP_COMPLETE_BREAK == 0)
-    if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
-        LOG_WM("pump will finish, ignore knob event.");
-        return;
-    }
-#endif
-
-    pump_level_adjust_handler(proc, is_left ? false : true);
-}
-
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
     if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
@@ -114,6 +95,7 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
             pump_mode_adjust_handler(proc, false);
             break;
         case KEY_CODE_BREASTFEEDING:
+            pump_breastfeeding_key_event_handler(proc);
             break;
         case KEY_CODE_CANCEL:
             pump_cancel_key_event_handler(proc);
@@ -125,10 +107,8 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
             pump_start_key_event_handler(proc);
             break;
         case KEY_CODE_RIGHT_CONTROL:
-            pump_level_adjust_type_update(proc, false);
-            break;
         case KEY_CODE_LEFT_CONTROL:
-            pump_level_adjust_type_update(proc, true);
+            pump_level_control_key_event_handler(proc, keycode == KEY_CODE_LEFT_CONTROL);
             break;
         case KEY_CODE_KNOB_LEFT:
         case KEY_CODE_KNOB_RIGHT:

@@ -128,3 +128,55 @@ void pump_start_key_event_handler(ui_proc_pump_t *proc)
     }
     switch_pump_status_ui(proc);
 }
+
+void pump_mode_key_event_handler(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP || 
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        LOG_WM("ignore mode key event.");
+        return;
+    }
+    pump_mode_adjust_handler(proc, false);
+}
+
+void pump_breastfeeding_key_event_handler(ui_proc_pump_t *proc)
+{
+
+}
+
+void pump_level_control_key_event_handler(ui_proc_pump_t *proc, uint8_t is_left)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        LOG_WM("ignore right control key event.");
+        return;
+    }
+    pump_level_adjust_type_update(proc, is_left);
+}
+
+void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
+{
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER) {
+        LOG_WM("pump finish timeout, ignore knob event.");
+        return;
+    }
+
+#if (IS_ALLLOW_PUMP_COMPLETE_BREAK == 0)
+    if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
+        LOG_WM("pump will finish, ignore knob event.");
+        return;
+    }
+#endif
+
+   if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP ||
+       proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        LOG_WM("ignore knob event.");
+        return;
+    }
+
+    pump_level_adjust_handler(proc, is_left ? false : true);
+}

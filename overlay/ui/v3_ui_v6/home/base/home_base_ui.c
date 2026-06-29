@@ -49,33 +49,27 @@ static home_base_ui_info_t *home_info;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-bool home_base_blink_visible_get(const home_base_ui_info_t *info)
-{
-    if (info->mode.mode_blink_state == 0 && info->mode.icon_blink_state == 0 &&
-        info->level.left_blink_state == 0 && info->level.right_blink_state == 0) {
-        return true;
-    }
-    return BLE_UI_BLINK_VISIBLE(info->state_blink_time);
-}
-
-void home_base_blink_state_update(home_base_ui_info_t *info,
-    uint8_t pump_mode_display_type, int pump_mode, uint8_t pump_level_display_type)
+void home_base_blink_state_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
 {
     uint8_t new_mode_blink = 0;
     uint8_t new_icon_blink = 0;
     uint8_t new_left_level_blink = 0;
     uint8_t new_right_level_blink = 0;
+    int pump_mode = 0;
 
-    if (pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_NORMAL_MODE &&
+    EXCEPTION_CHECK_VOID(info && proc && proc->pump);
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+
+    if (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_NORMAL_MODE &&
         PUMP_IS_COMMON_MODE(pump_mode)) {
         new_mode_blink = 1;
-    } else if (pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_BF_MODE &&
+    } else if (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_BF_MODE &&
         PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
         new_mode_blink = 1;
         new_icon_blink = 1;
     }
 
-    switch (pump_level_display_type) {
+    switch (proc->pump_level_display_type) {
         case HOME_PUMP_LEVEL_DISPLAY_LEFT_ADJUST:
             new_left_level_blink = 1;
             break;
@@ -88,16 +82,6 @@ void home_base_blink_state_update(home_base_ui_info_t *info,
             break;
         default:
             break;
-    }
-
-    const uint8_t old_any_blink = (info->mode.mode_blink_state != 0 ||
-        info->mode.icon_blink_state != 0 ||
-        info->level.left_blink_state != 0 ||
-        info->level.right_blink_state != 0);
-    const uint8_t new_any_blink = (new_mode_blink != 0 || new_icon_blink != 0 ||
-        new_left_level_blink != 0 || new_right_level_blink != 0);
-    if (old_any_blink == 0 && new_any_blink != 0) {
-        info->state_blink_time = get_timestamp();
     }
 
     info->mode.mode_blink_state = new_mode_blink;
@@ -232,17 +216,17 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     #if IS_SUPPORT_HOME_UI_TEST
     proc->popup_ui_type = ID_POPUP_UI_PUMP_PAUSE_TIMEOUT;
     #else
-    home_base_blink_state_update(home_info, proc->pump_mode_display_type, pump_mode,
-        proc->pump_level_display_type);
-    home_pump_mode_ui_update(home_info);
-    home_pump_level_ui_update(home_info);
+    home_base_blink_state_update(home_info, proc);
+    const bool blink_visible = proc->state_blink_visible != 0;
+    home_pump_mode_ui_update(home_info, blink_visible);
+    home_pump_level_ui_update(home_info, blink_visible);
     home_pump_label_ui_update(home_info);
     const ble_ui_blink_sync_t ble_sync = {
         .sync_enable = (home_info->mode.mode_blink_state != 0 ||
             home_info->mode.icon_blink_state != 0 ||
             home_info->level.left_blink_state != 0 ||
             home_info->level.right_blink_state != 0) ? 1 : 0,
-        .blink_time = home_info->state_blink_time,
+        .blink_time = 0,
     };
     ble_ui_update(thiz, home_info->root, proc->ble,
         PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y, &ble_sync);

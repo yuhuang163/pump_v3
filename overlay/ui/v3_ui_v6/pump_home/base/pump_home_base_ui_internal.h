@@ -14,6 +14,7 @@ extern "C" {
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "pump_home_ui.h" // IWYU pragma: keep
+#include "window_screen_pump.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -21,8 +22,6 @@ extern "C" {
 */
 #define HOME_TIME_COLON_COUNT                      (2)
 #define PUMP_HOME_TIME_DIGIT_COUNT                 (2)
-#define PUMP_HOME_STATE_BLINK_PERIOD               (500) /// 1Hz 状态闪烁半周期(ms).
-
 typedef struct {
     lv_obj_t *arc;
     lv_obj_t *indicator;
@@ -106,7 +105,6 @@ typedef struct {
     ui_manager_context_t *ui;
     uint8_t force_update;
     uint8_t popup_ui_index;
-    uint32_t state_blink_time; /// 状态闪烁时间.
 } pump_home_base_ui_info_t;
 
 /*
@@ -114,21 +112,18 @@ typedef struct {
 *****************************************************************************************
 */
 void pump_home_base_mode_ui_remove(pump_home_base_ui_info_t *info);
-void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info);
+void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info, bool blink_visible);
 
 void pump_home_base_level_ui_remove(pump_home_base_ui_info_t *info);
-void pump_home_base_level_ui_update(pump_home_base_ui_info_t *info);
+void pump_home_base_level_ui_update(pump_home_base_ui_info_t *info, bool blink_visible);
 
 void pump_home_base_time_ui_remove(pump_home_base_ui_info_t *info);
-void pump_home_base_time_ui_update(pump_home_base_ui_info_t *info, uint16_t hold_time);
+void pump_home_base_time_ui_update(pump_home_base_ui_info_t *info, uint16_t hold_time, bool blink_visible);
 
 void pump_home_base_animation_ui_remove(pump_home_base_ui_info_t *info);
 void pump_home_base_animation_ui_update(pump_home_base_ui_info_t *info);
 
-bool pump_home_base_blink_visible_get(const pump_home_base_ui_info_t *info);
-void pump_home_base_blink_state_update(pump_home_base_ui_info_t *info,
-    uint8_t pump_mode_display_type, int pump_mode, int pump_status,
-    uint8_t pump_level_display_type);
+void pump_home_base_blink_state_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc);
 
 void pump_home_base_ui_prepare(ui_manager_context_t *thiz);
 void pump_home_base_ui_remove(ui_manager_context_t *thiz);
