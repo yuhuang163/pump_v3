@@ -133,13 +133,12 @@ static void pump_home_level_progress_style_apply(pump_home_base_ui_info_t *info,
     }
 }
 
-static void pump_home_level_side_blink_apply(pump_home_base_ui_info_t *info,
-    pump_home_base_level_t *level, uint8_t blink_state)
+static void pump_home_level_side_blink_apply(pump_home_base_level_t *level,
+    uint8_t blink_state, bool blink_visible)
 {
 #if PUMP_HOME_BASE_LEVEL_BLINK_ENABLE
-    const bool visible = (blink_state == 0) || pump_home_base_blink_visible_get(info);
+    const bool visible = (blink_state == 0) || blink_visible;
 #else
-    (void)info;
     (void)blink_state;
     const bool visible = true;
 #endif
@@ -293,7 +292,7 @@ static uint16_t pump_home_right_level_end_angle_get(uint8_t level_val)
         (PUMP_LEVEL_MAX - level_val) / PUMP_LEVEL_MAX) + PUMP_RIGHT_ARC_START_ANGLE;
 }
 
-static void pump_home_left_level_update(pump_home_base_ui_info_t *info)
+static void pump_home_left_level_update(pump_home_base_ui_info_t *info, bool blink_visible)
 {
     pump_home_base_level_t *level = &info->level.left;
     const bool adjust = info->level.left_blink_state != 0;
@@ -301,7 +300,7 @@ static void pump_home_left_level_update(pump_home_base_ui_info_t *info)
         (level->adjust_active != adjust) || info->force_update;
 
     if (need_content_update == false) {
-        pump_home_level_side_blink_apply(info, level, info->level.left_blink_state);
+        pump_home_level_side_blink_apply(level, info->level.left_blink_state, blink_visible);
         return;
     }
 
@@ -316,10 +315,10 @@ static void pump_home_left_level_update(pump_home_base_ui_info_t *info)
     pump_home_left_level_indicator_update(info, end_angle, adjust);
     level->value = level_val;
     level->adjust_active = adjust;
-    pump_home_level_side_blink_apply(info, level, info->level.left_blink_state);
+    pump_home_level_side_blink_apply(level, info->level.left_blink_state, blink_visible);
 }
 
-static void pump_home_right_level_update(pump_home_base_ui_info_t *info)
+static void pump_home_right_level_update(pump_home_base_ui_info_t *info, bool blink_visible)
 {
     pump_home_base_level_t *level = &info->level.right;
     const bool adjust = info->level.right_blink_state != 0;
@@ -327,7 +326,7 @@ static void pump_home_right_level_update(pump_home_base_ui_info_t *info)
         (level->adjust_active != adjust) || info->force_update;
 
     if (need_content_update == false) {
-        pump_home_level_side_blink_apply(info, level, info->level.right_blink_state);
+        pump_home_level_side_blink_apply(level, info->level.right_blink_state, blink_visible);
         return;
     }
 
@@ -342,7 +341,7 @@ static void pump_home_right_level_update(pump_home_base_ui_info_t *info)
     pump_home_right_level_indicator_update(info, end_angle, adjust);
     level->value = level_val;
     level->adjust_active = adjust;
-    pump_home_level_side_blink_apply(info, level, info->level.right_blink_state);
+    pump_home_level_side_blink_apply(level, info->level.right_blink_state, blink_visible);
 }
 
 static void pump_home_level_separator_update(pump_home_base_ui_info_t *info)
@@ -370,10 +369,10 @@ void pump_home_base_level_ui_remove(pump_home_base_ui_info_t *info)
     ui_img_baj_release_decoded_buf(info->level.right.progress_bg);
 }
 
-void pump_home_base_level_ui_update(pump_home_base_ui_info_t *info)
+void pump_home_base_level_ui_update(pump_home_base_ui_info_t *info, bool blink_visible)
 {
     EXCEPTION_CHECK_VOID(info);
     pump_home_level_separator_update(info);
-    pump_home_left_level_update(info);
-    pump_home_right_level_update(info);
+    pump_home_left_level_update(info, blink_visible);
+    pump_home_right_level_update(info, blink_visible);
 }

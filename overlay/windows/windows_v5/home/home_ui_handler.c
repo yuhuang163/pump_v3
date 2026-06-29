@@ -25,6 +25,50 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static bool home_ui_blink_update(ui_proc_home_t *proc)
+{
+    const uint8_t blink_visible =
+        ((get_timestamp() / HOME_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
+    if (proc->state_blink_visible == blink_visible) {
+        return false;
+    }
+    proc->state_blink_visible = blink_visible;
+    return true;
+}
+
+static bool home_ui_led_needs_update(const ui_proc_home_t *proc)
+{
+    const bool mode_select = proc->pump_mode_display_type != HOME_PUMP_MODE_DISPLAY_DEFAULT;
+    if (mode_select) {
+        return proc->mode_select_blink_visible != proc->state_blink_visible;
+    }
+    return proc->home_light_status != HOME_LIGHT_STATUS_DEFAULT;
+}
+
+static void home_ui_led_update(ui_proc_home_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc && proc->led);
+    const bool blink_visible = proc->state_blink_visible != 0;
+    const bool mode_select = proc->pump_mode_display_type != HOME_PUMP_MODE_DISPLAY_DEFAULT;
+
+    if (mode_select) {
+        if (proc->home_light_status != HOME_LIGHT_STATUS_MODE_SELECT) {
+            proc->home_light_status = HOME_LIGHT_STATUS_MODE_SELECT;
+        }
+        if (proc->mode_select_blink_visible != blink_visible) {
+            proc->led->set_led_level(PUMP_START_BL, blink_visible ? LED_LEVEL_MAX : 0);
+            proc->mode_select_blink_visible = blink_visible;
+        }
+        return;
+    }
+
+    if (proc->home_light_status != HOME_LIGHT_STATUS_DEFAULT) {
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+        proc->home_light_status = HOME_LIGHT_STATUS_DEFAULT;
+        proc->mode_select_blink_visible = blink_visible;
+    }
+}
+
 static void home_popup_ui_finish_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
@@ -39,7 +83,11 @@ static void home_ui_after_policy(ui_manager_context_t *ui, int index)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     home_pump_level_adjust_timeout_handler(proc);
     home_pump_mode_adjust_timeout_handler(proc);
+    const bool blink_changed = home_ui_blink_update(proc);
     ui_display_home_process(ui);
+    if (blink_changed || home_ui_led_needs_update(proc)) {
+        home_ui_led_update(proc);
+    }
 }
 
 static void home_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)

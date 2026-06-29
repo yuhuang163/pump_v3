@@ -104,20 +104,18 @@ static void home_pump_mode_obj_visible_set(lv_obj_t *obj, bool visible)
     }
 }
 
-static void home_pump_mode_title_blink_apply(home_base_ui_info_t *info)
+static void home_pump_mode_title_blink_apply(home_base_ui_info_t *info, bool blink_visible)
 {
-    const bool visible = (info->mode.mode_blink_state == 0) ||
-        home_base_blink_visible_get(info);
+    const bool visible = (info->mode.mode_blink_state == 0) || blink_visible;
     home_pump_mode_obj_visible_set(info->mode.title, visible);
 }
 
-static void home_pump_mode_icon_blink_apply(home_base_ui_info_t *info)
+static void home_pump_mode_icon_blink_apply(home_base_ui_info_t *info, bool blink_visible)
 {
     if (info->mode.icon == NULL || !lv_obj_is_valid(info->mode.icon)) {
         return;
     }
-    const bool visible = (info->mode.icon_blink_state == 0) ||
-        home_base_blink_visible_get(info);
+    const bool visible = (info->mode.icon_blink_state == 0) || blink_visible;
     home_pump_mode_obj_visible_set(info->mode.icon, visible);
 }
 
@@ -140,7 +138,7 @@ void home_pump_mode_ui_remove(home_base_ui_info_t *info)
     ui_img_baj_release_decoded_buf(info->mode.icon);
 }
 
-void home_pump_mode_ui_update(home_base_ui_info_t *info)
+void home_pump_mode_ui_update(home_base_ui_info_t *info, bool blink_visible)
 {
     // info->mode.new_index = BREAST_PUMP_MIX_MODE;
     if (home_pump_mode_need_update(info)) {
@@ -179,6 +177,6 @@ void home_pump_mode_ui_update(home_base_ui_info_t *info)
         }
         info->mode.index = info->mode.new_index;
     }
-    home_pump_mode_title_blink_apply(info);
-    home_pump_mode_icon_blink_apply(info);
+    home_pump_mode_title_blink_apply(info, blink_visible);
+    home_pump_mode_icon_blink_apply(info, blink_visible);
 }
