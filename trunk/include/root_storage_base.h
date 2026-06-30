@@ -80,7 +80,7 @@ extern "C" {
 #endif
 
 #ifndef STORAGE_PUMP_MODE_STEPS_INFO_MAGIC_NUM
-#define STORAGE_PUMP_MODE_STEPS_INFO_MAGIC_NUM                                 (0xAFFA5885)
+#define STORAGE_PUMP_MODE_STEPS_INFO_MAGIC_NUM                                 (0xAFFA5886)
 #endif
 
 #ifndef STORAGE_USER_BIND_MAGIC_NUM

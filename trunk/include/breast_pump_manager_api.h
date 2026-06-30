@@ -12,9 +12,8 @@ extern "C" {
 #include "broadcast_manager_api.h"
 #include "persist_storage.h" // IWYU pragma: keep
    
-#define SINGLE_PUMP_TIME_MAX                         (90 * 60 * 1000)   /// 单次泵奶(包含续刷)最多90分钟
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
-#define SETTING_PUMP_TIME_MAX                        (60 * 60 * 60 * 1000) /// app设置的单次泵奶时间最大值 60小时
+#define SETTING_PUMP_TIME_MAX                        (2 * 60 * 60 * 1000) /// app设置的单次泵奶时间最大值 2小时
 #else
 #define SETTING_PUMP_TIME_MAX                        (60 * 60 * 1000)  /// app设置的单次泵奶时间最大值 1小时
 #endif

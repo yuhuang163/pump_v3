@@ -18,12 +18,10 @@ extern "C" {
 #error "REGULAR_PUMPING_MODE_LEN not defined. Check project_default_features.h include."
 #endif
 
-/// 常规模式默认工作时长
-#if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
-#define NORMAL_MODE_DEFAULT_WORK_TIME                (SETTING_PUMP_TIME_MAX / 1000)
-#else
-#define NORMAL_MODE_DEFAULT_WORK_TIME                (60 * 60)
-#endif
+/// 常规模式默认工作时长，单位：秒（策略步长哨兵值，实际结束由用户设定时长控制
+#define NORMAL_MODE_DEFAULT_WORK_TIME               (SETTING_PUMP_TIME_MAX / 1000)
+
+
 /// 无效工作时长，子模式不需要指定工作时长
 #define INVALID_WORK_TIME                            0  
 /// 吸乳模式默认周期 单位：毫秒

@@ -178,7 +178,6 @@ const static char *get_pump_process_result_name(int result)
     }
 }
 
-
 static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_result_info_t *result_info)
 {
     static uint8_t log_timer = 0;
@@ -190,39 +189,14 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     /// 更新运行时间
     update_work_valid_time(ctx, result_info);
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
-    if ((result_info->work_valid_time >= result_info->target_valid_time  || 
-        result_info->work_valid_time >= SINGLE_PUMP_TIME_MAX)  && 
-        result_info->target_valid_time != 0) {
+    if (result_info->work_valid_time >= result_info->target_valid_time  && result_info->target_valid_time != 0) {
         LOG_PMP("finish, work_time=%d/%d, mode_time=%d", 
             PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->target_valid_time),
             result_info->current_mode_work_time);   
         log_timer = 0;
         return RESULT_PUMP_FINISH;
     }
-#else
-    if ((result_info->work_valid_time >= result_info->target_valid_time && result_info->target_valid_time != 0)) {
-        LOG_PMP("finish, work_time=%d/%d, mode_time=%d", 
-            PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->target_valid_time),
-            result_info->current_mode_work_time);   
-        log_timer = 0;
-        return RESULT_PUMP_FINISH;
-    }
-#endif
-    
-    #if (V3_UX_VERSION == V3_UX_V1 || V3_UX_VERSION == V3_UX_V2 || V3_UX_VERSION == V3_UX_V3 || V3_UX_VERSION == V3_UX_V4)
-    /// 判断是否需要自动暂停
-    if (ctx->priv.m_info.running_tip_onoff && result_info->work_valid_time >= PUMP_RUNNING_TIP_TIME_MS) {
-        ctx->priv.m_info.running_tip_onoff = false;
-        if (PUMP_IS_COMMON_MODE(ctx->priv.m_info.mode)) {
-            ret = RESULT_PUMP_AUTO_PAUSE;
-        }
-    }
-    
-    /// 判断是否即将结束
-    if ((result_info->work_valid_time + PUMP_WILL_FINISH_TIME_MS) >= result_info->target_valid_time) {
-        ret = RESULT_PUMP_WILL_FINISH;
-    }
-    #else
+
     /// 判断是否需要自动暂停
     if (ctx->priv.m_info.running_tip_onoff && result_info->work_valid_time >= PUMP_RUNNING_TIP_TIME_MS) {
         ctx->priv.m_info.running_tip_onoff = false;
@@ -234,7 +208,42 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     if ((result_info->work_valid_time + PUMP_WILL_FINISH_TIP_TIME_MS) >= result_info->target_valid_time) {
         ret = RESULT_PUMP_WILL_FINISH_TIP;
     }
-    #endif  
+#else
+    if ((result_info->work_valid_time >= result_info->target_valid_time && result_info->target_valid_time != 0)) {
+        LOG_PMP("finish, work_time=%d/%d, mode_time=%d", 
+            PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->target_valid_time),
+            result_info->current_mode_work_time);   
+        log_timer = 0;
+        return RESULT_PUMP_FINISH;
+    }
+
+    #if V3_UX_VERSION == V3_UX_V1 || V3_UX_VERSION == V3_UX_V2 || V3_UX_VERSION == V3_UX_V3 || V3_UX_VERSION == V3_UX_V4
+    /// 判断是否需要自动暂停
+    if (ctx->priv.m_info.running_tip_onoff && result_info->work_valid_time >= PUMP_RUNNING_TIP_TIME_MS) {
+        ctx->priv.m_info.running_tip_onoff = false;
+        if (PUMP_IS_COMMON_MODE(ctx->priv.m_info.mode)) {
+            // ret = RESULT_PUMP_AUTO_PAUSE;
+        }
+    }
+    
+    /// 判断是否即将结束
+    if ((result_info->work_valid_time + PUMP_WILL_FINISH_TIME_MS) >= result_info->target_valid_time) {
+        ret = RESULT_PUMP_WILL_FINISH;
+    }
+    #else 
+    /// 判断是否需要自动暂停
+    if (ctx->priv.m_info.running_tip_onoff && result_info->work_valid_time >= PUMP_RUNNING_TIP_TIME_MS) {
+        ctx->priv.m_info.running_tip_onoff = false;
+        if (PUMP_IS_COMMON_MODE(ctx->priv.m_info.mode)) {
+            ret = RESULT_PUMP_RUNNING_30M_TIP;
+        }
+    }
+    /// 判断是否即将结束
+    if ((result_info->work_valid_time + PUMP_WILL_FINISH_TIME_MS) >= result_info->target_valid_time) {
+        ret = RESULT_PUMP_WILL_FINISH_TIP;
+    }   
+    #endif
+#endif
 
     /// 状态输出
     if (log_timer > PUMP_INFO_LOG_INTERVAL) {
