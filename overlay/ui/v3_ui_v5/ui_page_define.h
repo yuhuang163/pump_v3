@@ -22,6 +22,7 @@ extern "C" {
 #include "ota_ui.h" // IWYU pragma: keepin
 #include "product_tests_ui.h" // IWYU pragma: keepin
 #include "system_ui.h" // IWYU pragma: keepin
+#include "system_abnormal_ui.h" // IWYU pragma: keepin
 #include "ui_popup_window.h" // IWYU pragma: keep
 #endif
 

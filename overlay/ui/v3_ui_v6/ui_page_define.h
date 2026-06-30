@@ -29,6 +29,7 @@ extern "C" {
 #include "product_tests_ui.h" // IWYU pragma: keepin
 #include "power_off_ui.h" // IWYU pragma: keepin
 #include "factory_reset_ui.h" // IWYU pragma: keepin
+#include "system_abnormal_ui.h" // IWYU pragma: keepin
 #include "ui_popup_window.h" // IWYU pragma: keep
 #include "ui_img_resource.h" // IWYU pragma: keep
 #include "ui_img_baj_decode.h" // IWYU pragma: keep
