@@ -44,12 +44,12 @@ static sys_abnormal_disp_info_t *s_abnormal_info;
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 const static sys_abnormal_text_info_t sys_error_infos[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "System error", 200, &lv_font_oppo_sans_20_medium, LV_OPA_100, SYS_ABNORMAL_STATUS_TEXT_COLOR},
-    { "Hold the round button 10s to restart.", 240, &lv_font_oppo_sans_14_medium, LV_OPA_100, SYS_ABNORMAL_TIP_TEXT_COLOR},
+    { "Press and hold knob 10s\nto restart.", 240, &lv_font_oppo_sans_14_medium, LV_OPA_100, SYS_ABNORMAL_TIP_TEXT_COLOR},
 };
 #else
 const static sys_abnormal_text_info_t sys_error_infos[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "System error", 200, &lv_font_oppo_sans_20_medium, LV_OPA_100, SYS_ABNORMAL_STATUS_TEXT_COLOR},
-    { "Power off and restart.", 240, &lv_font_oppo_sans_14_medium, LV_OPA_100, SYS_ABNORMAL_TIP_TEXT_COLOR},
+    { "Unplug and replug to restart", 240, &lv_font_oppo_sans_14_medium, LV_OPA_100, SYS_ABNORMAL_TIP_TEXT_COLOR},
 };
 #endif
 

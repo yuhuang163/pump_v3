@@ -50,6 +50,11 @@ void app_old_comm_handle_request_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, uin
     LOG_SRV(" Handling %s request (data len: %d)",
            app_old_comm_get_cmd_id_str(cid), cal);
 
+    /// 检查设备是否处于故障状态
+    if (app_old_comm_check_if_fault_warning() == true) {
+        app_old_comm_report_abnormal(OLD_PUBLISH_ABNORMAL_FAULT_WARNING, OLD_PUBLISH_ABNORMAL_STATE_ACTIVE);
+        return;
+    }
     // Print command data if available
     if (cal > 0 && cab != NULL) {
         LOG_HEX("Command data:", cab, cal);

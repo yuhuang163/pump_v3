@@ -51,6 +51,7 @@ typedef enum {
     OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK = 0x05,           ///< 进入旅行锁
     OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR = 0x06,         ///< 适配器异常
     OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW = 0x07,          ///< 设备引导窗口不允许启动
+    OLD_PUBLISH_ABNORMAL_FAULT_WARNING = 0x08,        ///< 设备故障警告
 } old_publish_abnormal_type_e;
 
 /** V3 设备异常状态（配合 APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL 次字节） */

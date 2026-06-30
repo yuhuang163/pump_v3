@@ -52,6 +52,8 @@ void app_old_comm_handle_get_light_status_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_report_light_status(uint8_t arg1, void *val);
 void app_old_comm_handle_dev_abnormal_report(void *cab);
 void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab);
+bool app_old_comm_check_if_fault_warning(void);
+void app_old_comm_report_abnormal(uint8_t abnormal_type, uint8_t abnormal_state);
 
 #ifdef __cplusplus
 }

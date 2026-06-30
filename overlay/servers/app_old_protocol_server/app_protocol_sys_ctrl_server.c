@@ -153,6 +153,7 @@ static const char* app_old_comm_get_abnormal_type_str(old_publish_abnormal_type_
         case OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK: return "TRAVEL_LOCK";
         case OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR: return "ADAPTER_ERROR";
         case OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW: return "GUIDE_WINDOW";
+        case OLD_PUBLISH_ABNORMAL_FAULT_WARNING: return "FAULT_WARNING";
         default: return "UNKNOWN_ERROR";
     }
 }
@@ -431,6 +432,27 @@ void app_old_comm_handle_dev_abnormal_report(void *cab)
     report_data[1] = args_temp->arg2;
     LOG_SRV(" Abnormal type: %s %d", app_old_comm_get_abnormal_type_str(report_data[0]), report_data[1]);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, 2, report_data);
+}
+
+bool app_old_comm_check_if_fault_warning(void)
+{
+    abnormal_manager_context_t *abnormal =
+        (abnormal_manager_context_t *)find_module(ID_MODULE_SYS_ABNORMAL);
+
+    if (abnormal == NULL) {
+        return false;
+    }
+    return abnormal->is_app_communication_forbidden() != 0;
+}
+
+void app_old_comm_report_abnormal(uint8_t abnormal_type, uint8_t abnormal_state)
+{
+    servers_publish_data_args_t args = {
+        .arg1 = abnormal_type,
+        .arg2 = abnormal_state,
+        .val = NULL,
+    };
+    app_old_comm_handle_dev_abnormal_report(&args);
 }
 
 /// APP检查异常
