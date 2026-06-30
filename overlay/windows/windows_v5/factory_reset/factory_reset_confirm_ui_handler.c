@@ -48,7 +48,7 @@ static void factory_reset_confirm_ui_led_update(ui_proc_factory_reset_t *proc)
     EXCEPTION_CHECK_VOID(proc && proc->led);
     const bool blink_visible = proc->state_blink_visible != 0;
     if (proc->confirm_return_blink_visible != blink_visible) {
-        proc->led->set_led_level(PUMP_START_BL, blink_visible ? LED_LEVEL_MAX : 0);
+        proc->led->set_led_level(PUMP_FREQ_SET_BL, blink_visible ? LED_LEVEL_MAX : 0);
         proc->confirm_return_blink_visible = blink_visible;
     }
 }
@@ -142,7 +142,7 @@ void show_factory_reset_confirm_ui(ui_proc_factory_reset_t *proc)
 void factory_reset_confirm_led_restore(ui_proc_factory_reset_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->led);
-    proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+    proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
     proc->confirm_return_blink_visible = 1;
 }
 

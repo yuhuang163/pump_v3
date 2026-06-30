@@ -13,7 +13,7 @@
 #define PAGE_STATIC_NAME                            factory_reset
 #define PAGE_NAME_STR                               "factory_reset"
 #define FACTORY_RESET_UI_KEY_CODE                   (KEY_CODE_POWER | KEY_CODE_CANCEL)
-#define FACTORY_RESET_UI_KEY_TYPE                   (KEY_EVENT_DOWN | KEY_EVENT_UP)
+#define FACTORY_RESET_UI_KEY_TYPE                   (KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_CLICK)
 #define FACTORY_RESET_DELAY_TIME                    (1000 * 3)
 #define FACTORY_RESET_EXIT_TASK_NAME                "factory_reset_exit_task"
 
@@ -43,6 +43,9 @@ static void factory_reset_exit_task_cb(hdr_post_args_t *args)
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)args->user_data;
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     multi_func_msg_data_t msg = {0};
+    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+        proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+    }
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
@@ -111,7 +114,13 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     ui_manager_context_t *ui = proc->ui;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, 100);
+            proc->led->hook->set_key_backlight(proc->led, 0);
+        }
+
+        if (proc->current_ui_type == FACTORY_RESET_UI_TYPE_FACTORY_RESET_CONFIRM) {
+            if (proc->led) {
+                proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
+            }
         }
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
         if (proc->extra.arg1 != 0) {
