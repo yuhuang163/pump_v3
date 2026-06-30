@@ -88,7 +88,8 @@ const static sys_abnormal_text_info_t temp_error_texts[SYS_ABNORMAL_TIP_TEXT_COU
 */
 #if IS_SUPPORT_SYS_ABNORMAL_COMP_BG
 static PSRAM_DATA_LOC uint8_t sys_abnormal_bg_data[] = {
-    #include "comparison_png2txt/sys_abnormal_360x360.txt"
+    //#include "comparison_png2txt/sys_error_win_360x360.txt"
+    #include "comparison_png2txt/temp_error_win_360x360.txt"
 };
 #endif
 
@@ -208,7 +209,7 @@ static void system_abnormal_ui_bg_update(ui_manager_context_t *thiz)
 #else
 static void system_abnormal_ui_bg_update(ui_manager_context_t *thiz)
 {
-    ui_bg_update(thiz, s_abnormal_info->root);
+    //ui_bg_update(thiz, s_abnormal_info->root);
 }
 #endif
 
@@ -225,7 +226,6 @@ void ui_display_system_abnormal_prepare(ui_manager_context_t *thiz)
     }
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
-    ui_bg_init(thiz);
     system_abnormal_ui_root_init();
     s_abnormal_info->force_update = true;
 }
@@ -234,7 +234,6 @@ void ui_display_system_abnormal_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && s_abnormal_info && s_abnormal_info->root);
     ui_img_resource_deinit(thiz, &s_abnormal_info->icon_info);
-    ui_bg_deinit(thiz);
     LVGL_OBJ_DELETE(s_abnormal_info->root);
     u_free(s_abnormal_info);
     s_abnormal_info = NULL;

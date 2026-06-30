@@ -24,6 +24,7 @@
 #define WINDOW_PRIO_PRODUCT_TS        WINDOW_PRIO_TOP
 #define WINDOW_PRIO_FACTORY_RESET     WINDOW_PRIO_TOP
 #define WINDOW_PRIO_POWER_OFF         WINDOW_PRIO_TOP
+#define WINDOW_PRIO_SYSTEM_ABNORMAL   WINDOW_PRIO_TOP
 #define WINDOW_PRIO_THEME_GUIDE       WINDOW_PRIO_GUIDE
 
 DECLARE_WM_HANDLE_OBJ(m_window_dummy);
@@ -40,6 +41,7 @@ DECLARE_WM_HANDLE_OBJ(m_window_ota);
 DECLARE_WM_HANDLE_OBJ(m_window_product_test);
 DECLARE_WM_HANDLE_OBJ(m_window_factory_reset);
 DECLARE_WM_HANDLE_OBJ(m_window_power_off);
+DECLARE_WM_HANDLE_OBJ(m_window_system_abnormal);
 DECLARE_WM_HANDLE_OBJ(m_window_theme_guide);
 
 /*
@@ -71,6 +73,7 @@ static const window_context_handle_t g_process_handle_list[] = {
     {ID_WINDOW_PRODUCT_TEST_MODE,  WINDOW_PRIO_PRODUCT_TS, PAGE_HANDLE_NAME(product_test), REFS_T(m_window_product_test)},
     {ID_WINDOW_FACTORY_RESET, WINDOW_PRIO_FACTORY_RESET, PAGE_HANDLE_NAME(factory_reset), REFS_T(m_window_factory_reset)},
     {ID_WINDOW_POWER_OFF, WINDOW_PRIO_POWER_OFF, PAGE_HANDLE_NAME(power_off), REFS_T(m_window_power_off)},
+    {ID_WINDOW_SYSTEM_ABNORMAL, WINDOW_PRIO_SYSTEM_ABNORMAL, PAGE_HANDLE_NAME(system_abnormal), REFS_T(m_window_system_abnormal)},
     {ID_WINDOW_THEME_GUIDE, WINDOW_PRIO_THEME_GUIDE, PAGE_HANDLE_NAME(theme_guide), REFS_T(m_window_theme_guide)},
 };
 
@@ -109,6 +112,8 @@ const char *to_window_name(uint8_t window_id)
             return "factory_reset";
         case ID_WINDOW_POWER_OFF:
             return "power_off";
+        case ID_WINDOW_SYSTEM_ABNORMAL:
+            return "system_abnormal";
         case ID_WINDOW_THEME_GUIDE:
             return "theme_guide";
         default:
