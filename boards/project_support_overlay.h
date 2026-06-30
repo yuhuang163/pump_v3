@@ -144,7 +144,7 @@ extern "C" {
 /// 支持充电
 #define IS_SUPPORT_DEVICE_CHARGE                         (1)
 /// 支持泵占空比动态调整
-#define IS_SUPPORT_PUMP_DUTY_ADJUST                      (1)
+#define IS_SUPPORT_PUMP_DUTY_ADJUST                      (0)
 /// 支持插电自动开机
 #define IS_SUPPORT_PWR_ON_WHEN_PLUG_IN                   (1)
 /// 支持夜灯
