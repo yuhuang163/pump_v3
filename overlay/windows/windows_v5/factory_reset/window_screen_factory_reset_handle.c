@@ -12,8 +12,8 @@
 */
 #define PAGE_STATIC_NAME                            factory_reset
 #define PAGE_NAME_STR                               "factory_reset"
-#define FACTORY_RESET_UI_KEY_CODE                   (KEY_CODE_POWER)
-#define FACTORY_RESET_UI_KEY_TYPE                   (KEY_EVENT_CLICK | KEY_EVENT_LONG_2S | KEY_EVENT_UP)
+#define FACTORY_RESET_UI_KEY_CODE                   (KEY_CODE_POWER | KEY_CODE_CANCEL)
+#define FACTORY_RESET_UI_KEY_TYPE                   (KEY_EVENT_DOWN | KEY_EVENT_UP)
 #define FACTORY_RESET_DELAY_TIME                    (1000 * 3)
 #define FACTORY_RESET_EXIT_TASK_NAME                "factory_reset_exit_task"
 
@@ -48,6 +48,23 @@ static void factory_reset_exit_task_cb(hdr_post_args_t *args)
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
+static void factory_cancel_key_event_handler(ui_proc_factory_reset_t *proc, uint16_t keytype)
+{
+    if (keytype == KEY_EVENT_CLICK) {
+        POST_WM_TASK_HANDLER_NO_DELAY(factory_reset_exit_task_cb, proc, FACTORY_RESET_EXIT_TASK_NAME);
+        proc->display_fac_rst_confirm_progress = false;
+    }
+}
+
+static void factory_power_key_event_handler(ui_proc_factory_reset_t *proc, uint16_t keytype)
+{
+    if (keytype == KEY_EVENT_DOWN) {
+        proc->display_fac_rst_confirm_progress = true;
+    } else if (keytype == KEY_EVENT_UP) {
+        proc->display_fac_rst_confirm_progress = false;
+    }
+}
+
 static int on_factory_reset_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_factory_reset_t *proc = user_data;
@@ -61,19 +78,11 @@ static int on_factory_reset_keyevent_hdr(void *user_data, uint16_t keycode, uint
         return 0;
     }
 
-    if (keycode != KEY_CODE_POWER) {
-        return 0;
-    }
-
-    if (keytype == KEY_EVENT_LONG_2S) {
-        proc->display_fac_rst_confirm_progress = true;
-    } else if (keytype == KEY_EVENT_CLICK) {
-        POST_WM_TASK_HANDLER_NO_DELAY(factory_reset_exit_task_cb, proc, FACTORY_RESET_EXIT_TASK_NAME);
-        proc->display_fac_rst_confirm_progress = false;
-    } else if (keytype == KEY_EVENT_UP) {
-        proc->display_fac_rst_confirm_progress = false;
-    }
-
+    if (keycode == KEY_CODE_POWER) {
+        factory_power_key_event_handler(proc, keytype);
+    } else if (keycode == KEY_CODE_CANCEL) {
+        factory_cancel_key_event_handler(proc, keytype);
+    } 
     return 0;
 }
 

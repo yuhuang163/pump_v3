@@ -24,14 +24,18 @@ static bool ui_popup_is_supported(popup_ui_id_e popup_type)
 {
     switch (popup_type) {
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
+        case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
         case ID_POPUP_UI_PUMP_FINISH_MANUAL:
         case ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR:
         case ID_POPUP_UI_PUMP_FINISH_LOW_POWER:
+        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
         case ID_POPUP_UI_PUMP_PAUSE_MANUAL:
         case ID_POPUP_UI_PUMP_PAUSE_TIMEOUT:
+        case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
         case ID_POPUP_UI_OP_SUCCESS:
         case ID_POPUP_UI_OP_FAILED:
         case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
+        case ID_POPUP_UI_THEME_RESELECT:
             return true;
         default:
             return false;
@@ -50,12 +54,15 @@ static void ui_popup_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_t
     switch (popup_type) {
         case ID_POPUP_UI_PUMP_PAUSE_MANUAL:
         case ID_POPUP_UI_PUMP_PAUSE_TIMEOUT:
+        case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
             ui_popup_pump_pause_ui_update(thiz, popup_type);
             break;
         case ID_POPUP_UI_PUMP_FINISH_MANUAL:
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
+        case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
         case ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR:
         case ID_POPUP_UI_PUMP_FINISH_LOW_POWER:
+        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
             ui_popup_pump_finish_ui_update(thiz, popup_type);
             break;
         case ID_POPUP_UI_OP_SUCCESS:
@@ -64,6 +71,9 @@ static void ui_popup_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_t
             break;
         case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
             ui_popup_airplane_mode_ui_update(thiz, popup_type);
+            break;
+        case ID_POPUP_UI_THEME_RESELECT:
+            ui_popup_theme_ui_update(thiz, popup_type);
             break;
         default:
             break;

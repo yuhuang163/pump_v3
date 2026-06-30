@@ -62,15 +62,20 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     }
 
     if (proc->wm->is_window_guidance_deployed() == 0) {
-        #if IS_SUPPORT_GUIDE_WINDOW
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
+        LOG_WM("goto theme guide screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+#elif IS_SUPPORT_GUIDE_WINDOW
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
-        #else
+#else
         proc->wm->set_window_guidance_deployed_flag(true);
-        #endif
-    }    
+#endif
+    }
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);

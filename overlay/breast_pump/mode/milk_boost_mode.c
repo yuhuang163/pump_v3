@@ -4,7 +4,7 @@
 */
 #include "root_common_api.h" // IWYU pragma: keep
 #include "breast_pump_mode.h"
-#include "breast_pump_policy.h"
+#include "breast_pump_policy.h" // IWYU pragma: keep
 
 /*
 * DEFINES

@@ -26,13 +26,13 @@ static const char *pump_home_mode_type_name_get(uint8_t mode_type)
     switch (mode_type) {
         default:
         case PUMP_MODE_STIMULATION:
-            return "STIMULATION";
+            return "Stimulation";
         case PUMP_MODE_LACTATION:
-            return "EXPRESSION";
+            return "Expression";
         case PUMP_MODE_MIX:
-            return "MIXED";
+            return "Mixed";
         case PUMP_MODE_IDLE:
-            return "RELAX";
+            return "Relax";
     }
 }
 
@@ -79,7 +79,7 @@ static void pump_home_mode_name_update(pump_home_base_ui_info_t *info, const cha
     }
 }
 
-static void pump_home_mode_title_blink_apply(pump_home_base_ui_info_t *info)
+static void pump_home_mode_title_blink_apply(pump_home_base_ui_info_t *info, bool blink_visible)
 {
     if (info->mode.title == NULL || !lv_obj_is_valid(info->mode.title)) {
         return;
@@ -88,7 +88,7 @@ static void pump_home_mode_title_blink_apply(pump_home_base_ui_info_t *info)
         lv_obj_clear_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
         return;
     }
-    if (pump_home_base_blink_visible_get(info)) {
+    if (blink_visible) {
         lv_obj_clear_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
@@ -118,7 +118,7 @@ void pump_home_base_mode_ui_remove(pump_home_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info);
 }
 
-void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info)
+void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info, bool blink_visible)
 {
     char rhythm_name[24] = {0};
 
@@ -158,5 +158,5 @@ void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info)
         info->mode.index = info->mode.new_index;
         info->mode.mode_type = info->mode.new_mode_type;
     }
-    pump_home_mode_title_blink_apply(info);
+    pump_home_mode_title_blink_apply(info, blink_visible);
 }

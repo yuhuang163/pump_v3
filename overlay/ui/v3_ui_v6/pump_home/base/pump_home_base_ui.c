@@ -27,33 +27,26 @@ static pump_home_base_ui_info_t *pump_info;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-bool pump_home_base_blink_visible_get(const pump_home_base_ui_info_t *info)
-{
-    if (info->mode.mode_blink_state == 0 && info->time.time_blink_state == 0 &&
-        info->level.left_blink_state == 0 && info->level.right_blink_state == 0) {
-        return true;
-    }
-    return ((get_timestamp() - info->state_blink_time) / PUMP_HOME_STATE_BLINK_PERIOD) % 2U == 0U;
-}
-
-void pump_home_base_blink_state_update(pump_home_base_ui_info_t *info,
-    uint8_t pump_mode_display_type, int pump_mode, int pump_status,
-    uint8_t pump_level_display_type)
+void pump_home_base_blink_state_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc)
 {
     uint8_t new_mode_blink = 0;
     uint8_t new_time_blink = 0;
     uint8_t new_left_level_blink = 0;
     uint8_t new_right_level_blink = 0;
+    int pump_mode = 0;
 
-    if (pump_mode_display_type == PUMP_MODE_DISPLAY_NORMAL_MODE &&
+    EXCEPTION_CHECK_VOID(info && proc && proc->pump);
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+
+    if (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_NORMAL_MODE &&
         PUMP_IS_COMMON_MODE(pump_mode)) {
         new_mode_blink = 1;
     }
-    if (pump_status == BREAST_PUMP_PAUSE) {
+    if (proc->pump_status == BREAST_PUMP_PAUSE) {
         new_time_blink = 1;
     }
 
-    switch (pump_level_display_type) {
+    switch (proc->pump_level_display_type) {
         case PUMP_LEVEL_DISPLAY_LEFT_ADJUST:
             new_left_level_blink = 1;
             break;
@@ -68,21 +61,11 @@ void pump_home_base_blink_state_update(pump_home_base_ui_info_t *info,
             break;
     }
 
-    const uint8_t old_any_blink = (info->mode.mode_blink_state != 0 ||
-        info->time.time_blink_state != 0 ||
-        info->level.left_blink_state != 0 ||
-        info->level.right_blink_state != 0);
-    const uint8_t new_any_blink = (new_mode_blink != 0 || new_time_blink != 0 ||
-        new_left_level_blink != 0 || new_right_level_blink != 0);
-    if (old_any_blink == 0 && new_any_blink != 0) {
-        info->state_blink_time = get_timestamp();
-    }
-
     info->mode.mode_blink_state = new_mode_blink;
     info->time.time_blink_state = new_time_blink;
     info->level.left_blink_state = new_left_level_blink;
     info->level.right_blink_state = new_right_level_blink;
-    info->animation.anim_play_state = (pump_status == BREAST_PUMP_PAUSE) ? 1 : 0;
+    info->animation.anim_play_state = (proc->pump_status == BREAST_PUMP_PAUSE) ? 1 : 0;
 }
 
 static void pump_home_root_init(void)
@@ -195,6 +178,7 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
     READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
     EXCEPTION_CHECK_INT(result_info);
     uint16_t hold_time = result_info->work_valid_time / 1000;
+    uint16_t target_valid_time = result_info->target_valid_time / 1000;
     pump_setting_t setting;
     int pump_mode = 0;
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
@@ -214,22 +198,20 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
             pump_info->mode.index = BREAST_PUMP_MODE_INVALID;
         }
     }
-    int pump_status = 0;
-    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-    pump_home_base_blink_state_update(pump_info, proc->pump_mode_display_type,
-        pump_mode, pump_status, proc->pump_level_display_type);
+    pump_home_base_blink_state_update(pump_info, proc);
+    const bool blink_visible = proc->state_blink_visible != 0;
     pump_home_root_bg_update(thiz);
-    pump_info->time.remain_time = proc->motor->get_time_policy_remaining_time();
-    pump_home_base_time_ui_update(pump_info, hold_time);
-    pump_home_base_mode_ui_update(pump_info);
+    pump_info->time.remain_time = target_valid_time > hold_time ? (target_valid_time - hold_time) : 0;
+    pump_home_base_time_ui_update(pump_info, hold_time, blink_visible);
+    pump_home_base_mode_ui_update(pump_info, blink_visible);
     pump_home_base_animation_ui_update(pump_info);
-    pump_home_base_level_ui_update(pump_info);
+    pump_home_base_level_ui_update(pump_info, blink_visible);
     const ble_ui_blink_sync_t ble_sync = {
         .sync_enable = (pump_info->mode.mode_blink_state != 0 ||
             pump_info->time.time_blink_state != 0 ||
             pump_info->level.left_blink_state != 0 ||
             pump_info->level.right_blink_state != 0) ? 1 : 0,
-        .blink_time = pump_info->state_blink_time,
+        .blink_time = 0,
     };
     ble_ui_update(thiz, pump_info->root, proc->ble,
         PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y, &ble_sync);

@@ -14,11 +14,11 @@
 #define IS_SUPPORT_PUMP_FINISH_COMP_BG                         (0)
 #define COMPLETE_TIP_TEXT_COUNT                                (2)
 
-#define PUMP_FINISH_ICON_Y                                     (78)
+#define PUMP_FINISH_ICON_Y                                     (90)//(78)
 #define PUMP_FINISH_TITLE_X                                    (0)
-#define PUMP_FINISH_TITLE_Y                                    (166)
+#define PUMP_FINISH_TITLE_Y                                    (176)//(166)
 #define PUMP_FINISH_CONTENT_X                                  (0)
-#define PUMP_FINISH_CONTENT_Y                                  (204)
+#define PUMP_FINISH_CONTENT_Y                                  (216)//(204)
 #define FINISH_TIP_TITLE_COLOR                                 (0x240F1B)
 #define FINISH_TIP_CONTENT_COLOR                               (0x7C6971)
 
@@ -51,7 +51,7 @@ static complete_tip_display_info_t *finish_info;
 
 const static complete_tip_text_info_t complete_tip_text_infos[COMPLETE_TIP_TEXT_COUNT] = {
     { "Finish", PUMP_FINISH_TITLE_X, PUMP_FINISH_TITLE_Y, &lv_font_aeonik_soft_28_semibold, FINISH_TIP_TITLE_COLOR},
-    { "Please go to MOMCOZY\napp and record the\namount of milk.", PUMP_FINISH_CONTENT_X, PUMP_FINISH_CONTENT_Y, \
+    { "Open the Momcozy app to\ntrack your milk output", PUMP_FINISH_CONTENT_X, PUMP_FINISH_CONTENT_Y, \
         &lv_font_aeonik_soft_24_medium, FINISH_TIP_CONTENT_COLOR},
 };
 
@@ -142,7 +142,7 @@ static void pump_finish_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void pump_finish_root_bg_update(ui_manager_context_t *thiz)
 { 
-    ui_bg_update(thiz, finish_info->root);
+
 }
 #endif
 
@@ -159,7 +159,6 @@ void pump_finish_base_ui_prepare(ui_manager_context_t *thiz)
     }
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
-    ui_bg_init(thiz);
     pump_complete_tip_root_init();
     finish_info->force_update = true;
 }
@@ -168,7 +167,6 @@ void pump_finish_base_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && finish_info && finish_info->root);
     ui_img_resource_deinit(thiz, &finish_info->icon_info);
-    ui_bg_deinit(thiz);
     LVGL_OBJ_DELETE(finish_info->root); 
     u_free(finish_info);
     finish_info = NULL;

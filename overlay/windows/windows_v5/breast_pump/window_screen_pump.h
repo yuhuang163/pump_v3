@@ -116,6 +116,13 @@ typedef struct {
     uint8_t control_type; /// 控制类型. 0: 左, 1: 右. 2: 双侧.
 } ui_pump_info_t;
 
+typedef enum {
+    PUMP_LIGHT_STATUS_DEFAULT = 0,      /// 默认
+    PUMP_LIGHT_STATUS_PAUSE,            /// 暂停
+    PUMP_LIGHT_STATUS_FINISH_TIP,           /// 完成提示闪烁
+    PUMP_LIGHT_STATUS_MAX
+} pump_light_status_e;
+
 /// 泵奶UI结构体
 typedef struct {    
     uint32_t ani_timer_cnt;
@@ -140,10 +147,10 @@ typedef struct {
     uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     /// 泵奶信息
-    uint8_t forbid_start_pump; /// 是否禁止开始泵奶.
     uint8_t pump_will_finish; /// 泵奶即将完成标志.
     ui_pump_info_t info; /// 当前泵奶信息.
     breast_pump_result_t pump_result; /// 泵奶结果.
+    uint8_t pump_status; /// 泵奶状态.
     /// 模式相关
     uint8_t ui_mode_index; /// 当前模式索引.
     uint8_t pump_mode_display_type; /// 当前泵奶模式显示类型
@@ -154,6 +161,11 @@ typedef struct {
     uint8_t pump_level_display_type; /// 当前泵奶档位调节类型
     uint32_t level_adjust_time; /// 档位调节显示时间
     pump_setting_t setting; /// 当前泵奶设置信息.
+    /// 灯光相关
+    uint8_t pump_light_status; /// 泵奶灯光状态.
+    uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
+    uint8_t finish_tip_blink_visible; /// 完成提示闪烁可见: 0: 隐藏相, 1: 显示相.
+    uint8_t pump_pause_blink_state; /// 泵奶暂停闪烁状态: 0: 不闪烁, 1: 闪烁.
 } ui_proc_pump_t;
 
 /*
@@ -180,16 +192,26 @@ void switch_pump_status_ui(ui_proc_pump_t *proc);
 void pump_ui_change_hdr_remove(ui_proc_pump_t *proc);
 /// 停止泵奶UI动画
 void stop_pump_ui_animation(ui_proc_pump_t *proc);
-/// 按键处理相关
-void pump_power_key_handler(ui_proc_pump_t *proc);
 /// 泵奶完成事件处理
 void pump_complete_event_handler(ui_proc_pump_t *proc);
 /// 弹窗类型更新
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type);
 /// 子UI退出处理
 void pump_sub_ui_exit_handler(ui_proc_pump_t *proc);
-/// 取消按键处理相关
-void pump_cancel_key_handler(ui_proc_pump_t *proc);
+/// 电源按键事件处理
+void pump_power_key_event_handler(ui_proc_pump_t *proc);
+/// 取消按键事件处理
+void pump_cancel_key_event_handler(ui_proc_pump_t *proc);
+/// 开始按键事件处理
+void pump_start_key_event_handler(ui_proc_pump_t *proc);
+/// 模式按键事件处理
+void pump_mode_key_event_handler(ui_proc_pump_t *proc);
+/// 追奶模式按键事件处理
+void pump_breastfeeding_key_event_handler(ui_proc_pump_t *proc);
+/// 左档位按键事件处理
+void pump_level_control_key_event_handler(ui_proc_pump_t *proc, uint8_t is_left);
+/// 旋钮按键事件处理
+void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left);
 
 #ifdef __cplusplus
 }

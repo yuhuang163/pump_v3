@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "root_log_define.h"
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_pump.h"
 
@@ -25,6 +24,91 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static bool pump_ui_blink_update(ui_proc_pump_t *proc)
+{
+    const uint8_t blink_visible =
+        ((get_timestamp() / PUMP_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
+    if (proc->state_blink_visible == blink_visible) {
+        return false;
+    }
+    proc->state_blink_visible = blink_visible;
+    return true;
+}
+
+static bool pumping_ui_led_needs_update(const ui_proc_pump_t *proc)
+{
+    const bool is_finish_tip_popup =
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP;
+
+    if (proc->pump_light_status == PUMP_LIGHT_STATUS_PAUSE) {
+        if (proc->pump_status != BREAST_PUMP_PAUSE) {
+            return true;
+        }
+        return proc->pump_pause_blink_state != proc->state_blink_visible;
+    }
+    if (proc->pump_light_status == PUMP_LIGHT_STATUS_FINISH_TIP) {
+        if (!is_finish_tip_popup) {
+            return true;
+        }
+        return proc->finish_tip_blink_visible != proc->state_blink_visible;
+    }
+    if (proc->pump_status == BREAST_PUMP_PAUSE) {
+        return true;
+    }
+    if (is_finish_tip_popup) {
+        return true;
+    }
+    return false;
+}
+
+static void pumping_ui_led_update(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc && proc->led);
+    const bool blink_visible = proc->state_blink_visible != 0;
+    const uint8_t popup_type = proc->popup_ui_type;
+    const bool is_finish_tip_popup =
+        popup_type == ID_POPUP_UI_PUMP_FINISH_MANUAL ||
+        popup_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP;
+
+    if (proc->pump_status == BREAST_PUMP_PAUSE) {
+        if (proc->pump_light_status != PUMP_LIGHT_STATUS_PAUSE) {
+            proc->pump_light_status = PUMP_LIGHT_STATUS_PAUSE;
+        }
+        if (proc->pump_pause_blink_state != blink_visible) {
+            proc->led->set_led_level(PUMP_START_BL, blink_visible ? LED_LEVEL_MAX : 0);
+            proc->pump_pause_blink_state = blink_visible;
+        }
+        return;
+    }
+
+    if (is_finish_tip_popup) {
+        if (proc->pump_light_status != PUMP_LIGHT_STATUS_FINISH_TIP) {
+            proc->pump_light_status = PUMP_LIGHT_STATUS_FINISH_TIP;
+            proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, 0);
+            proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, 0);
+            proc->led->set_led_level(PUMP_MODE_BL, 0);
+            proc->finish_tip_blink_visible = blink_visible;
+        } else if (proc->finish_tip_blink_visible != blink_visible) {
+            proc->led->set_led_level(PUMP_START_BL, blink_visible ? LED_LEVEL_MAX : 0);
+            proc->led->set_led_level(PUMP_FREQ_SET_BL, blink_visible ? LED_LEVEL_MAX : 0);
+            proc->finish_tip_blink_visible = blink_visible;
+        }
+        return;
+    }
+
+    if (proc->pump_light_status != PUMP_LIGHT_STATUS_DEFAULT) {
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+        proc->led->set_led_level(PUMP_MODE_BL, LED_LEVEL_MAX);
+        proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
+        proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX);
+        proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, LED_LEVEL_MAX);
+        proc->pump_light_status = PUMP_LIGHT_STATUS_DEFAULT;
+        proc->finish_tip_blink_visible = blink_visible;
+        proc->pump_pause_blink_state = blink_visible;
+    }
+}
+
 static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
@@ -38,8 +122,9 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
             pump_complete_event_handler(proc);
             break;
         case ID_POPUP_UI_PUMP_FINISH_MANUAL:
-            proc->forbid_start_pump = true;
-            pump_complete_event_handler(proc);
+            break;
+        case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
+        case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
             break;
         default:
             break;
@@ -52,8 +137,11 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     pump_level_adjust_timeout_handler(proc);
     pump_mode_adjust_timeout_handler(proc);
+    const bool blink_changed = pump_ui_blink_update(proc);
     ui_display_pump_home_screen_process(ui);
-    // ui->priv.play_info.reset_play_count_cb(&ui->priv.play_info);
+    if (blink_changed || pumping_ui_led_needs_update(proc)) {
+        pumping_ui_led_update(proc);
+    }
 }
 
 static void pumping_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -104,13 +192,7 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
         return;
     } else {
-        int pump_status = 0;
-        READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-        if (pump_status == BREAST_PUMP_PAUSE) {
-            // pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_MANUAL);
-        } else {
-            pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
-        }
+        pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         pump_ui_change_hdr_remove(proc);
     }
     ui_play_info_t play_info = {
@@ -132,11 +214,6 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
     int pump_status = 0;
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (pump_status == BREAST_PUMP_PAUSE || pump_status == BREAST_PUMP_IDLE || pump_status == BREAST_PUMP_FINISH) {
-        if (proc->forbid_start_pump) {
-            LOG_UI("forbid start pump, ignore.");
-            return;
-        }
-        
         int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;    
         ///状态变化 触发泵奶启动埋点事件
         {
@@ -150,15 +227,13 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
             WRITE_PUMP_CONTROL_SOURCE(proc->pump, false);
         }
         WRITE_PUMP_WORK_STATUS(proc->pump, next_status, 1);
-        if (proc->led)  {
-            proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
-        }
+        proc->pump_status = next_status;
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         show_pump_home_ui(proc);
         LOG_UI("pump start ui create: %d", pump_status);
     } else {
-        proc->forbid_start_pump = false;
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, 1);
+        proc->pump_status = BREAST_PUMP_PAUSE;
         ///状态变化 触发泵奶停止埋点事件
         {
             int control_source = 0;
@@ -169,9 +244,6 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
             };
             DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
             WRITE_PUMP_CONTROL_SOURCE(proc->pump, false);
-        }
-        if (proc->led)  {
-            proc->led->set_led_blink(PUMP_START_BL, LED_SLOW_BLINK_TIME, 0, LED_STATUS_OFF);
         }
         show_pump_home_ui(proc);
         // pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_MANUAL);

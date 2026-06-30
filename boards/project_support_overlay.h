@@ -125,7 +125,7 @@ extern "C" {
 /// 支持UI主题资源
 #define IS_SUPPORT_UI_THEME_RES                          (0)
 /// 支持泵奶时间累计
-#define IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE             (0)
+#define IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE             (1)
 /// 支持泵奶步数使用相同设置
 #define IS_PUMP_STEPS_USE_SAME_SETTING                   (1)
 /// 支持泵奶全局参数设置

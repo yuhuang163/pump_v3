@@ -12,9 +12,8 @@ extern "C" {
 #include "broadcast_manager_api.h"
 #include "persist_storage.h" // IWYU pragma: keep
    
-#define SINGLE_PUMP_TIME_MAX                         (90 * 60 * 1000)   /// 单次泵奶(包含续刷)最多90分钟
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
-#define SETTING_PUMP_TIME_MAX                        (60 * 60 * 60 * 1000) /// app设置的单次泵奶时间最大值 60小时
+#define SETTING_PUMP_TIME_MAX                        (2 * 60 * 60 * 1000) /// app设置的单次泵奶时间最大值 2小时
 #else
 #define SETTING_PUMP_TIME_MAX                        (60 * 60 * 1000)  /// app设置的单次泵奶时间最大值 1小时
 #endif
@@ -31,10 +30,14 @@ typedef enum {
     BREAST_PUMP_BROADCAST_POLICY_CHANGE,      /// 策略改变.
     BREAST_PUMP_BROADCAST_PUMP_ERROR,         /// 泵奶异常.
     BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST, /// 自动暂停请求.
+    BREAST_PUMP_BROADCAST_RUNNING_30M_TIP, /// 运行30分钟提示.
+    BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH_TIP, /// 即将结束10秒提示.
     BREAST_PUMP_BROADCAST_ID_MAX, 
 } breast_pump_broadcast_id_e;
 
 typedef enum {
+    RESULT_PUMP_WILL_FINISH_TIP = -7,
+    RESULT_PUMP_RUNNING_30M_TIP = -6,
     RESULT_PUMP_AUTO_PAUSE = -5,
     RESULT_PUMP_TIMEOUT = -4,
     RESULT_PUMP_FINISH = -3,
@@ -198,10 +201,11 @@ typedef struct breast_pump_info_t {
     uint8_t control_type;          /// 吸奶器控制类型
     uint8_t breastfeeding_mode;    /// 追奶模式
     uint8_t common_mode;           /// 常规模式
-    uint8_t auto_pause_onoff;      /// 自动暂停开关
+    uint8_t running_tip_onoff;     /// 运行提示开关
     uint8_t custom_activate;       /// 个性化韵律激活
     uint8_t is_start_from_app;     /// 当前是否由APP启动pump控制
     uint8_t control_source;        /// 泵奶控制来源: 0-本地, 1-APP
+    // pump_process_result_e result_id;    /// 结果ID
 } breast_pump_info_t;
 
 /// 吸奶结果ID
@@ -263,8 +267,10 @@ typedef struct breast_pump_manager_context {
         struct peripheral_bus_context *pbus;
         struct motor_manager_context *motor;
         struct battery_manager_context *battery;
-        pump_result_info_t result_info[BREAST_PUMP_RESULT_MAX];  
-        uint32_t notify_time;
+        pump_result_info_t result_info[BREAST_PUMP_RESULT_MAX];
+        uint32_t completed_notify_time;
+        uint32_t will_finish_notify_time;
+        uint32_t will_finish_tip_notify_time;
     } priv;
 
     ///  public

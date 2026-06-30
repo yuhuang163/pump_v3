@@ -35,6 +35,7 @@
 #define PUMP_LEFT_LEVEL_BG_Y                       (208)
 #define PUMP_RIGHT_LEVEL_BG_X                      (306)
 #define PUMP_RIGHT_LEVEL_BG_Y                      (PUMP_LEFT_LEVEL_BG_Y)
+#define HOME_BASE_LEVEL_BLINK_ENABLE               (0) /// 0: 关闭力度闪烁, 1: 开启力度闪烁(不影响调节放大).
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -132,10 +133,15 @@ static void home_level_progress_style_apply(home_base_ui_info_t *info, home_base
     }
 }
 
-static void home_level_side_blink_apply(home_base_ui_info_t *info, home_base_level_t *level,
-    uint8_t blink_state)
+static void home_level_side_blink_apply(home_base_level_t *level,
+    uint8_t blink_state, bool blink_visible)
 {
-    const bool visible = (blink_state == 0) || home_base_blink_visible_get(info);
+#if HOME_BASE_LEVEL_BLINK_ENABLE
+    const bool visible = (blink_state == 0) || blink_visible;
+#else
+    (void)blink_state;
+    const bool visible = true;
+#endif
     home_level_obj_visible_set(level->arc, visible);
     home_level_obj_visible_set(level->progress_bg, visible);
 }
@@ -282,7 +288,7 @@ static uint16_t home_right_level_end_angle_get(uint8_t level_val)
         (PUMP_LEVEL_MAX - level_val) / PUMP_LEVEL_MAX) + PUMP_RIGHT_ARC_START_ANGLE;
 }
 
-static void home_left_level_update(home_base_ui_info_t *info)
+static void home_left_level_update(home_base_ui_info_t *info, bool blink_visible)
 {
     home_base_level_t *level = &info->level.left;
     const bool adjust = info->level.left_blink_state != 0;
@@ -290,7 +296,7 @@ static void home_left_level_update(home_base_ui_info_t *info)
         (level->adjust_active != adjust) || info->force_update;
 
     if (need_content_update == false) {
-        home_level_side_blink_apply(info, level, info->level.left_blink_state);
+        home_level_side_blink_apply(level, info->level.left_blink_state, blink_visible);
         return;
     }
 
@@ -305,10 +311,10 @@ static void home_left_level_update(home_base_ui_info_t *info)
     home_left_level_indicator_update(info, end_angle, adjust);
     level->value = level_val;
     level->adjust_active = adjust;
-    home_level_side_blink_apply(info, level, info->level.left_blink_state);
+    home_level_side_blink_apply(level, info->level.left_blink_state, blink_visible);
 }
 
-static void home_right_level_update(home_base_ui_info_t *info)
+static void home_right_level_update(home_base_ui_info_t *info, bool blink_visible)
 {
     home_base_level_t *level = &info->level.right;
     const bool adjust = info->level.right_blink_state != 0;
@@ -316,7 +322,7 @@ static void home_right_level_update(home_base_ui_info_t *info)
         (level->adjust_active != adjust) || info->force_update;
 
     if (need_content_update == false) {
-        home_level_side_blink_apply(info, level, info->level.right_blink_state);
+        home_level_side_blink_apply(level, info->level.right_blink_state, blink_visible);
         return;
     }
 
@@ -331,7 +337,7 @@ static void home_right_level_update(home_base_ui_info_t *info)
     home_right_level_indicator_update(info, end_angle, adjust);
     level->value = level_val;
     level->adjust_active = adjust;
-    home_level_side_blink_apply(info, level, info->level.right_blink_state);
+    home_level_side_blink_apply(level, info->level.right_blink_state, blink_visible);
 }
 
 static void home_level_separator_update(home_base_ui_info_t *info)
@@ -359,10 +365,10 @@ void home_pump_level_ui_remove(home_base_ui_info_t *info)
     ui_img_baj_release_decoded_buf(info->level.right.progress_bg);
 }
 
-void home_pump_level_ui_update(home_base_ui_info_t *info)
+void home_pump_level_ui_update(home_base_ui_info_t *info, bool blink_visible)
 {
     EXCEPTION_CHECK_VOID(info);
     home_level_separator_update(info);
-    home_left_level_update(info);
-    home_right_level_update(info);
+    home_left_level_update(info, blink_visible);
+    home_right_level_update(info, blink_visible);
 }

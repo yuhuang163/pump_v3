@@ -41,6 +41,7 @@ typedef enum {
     ID_WINDOW_FACTORY_RESET,       /// 工厂重置界面
     ID_WINDOW_POWER_OFF,           /// 关机界面
     ID_WINDOW_SYSTEM_ABNORMAL,     /// 系统异常
+    ID_WINDOW_THEME_GUIDE,         /// 主题选择引导
     ID_WINDOW_MAX
 } window_id_e;
 

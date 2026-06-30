@@ -1,7 +1,6 @@
 #ifndef __PERSIST_STORAGE_H__
 #define __PERSIST_STORAGE_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -111,7 +110,7 @@ typedef struct {
     uint8_t freq;        /// 吸力速度 suction_speed_e
     uint8_t loop_num;    /// 循环次数
     uint8_t rsv;         /// 保留
-    uint16_t duration;   /// 持续时间，单位s
+    uint32_t duration;   /// 持续时间，单位s
 } pump_mode_step_param_t;
 
 typedef struct {
@@ -147,7 +146,7 @@ typedef enum {
     BREAST_PUMP_NORMAL_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
     BREAST_PUMP_EXPERT_MODE_DEFAULT = BREAST_PUMP_MILK_BOOST_MODE, /// 默认韵律
     #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
-    BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认韵律模式
+    BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_MILK_BOOST_MODE, /// 默认韵律模式
     #else
     BREAST_PUMP_PUMP_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式
     #endif
