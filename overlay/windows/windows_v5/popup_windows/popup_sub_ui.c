@@ -43,6 +43,9 @@ void start_popup_ui_animation(ui_proc_popup_t *proc)
         case ID_POPUP_UI_WILL_POWER_OFF:
             start_system_will_power_off_ui_animation(proc);
             break;
+        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
+            start_pump_stop_ui_animation(proc);
+            break;
         case ID_POPUP_UI_BT_CONNECT:
         case ID_POPUP_UI_BT_DISCONNECT:
         case ID_POPUP_UI_BT_CONNECTING:

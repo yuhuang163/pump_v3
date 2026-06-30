@@ -25,6 +25,7 @@ static bool popup_window_is_supported(popup_ui_id_e popup_type)
         case ID_POPUP_UI_COUNT_DOWN:
         case ID_POPUP_UI_LOW_POWER:
         case ID_POPUP_UI_WILL_POWER_OFF:
+        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
         case ID_POPUP_UI_SYS_ERROR:
         case ID_POPUP_UI_TEMP_ERROR:
             return true;
@@ -59,6 +60,9 @@ static void popup_window_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
         case ID_POPUP_UI_LOW_POWER:
         case ID_POPUP_UI_WILL_POWER_OFF:
             popup_window_power_ui_update(thiz, popup_type);
+            break;
+        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
+            popup_window_pump_stop_ui_update(thiz, popup_type);
             break;
         case ID_POPUP_UI_SYS_ERROR:
         case ID_POPUP_UI_TEMP_ERROR:
