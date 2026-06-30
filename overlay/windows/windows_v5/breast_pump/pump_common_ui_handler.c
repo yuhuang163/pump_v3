@@ -90,8 +90,11 @@ void pump_cancel_key_event_handler(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     proc->exit_current_ui = true;
-    pump_mode_adjust_exit_handler(proc);
-    pump_level_adjust_exit_handler(proc);
+    int mode_adjust_result = pump_mode_adjust_exit_handler(proc);
+    int level_adjust_result = pump_level_adjust_exit_handler(proc);
+    if (mode_adjust_result == 0 || level_adjust_result == 0) {
+        return;
+    }
     LOG_WM("cancel key event, popup ui type:%d.", proc->popup_ui_type);
     if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);

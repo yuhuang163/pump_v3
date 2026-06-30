@@ -21,7 +21,8 @@ int ui_display_factory_reset_process(ui_manager_context_t *thiz);
 
 void ui_display_factory_reset_confirm_prepare(ui_manager_context_t *thiz);
 void ui_display_factory_reset_confirm_remove(ui_manager_context_t *thiz);
-int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz, uint8_t fac_rst_confirm_progress);
+int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz,
+    uint8_t fac_rst_confirm_progress, bool blink_visible);
 
 #ifdef __cplusplus
 }

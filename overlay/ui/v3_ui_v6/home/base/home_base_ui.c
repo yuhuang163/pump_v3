@@ -229,7 +229,7 @@ int home_base_ui_process(ui_manager_context_t *thiz)
         .blink_time = 0,
     };
     ble_ui_update(thiz, home_info->root, proc->ble,
-        PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y, &ble_sync);
+        BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, &ble_sync);
     #endif
 
     ui_popup_update(thiz, proc->popup_ui_type,

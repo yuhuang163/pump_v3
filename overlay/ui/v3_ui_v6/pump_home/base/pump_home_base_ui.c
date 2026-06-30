@@ -214,7 +214,7 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
         .blink_time = 0,
     };
     ble_ui_update(thiz, pump_info->root, proc->ble,
-        PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y, &ble_sync);
+        BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, &ble_sync);
     ui_popup_update(thiz, proc->popup_ui_type,
         pump_info->root, &pump_info->popup_ui_index);
     pump_info->force_update = false;

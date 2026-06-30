@@ -140,12 +140,14 @@ void pump_mode_adjust_timeout_handler(ui_proc_pump_t *proc)
     proc->pump_mode_adjust_time = get_timestamp();
 }
 
-void pump_mode_adjust_exit_handler(ui_proc_pump_t *proc)
+int pump_mode_adjust_exit_handler(ui_proc_pump_t *proc)
 {
+    EXCEPTION_CHECK_INT(proc);
     if (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_DEFAULT) {
-        return;
+        return -1;
     }
     proc->pump_mode_display_type = PUMP_MODE_DISPLAY_DEFAULT;
     proc->pump_mode_adjust_time = get_timestamp();
+    return 0;
 }
 

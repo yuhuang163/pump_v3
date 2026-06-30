@@ -188,13 +188,6 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_PUMP_PAUSE_ICON",
-      "description": "泵奶暂停图标",
-      "file": "baj/icon_pump_pause_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
       "resource_id": "BASE_RES_ID_SYS_THEME_IMG",
       "description": "系统主题引导图片",
       "file": "baj/page_sys_theme_140x140_a8_q99_444.baj",
@@ -226,55 +219,6 @@
       "resource_id": "BASE_RES_ID_HOME_IDLE_ICON",
       "description": "首页空闲图标",
       "file": "baj/icon_home_idle_88x88_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_CHARGE_ADAPTER_ICON",
-      "description": "充电适配器图标",
-      "file": "baj/icon_charge_adapter_error_188x188_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_STIMULATION_WAVE",
-      "description": "刺激波形",
-      "file": "baj/wave_simulation_314x32_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_LACTATION_WAVE",
-      "description": "泌乳波形",
-      "file": "baj/wave_lactation_314x32_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_MIX_WAVE",
-      "description": "混合波形",
-      "file": "baj/wave_mixed_314x32_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_RELAX_WAVE",
-      "description": "放松波形",
-      "file": "baj/wave_relax_314x32_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_MILK_BOOST_WAVE",
-      "description": "2+8奶量提升波形",
-      "file": "baj/wave_milk_boost_314x34_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_POWER_PUMPING_WAVE",
-      "description": "泵奶模式波形",
-      "file": "baj/wave_power_pumping_315x34_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -324,6 +268,48 @@
       "resource_id": "BASE_RES_ID_PUMP_RELAX_ICON",
       "description": "泵奶放松图标",
       "file": "baj/icon_pump_relax_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_STIMULATION_WAVE",
+      "description": "刺激波形",
+      "file": "baj/wave_simulation_314x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_LACTATION_WAVE",
+      "description": "泌乳波形",
+      "file": "baj/wave_lactation_314x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_MIX_WAVE",
+      "description": "混合波形",
+      "file": "baj/wave_mixed_314x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_RELAX_WAVE",
+      "description": "放松波形",
+      "file": "baj/wave_relax_314x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_MILK_BOOST_WAVE",
+      "description": "2+8奶量提升波形",
+      "file": "baj/wave_milk_boost_314x34_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_POWER_PUMPING_WAVE",
+      "description": "泵奶模式波形",
+      "file": "baj/wave_power_pumping_315x34_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     }

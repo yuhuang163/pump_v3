@@ -33,6 +33,9 @@ void stop_factory_reset_ui_animation(ui_proc_factory_reset_t *proc)
     factory_reset_ui_hdr_remove();
     factory_reset_confirm_ui_hdr_remove();
     EXCEPTION_CHECK_VOID(proc);
+    if (proc->current_ui_type == FACTORY_RESET_UI_TYPE_FACTORY_RESET_CONFIRM) {
+        factory_reset_confirm_led_restore(proc);
+    }
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui && ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);

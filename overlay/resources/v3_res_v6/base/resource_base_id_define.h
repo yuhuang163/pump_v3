@@ -51,17 +51,7 @@ typedef enum {
 
     /* 模式相关组 [200..300]（大图 + 小图标） */
     BASE_RES_ID_HOME_IDLE_ICON = 200, /// 空闲界面图标
-    BASE_RES_ID_PUMP_FINISH_ICON, /// 泵奶完成图标
-    BASE_RES_ID_CHARGE_ADAPTER_ICON, /// 充电适配器图标
     BASE_RES_ID_PUMP_PAUSE_ICON, /// 泵奶暂停图标
-
-    BASE_RES_ID_STIMULATION_WAVE = 220, /// 刺激波形
-    BASE_RES_ID_LACTATION_WAVE, /// 泌乳波形
-    BASE_RES_ID_MIX_WAVE, /// 混合波形
-    BASE_RES_ID_RELAX_WAVE, /// 放松波形
-    BASE_RES_ID_MILK_BOOST_WAVE, /// 2+8奶量提升波形
-    BASE_RES_ID_POWER_PUMPING_WAVE, /// 泵奶模式波形
-    BASE_RES_ID_CUSTOM_WAVE, /// 个性化模式波形
     BASE_RES_ID_PUMP_LEVEL_SEPARATOR, /// 泵奶力度分割符
     BASE_RES_ID_PUMP_LEVEL_BG, /// 泵奶力度背景
     BASE_RES_ID_PUMP_LEVEL_BIG_BG, /// 泵奶力度大背景
@@ -69,6 +59,14 @@ typedef enum {
     BASE_RES_ID_PUMP_LEVEL_BIG_INDICATOR, /// 泵奶力度大指示符
     BASE_RES_ID_PUMP_RHYTHM_ICON, /// 泵奶节奏图标
     BASE_RES_ID_PUMP_RELAX_ICON, /// 泵奶放松图标
+
+    BASE_RES_ID_STIMULATION_WAVE = 300, /// 刺激波形
+    BASE_RES_ID_LACTATION_WAVE, /// 泌乳波形
+    BASE_RES_ID_MIX_WAVE, /// 混合波形
+    BASE_RES_ID_RELAX_WAVE, /// 放松波形
+    BASE_RES_ID_MILK_BOOST_WAVE, /// 2+8奶量提升波形
+    BASE_RES_ID_POWER_PUMPING_WAVE, /// 泵奶模式波形
+    BASE_RES_ID_CUSTOM_WAVE, /// 个性化模式波形
 
     /* 动画组 [1000..] */
     BASE_RES_ID_LONG_SUCTION_ANIM_START = 1000, /// 长吸动画-开始
