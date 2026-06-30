@@ -68,6 +68,12 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        int pump_status = 0;
+        READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+        /// 如果泵奶状态为暂停，则显示暂停结算弹窗
+        if (pump_status == BREAST_PUMP_PAUSE) {
+            proc->popup_window_id = ID_POPUP_UI_PUMP_PAUSE_SETTLE;
+        }
         start_popup_ui_animation(proc);
     }
     return 0;

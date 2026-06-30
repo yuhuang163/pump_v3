@@ -29,7 +29,7 @@ static void system_will_power_off_popup_display_complete(ui_manager_context_t *u
 {
     EXCEPTION_CHECK_VOID(ui);
     ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
-    EXCEPTION_CHECK_VOID(proc);
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     EXCEPTION_CHECK_VOID(pm);
     ///插入关机数据埋点 0:手动关机 1:低电量关机 2:自动休眠关机 3:异常关机 4:固件更新关机 5:过热关机

@@ -110,6 +110,7 @@ const char *popup_window_name_get(ui_manager_context_t *thiz, uint16_t popup_typ
 void popup_window_ble_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void popup_window_device_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void popup_window_power_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+void popup_window_pump_stop_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void popup_window_error_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 
 #ifdef __cplusplus
