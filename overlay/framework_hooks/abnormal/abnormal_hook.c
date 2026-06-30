@@ -293,7 +293,7 @@ static void check_battery_temperature_abnormal(abnormal_manager_context_t *abnor
     
     static uint8_t prev_temp_abnormal = 0;
     uint8_t current_temp_abnormal = prev_temp_abnormal;
-
+    ///temperature = 70;//测试用
     if (temperature >= SYS_ABNORMAL_BAT_TEMP_HIGH_THRESHOLD_C) {
         current_temp_abnormal = 1;
     } else if (temperature <= SYS_ABNORMAL_BAT_TEMP_NORMAL_THRESHOLD_C) {
@@ -326,6 +326,12 @@ static void abnormal_monitor_thread(void *user_data)
     abnormal_manager_context_t *abnormal = (abnormal_manager_context_t *)user_data;
 
     EXCEPTION_CHECK_VOID(abnormal);
+    ///如果在产测窗口，则不检查异常
+    window_manager_context_t *wm =
+        (window_manager_context_t *)find_module(ID_MODULE_WM);
+    if (wm && wm->is_current_window(wm, ID_WINDOW_PRODUCT_TEST_MODE)) {
+        return;
+    }
     
     /// 检查电池温度异常
     check_battery_temperature_abnormal(abnormal);
@@ -339,9 +345,16 @@ static void abnormal_monitor_thread(void *user_data)
     uint32_t rtc_timestamp = platform_get_utc_time();
     utc_time_t utc_time = {0};
     timestamp_to_utc_time(rtc_timestamp, &utc_time);
-    LOGI("abnormal_monitor_thread runing, rtc_time: %u, %04u-%02u-%02u %02u:%02u:%02u", 
-         (unsigned int)rtc_timestamp, utc_time.year + 2000, utc_time.month, utc_time.day, 
-         utc_time.hour, utc_time.minute, utc_time.second);
+    LOGI("abnormal_monitor_thread runing, rtc_time: %u, %04u-%02u-%02u %02u:%02u:%02u, "
+         "abnormal: bat_temp=%u storage=%u comm=%u displayed=%u forbidden=%u locked=%u",
+         (unsigned int)rtc_timestamp, utc_time.year + 2000, utc_time.month, utc_time.day,
+         utc_time.hour, utc_time.minute, utc_time.second,
+         abnormal->is_abnormal_active(SYS_ABNORMAL_BATTERY_TEMP_HIGH),
+         abnormal->is_abnormal_active(SYS_ABNORMAL_STORAGE_FAILURE),
+         abnormal->is_abnormal_active(SYS_ABNORMAL_COMMUNICATION_ERROR),
+         s_current_displayed_abnormal,
+         abnormal->is_new_task_forbidden(),
+         abnormal->is_core_locked());
     #endif
 }
 
@@ -376,6 +389,12 @@ void sys_abnormal_report_storage_failure(uint8_t active)
     if (!abnormal) {
         return;
     }
+
+    uint8_t was_active = abnormal->is_abnormal_active(SYS_ABNORMAL_STORAGE_FAILURE);
+    if (was_active == active) {
+        return;
+    }
+
     abnormal->set_abnormal_state(SYS_ABNORMAL_STORAGE_FAILURE,
         active ? SYS_ABNORMAL_STATE_ACTIVE : SYS_ABNORMAL_STATE_CLEARED);
     if (active) {
@@ -393,6 +412,12 @@ void sys_abnormal_report_communication_error(uint8_t active)
     if (!abnormal) {
         return;
     }
+
+    uint8_t was_active = abnormal->is_abnormal_active(SYS_ABNORMAL_COMMUNICATION_ERROR);
+    if (was_active == active) {
+        return;
+    }
+
     abnormal->set_abnormal_state(SYS_ABNORMAL_COMMUNICATION_ERROR,
         active ? SYS_ABNORMAL_STATE_ACTIVE : SYS_ABNORMAL_STATE_CLEARED);
     if (active) {
