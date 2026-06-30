@@ -11,11 +11,15 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_HOME_WAVE_Y                           (112)
+#define PUMP_HOME_STIMULATION_WAVE_Y               (112)
+#define PUMP_HOME_LACTATION_WAVE_Y                 (60)
+#define PUMP_HOME_MIX_WAVE_Y                       (112)
+#define PUMP_HOME_RELAX_WAVE_Y                     (112)
+
 #define PUMP_HOME_ANIM_TRANSITION_MS               (1000)
 #define PUMP_HOME_ANIM_FRAME_INTERVAL_MS           (1000 / PUMP_ANIMATION_FREQ)
 #define PUMP_HOME_ANIM_FRAME_RES_INVALID           (0xFFFF)
-#define IS_SUPPORT_PUMP_HOME_ANIM_STATIC_WAVE      (1)
+#define IS_SUPPORT_PUMP_HOME_ANIM_STATIC_WAVE      (0)
 
 #if IS_SUPPORT_PUMP_HOME_ANIM_STATIC_WAVE
 #define PUMP_HOME_ANIM_STATIC_FRAME_ID_APPLY(res_type_val, frame_id_var) \
@@ -111,6 +115,47 @@ static pump_home_anim_res_type_e pump_home_animation_res_type_get(uint16_t start
     }
 }
 
+static lv_coord_t pump_home_animation_wave_y_get(uint8_t mode_type)
+{
+    switch (mode_type) {
+        case PUMP_MODE_STIMULATION:
+            return PUMP_HOME_STIMULATION_WAVE_Y;
+        case PUMP_MODE_LACTATION:
+            return PUMP_HOME_LACTATION_WAVE_Y;
+        case PUMP_MODE_MIX:
+            return PUMP_HOME_MIX_WAVE_Y;
+        case PUMP_MODE_IDLE:
+            return PUMP_HOME_RELAX_WAVE_Y;
+        default:
+            return PUMP_HOME_STIMULATION_WAVE_Y;
+    }
+}
+
+static uint8_t pump_home_animation_mode_type_get(pump_home_anim_res_type_e res_type)
+{
+    switch (res_type) {
+        case PUMP_HOME_ANIM_STIMULATION_WAVE:
+            return PUMP_MODE_STIMULATION;
+        case PUMP_HOME_ANIM_LACTATION_WAVE:
+            return PUMP_MODE_LACTATION;
+        case PUMP_HOME_ANIM_MIX_WAVE:
+            return PUMP_MODE_MIX;
+        case PUMP_HOME_ANIM_RELAX_WAVE:
+            return PUMP_MODE_IDLE;
+        default:
+            return PUMP_MODE_STIMULATION;
+    }
+}
+
+static void pump_home_animation_wave_align(pump_home_base_ui_info_t *info, uint8_t mode_type)
+{
+    if (info->animation.wave == NULL || !lv_obj_is_valid(info->animation.wave)) {
+        return;
+    }
+    lv_obj_align(info->animation.wave, LV_ALIGN_TOP_MID, 0,
+        pump_home_animation_wave_y_get(mode_type));
+}
+
 static void pump_home_animation_wave_hide(pump_home_base_ui_info_t *info)
 {
     if (info->animation.wave == NULL || !lv_obj_is_valid(info->animation.wave)) {
@@ -128,7 +173,6 @@ static void pump_home_animation_wave_prepare(pump_home_base_ui_info_t *info)
     if (info->animation.wave == NULL || !lv_obj_is_valid(info->animation.wave)) {
         info->animation.wave = lv_image_create(info->root);
         EXCEPTION_CHECK_VOID(info->animation.wave);
-        lv_obj_align(info->animation.wave, LV_ALIGN_TOP_MID, 0, PUMP_HOME_WAVE_Y);
         lv_obj_set_style_opa(info->animation.wave, LV_OPA_COVER, 0);
     }
 }
@@ -178,8 +222,10 @@ static void pump_home_animation_apply(pump_home_base_ui_info_t *info, uint16_t s
     pump_home_anim_res_type_e res_type)
 {
     pump_home_animation_info_t *anim = &info->animation;
+    const uint8_t mode_type = pump_home_animation_mode_type_get(res_type);
 
     pump_home_animation_wave_prepare(info);
+    pump_home_animation_wave_align(info, mode_type);
     anim->wave_res_type = res_type;
     anim->current_anim_start = start_id;
     anim->frame_res_id = start_id;
