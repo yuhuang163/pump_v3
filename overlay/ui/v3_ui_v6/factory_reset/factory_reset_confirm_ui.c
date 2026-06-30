@@ -140,6 +140,7 @@ static void ui_factory_reset_confirm_return_btn_update(ui_manager_context_t *thi
     lv_obj_align(ui_info->return_icon, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_CONFIRM_RETURN_BTN_Y);
 }
 
+#if 0
 static void ui_factory_reset_confirm_return_btn_blink_apply(bool blink_visible)
 {
     if (ui_info->return_icon == NULL || !lv_obj_is_valid(ui_info->return_icon)) {
@@ -151,6 +152,7 @@ static void ui_factory_reset_confirm_return_btn_blink_apply(bool blink_visible)
         lv_obj_add_flag(ui_info->return_icon, LV_OBJ_FLAG_HIDDEN);
     }
 }
+#endif
 
 static void ui_factory_reset_confirm_arc_update(uint8_t display_progress)
 {
@@ -266,7 +268,7 @@ int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz,
     ui_factory_reset_confirm_background_update();
     ui_factory_reset_confirm_text_update();
     ui_factory_reset_confirm_return_btn_update(thiz);
-    ui_factory_reset_confirm_return_btn_blink_apply(blink_visible);
+    // ui_factory_reset_confirm_return_btn_blink_apply(blink_visible);
     if (fac_rst_confirm_progress != ui_info->display_progress) {
         ui_info->display_progress = fac_rst_confirm_progress;
         ui_info->start_time = get_timestamp();
