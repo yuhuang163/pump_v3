@@ -142,7 +142,7 @@ static void pump_finish_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void pump_finish_root_bg_update(ui_manager_context_t *thiz)
 { 
-    ui_bg_update(thiz, finish_info->root);
+
 }
 #endif
 
@@ -159,7 +159,6 @@ void pump_finish_base_ui_prepare(ui_manager_context_t *thiz)
     }
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
-    ui_bg_init(thiz);
     pump_complete_tip_root_init();
     finish_info->force_update = true;
 }
@@ -168,7 +167,6 @@ void pump_finish_base_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && finish_info && finish_info->root);
     ui_img_resource_deinit(thiz, &finish_info->icon_info);
-    ui_bg_deinit(thiz);
     LVGL_OBJ_DELETE(finish_info->root); 
     u_free(finish_info);
     finish_info = NULL;

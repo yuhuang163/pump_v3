@@ -111,7 +111,7 @@ static void ui_logo_root_init(void)
 
 static void ui_logo_bg_update(ui_manager_context_t *thiz)
 {
-    ui_bg_update(thiz, logo_info->root);
+
 }
 
 #if IS_SUPPORT_LOGO_WAVE_TEST

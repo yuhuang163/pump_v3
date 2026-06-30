@@ -90,7 +90,7 @@ static void charge_adapter_bg_update(ui_manager_context_t *thiz)
 #else
 static void charge_adapter_bg_update(ui_manager_context_t *thiz)
 {
-    ui_bg_update(thiz, adapter_info->root);
+
 }
 #endif
 
@@ -143,7 +143,6 @@ void charge_adapter_custom_ui_prepare(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(adapter_info);
     }
     charge_adapter_ui_root_init(thiz);  
-    ui_bg_init(thiz);
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     adapter_info->force_update = true;
@@ -153,7 +152,6 @@ void charge_adapter_custom_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && adapter_info);
     ui_img_resource_deinit(thiz, &adapter_info->charge_adapter_icon_info);
-    ui_bg_deinit(thiz);
     LVGL_OBJ_DELETE(adapter_info->root);
     u_free(adapter_info);
     adapter_info = NULL;

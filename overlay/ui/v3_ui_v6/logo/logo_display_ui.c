@@ -121,7 +121,6 @@ void logo_display_ui_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     logo_root_init();
-    ui_bg_init(thiz);
 }
 
 void logo_display_ui_remove(ui_manager_context_t *thiz)
