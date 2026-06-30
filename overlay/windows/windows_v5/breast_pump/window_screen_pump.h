@@ -178,13 +178,13 @@ void show_pump_home_ui(ui_proc_pump_t *proc);
 /// 模式调节
 int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_bf_mode);
 void pump_mode_adjust_timeout_handler(ui_proc_pump_t *proc);
-void pump_mode_adjust_exit_handler(ui_proc_pump_t *proc);
+int pump_mode_adjust_exit_handler(ui_proc_pump_t *proc);
 
 /// 档位调节
 int pump_level_adjust_type_update(ui_proc_pump_t *proc, uint8_t is_left);
 int pump_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
 void pump_level_adjust_timeout_handler(ui_proc_pump_t *proc);
-void pump_level_adjust_exit_handler(ui_proc_pump_t *proc);
+int pump_level_adjust_exit_handler(ui_proc_pump_t *proc);
 
 /// 泵奶状态UI相关
 void switch_pump_status_ui(ui_proc_pump_t *proc);

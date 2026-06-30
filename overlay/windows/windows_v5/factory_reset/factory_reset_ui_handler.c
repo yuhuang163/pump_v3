@@ -32,9 +32,7 @@ static void factory_reset_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     ui_display_factory_reset_process(ui);
-    // if (get_timestamp_ms(proc->last_progress_ani_time) < 2000) {
-    //     return;
-    // }
+    #if 0
     if (get_timestamp_ms(proc->led_blink_time) >= proc->led_blink_period) {
         proc->led_blink_time = get_timestamp();
         proc->led_blink_status = proc->led_blink_status == 0 ? LED_LEVEL_MAX : 0;
@@ -42,6 +40,7 @@ static void factory_reset_ui_after_policy(ui_manager_context_t *ui, int index)
             proc->led->hook->set_key_backlight(proc->led, proc->led_blink_status);
         }
     }
+    #endif
 }
 
 static void factory_reset_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -104,9 +103,12 @@ static void start_factory_reset_ui_animation(ui_proc_factory_reset_t *proc)
 
 static void factory_reset_led_blink_policy(ui_proc_factory_reset_t *proc)
 {
-    proc->led_blink_period = LED_MEDIUM_BLINK_TIME;
-    proc->led_blink_time = get_timestamp();
-    proc->led_blink_status = 0;
+    // proc->led_blink_period = LED_MEDIUM_BLINK_TIME;
+    // proc->led_blink_time = get_timestamp();
+    // proc->led_blink_status = 0;
+    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+        proc->led->hook->set_key_backlight(proc->led, 0);
+    }
 }
 
 static void factory_reset_cb(hdr_post_args_t *args)
@@ -117,6 +119,7 @@ static void factory_reset_cb(hdr_post_args_t *args)
     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight_adaptive_dimming_switch) {
         proc->led->hook->set_key_backlight_adaptive_dimming_switch(proc->led, 0);
     }
+    factory_reset_confirm_led_restore(proc);
     factory_reset_led_blink_policy(proc);
     start_factory_reset_ui_animation(proc);
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);

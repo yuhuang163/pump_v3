@@ -5,8 +5,32 @@
 extern "C" {
 #endif
 
-#include "root_common_base.h" // IWYU pragma: keep
-#include "ui_manager_api.h" // IWYU pragma: keep
+#include "ui_img_define.h"   // IWYU pragma: keep
+#include "ui_page_define.h" // IWYU pragma: keep
+#include "ui_manager.h" // IWYU pragma: keep
+#include "pump_finish_ui.h" // IWYU pragma: keep
+
+#define PUMP_FINISH_CUSTOM_TIP_TEXT_COUNT          (2)
+
+typedef struct {
+    const char *name;
+    uint16_t text_x;
+    uint16_t text_y;
+    const lv_font_t *font;
+    uint32_t color;
+} pump_finish_custom_text_info_t;
+
+typedef struct {
+    lv_obj_t *root;
+#if IS_SUPPORT_PUMP_FINISH_COMP_BG
+    lv_obj_t *backgroud;
+#endif
+    lv_obj_t *icon;
+    lv_obj_t *texts[PUMP_FINISH_CUSTOM_TIP_TEXT_COUNT];
+    res_img_info_t icon_info;
+    uint8_t force_update;
+    uint8_t rsv[15];
+} pump_finish_custom_ui_info_t;
 
 void pump_finish_custom_ui_prepare(ui_manager_context_t *thiz);
 void pump_finish_custom_ui_remove(ui_manager_context_t *thiz);
@@ -16,5 +40,4 @@ int pump_finish_custom_ui_process(ui_manager_context_t *thiz);
 }
 #endif
 
-#endif // __PUMP_FINISH_UI_INTERNAL_H__
-
+#endif // __PUMP_FINISH_CUSTOM_UI_INTERNAL_H__

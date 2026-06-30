@@ -5,12 +5,124 @@
 extern "C" {
 #endif
 
-#include "root_common_base.h" // IWYU pragma: keep
-#include "ui_manager_api.h" // IWYU pragma: keep
+/*
+* INCLUDE FILES
+*****************************************************************************************
+*/
+#include "ui_img_define.h"   // IWYU pragma: keep
+#include "ui_page_define.h" // IWYU pragma: keep
+#include "ui_manager.h" // IWYU pragma: keep
+#include "pump_home_ui.h" // IWYU pragma: keep
+#include "window_screen_pump.h" // IWYU pragma: keep
 
-void pump_home_base_ui_prepare(ui_manager_context_t *thiz);
-void pump_home_base_ui_remove(ui_manager_context_t *thiz);
-int pump_home_base_ui_process(ui_manager_context_t *thiz);
+/*
+* DEFINES
+*****************************************************************************************
+*/
+#define HOME_TIME_COLON_COUNT                      (2)
+#define PUMP_HOME_TIME_DIGIT_COUNT                 (2)
+typedef struct {
+    lv_obj_t *arc;
+    lv_obj_t *indicator;
+    lv_obj_t *progress;
+    lv_obj_t *progress_bg;
+    uint8_t value;
+    uint8_t new_value;
+    uint8_t adjust_active; /// 0: 默认样式, 1: 调节样式.
+} pump_home_custom_level_t;
+
+typedef struct {
+    pump_home_custom_level_t left;
+    pump_home_custom_level_t right;
+    lv_obj_t *separator;
+    uint8_t left_blink_state; /// 左力度闪烁: 0: 不闪烁, 1: 闪烁.
+    uint8_t right_blink_state; /// 右力度闪烁: 0: 不闪烁, 1: 闪烁.
+} pump_home_custom_level_info_t;
+
+typedef struct {
+    lv_obj_t *title;
+    lv_obj_t *mode;
+    uint8_t index;
+    uint8_t new_index;
+    uint8_t mode_type;
+    uint8_t new_mode_type;
+    uint8_t mode_blink_state; /// 模式闪烁状态: 0: 不闪烁, 1: 闪烁.
+    uint32_t custom_mode_id;
+} pump_home_custom_mode_info_t;
+
+typedef enum {
+    PUMP_HOME_CUSTOM_ANIM_SHAKE_BOTTLE = 0,
+    PUMP_HOME_CUSTOM_ANIM_YAWN,
+    PUMP_HOME_CUSTOM_ANIM_SUCTION,
+    PUMP_HOME_CUSTOM_ANIM_MAX,
+} pump_home_custom_anim_res_type_e;
+
+typedef struct {
+    lv_obj_t *wave;
+    res_img_info_t wave_info;
+    uint8_t wave_res_type; /// 当前动画资源类型
+    uint8_t anim_mode_type; /// 当前动画关联 mode_type
+    uint16_t frame_res_id; /// 当前帧资源ID
+    uint16_t frame_end_res_id; /// 末帧资源ID
+    uint16_t current_anim_start; /// 当前动画起始ID
+    uint16_t pending_anim_start; /// 转场待切换起始ID
+    uint16_t pending_anim_end; /// 转场待切换结束ID
+    uint16_t shown_frame_res_id; /// 已显示帧资源ID
+    uint8_t anim_phase; /// 动画阶段
+    uint8_t anim_play_state; /// 动画播放状态: 0: 播放, 1: 暂停.
+    uint32_t transition_start_ms; /// 转场开始时间
+    uint32_t last_frame_tick_ms; /// 上次切帧时间
+} pump_home_custom_animation_info_t;
+
+typedef struct {
+    lv_obj_t *h[PUMP_HOME_TIME_DIGIT_COUNT];
+    lv_obj_t *m[PUMP_HOME_TIME_DIGIT_COUNT];
+    lv_obj_t *s[PUMP_HOME_TIME_DIGIT_COUNT];
+    lv_obj_t *colon[HOME_TIME_COLON_COUNT];
+    lv_obj_t *remain_minus;
+    lv_obj_t *remain_m[PUMP_HOME_TIME_DIGIT_COUNT];
+    lv_obj_t *remain_colon;
+    lv_obj_t *remain_s[PUMP_HOME_TIME_DIGIT_COUNT];
+    uint8_t hours;
+    uint8_t minutes;
+    uint8_t seconds;
+    uint8_t digit_size; /// 时数字体规格：PUMP_TIME_2SEG / PUMP_TIME_3SEG
+    int8_t y_offset;
+    uint8_t time_blink_state; /// 时间闪烁状态: 0: 不闪烁, 1: 闪烁.
+    uint32_t remain_time;
+    uint32_t remain_time_shown;
+} pump_home_custom_time_t;
+
+typedef struct {
+    lv_obj_t *root;
+    lv_obj_t *background;
+    pump_home_custom_mode_info_t mode;
+    pump_home_custom_level_info_t level;
+    pump_home_custom_time_t time;
+    pump_home_custom_animation_info_t animation;
+    storage_manager_context_t *st;
+    ui_manager_context_t *ui;
+    uint8_t force_update;
+    uint8_t popup_ui_index;
+} pump_home_custom_ui_info_t;
+
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+void pump_home_custom_mode_ui_remove(pump_home_custom_ui_info_t *info);
+void pump_home_custom_mode_ui_update(pump_home_custom_ui_info_t *info, bool blink_visible);
+
+void pump_home_custom_level_ui_remove(pump_home_custom_ui_info_t *info);
+void pump_home_custom_level_ui_update(pump_home_custom_ui_info_t *info, bool blink_visible);
+
+void pump_home_custom_time_ui_remove(pump_home_custom_ui_info_t *info);
+void pump_home_custom_time_ui_update(pump_home_custom_ui_info_t *info, uint16_t hold_time, bool blink_visible);
+
+void pump_home_custom_animation_ui_remove(pump_home_custom_ui_info_t *info);
+void pump_home_custom_animation_ui_update(pump_home_custom_ui_info_t *info);
+
+void pump_home_custom_blink_state_update(pump_home_custom_ui_info_t *info, ui_proc_pump_t *proc);
 
 void pump_home_custom_ui_prepare(ui_manager_context_t *thiz);
 void pump_home_custom_ui_remove(ui_manager_context_t *thiz);
@@ -20,5 +132,4 @@ int pump_home_custom_ui_process(ui_manager_context_t *thiz);
 }
 #endif
 
-#endif // __PUMP_HOME_UI_INTERNAL_H__
-
+#endif // __PUMP_HOME_CUSTOM_UI_INTERNAL_H__

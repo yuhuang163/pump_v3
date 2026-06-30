@@ -49,9 +49,9 @@ typedef enum {
 */
 static void pump_home_animation_state_reset(pump_home_base_ui_info_t *info)
 {
-    pump_home_animation_info_t *anim = &info->animation;
+    pump_home_base_animation_info_t *anim = &info->animation;
 
-    anim->wave_res_type = PUMP_HOME_ANIM_MAX;
+    anim->wave_res_type = PUMP_HOME_BASE_ANIM_MAX;
     anim->current_anim_start = 0;
     anim->pending_anim_start = 0;
     anim->pending_anim_end = 0;
@@ -71,47 +71,47 @@ static void pump_home_animation_wave_opa_set(pump_home_base_ui_info_t *info, lv_
 }
 
 static bool pump_home_animation_res_get(uint8_t mode_type, uint16_t *start_id, uint16_t *end_id,
-    pump_home_anim_res_type_e *res_type)
+    pump_home_base_anim_res_type_e *res_type)
 {
     switch (mode_type) {
         case PUMP_MODE_STIMULATION:
             *start_id = BASE_RES_ID_SHORT_SUCTION_ANIM_START;
             *end_id = BASE_RES_ID_SHORT_SUCTION_ANIM_END;
-            *res_type = PUMP_HOME_ANIM_STIMULATION_WAVE;
+            *res_type = PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
             return true;
         case PUMP_MODE_LACTATION:
             *start_id = BASE_RES_ID_LONG_SUCTION_ANIM_START;
             *end_id = BASE_RES_ID_LONG_SUCTION_ANIM_END;
-            *res_type = PUMP_HOME_ANIM_LACTATION_WAVE;
+            *res_type = PUMP_HOME_BASE_ANIM_LACTATION_WAVE;
             return true;
         case PUMP_MODE_MIX:
             *start_id = BASE_RES_ID_MIXED_SUCTION_ANIM_START;
             *end_id = BASE_RES_ID_MIXED_SUCTION_ANIM_END;
-            *res_type = PUMP_HOME_ANIM_MIX_WAVE;
+            *res_type = PUMP_HOME_BASE_ANIM_MIX_WAVE;
             return true;
         case PUMP_MODE_IDLE:
             *start_id = BASE_RES_ID_RELAX_SUCTION_ANIM_START;
             *end_id = BASE_RES_ID_RELAX_SUCTION_ANIM_END;
-            *res_type = PUMP_HOME_ANIM_RELAX_WAVE;
+            *res_type = PUMP_HOME_BASE_ANIM_RELAX_WAVE;
             return true;
         default:
             return false;
     }
 }
 
-static pump_home_anim_res_type_e pump_home_animation_res_type_get(uint16_t start_id)
+static pump_home_base_anim_res_type_e pump_home_animation_res_type_get(uint16_t start_id)
 {
     switch (start_id) {
         case BASE_RES_ID_SHORT_SUCTION_ANIM_START:
-            return PUMP_HOME_ANIM_STIMULATION_WAVE;
+            return PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
         case BASE_RES_ID_LONG_SUCTION_ANIM_START:
-            return PUMP_HOME_ANIM_LACTATION_WAVE;
+            return PUMP_HOME_BASE_ANIM_LACTATION_WAVE;
         case BASE_RES_ID_MIXED_SUCTION_ANIM_START:
-            return PUMP_HOME_ANIM_MIX_WAVE;
+            return PUMP_HOME_BASE_ANIM_MIX_WAVE;
         case BASE_RES_ID_RELAX_SUCTION_ANIM_START:
-            return PUMP_HOME_ANIM_RELAX_WAVE;
+            return PUMP_HOME_BASE_ANIM_RELAX_WAVE;
         default:
-            return PUMP_HOME_ANIM_MAX;
+            return PUMP_HOME_BASE_ANIM_MAX;
     }
 }
 
@@ -131,16 +131,16 @@ static lv_coord_t pump_home_animation_wave_y_get(uint8_t mode_type)
     }
 }
 
-static uint8_t pump_home_animation_mode_type_get(pump_home_anim_res_type_e res_type)
+static uint8_t pump_home_animation_mode_type_get(pump_home_base_anim_res_type_e res_type)
 {
     switch (res_type) {
-        case PUMP_HOME_ANIM_STIMULATION_WAVE:
+        case PUMP_HOME_BASE_ANIM_STIMULATION_WAVE:
             return PUMP_MODE_STIMULATION;
-        case PUMP_HOME_ANIM_LACTATION_WAVE:
+        case PUMP_HOME_BASE_ANIM_LACTATION_WAVE:
             return PUMP_MODE_LACTATION;
-        case PUMP_HOME_ANIM_MIX_WAVE:
+        case PUMP_HOME_BASE_ANIM_MIX_WAVE:
             return PUMP_MODE_MIX;
-        case PUMP_HOME_ANIM_RELAX_WAVE:
+        case PUMP_HOME_BASE_ANIM_RELAX_WAVE:
             return PUMP_MODE_IDLE;
         default:
             return PUMP_MODE_STIMULATION;
@@ -178,16 +178,16 @@ static void pump_home_animation_wave_prepare(pump_home_base_ui_info_t *info)
 }
 
 #if IS_SUPPORT_PUMP_HOME_ANIM_STATIC_WAVE
-static uint16_t pump_home_animation_static_frame_id_get(pump_home_anim_res_type_e res_type)
+static uint16_t pump_home_animation_static_frame_id_get(pump_home_base_anim_res_type_e res_type)
 {
     switch (res_type) {
-        case PUMP_HOME_ANIM_STIMULATION_WAVE:
+        case PUMP_HOME_BASE_ANIM_STIMULATION_WAVE:
             return BASE_RES_ID_STIMULATION_WAVE;
-        case PUMP_HOME_ANIM_LACTATION_WAVE:
+        case PUMP_HOME_BASE_ANIM_LACTATION_WAVE:
             return BASE_RES_ID_LACTATION_WAVE;
-        case PUMP_HOME_ANIM_MIX_WAVE:
+        case PUMP_HOME_BASE_ANIM_MIX_WAVE:
             return BASE_RES_ID_MIX_WAVE;
-        case PUMP_HOME_ANIM_RELAX_WAVE:
+        case PUMP_HOME_BASE_ANIM_RELAX_WAVE:
             return BASE_RES_ID_RELAX_WAVE;
         default:
             return 0;
@@ -197,7 +197,7 @@ static uint16_t pump_home_animation_static_frame_id_get(pump_home_anim_res_type_
 
 static void pump_home_animation_frame_show(pump_home_base_ui_info_t *info, uint16_t frame_id)
 {
-    pump_home_animation_info_t *anim = &info->animation;
+    pump_home_base_animation_info_t *anim = &info->animation;
 
     if (anim->shown_frame_res_id == frame_id) {
         return;
@@ -219,9 +219,9 @@ static void pump_home_animation_frame_show(pump_home_base_ui_info_t *info, uint1
 }
 
 static void pump_home_animation_apply(pump_home_base_ui_info_t *info, uint16_t start_id, uint16_t end_id,
-    pump_home_anim_res_type_e res_type)
+    pump_home_base_anim_res_type_e res_type)
 {
-    pump_home_animation_info_t *anim = &info->animation;
+    pump_home_base_animation_info_t *anim = &info->animation;
     const uint8_t mode_type = pump_home_animation_mode_type_get(res_type);
 
     pump_home_animation_wave_prepare(info);
@@ -240,7 +240,7 @@ static void pump_home_animation_apply(pump_home_base_ui_info_t *info, uint16_t s
 static void pump_home_animation_transition_begin(pump_home_base_ui_info_t *info, uint16_t start_id,
     uint16_t end_id)
 {
-    pump_home_animation_info_t *anim = &info->animation;
+    pump_home_base_animation_info_t *anim = &info->animation;
 
     anim->pending_anim_start = start_id;
     anim->pending_anim_end = end_id;
@@ -252,7 +252,7 @@ static void pump_home_animation_transition_begin(pump_home_base_ui_info_t *info,
 
 static bool pump_home_animation_transition_update(pump_home_base_ui_info_t *info)
 {
-    pump_home_animation_info_t *anim = &info->animation;
+    pump_home_base_animation_info_t *anim = &info->animation;
     const uint32_t elapsed = get_timestamp() - anim->transition_start_ms;
     const uint32_t half_time = PUMP_HOME_ANIM_TRANSITION_MS / 2U;
 
@@ -284,7 +284,7 @@ static bool pump_home_animation_transition_update(pump_home_base_ui_info_t *info
 
 static void pump_home_animation_frame_update(pump_home_base_ui_info_t *info)
 {
-    pump_home_animation_info_t *anim = &info->animation;
+    pump_home_base_animation_info_t *anim = &info->animation;
     const uint32_t now = get_timestamp();
 
     if (anim->last_frame_tick_ms != 0 &&
@@ -297,7 +297,7 @@ static void pump_home_animation_frame_update(pump_home_base_ui_info_t *info)
         anim->frame_res_id = anim->current_anim_start;
     }
 
-    PUMP_HOME_ANIM_STATIC_FRAME_ID_APPLY((pump_home_anim_res_type_e)anim->wave_res_type,
+    PUMP_HOME_ANIM_STATIC_FRAME_ID_APPLY((pump_home_base_anim_res_type_e)anim->wave_res_type,
         anim->frame_res_id);
 
     pump_home_animation_frame_show(info, anim->frame_res_id);
@@ -318,9 +318,9 @@ void pump_home_base_animation_ui_remove(pump_home_base_ui_info_t *info)
 
 void pump_home_base_animation_ui_update(pump_home_base_ui_info_t *info)
 {
-    pump_home_animation_info_t *anim = &info->animation;
+    pump_home_base_animation_info_t *anim = &info->animation;
     const uint8_t mode_type = info->mode.new_mode_type;
-    pump_home_anim_res_type_e res_type = PUMP_HOME_ANIM_MAX;
+    pump_home_base_anim_res_type_e res_type = PUMP_HOME_BASE_ANIM_MAX;
     uint16_t start_id = 0;
     uint16_t end_id = 0;
 
@@ -333,7 +333,7 @@ void pump_home_base_animation_ui_update(pump_home_base_ui_info_t *info)
         return;
     }
 
-    if (info->force_update || anim->wave_res_type >= PUMP_HOME_ANIM_MAX) {
+    if (info->force_update || anim->wave_res_type >= PUMP_HOME_BASE_ANIM_MAX) {
         pump_home_animation_apply(info, start_id, end_id, res_type);
         pump_home_animation_wave_opa_set(info, LV_OPA_COVER);
         anim->anim_phase = PUMP_HOME_ANIM_PHASE_PLAY;

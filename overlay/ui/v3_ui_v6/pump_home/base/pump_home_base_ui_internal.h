@@ -1,7 +1,6 @@
 #ifndef __PUMP_HOME_BASE_UI_INTERNAL_H__
 #define __PUMP_HOME_BASE_UI_INTERNAL_H__
 
-#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -52,12 +51,12 @@ typedef struct {
 } pump_home_base_mode_info_t;
 
 typedef enum {
-    PUMP_HOME_ANIM_STIMULATION_WAVE = 0,
-    PUMP_HOME_ANIM_LACTATION_WAVE,
-    PUMP_HOME_ANIM_MIX_WAVE,
-    PUMP_HOME_ANIM_RELAX_WAVE,
-    PUMP_HOME_ANIM_MAX,
-} pump_home_anim_res_type_e;
+    PUMP_HOME_BASE_ANIM_STIMULATION_WAVE = 0,
+    PUMP_HOME_BASE_ANIM_LACTATION_WAVE,
+    PUMP_HOME_BASE_ANIM_MIX_WAVE,
+    PUMP_HOME_BASE_ANIM_RELAX_WAVE,
+    PUMP_HOME_BASE_ANIM_MAX,
+} pump_home_base_anim_res_type_e;
 
 typedef struct {
     lv_obj_t *wave;
@@ -73,7 +72,7 @@ typedef struct {
     uint8_t anim_play_state; /// 动画播放状态: 0: 播放, 1: 暂停.
     uint32_t transition_start_ms; /// 转场开始时间
     uint32_t last_frame_tick_ms; /// 上次切帧时间
-} pump_home_animation_info_t;
+} pump_home_base_animation_info_t;
 
 typedef struct {
     lv_obj_t *h[PUMP_HOME_TIME_DIGIT_COUNT];
@@ -100,7 +99,7 @@ typedef struct {
     pump_home_base_mode_info_t mode;
     pump_home_base_level_info_t level;
     pump_home_base_time_t time;
-    pump_home_animation_info_t animation;
+    pump_home_base_animation_info_t animation;
     storage_manager_context_t *st;
     ui_manager_context_t *ui;
     uint8_t force_update;

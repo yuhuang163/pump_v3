@@ -17,8 +17,6 @@
 #define HOME_SCREEN_SAVER_INNER_GRAY_RING_SIZE                   (160)
 #define HOME_SCREEN_SAVER_MID_GRAY_RING_COLOR                    (0x131212)
 #define HOME_SCREEN_SAVER_INNER_GRAY_RING_COLOR                  (0x1D1C1C)
-#define HOME_SCREEN_SAVER_BLE_UI_Y                               (16)
-
 typedef struct {
     lv_obj_t * root;
 #if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
@@ -188,7 +186,8 @@ int home_screen_saver_base_ui_process(ui_manager_context_t *thiz)
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->ble);
     home_screen_saver_root_bg_update(thiz);
-    ble_ui_update(thiz, saver_info->root, proc->ble, 0, HOME_SCREEN_SAVER_BLE_UI_Y, NULL);
+    ble_ui_update(thiz, saver_info->root, proc->ble,
+        BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, NULL);
     home_screen_saver_ui_update(thiz, proc);
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

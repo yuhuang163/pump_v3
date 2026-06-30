@@ -24,6 +24,9 @@ extern "C" {
 /// 工厂重置动画展示时间
 #define FACTORY_RESET_ANIMATION_DISPLAY_TIME         (2000) /// 2s
 
+/// 工厂重置确认页 return 键/UI 闪烁周期
+#define FACTORY_RESET_BLINK_PERIOD                   (500)
+
 /// 系统UI类型枚举
 typedef enum {
     FACTORY_RESET_UI_TYPE_NONE = 0,
@@ -49,10 +52,12 @@ typedef struct {
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. factory_reset_ui_type_e
     uint8_t display_fac_rst_confirm_progress; /// 显示工厂重置确认进度.
+    uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
+    uint8_t confirm_return_blink_visible; /// 确认页 return 灯上次闪烁相位.
     uint32_t led_blink_time; /// 上次LED闪烁时间.
     uint16_t led_blink_period; /// LED闪烁周期.
     uint8_t led_blink_status; /// LED闪烁状态.
-    uint8_t rsv[13];
+    uint8_t rsv[11];
 } ui_proc_factory_reset_t;
 
 /*
@@ -63,6 +68,7 @@ void factory_reset_handle(ui_proc_factory_reset_t *proc, uint16_t delay_ms);
 void factory_reset_ui_hdr_remove(void);
 void show_factory_reset_confirm_ui(ui_proc_factory_reset_t *proc);
 void factory_reset_confirm_ui_hdr_remove(void);
+void factory_reset_confirm_led_restore(ui_proc_factory_reset_t *proc);
 void stop_factory_reset_ui_animation(ui_proc_factory_reset_t *proc);
 #ifdef __cplusplus
 }

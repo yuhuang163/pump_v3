@@ -613,18 +613,15 @@ int img_res_init(resource_manager_context_t *thiz)
         LOGE("validate base img res failed");
         return -1;
     }
-#if IS_SUPPORT_UI_THEME_RES
     MUTEX_LOCK_FS(thiz->priv.m_fs_rw_lock, "theme_img_res_validate");
     ret = img_res_validate_and_dump(thiz, RES_THEME_TYPE_CUSTOM);
     thiz->priv.theme_res_init_completed = (ret == 0) ? true : false;
     MUTEX_UNLOCK_FS(thiz->priv.m_fs_rw_lock, "theme_img_res_validate");
-#endif
     return 0;
 }
 
 int install_img_res(resource_manager_context_t *thiz, res_theme_type_e theme_type)
 {
-#if IS_SUPPORT_UI_THEME_RES
     int ret = 0;
     
     if (theme_type != RES_THEME_TYPE_CUSTOM) {
@@ -639,9 +636,6 @@ int install_img_res(resource_manager_context_t *thiz, res_theme_type_e theme_typ
         LOGE("install custom img res failed");
     }
     return ret;
-#else
-    return 0;
-#endif
 }
 
 int uninstall_img_res(resource_manager_context_t *thiz, res_theme_type_e theme_type)

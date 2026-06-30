@@ -85,11 +85,7 @@ static int base_res_data_load_impl(uint16_t img_id, res_img_info_t *out)
 
 static int theme_res_data_load_impl(uint16_t img_id, res_img_info_t *out)
 {
-#if IS_SUPPORT_UI_THEME_RES
     return res_data_load_with_theme(thiz, thiz->priv.theme_type, img_id, out);
-#else
-    return res_data_load_with_theme(thiz, RES_THEME_TYPE_BASE, img_id, out);
-#endif 
 }
 
 static int get_img_res_version(res_theme_type_e theme_type)

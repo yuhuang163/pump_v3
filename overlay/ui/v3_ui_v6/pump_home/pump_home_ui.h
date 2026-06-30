@@ -26,5 +26,5 @@ int ui_display_pump_home_screen_process(ui_manager_context_t *thiz);
 #ifdef __cplusplus
 }
 #endif
-#endif// __UI_DISPLAY_H__
+#endif // __PUMP_HOME_UI_H__
 

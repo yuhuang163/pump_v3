@@ -140,6 +140,18 @@ static void ui_factory_reset_confirm_return_btn_update(ui_manager_context_t *thi
     lv_obj_align(ui_info->return_icon, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_CONFIRM_RETURN_BTN_Y);
 }
 
+static void ui_factory_reset_confirm_return_btn_blink_apply(bool blink_visible)
+{
+    if (ui_info->return_icon == NULL || !lv_obj_is_valid(ui_info->return_icon)) {
+        return;
+    }
+    if (blink_visible) {
+        lv_obj_clear_flag(ui_info->return_icon, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(ui_info->return_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 static void ui_factory_reset_confirm_arc_update(uint8_t display_progress)
 {
     if (ui_info->arc == NULL || !lv_obj_is_valid(ui_info->arc)) {
@@ -247,12 +259,14 @@ void ui_display_factory_reset_confirm_remove(ui_manager_context_t *thiz)
     ui_info = NULL;
 }
 
-int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz, uint8_t fac_rst_confirm_progress)
+int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz,
+    uint8_t fac_rst_confirm_progress, bool blink_visible)
 {
     EXCEPTION_CHECK_INT(thiz && ui_info && ui_info->root);
     ui_factory_reset_confirm_background_update();
     ui_factory_reset_confirm_text_update();
     ui_factory_reset_confirm_return_btn_update(thiz);
+    ui_factory_reset_confirm_return_btn_blink_apply(blink_visible);
     if (fac_rst_confirm_progress != ui_info->display_progress) {
         ui_info->display_progress = fac_rst_confirm_progress;
         ui_info->start_time = get_timestamp();

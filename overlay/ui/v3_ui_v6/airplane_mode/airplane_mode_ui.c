@@ -194,7 +194,7 @@ int ui_display_airplane_mode_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(proc && proc->ble);
     airplane_mode_bg_update(thiz);
     airplane_mode_button_icon_update(thiz);
-    ble_ui_update(thiz, airplane_info->root, proc->ble, COMMON_BLE_UI_X, COMMON_BLE_UI_Y, NULL);
+    ble_ui_update(thiz, airplane_info->root, proc->ble, BASE_BLE_UI_X, BASE_BLE_UI_Y, NULL);
     airplane_mode_texts_update();
     airplane_mode_popup_update(thiz, proc->popup_ui_type);
     airplane_info->force_update = false;

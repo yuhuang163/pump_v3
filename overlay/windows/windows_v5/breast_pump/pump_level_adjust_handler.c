@@ -114,12 +114,13 @@ void pump_level_adjust_timeout_handler(ui_proc_pump_t *proc)
     proc->level_adjust_time = get_timestamp();
 }
 
-void pump_level_adjust_exit_handler(ui_proc_pump_t *proc)
+int pump_level_adjust_exit_handler(ui_proc_pump_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_INT(proc);
     if (proc->pump_level_display_type == PUMP_LEVEL_DISPLAY_DEFAULT) {
-        return;
+        return -1;
     }
     proc->pump_level_display_type = PUMP_LEVEL_DISPLAY_DEFAULT;
     proc->level_adjust_time = get_timestamp();
+    return 0;
 }
