@@ -16,17 +16,17 @@
 
 /// 坐标定义（方便调整，按异常类型独立配置）
 /// 系统错误（存储故障 / 通信丢失）
-#define SYS_ABNORMAL_ICON_Y_SYS_ERROR                            (78)
+#define SYS_ABNORMAL_ICON_Y_SYS_ERROR                            (96)
 #define SYS_ABNORMAL_TITLE_X_SYS_ERROR                           (0)
-#define SYS_ABNORMAL_TITLE_Y_SYS_ERROR                           (166)
+#define SYS_ABNORMAL_TITLE_Y_SYS_ERROR                           (184)
 #define SYS_ABNORMAL_CONTENT_X_SYS_ERROR                         (0)
-#define SYS_ABNORMAL_CONTENT_Y_SYS_ERROR                         (204)
+#define SYS_ABNORMAL_CONTENT_Y_SYS_ERROR                         (219)
 /// 电池温度过高
-#define SYS_ABNORMAL_ICON_Y_TEMP_ERROR                           (70)
+#define SYS_ABNORMAL_ICON_Y_TEMP_ERROR                           (108)
 #define SYS_ABNORMAL_TITLE_X_TEMP_ERROR                          (0)
-#define SYS_ABNORMAL_TITLE_Y_TEMP_ERROR                          (158)
+#define SYS_ABNORMAL_TITLE_Y_TEMP_ERROR                          (194)
 #define SYS_ABNORMAL_CONTENT_X_TEMP_ERROR                        (0)
-#define SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR                        (196)
+#define SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR                        (232)
 /// 公共颜色
 #define SYS_ABNORMAL_TITLE_COLOR                                 (0x240F1B)
 #define SYS_ABNORMAL_CONTENT_COLOR                               (0x7C6971)
@@ -61,25 +61,25 @@ static sys_abnormal_disp_info_t *s_abnormal_info;
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 const static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "System error", SYS_ABNORMAL_TITLE_X_SYS_ERROR, SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_28_semibold, SYS_ABNORMAL_TITLE_COLOR},
-    { "Hold the round button 10s\nto restart.", SYS_ABNORMAL_CONTENT_X_SYS_ERROR, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_24_medium, SYS_ABNORMAL_CONTENT_COLOR},
+        &lv_font_aeonik_soft_26_semibold, SYS_ABNORMAL_TITLE_COLOR},
+    { "Press and hold knob 10s\nto restart", SYS_ABNORMAL_CONTENT_X_SYS_ERROR, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
+        &lv_font_aeonik_soft_22_medium, SYS_ABNORMAL_CONTENT_COLOR},
 };
 #else
 const static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "System error", SYS_ABNORMAL_TITLE_X_SYS_ERROR, SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_28_semibold, SYS_ABNORMAL_TITLE_COLOR},
+        &lv_font_aeonik_soft_26_semibold, SYS_ABNORMAL_TITLE_COLOR},
     { "Power off and restart.", SYS_ABNORMAL_CONTENT_X_SYS_ERROR, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_24_medium, SYS_ABNORMAL_CONTENT_COLOR},
+        &lv_font_aeonik_soft_22_medium, SYS_ABNORMAL_CONTENT_COLOR},
 };
 #endif
 
 /// 电池温度过高文本
 const static sys_abnormal_text_info_t temp_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "High battery temperature", SYS_ABNORMAL_TITLE_X_TEMP_ERROR, SYS_ABNORMAL_TITLE_Y_TEMP_ERROR,
-        &lv_font_aeonik_soft_28_semibold, SYS_ABNORMAL_TITLE_COLOR},
-    { "Device suspended.", SYS_ABNORMAL_CONTENT_X_TEMP_ERROR, SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR,
-        &lv_font_aeonik_soft_24_medium, SYS_ABNORMAL_CONTENT_COLOR},
+        &lv_font_aeonik_soft_26_semibold, SYS_ABNORMAL_TITLE_COLOR},
+    { "Device suspended", SYS_ABNORMAL_CONTENT_X_TEMP_ERROR, SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR,
+        &lv_font_aeonik_soft_22_medium, SYS_ABNORMAL_CONTENT_COLOR},
 };
 
 /*
@@ -88,8 +88,8 @@ const static sys_abnormal_text_info_t temp_error_texts[SYS_ABNORMAL_TIP_TEXT_COU
 */
 #if IS_SUPPORT_SYS_ABNORMAL_COMP_BG
 static PSRAM_DATA_LOC uint8_t sys_abnormal_bg_data[] = {
-    //#include "comparison_png2txt/sys_error_win_360x360.txt"
-    #include "comparison_png2txt/temp_error_win_360x360.txt"
+    #include "comparison_png2txt/sys_error_win_360x360.txt"
+    //#include "comparison_png2txt/temp_error_win_360x360.txt"
 };
 #endif
 
