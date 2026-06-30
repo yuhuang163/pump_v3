@@ -35,7 +35,6 @@ extern "C" {
 #include "ui_img_png_decode.h" // IWYU pragma: keep
 #include "ui_img_jpg_decode.h" // IWYU pragma: keep
 #include "ui_wave.h" // IWYU pragma: keep
-#include "ui_bg.h" // IWYU pragma: keep
 #include "ui_snapshot.h" // IWYU pragma: keep
 #include "ui_popup.h" // IWYU pragma: keep
 #include "theme_guide_ui.h" // IWYU pragma: keepin

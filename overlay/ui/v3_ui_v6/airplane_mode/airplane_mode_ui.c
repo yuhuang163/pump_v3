@@ -108,7 +108,7 @@ static void airplane_mode_bg_update(ui_manager_context_t *thiz)
 #else
 static void airplane_mode_bg_update(ui_manager_context_t *thiz)
 {
-    ui_bg_update(thiz, airplane_info->root);
+
 }
 #endif
 
@@ -172,7 +172,6 @@ void ui_display_airplane_mode_prepare(ui_manager_context_t *thiz)
     airplane_info->force_update = true;
     ble_ui_init(thiz);
     airplane_mode_root_init();
-    ui_bg_init(thiz);
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
 }
@@ -181,7 +180,6 @@ void ui_display_airplane_mode_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && airplane_info && airplane_info->root);
     ble_ui_deinit(thiz);
-    ui_bg_deinit(thiz);
     ui_img_baj_release_decoded_buf(airplane_info->icon);
     ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(airplane_info->root);

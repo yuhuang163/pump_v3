@@ -111,7 +111,7 @@ static void home_screen_saver_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void home_screen_saver_root_bg_update(ui_manager_context_t *thiz)
 {
-    ui_bg_update(thiz, saver_info->root);
+
 }
 #endif
 
@@ -251,7 +251,6 @@ void home_screen_saver_custom_ui_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     home_screen_saver_root_init();
-    ui_bg_init(thiz);
     ble_ui_init(thiz);
     saver_info->force_update = true;
 }
@@ -264,7 +263,6 @@ void home_screen_saver_custom_ui_remove(ui_manager_context_t *thiz)
     ui_img_resource_deinit(thiz, &saver_info->clock_colon_info);
 #endif
     ble_ui_deinit(thiz);
-    ui_bg_deinit(thiz);
     LVGL_OBJ_DELETE(saver_info->root);
     u_free(saver_info);
     saver_info = NULL;

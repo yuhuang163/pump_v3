@@ -292,19 +292,15 @@ void ui_display_theme_guide_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     theme_guide_root_init();
-    ui_bg_init(thiz);
 }
 
 void ui_display_theme_guide_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && theme_info && theme_info->root);
-    ui_bg_deinit(thiz);
-
     for (uint8_t i = 0; i < THEME_GUIDE_OPTION_NUM; i++) {
         ui_img_baj_release_decoded_buf(theme_info->preview[i]);
         ui_img_baj_release_decoded_buf(theme_info->radio[i]);
     }
-
     LVGL_OBJ_DELETE(theme_info->root);
     u_free(theme_info);
     theme_info = NULL;
