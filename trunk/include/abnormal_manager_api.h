@@ -66,6 +66,7 @@ typedef struct abnormal_manager_context {
     uint8_t (*get_abnormal_severity)(uint8_t type);
     uint8_t (*is_new_task_forbidden)(void);
     uint8_t (*is_core_locked)(void);
+    uint8_t (*is_app_communication_forbidden)(void);
     void (*add_abnormal_state_cb)(void *user_data, on_abnormal_state_cb_ptr cb);
     void (*remove_abnormal_state_cb)(on_abnormal_state_cb_ptr cb);
     void (*notify_abnormal_state_change)(sys_abnormal_state_info_t *info);

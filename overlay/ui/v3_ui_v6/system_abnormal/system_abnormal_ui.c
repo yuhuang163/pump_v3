@@ -69,7 +69,7 @@ const static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUN
 const static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "System error", SYS_ABNORMAL_TITLE_X_SYS_ERROR, SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
         &lv_font_aeonik_soft_26_semibold, SYS_ABNORMAL_TITLE_COLOR},
-    { "Power off and restart.", SYS_ABNORMAL_CONTENT_X_SYS_ERROR, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
+    { "Unplug and replug to restart", SYS_ABNORMAL_CONTENT_X_SYS_ERROR, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
         &lv_font_aeonik_soft_22_medium, SYS_ABNORMAL_CONTENT_COLOR},
 };
 #endif

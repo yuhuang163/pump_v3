@@ -96,6 +96,17 @@ static uint8_t is_core_locked(void)
     return 0u;
 }
 
+static uint8_t is_app_communication_forbidden(void)
+{
+    EXCEPTION_CHECK_UINT(thiz);
+    for (uint8_t i = 0; i < SYS_ABNORMAL_TYPE_MAX; i++) {
+        if (thiz->priv.state[i] == SYS_ABNORMAL_STATE_ACTIVE) {
+            return 1u;
+        }
+    }
+    return 0u;
+}
+
 static uint8_t set_abnormal_state(uint8_t type, uint8_t state)
 {
     int index = abnormal_type_to_index(type);
@@ -195,6 +206,7 @@ void *register_module_for_abnormal_manager_new(list_head_t *list_head)
     ptr->is_abnormal_active = is_abnormal_active;
     ptr->get_abnormal_severity = get_abnormal_severity;
     ptr->is_new_task_forbidden = is_new_task_forbidden;
+    ptr->is_app_communication_forbidden = is_app_communication_forbidden;
     ptr->is_core_locked = is_core_locked;
     ptr->add_abnormal_state_cb = add_abnormal_state_cb;
     ptr->remove_abnormal_state_cb = remove_abnormal_state_cb;
