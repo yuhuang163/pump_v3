@@ -9,6 +9,7 @@
 #include "root_log_define.h"
 #include "stdbool.h"
 #include "time_utils.h" // IWYU pragma: keep
+#include "windows_manager_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -47,6 +48,22 @@ static int abnormal_hook_get_highest_priority_abnormal(abnormal_manager_context_
     }
     
     return (int)highest_priority_type;
+}
+
+static void abnormal_dispatch_system_abnormal_window(void)
+{
+    window_manager_context_t *wm =
+        (window_manager_context_t *)find_module(ID_MODULE_WM);
+    if (wm == NULL) {
+        return;
+    }
+    // 如果已经在系统异常窗口，不重复调度
+    if (wm->is_current_window(wm, ID_WINDOW_SYSTEM_ABNORMAL)) {
+        return;
+    }
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_SYSTEM_ABNORMAL;
+    wm->dispatch_new_window_args(wm, &msg);
 }
 
 /**
@@ -94,6 +111,7 @@ static void trigger_abnormal_popup(uint8_t triggered_type)
             .state = SYS_ABNORMAL_STATE_ACTIVE
         };
         abnormal->notify_abnormal_state_change(&info);
+        abnormal_dispatch_system_abnormal_window();
         return;
     }
 
@@ -114,6 +132,7 @@ static void trigger_abnormal_popup(uint8_t triggered_type)
                     .state = SYS_ABNORMAL_STATE_ACTIVE
                 };
                 abnormal->notify_abnormal_state_change(&info);
+                abnormal_dispatch_system_abnormal_window();
             }
         }
         return;
@@ -133,6 +152,7 @@ static void trigger_abnormal_popup(uint8_t triggered_type)
             .state = SYS_ABNORMAL_STATE_ACTIVE
         };
         abnormal->notify_abnormal_state_change(&info);
+        abnormal_dispatch_system_abnormal_window();
     }
     // 低优先级异常不覆盖高优先级异常，低优先级保留在后台检测和记录
 }
@@ -272,8 +292,14 @@ static void check_battery_temperature_abnormal(abnormal_manager_context_t *abnor
     DEVICE_IOCTL_HAS_RET(battery, OP_CODE_BAT_GET_CHARGE_TEMPERATURE, temperature);
     
     static uint8_t prev_temp_abnormal = 0;
-    uint8_t current_temp_abnormal = (temperature >= SYS_ABNORMAL_BAT_TEMP_HIGH_THRESHOLD_C) ? 1 : 0;
-    
+    uint8_t current_temp_abnormal = prev_temp_abnormal;
+
+    if (temperature >= SYS_ABNORMAL_BAT_TEMP_HIGH_THRESHOLD_C) {
+        current_temp_abnormal = 1;
+    } else if (temperature <= SYS_ABNORMAL_BAT_TEMP_NORMAL_THRESHOLD_C) {
+        current_temp_abnormal = 0;
+    }
+
     ///判断是否异常（仅在状态变化时触发）
     if (current_temp_abnormal && !prev_temp_abnormal) {
         ///异常 - 首次超过阈值

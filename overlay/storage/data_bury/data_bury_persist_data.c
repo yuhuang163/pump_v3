@@ -1,7 +1,7 @@
 /*
 * @Author: Owen
 * @Date: 2026-06-05
-* @Description: Momcozy 数据埋点：运行时写入 PSRAM 环(2048B)，关机整环快照至 Flash（8 槽），
+* @Description: Momcozy 数据埋点：运行时写入 PSRAM 环(2048B)，关机整环快照至 Flash（16 槽），
 *               BLE 建连后从 RAM 环 + Flash 槽位依次读取上报。
  */
 #include "root_common.h"

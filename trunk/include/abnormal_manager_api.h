@@ -11,6 +11,7 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 
 #define SYS_ABNORMAL_BAT_TEMP_HIGH_THRESHOLD_C    60
+#define SYS_ABNORMAL_BAT_TEMP_NORMAL_THRESHOLD_C    45
 
 /// 系统异常类型
 typedef enum {
