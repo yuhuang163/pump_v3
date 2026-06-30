@@ -110,7 +110,7 @@ typedef struct {
     uint8_t freq;        /// 吸力速度 suction_speed_e
     uint8_t loop_num;    /// 循环次数
     uint8_t rsv;         /// 保留
-    uint16_t duration;   /// 持续时间，单位s
+    uint32_t duration;   /// 持续时间，单位s
 } pump_mode_step_param_t;
 
 typedef struct {
