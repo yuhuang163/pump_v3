@@ -14,11 +14,11 @@
 #define IS_SUPPORT_PUMP_FINISH_COMP_BG                         (0)
 #define COMPLETE_TIP_TEXT_COUNT                                (2)
 
-#define PUMP_FINISH_ICON_Y                                     (78)
+#define PUMP_FINISH_ICON_Y                                     (90)//(78)
 #define PUMP_FINISH_TITLE_X                                    (0)
-#define PUMP_FINISH_TITLE_Y                                    (166)
+#define PUMP_FINISH_TITLE_Y                                    (176)//(166)
 #define PUMP_FINISH_CONTENT_X                                  (0)
-#define PUMP_FINISH_CONTENT_Y                                  (204)
+#define PUMP_FINISH_CONTENT_Y                                  (216)//(204)
 #define FINISH_TIP_TITLE_COLOR                                 (0x240F1B)
 #define FINISH_TIP_CONTENT_COLOR                               (0x7C6971)
 
@@ -51,7 +51,7 @@ static complete_tip_display_info_t *finish_info;
 
 const static complete_tip_text_info_t complete_tip_text_infos[COMPLETE_TIP_TEXT_COUNT] = {
     { "Finish", PUMP_FINISH_TITLE_X, PUMP_FINISH_TITLE_Y, &lv_font_aeonik_soft_28_semibold, FINISH_TIP_TITLE_COLOR},
-    { "Please go to MOMCOZY\napp and record the\namount of milk.", PUMP_FINISH_CONTENT_X, PUMP_FINISH_CONTENT_Y, \
+    { "Open the Momcozy app to\ntrack your milk output", PUMP_FINISH_CONTENT_X, PUMP_FINISH_CONTENT_Y, \
         &lv_font_aeonik_soft_24_medium, FINISH_TIP_CONTENT_COLOR},
 };
 

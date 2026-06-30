@@ -72,13 +72,13 @@ typedef enum {
 
     /* 动画组 [1000..] */
     BASE_RES_ID_LONG_SUCTION_ANIM_START = 1000, /// 长吸动画-开始
-    BASE_RES_ID_LONG_SUCTION_ANIM_END = 1080, /// 长吸动画-结束 (1000 + 80)
+    BASE_RES_ID_LONG_SUCTION_ANIM_END = 1059, /// 长吸动画-结束 
     BASE_RES_ID_SHORT_SUCTION_ANIM_START = 1100, /// 短吸动画-开始
-    BASE_RES_ID_SHORT_SUCTION_ANIM_END = 1126, /// 短吸动画-结束 (1100 + 26)
+    BASE_RES_ID_SHORT_SUCTION_ANIM_END = 1159, /// 短吸动画-结束 
     BASE_RES_ID_MIXED_SUCTION_ANIM_START = 1200, /// 混合吸吮动画-开始
-    BASE_RES_ID_MIXED_SUCTION_ANIM_END = 1280, /// 混合吸吮动画-结束 (1200 + 80)
+    BASE_RES_ID_MIXED_SUCTION_ANIM_END = 1259, /// 混合吸吮动画-结束 
     BASE_RES_ID_RELAX_SUCTION_ANIM_START = 1300, /// 放松吸吮动画-开始
-    BASE_RES_ID_RELAX_SUCTION_ANIM_END = 1380, /// 放松吸吮动画-结束 (1300 + 80)
+    BASE_RES_ID_RELAX_SUCTION_ANIM_END = 1359, /// 放松吸吮动画-结束 
 
     BASE_RES_ID_TYPE_MAX
 } base_res_id_type_e;
