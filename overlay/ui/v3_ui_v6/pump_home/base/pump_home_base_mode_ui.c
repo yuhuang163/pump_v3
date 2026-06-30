@@ -26,13 +26,13 @@ static const char *pump_home_mode_type_name_get(uint8_t mode_type)
     switch (mode_type) {
         default:
         case PUMP_MODE_STIMULATION:
-            return "STIMULATION";
+            return "Stimulation";
         case PUMP_MODE_LACTATION:
-            return "EXPRESSION";
+            return "Expression";
         case PUMP_MODE_MIX:
-            return "MIXED";
+            return "Mixed";
         case PUMP_MODE_IDLE:
-            return "RELAX";
+            return "Relax";
     }
 }
 
