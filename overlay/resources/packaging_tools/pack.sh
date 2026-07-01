@@ -765,7 +765,7 @@ collect_product_info_cpp_flags() {
         return 0
     fi
 
-    local root_ui_token root_ui_v2 root_ui_v3 root_ui_v4 root_ui_v5 resolved_ui=""
+    local root_ui_token root_ui_v2 root_ui_v3 root_ui_v4 root_ui_v5 root_ui_v6 resolved_ui=""
     local v3_id v3pro_id product_id_token product_id_value=""
 
     root_ui_token="$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")"
@@ -773,6 +773,7 @@ collect_product_info_cpp_flags() {
     root_ui_v3="$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     root_ui_v4="$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     root_ui_v5="$(awk '/^ROOT_UI_V5[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+    root_ui_v6="$(awk '/^ROOT_UI_V6[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     v3_id="$(awk '/^ROOT_PRODUCT_V3_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     v3pro_id="$(awk '/^ROOT_PRODUCT_V3PRO_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
     product_id_token="$(awk '/^ROOT_PRODUCT_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")"
@@ -788,6 +789,7 @@ collect_product_info_cpp_flags() {
         '$(ROOT_UI_V3)') resolved_ui="$root_ui_v3" ;;
         '$(ROOT_UI_V4)') resolved_ui="$root_ui_v4" ;;
         '$(ROOT_UI_V5)') resolved_ui="$root_ui_v5" ;;
+        '$(ROOT_UI_V6)') resolved_ui="$root_ui_v6" ;;
         *) resolved_ui="$root_ui_token" ;;
     esac
 
@@ -795,6 +797,7 @@ collect_product_info_cpp_flags() {
     [ -n "${root_ui_v3:-}" ] && printf '%s\n' "-DROOT_UI_V3=${root_ui_v3}"
     [ -n "${root_ui_v4:-}" ] && printf '%s\n' "-DROOT_UI_V4=${root_ui_v4}"
     [ -n "${root_ui_v5:-}" ] && printf '%s\n' "-DROOT_UI_V5=${root_ui_v5}"
+    [ -n "${root_ui_v6:-}" ] && printf '%s\n' "-DROOT_UI_V6=${root_ui_v6}"
     [ -n "${resolved_ui:-}" ] && printf '%s\n' "-DROOT_UI_VERSION=${resolved_ui}"
     [ -n "${product_id_value:-}" ] && printf '%s\n' "-DROOT_PRODUCT_ID=${product_id_value}"
     [ -n "${v3_id:-}" ] && printf '%s\n' "-DROOT_PRODUCT_V3_ID=${v3_id}"
@@ -835,18 +838,20 @@ resolve_root_res_path() {
     # 与 product_info.h / GNUmakefile 中 ROOT_UI_VERSION 分支一致
     local makefile="$PROJECT_DIR/GNUmakefile"
     if [ -f "$makefile" ]; then
-        local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value root_ui_v5_value
+        local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value root_ui_v5_value root_ui_v6_value
         root_ui_token="$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v2_value="$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v3_value="$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v4_value="$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v5_value="$(awk '/^ROOT_UI_V5[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+        root_ui_v6_value="$(awk '/^ROOT_UI_V6[[:space:]]*\?=/{print $3; exit}' "$makefile")"
 
         case "$root_ui_token" in
             '$(ROOT_UI_V2)') printf "%s" "V2"; return 0 ;;
             '$(ROOT_UI_V3)') printf "%s" "V3"; return 0 ;;
             '$(ROOT_UI_V4)') printf "%s" "V4"; return 0 ;;
             '$(ROOT_UI_V5)') printf "%s" "V5"; return 0 ;;
+            '$(ROOT_UI_V6)') printf "%s" "V6"; return 0 ;;
             "$root_ui_v2_value")
                 if [ -n "${root_ui_token:-}" ]; then
                     printf "%s" "V2"
@@ -871,6 +876,12 @@ resolve_root_res_path() {
                     return 0
                 fi
                 ;;
+            "$root_ui_v6_value")
+                if [ -n "${root_ui_token:-}" ]; then
+                    printf "%s" "V6"
+                    return 0
+                fi
+                ;;
         esac
     fi
 
@@ -878,7 +889,7 @@ resolve_root_res_path() {
     out="$(product_info_preprocess_macro "ROOT_RES_PATH")"
     out="${out#\"}"
     out="${out%\"}"
-    if [[ "$out" =~ ^V[2345]$ ]]; then
+    if [[ "$out" =~ ^V[2-6]$ ]]; then
         printf "%s" "$out"
         return 0
     fi
@@ -887,7 +898,7 @@ resolve_root_res_path() {
 }
 
 resolve_root_res_version() {
-    # ROOT_RES_VERSION = major*100 + minor，随 UI：V2->102, V3->103, V4->104, V5->105
+    # ROOT_RES_VERSION = major*100 + minor，随 UI：V2->102, V3->103, V4->104, V5->105, V6->106
     local res_path out
     res_path="$(resolve_root_res_path)"
     case "$res_path" in
@@ -895,6 +906,7 @@ resolve_root_res_version() {
         V3) printf "%s" "103"; return 0 ;;
         V4) printf "%s" "104"; return 0 ;;
         V5) printf "%s" "105"; return 0 ;;
+        V6) printf "%s" "106"; return 0 ;;
     esac
 
     out="$(product_info_preprocess_macro "ROOT_RES_VERSION")"
