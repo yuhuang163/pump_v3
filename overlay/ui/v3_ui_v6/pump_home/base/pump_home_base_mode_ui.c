@@ -151,7 +151,7 @@ void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info, bool blink_vi
             case BREAST_PUMP_CUSTOM_MODE:
                 pump_home_mode_title_update(info,
                     pump_home_mode_type_name_get(info->mode.new_mode_type));
-                snprintf(rhythm_name, sizeof(rhythm_name), "Customize %02u", info->mode.custom_mode_id % 100);
+                snprintf(rhythm_name, sizeof(rhythm_name), "Customize %s", info->mode.custom_id_str);
                 pump_home_mode_name_update(info, rhythm_name, PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
                 break;
         }

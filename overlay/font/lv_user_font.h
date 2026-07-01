@@ -28,6 +28,7 @@ extern "C" {
 #include "lv_font_quicksand_60.h" // IWYU pragma: keep
 #include "lv_font_quicksand_64.h" // IWYU pragma: keep
 #include "lv_font_quicksand_72.h" // IWYU pragma: keep
+#include "lv_font_quicksand_80.h" // IWYU pragma: keep
 #include "lv_font_quicksand_96.h" // IWYU pragma: keep
 #endif
 

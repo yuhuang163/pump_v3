@@ -162,7 +162,7 @@ void home_pump_mode_ui_update(home_base_ui_info_t *info, bool blink_visible)
             case BREAST_PUMP_CUSTOM_MODE: {
                 home_pump_mode_idle_wave_update(info, 0);
                 char custom_str[24] = {0};
-                sprintf(custom_str, "Customized %02d", info->mode.custom_mode_id);
+                sprintf(custom_str, "Customized %s", info->mode.custom_id_str);
                 home_pump_mode_title_update(info, custom_str, BASE_RES_ID_PUMP_RHYTHM_ICON);
                 break;
             }

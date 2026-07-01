@@ -660,6 +660,7 @@ FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_60 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_72 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_80 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 
 endif
 
@@ -1300,6 +1301,7 @@ FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_60/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_72/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_80/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
 endif
 
