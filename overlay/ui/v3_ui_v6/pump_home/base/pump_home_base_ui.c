@@ -195,6 +195,9 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
             0, &custom_mode_id);
         if (custom_mode_id != pump_info->mode.custom_mode_id) {
             pump_info->mode.custom_mode_id = custom_mode_id;
+            memset(pump_info->mode.custom_id_str, 0, sizeof(pump_info->mode.custom_id_str));
+            pump_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
+                sizeof(pump_info->mode.custom_id_str), pump_info->mode.custom_id_str);
             pump_info->mode.index = BREAST_PUMP_MODE_INVALID;
         }
     }

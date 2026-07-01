@@ -48,6 +48,7 @@ typedef struct {
     uint8_t new_mode_type;
     uint8_t mode_blink_state; /// 模式闪烁状态: 0: 不闪烁, 1: 闪烁.
     uint32_t custom_mode_id;
+    char custom_id_str[8]; /// 个性化模式ID字符串
 } pump_home_base_mode_info_t;
 
 typedef enum {
