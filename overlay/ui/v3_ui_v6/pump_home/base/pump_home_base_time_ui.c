@@ -17,15 +17,15 @@
 #define PUMP_TIME_2SEG                               (72)  /// 两段计时 MM:SS
 #define PUMP_TIME_3SEG                               (60)  /// 三段计时 HH:MM:SS
 
-#define PUMP_TIME_3SEG_H_X                           (64)
+#define PUMP_TIME_3SEG_H_X                           (63)
 #define PUMP_TIME_3SEG_H_Y                           (185)
-#define PUMP_TIME_3SEG_M_X                           (145)
+#define PUMP_TIME_3SEG_M_X                           (147)
 #define PUMP_TIME_3SEG_M_Y                           (PUMP_TIME_3SEG_H_Y)
-#define PUMP_TIME_3SEG_S_X                           (232)
+#define PUMP_TIME_3SEG_S_X                           (231)
 #define PUMP_TIME_3SEG_S_Y                           (PUMP_TIME_3SEG_M_Y)
-#define PUMP_TIME_3SEG_COL_H_X                       (127)
+#define PUMP_TIME_3SEG_COL_H_X                       (133 - 5)
 #define PUMP_TIME_3SEG_COL_H_Y                       (180)
-#define PUMP_TIME_3SEG_COL_M_X                       (213)
+#define PUMP_TIME_3SEG_COL_M_X                       (217 - 5)
 #define PUMP_TIME_3SEG_COL_M_Y                       (PUMP_TIME_3SEG_COL_H_Y)
 #define PUMP_TIME_3SEG_WIDTH                         (65)
 
@@ -337,6 +337,7 @@ void pump_home_base_time_ui_update(pump_home_base_ui_info_t *info, uint16_t hold
     uint8_t hours = hold_time / 3600;
     uint8_t minutes = (hold_time / 60) % 60;
     uint8_t seconds = hold_time % 60;
+    // hours = minutes = seconds;
     uint8_t digit_size = (hours == 0) ? PUMP_TIME_2SEG : PUMP_TIME_3SEG;
     pump_home_time_h_update(info, hours, digit_size, y_offset);
     pump_home_time_m_update(info, minutes, digit_size, y_offset);
