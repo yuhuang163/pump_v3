@@ -157,6 +157,9 @@ static void charge_pd_gpio_init(void)
  */
 int bsp_charge_pd_is_ready(void)
 {
+    if (!s_charge_pd_onoff) {
+        return true;
+    }
     return s_charge_pd_isready;
 }
 
