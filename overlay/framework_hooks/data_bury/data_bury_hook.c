@@ -296,8 +296,24 @@ static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_b
     return data_bury_hook_append_to_ring(ctx, cmd_id, extra->val, (uint16_t)extra->arg1);
 }
 
+static int data_bury_hook_is_pump_working(void)
+{
+    breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    int is_pump_working = 0;
+
+    if (!pump) {
+        return 0;
+    }
+    READ_PUMP_IS_WORKING(pump, is_pump_working);
+    return is_pump_working != 0;
+}
+
 static void data_bury_hook_flush_pending_reschedule(data_bury_manager_context_t *ctx)
 {
+    if (data_bury_hook_is_pump_working()) {
+        LOG_BURY("data bury flush pending reschedule skip: pump working");
+        return;
+    }
     if (ctx && ctx->data_bury_sys_msg_put) {
         (void)ctx->data_bury_sys_msg_put(DATA_BURY_EVT_FLUSH_PENDING, 300u, NULL);
     }
@@ -318,6 +334,10 @@ static int data_bury_hook_flush_pending(data_bury_manager_context_t *ctx)
 
     if (!ctx) {
         return -1;
+    }
+    if (data_bury_hook_is_pump_working()) {
+        LOG_BURY("data bury flush pending skip: pump working");
+        return 0;
     }
 
     servers = data_bury_hook_get_servers_ctx(ctx);
