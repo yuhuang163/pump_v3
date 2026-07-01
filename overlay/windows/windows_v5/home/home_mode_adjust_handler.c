@@ -20,8 +20,8 @@ static void home_pump_mode_update_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
-    proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
-    home_page_display_type_update(proc);
+    // proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
+    // home_page_display_type_update(proc);
     if (proc->led) {
         proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
     }

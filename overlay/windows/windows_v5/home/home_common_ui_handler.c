@@ -62,6 +62,7 @@ void home_ui_change_hdr_remove(ui_proc_home_t *proc)
     }
 }
 
+#if 0
 void home_page_display_type_update(ui_proc_home_t *proc)
 {
     if (proc->home_display_type == HOME_UI_DISPLAY_SIMULATE_MODE_DESC ||
@@ -126,3 +127,4 @@ void home_page_display_type_update(ui_proc_home_t *proc)
         proc->home_display_type, timestamp, diff_time, proc->pump_record_time,
         battery_state);
 }
+#endif

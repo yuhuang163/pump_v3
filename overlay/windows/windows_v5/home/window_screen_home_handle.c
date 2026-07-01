@@ -194,7 +194,7 @@ static void home_broadcast_receive_ui_cb(hdr_post_args_t *args)
         case ID_BROADCAST_SYS_STATE_CHANGE:
             LOG_WM("system state: %d, %d", bcd_args->arg1, bcd_args->arg2);
             if (bcd_args->arg1 == SYSTEM_BROADCAST_UTC_TIME_CHANGE) {
-                home_page_display_type_update(proc);
+                // home_page_display_type_update(proc);
             }
             break;
         default:
@@ -245,12 +245,12 @@ static void on_home_window_battery_state_change_cb(void *user_data, battery_stat
         info->battery_state == BATTERY_STATE_FORBID_START) {
         if (proc->home_display_type != HOME_UI_DISPLAY_CLOCK_LOW_POWER &&
             proc->home_display_type != HOME_UI_DISPLAY_LOW_POWER) {
-            home_page_display_type_update(proc);
+            // home_page_display_type_update(proc);
         }
     } else {
         if (proc->home_display_type == HOME_UI_DISPLAY_CLOCK_LOW_POWER ||
             proc->home_display_type == HOME_UI_DISPLAY_LOW_POWER) {
-            home_page_display_type_update(proc);
+            // home_page_display_type_update(proc);
         }
     }
 }
@@ -265,7 +265,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_KEYEVENT_CB(proc->key, "home_wm", proc, HOME_UI_KEY_CODE, HOME_UI_KEY_TYPE,
             on_home_ui_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_home_window_battery_state_change_cb);
-        home_page_display_type_update(proc);
+        proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
+        // home_page_display_type_update(proc);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
