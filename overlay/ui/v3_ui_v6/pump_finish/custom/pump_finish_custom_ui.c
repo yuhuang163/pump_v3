@@ -10,14 +10,18 @@
 */
 #define IS_SUPPORT_PUMP_FINISH_COMP_BG                         (0)
 
-#define PUMP_FINISH_ICON_Y                                     (90)
+#define PUMP_FINISH_ICON_Y                                     (50)
 #define PUMP_FINISH_TITLE_X                                    (0)
-#define PUMP_FINISH_TITLE_Y                                    (176)
+#define PUMP_FINISH_TITLE_Y                                    (222)
 #define PUMP_FINISH_CONTENT_X                                  (0)
-#define PUMP_FINISH_CONTENT_Y                                  (216)
-#define FINISH_TIP_TITLE_COLOR                                 (0x240F1B)
-#define FINISH_TIP_CONTENT_COLOR                               (0x7C6971)
-
+#define PUMP_FINISH_CONTENT_Y                                  (260)
+#if IS_SUPPORT_PUMP_FINISH_COMP_BG
+#define FINISH_TIP_TITLE_COLOR                                 (0x00FF00)
+#define FINISH_TIP_CONTENT_COLOR                               (0x00FF00)
+#else
+#define FINISH_TIP_TITLE_COLOR                                 (0xA0183B)
+#define FINISH_TIP_CONTENT_COLOR                               (0xBD4060)
+#endif
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -26,13 +30,13 @@ static pump_finish_custom_ui_info_t *finish_info;
 
 const static pump_finish_custom_text_info_t complete_tip_text_infos[PUMP_FINISH_CUSTOM_TIP_TEXT_COUNT] = {
     { "Finish", PUMP_FINISH_TITLE_X, PUMP_FINISH_TITLE_Y, &lv_font_aeonik_soft_28_semibold, FINISH_TIP_TITLE_COLOR},
-    { "Open the Momcozy app to\ntrack your milk output", PUMP_FINISH_CONTENT_X, PUMP_FINISH_CONTENT_Y,
-        &lv_font_aeonik_soft_24_medium, FINISH_TIP_CONTENT_COLOR},
+    { "Open the Momcozy app\nto track your milk output", PUMP_FINISH_CONTENT_X, PUMP_FINISH_CONTENT_Y,
+        &lv_font_aeonik_soft_22_medium, FINISH_TIP_CONTENT_COLOR},
 };
 
 #if IS_SUPPORT_PUMP_FINISH_COMP_BG
 static PSRAM_DATA_LOC uint8_t pump_finish_bg_data[] = {
-    #include "comparison_png2txt/pump_finish_360x360.txt"
+    #include "comparison_png2txt/pump_finish11_360x360.txt"
 };
 #endif
 
@@ -46,7 +50,8 @@ static void pump_complete_tip_root_init(void)
         finish_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(finish_info->root, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_bg_color(finish_info->root, lv_color_hex(0xEDE3E5), 0);
+    // lv_obj_set_style_bg_color(finish_info->root, lv_color_hex(0xEDE3E5), 0);
+    lv_obj_set_style_bg_color(finish_info->root, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(finish_info->root, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(finish_info->root, 0, 0);
     lv_obj_set_style_pad_all(finish_info->root, 0, 0);
@@ -59,14 +64,10 @@ static void pump_complete_icon_update(ui_manager_context_t *thiz)
 {
     if (finish_info->icon == NULL || !lv_obj_is_valid(finish_info->icon)) {
         finish_info->icon = lv_image_create(finish_info->root);
+        EXCEPTION_CHECK_VOID(finish_info->icon);
     }
-    ui_theme_img_resource_init(thiz, CUSTOM_RES_ID_PUMP_FINISH_IP, RES_THEME_TYPE_CUSTOM,
-        &finish_info->icon_info);
-    EXCEPTION_CHECK_VOID(finish_info->icon_info.data);
-    lv_fs_path_ex_t complete_tip_img_path;
-    lv_fs_make_path_from_buffer(&complete_tip_img_path, LV_FS_MEMFS_LETTER,
-        finish_info->icon_info.data, finish_info->icon_info.size, "baj");
-    lv_image_set_src(finish_info->icon, complete_tip_img_path.path);
+    ui_img_baj_theme_set_src(thiz, finish_info->icon, CUSTOM_RES_ID_PUMP_FINISH_IP,
+        RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
     lv_obj_align(finish_info->icon, LV_ALIGN_TOP_MID, 0, PUMP_FINISH_ICON_Y);
 }
 
@@ -90,19 +91,17 @@ static void pump_finish_root_bg_update(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(thiz && finish_info && finish_info->root);
     static uint32_t start_time = 0;
     static uint8_t status = 0;
-    if (finish_info->backgroud == NULL || !lv_obj_is_valid(finish_info->backgroud)) {
-        finish_info->backgroud = lv_image_create(finish_info->root);
-        EXCEPTION_CHECK_VOID(finish_info->backgroud);
+    if (finish_info->background == NULL || !lv_obj_is_valid(finish_info->background)) {
+        finish_info->background = lv_image_create(finish_info->root);
+        EXCEPTION_CHECK_VOID(finish_info->background);
+        ui_img_png_set_src(finish_info->background, pump_finish_bg_data,
+            sizeof(pump_finish_bg_data), UI_IMG_PNG_DECODE_RGBA8888);
+        lv_obj_align(finish_info->background, LV_ALIGN_CENTER, 0, 0);
     }
-    lv_fs_path_ex_t bg_img_path;
     if (status == 0) {
-        lv_obj_add_flag(finish_info->backgroud, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(finish_info->background, LV_OBJ_FLAG_HIDDEN);
     } else {
-        lv_obj_clear_flag(finish_info->backgroud, LV_OBJ_FLAG_HIDDEN);
-        lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, pump_finish_bg_data,
-            sizeof(pump_finish_bg_data), "png");
-        lv_image_set_src(finish_info->backgroud, (const void *)&bg_img_path);
-        lv_obj_align(finish_info->backgroud, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_clear_flag(finish_info->background, LV_OBJ_FLAG_HIDDEN);
     }
 
     if (get_timestamp() - start_time > 1000) {
@@ -113,7 +112,20 @@ static void pump_finish_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void pump_finish_root_bg_update(ui_manager_context_t *thiz)
 {
-    (void)thiz;
+    #if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+    #endif
+    if (finish_info->background == NULL || !lv_obj_is_valid(finish_info->background)) {
+        finish_info->background = lv_image_create(finish_info->root);
+        EXCEPTION_CHECK_VOID(finish_info->background);
+        lv_obj_align(finish_info->background, LV_ALIGN_CENTER, 0, 0);
+        #if LV_USE_SNAPSHOT
+        lv_image_set_src(finish_info->background, background_snapshot);
+        #else
+        lv_obj_add_flag(finish_info->background, LV_OBJ_FLAG_HIDDEN);
+        #endif
+    }
 }
 #endif
 
@@ -137,7 +149,10 @@ void pump_finish_custom_ui_prepare(ui_manager_context_t *thiz)
 void pump_finish_custom_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && finish_info && finish_info->root);
-    ui_img_resource_deinit(thiz, &finish_info->icon_info);
+    ui_img_baj_release_decoded_buf(finish_info->icon);
+#if IS_SUPPORT_PUMP_FINISH_COMP_BG
+    ui_img_png_release_decoded_buf(finish_info->background);
+#endif
     LVGL_OBJ_DELETE(finish_info->root);
     u_free(finish_info);
     finish_info = NULL;

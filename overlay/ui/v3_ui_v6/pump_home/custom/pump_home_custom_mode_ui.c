@@ -11,11 +11,20 @@
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_PUMP_HOME_MODE_TEXT_CMP          (0)
+
+#if IS_SUPPORT_PUMP_HOME_MODE_TEXT_CMP
+#define PUMP_HOME_MODE_TITLE_COLOR                 (0x00FF00)
+#define PUMP_HOME_MODE_NAME_COLOR                  (0x00FF00)
+#else
 #define PUMP_HOME_MODE_TITLE_COLOR                 (0xBD4060)
 #define PUMP_HOME_MODE_NAME_COLOR                  (0xD36682)
-#define PUMP_HOME_MODE_TITLE_Y                     (70)
-#define PUMP_HOME_MODE_NAME_X                      (0)
-#define PUMP_HOME_MODE_NAME_Y                      (155)
+#endif
+
+#define PUMP_HOME_MODE_TITLE_Y                     (90)
+#define PUMP_HOME_RHYTHM_TITLE_Y                   (72)
+#define PUMP_HOME_MODE_NAME_X                      (90)
+#define PUMP_HOME_MODE_NAME_Y                      (124)
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -36,7 +45,7 @@ static const char *pump_home_mode_type_name_get(uint8_t mode_type)
     }
 }
 
-static void pump_home_mode_title_update(pump_home_custom_ui_info_t *info, const char *title)
+static void pump_home_mode_title_update(pump_home_custom_ui_info_t *info, const char *title, int16_t y_offset)
 {
     if (info->mode.title == NULL || !lv_obj_is_valid(info->mode.title)) {
         info->mode.title = lv_label_create(info->root);
@@ -52,7 +61,7 @@ static void pump_home_mode_title_update(pump_home_custom_ui_info_t *info, const 
 
     lv_obj_clear_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(info->mode.title, title);
-    lv_obj_align(info->mode.title, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MODE_TITLE_Y);
+    lv_obj_align(info->mode.title, LV_ALIGN_TOP_MID, 0, y_offset);
 }
 
 static void pump_home_mode_name_update(pump_home_custom_ui_info_t *info, const char *name,
@@ -127,32 +136,38 @@ void pump_home_custom_mode_ui_update(pump_home_custom_ui_info_t *info, bool blin
         switch (info->mode.new_index) {
             default:
             case BREAST_PUMP_STIMULATION_MODE:
-                pump_home_mode_title_update(info, "Stimulation");
+                pump_home_mode_title_update(info, "Stimulation", PUMP_HOME_MODE_TITLE_Y);
                 pump_home_mode_name_update(info, NULL, 0, 0);
+                info->mode.is_rhythm_mode = false;
                 break;
             case BREAST_PUMP_LACTATION_MODE:
-                pump_home_mode_title_update(info, "Expression");
+                pump_home_mode_title_update(info, "Expression", PUMP_HOME_MODE_TITLE_Y);
                 pump_home_mode_name_update(info, NULL, 0, 0);
+                info->mode.is_rhythm_mode = false;
                 break;
             case BREAST_PUMP_MIX_MODE:
-                pump_home_mode_title_update(info, "Mixed");
+                pump_home_mode_title_update(info, "Mixed", PUMP_HOME_MODE_TITLE_Y);
                 pump_home_mode_name_update(info, NULL, 0, 0);
+                info->mode.is_rhythm_mode = false;
                 break;
             case BREAST_PUMP_MILK_BOOST_MODE:
                 pump_home_mode_title_update(info,
-                    pump_home_mode_type_name_get(info->mode.new_mode_type));
+                    pump_home_mode_type_name_get(info->mode.new_mode_type), PUMP_HOME_RHYTHM_TITLE_Y);
                 pump_home_mode_name_update(info, "Milk Boost", PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+                info->mode.is_rhythm_mode = true;
                 break;
             case BREAST_PUMP_PP_MILK_TRACK_MODE:
                 pump_home_mode_title_update(info,
-                    pump_home_mode_type_name_get(info->mode.new_mode_type));
+                    pump_home_mode_type_name_get(info->mode.new_mode_type), PUMP_HOME_RHYTHM_TITLE_Y);
                 pump_home_mode_name_update(info, "Power Pumping", PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+                info->mode.is_rhythm_mode = true;
                 break;
             case BREAST_PUMP_CUSTOM_MODE:
                 pump_home_mode_title_update(info,
-                    pump_home_mode_type_name_get(info->mode.new_mode_type));
-                snprintf(rhythm_name, sizeof(rhythm_name), "Customize %02u", info->mode.custom_mode_id % 100);
+                    pump_home_mode_type_name_get(info->mode.new_mode_type), PUMP_HOME_RHYTHM_TITLE_Y);
+                snprintf(rhythm_name, sizeof(rhythm_name), "Customize %s", info->mode.custom_id_str);
                 pump_home_mode_name_update(info, rhythm_name, PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+                info->mode.is_rhythm_mode = true;
                 break;
         }
         info->mode.index = info->mode.new_index;

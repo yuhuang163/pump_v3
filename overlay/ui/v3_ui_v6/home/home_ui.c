@@ -46,9 +46,9 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
     // ui_display_factory_reset_confirm_prepare(thiz);
     // ui_display_airplane_mode_prepare(thiz);
     // ui_display_ota_prepare(thiz);
-    // ui_display_charge_adapter_screen_prepare(thiz);
+    ui_display_charge_adapter_screen_prepare(thiz);
     // ui_display_home_screen_saver_prepare(thiz);
-    ui_display_theme_guide_prepare(thiz);
+    // ui_display_theme_guide_prepare(thiz);
     #else
     void (*prepare)(ui_manager_context_t *thiz) = NULL;
     int res_theme_type = RES_THEME_TYPE_BASE;
@@ -82,9 +82,9 @@ void ui_display_home_remove(ui_manager_context_t *thiz)
     // ui_display_factory_reset_confirm_remove(thiz);
     // ui_display_airplane_mode_remove(thiz);
     // ui_display_ota_remove(thiz);
-    // ui_display_charge_adapter_screen_remove(thiz);
+    ui_display_charge_adapter_screen_remove(thiz);
     // ui_display_home_screen_saver_remove(thiz);
-    ui_display_theme_guide_remove(thiz);
+    // ui_display_theme_guide_remove(thiz);
     #else
     if (s_ops.remove) {
         s_ops.remove(thiz);
@@ -104,9 +104,9 @@ int ui_display_home_process(ui_manager_context_t *thiz)
     // ui_display_factory_reset_confirm_process(thiz, 0);
     // ui_display_airplane_mode_process(thiz);
     // ui_display_ota_process(thiz);
-    // ui_display_charge_adapter_process(thiz);
+    ui_display_charge_adapter_process(thiz);
     // ui_display_home_screen_saver_process(thiz);
-    ui_display_theme_guide_process(thiz);
+    // ui_display_theme_guide_process(thiz);
     #else
     if (s_ops.process) {
         return s_ops.process(thiz);

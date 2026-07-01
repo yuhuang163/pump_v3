@@ -11,7 +11,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_HOME_IP_ANIM_Y                        (184)
+#define PUMP_HOME_IP_ANIM_Y                        (196)
 #define PUMP_HOME_ANIM_TRANSITION_MS               (1000)
 #define PUMP_HOME_ANIM_FRAME_INTERVAL_MS           (1000 / PUMP_ANIMATION_FREQ)
 #define PUMP_HOME_ANIM_FRAME_RES_INVALID           (0xFFFF)

@@ -22,9 +22,7 @@ typedef struct {
 
 typedef struct {
     lv_obj_t *root;
-#if IS_SUPPORT_CHARGE_ADAPTER_COMP_BG
     lv_obj_t *background;
-#endif
     lv_obj_t *charge_adapter_icon;
     lv_obj_t *texts[CHARGE_ADAPTER_CUSTOM_TEXT_COUNT];
     uint8_t force_update;

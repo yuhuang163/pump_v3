@@ -9,7 +9,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_ROOT_HOME_COMP_BG                (1)
+#define IS_SUPPORT_ROOT_HOME_COMP_BG                (0)
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
 #define IS_SUPPORT_HOME_UI_TEST                     (0)
 #else
@@ -25,7 +25,10 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/home_ip11_360x360.txt"
     // #include "comparison_png2txt/home_ip12_360x360.txt"
     // #include "comparison_png2txt/home_ip13_360x360.txt"
-    #include "comparison_png2txt/home_ip14_360x360.txt"
+    // #include "comparison_png2txt/home_ip14_360x360.txt"
+    // #include "comparison_png2txt/home_ip15_360x360.txt"
+    // #include "comparison_png2txt/home_ip16_360x360.txt"
+    #include "comparison_png2txt/home_ip17_360x360.txt"
     // #include "comparison_png2txt/LR_level_adjust11_360x360.txt"
 };
 #endif
@@ -202,6 +205,9 @@ int home_custom_ui_process(ui_manager_context_t *thiz)
             0, &custom_mode_id);
         if (custom_mode_id != home_info->mode.custom_mode_id) {
             home_info->mode.custom_mode_id = custom_mode_id;
+            memset(home_info->mode.custom_id_str, 0, sizeof(home_info->mode.custom_id_str));
+            home_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
+                sizeof(home_info->mode.custom_id_str), home_info->mode.custom_id_str);
             home_info->mode.index = BREAST_PUMP_MODE_INVALID;
         }
     }

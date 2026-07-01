@@ -78,6 +78,7 @@ typedef struct {
     uint8_t mode_blink_state; /// 模式标题闪烁: 0: 不闪烁, 1: 闪烁.
     uint8_t icon_blink_state; /// 韵律图标闪烁: 0: 不闪烁, 1: 闪烁.
     uint32_t custom_mode_id; /// 个性化模式ID
+    char custom_id_str[8]; /// 个性化模式ID字符串
 } home_custom_mode_info_t;
 
 typedef struct {
