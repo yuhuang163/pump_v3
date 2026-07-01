@@ -6,6 +6,7 @@
 #include "root_common_api.h"
 #include "data_bury_persist_defs.h"
 #include "data_bury_event_handler.h"
+#include "app_data_bury_protocol_defs.h"
 #include "persist_storage.h" // IWYU pragma: keep
 
 typedef struct {
@@ -64,6 +65,57 @@ static int data_bury_event_publish(data_bury_manager_context_t *ctx, servers_pub
     args.arg2 = (int)delay_ms;
     args.val = payload;
     return ctx->data_bury_publish(id, &args);
+}
+
+static uint8_t data_bury_event_publish_id_to_cmd(servers_publish_data_id_e id)
+{
+    switch (id) {
+    case SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SHUTDOWN:
+        return APP_BURY_CMD_PUMP_SHUTDOWN;
+    case SERVERS_PUBLISH_DATA_DATA_BURY_BT_CONNECT_EVENT:
+        return APP_BURY_CMD_BT_CONNECT_EVENT;
+    default:
+        return 0u;
+    }
+}
+
+static int data_bury_event_cache_publish(data_bury_manager_context_t *ctx, servers_publish_data_id_e id,
+                                         void *payload, uint16_t payload_len)
+{
+    storage_manager_context_t *st;
+    data_bury_ring_append_args_t append;
+    uint8_t cmd_id;
+
+    if (!ctx || !payload || payload_len == 0u) {
+        return -1;
+    }
+    cmd_id = data_bury_event_publish_id_to_cmd(id);
+    if (cmd_id == 0u) {
+        LOGE("data bury event cache unknown id=%d", (int)id);
+        return -2;
+    }
+    if (ctx->data_bury_fill_evt_common_hdr) {
+        ctx->data_bury_fill_evt_common_hdr(payload, payload_len, id);
+    }
+    st = ctx->priv.storage_ctx;
+    if (!st) {
+        st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+        ctx->priv.storage_ctx = st;
+    }
+    if (!st || !st->put_store_ram_val) {
+        LOGE("data bury event cache storage not ready id=%d", (int)id);
+        return -3;
+    }
+    append.svc_id = APP_DATA_BURY_PROTOCOL_SVC_DATA;
+    append.cmd_id = cmd_id;
+    append.payload_len = payload_len;
+    append.payload = payload;
+    if (st->put_store_ram_val(STORE_ID_DATA_BURY_RING_APPEND, 0, 0, (void *)&append) != 0) {
+        LOGE("data bury event cache fail id=%d cmd=0x%02x len=%u", (int)id, cmd_id, (unsigned)payload_len);
+        return -4;
+    }
+    LOG_BURY("data bury event cached id=%d cmd=0x%02x len=%u", (int)id, cmd_id, (unsigned)payload_len);
+    return 0;
 }
 
 static uint8_t data_bury_event_get_battery_percent(void)
@@ -167,7 +219,7 @@ static void data_bury_event_publish_pump_startup(data_bury_manager_context_t *ct
                                     &evt, (uint16_t)sizeof(evt), 100u);
 }
 
-static void data_bury_event_publish_pump_shutdown(data_bury_manager_context_t *ctx, uint8_t reason)
+static void data_bury_event_cache_pump_shutdown(data_bury_manager_context_t *ctx, uint8_t reason)
 {
     data_bury_evt_pump_shutdown_t evt = {0};
 
@@ -176,8 +228,8 @@ static void data_bury_event_publish_pump_shutdown(data_bury_manager_context_t *c
     evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
     evt.battery_level_shutdown = data_bury_event_get_battery_percent();
     evt.shutdown_reason = reason;
-    (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SHUTDOWN,
-                                    &evt, (uint16_t)sizeof(evt), 0u);
+    (void)data_bury_event_cache_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SHUTDOWN,
+                                        &evt, (uint16_t)sizeof(evt));
 }
 
 static int8_t data_bury_event_sample_ble_rssi(data_bury_manager_context_t *ctx)
@@ -247,11 +299,14 @@ static void data_bury_event_bt_session_cache_save(data_bury_manager_context_t *c
              (int)s_event_rt.bt_signal_strength_rssi);
 }
 
-static int data_bury_event_publish_bt_session_end(data_bury_manager_context_t *ctx, uint8_t hci_reason)
+static int data_bury_event_build_bt_session_end_evt(data_bury_manager_context_t *ctx, uint8_t hci_reason,
+                                                    data_bury_evt_bt_connect_t *evt)
 {
-    data_bury_evt_bt_connect_t evt = {0};
     uint8_t app_reason;
 
+    if (!ctx || !evt) {
+        return -1;
+    }
     if (!s_event_rt.bt_session_cached || !s_event_rt.bt_remote_initiated) {
         return 0;
     }
@@ -262,19 +317,47 @@ static int data_bury_event_publish_bt_session_end(data_bury_manager_context_t *c
         return 0;
     }
 
-    evt.device_side = ctx->data_bury_get_device_side();
-    evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
-    evt.evt_timestamp = s_event_rt.bt_connect_timestamp_utc;
-    evt.connect_result = DATA_BURY_BT_CONNECT_RESULT_SESSION_END;
-    evt.connection_setup_duration = s_event_rt.bt_connection_setup_duration;
-    evt.bt_signal_strength_rssi = s_event_rt.bt_signal_strength_rssi;
-    evt.disconnect_timestamp = platform_get_utc_time();
-    evt.disconnect_reason = app_reason;
-    LOG_BURY("bt session end publish: connect_ts=%u setup_ms=%u rssi=%d reason=0x%02x",
-             (unsigned)evt.evt_timestamp,
-             (unsigned)evt.connection_setup_duration,
-             (int)evt.bt_signal_strength_rssi,
-             (unsigned)evt.disconnect_reason);
+    memset(evt, 0, sizeof(*evt));
+    evt->device_side = ctx->data_bury_get_device_side();
+    evt->use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
+    evt->evt_timestamp = s_event_rt.bt_connect_timestamp_utc;
+    evt->connect_result = DATA_BURY_BT_CONNECT_RESULT_SESSION_END;
+    evt->connection_setup_duration = s_event_rt.bt_connection_setup_duration;
+    evt->bt_signal_strength_rssi = s_event_rt.bt_signal_strength_rssi;
+    evt->disconnect_timestamp = platform_get_utc_time();
+    evt->disconnect_reason = app_reason;
+    LOG_BURY("bt session end: connect_ts=%u setup_ms=%u rssi=%d reason=0x%02x",
+             (unsigned)evt->evt_timestamp,
+             (unsigned)evt->connection_setup_duration,
+             (int)evt->bt_signal_strength_rssi,
+             (unsigned)evt->disconnect_reason);
+    return 1;
+}
+
+static int data_bury_event_cache_bt_session_end(data_bury_manager_context_t *ctx, uint8_t hci_reason)
+{
+    data_bury_evt_bt_connect_t evt = {0};
+    int built;
+
+    built = data_bury_event_build_bt_session_end_evt(ctx, hci_reason, &evt);
+    if (built <= 0) {
+        return built;
+    }
+    (void)data_bury_event_cache_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BT_CONNECT_EVENT,
+                                          &evt, (uint16_t)sizeof(evt));
+    data_bury_event_bt_session_cache_clear();
+    return 0;
+}
+
+static int data_bury_event_publish_bt_session_end(data_bury_manager_context_t *ctx, uint8_t hci_reason)
+{
+    data_bury_evt_bt_connect_t evt = {0};
+    int built;
+
+    built = data_bury_event_build_bt_session_end_evt(ctx, hci_reason, &evt);
+    if (built <= 0) {
+        return built;
+    }
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BT_CONNECT_EVENT,
                                     &evt, (uint16_t)sizeof(evt), 0u);
     data_bury_event_bt_session_cache_clear();
@@ -744,10 +827,10 @@ int data_bury_event_process_power_off(data_bury_manager_context_t *ctx,
         reason = DATA_BURY_SHUTDOWN_USER_MANUAL;
     }
     data_bury_pump_session_pending_discard(ctx);
-    data_bury_event_publish_pump_shutdown(ctx, reason);
+    data_bury_event_cache_pump_shutdown(ctx, reason);
     if (ctx->priv.ble_ctx && ctx->priv.ble_ctx->ble_is_connected
         && ctx->priv.ble_ctx->ble_is_connected()) {
-        (void)data_bury_event_publish_bt_session_end(ctx, 0x13u);
+        (void)data_bury_event_cache_bt_session_end(ctx, 0x13u);
     }
     return 0;
 }
