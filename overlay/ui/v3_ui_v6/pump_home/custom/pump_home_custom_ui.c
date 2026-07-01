@@ -17,7 +17,9 @@
 */
 #if IS_SUPPORT_ROOT_PUMP_HOME_COMP_BG
 static PSRAM_DATA_LOC uint8_t pump_home_bg_data[] = {
-    #include "comparison_png2txt/pump_home5_360x360.txt"
+    // #include "comparison_png2txt/pump_home5_360x360.txt"
+    // #include "comparison_png2txt/pump_home_12_360x360.txt"
+    #include "comparison_png2txt/pump_home_13_360x360.txt"
 };
 #endif
 
@@ -195,6 +197,9 @@ int pump_home_custom_ui_process(ui_manager_context_t *thiz)
             0, &custom_mode_id);
         if (custom_mode_id != pump_info->mode.custom_mode_id) {
             pump_info->mode.custom_mode_id = custom_mode_id;
+            memset(pump_info->mode.custom_id_str, 0, sizeof(pump_info->mode.custom_id_str));
+            pump_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
+                sizeof(pump_info->mode.custom_id_str), pump_info->mode.custom_id_str);
             pump_info->mode.index = BREAST_PUMP_MODE_INVALID;
         }
     }
@@ -202,10 +207,11 @@ int pump_home_custom_ui_process(ui_manager_context_t *thiz)
     const bool blink_visible = proc->state_blink_visible != 0;
     pump_home_root_bg_update(thiz);
     pump_info->time.remain_time = target_valid_time > hold_time ? (target_valid_time - hold_time) : 0;
-    pump_home_custom_time_ui_update(pump_info, hold_time, blink_visible);
+    pump_info->time.target_time = target_valid_time;
     pump_home_custom_mode_ui_update(pump_info, blink_visible);
-    pump_home_custom_animation_ui_update(pump_info);
+    pump_home_custom_time_ui_update(pump_info, hold_time, blink_visible);
     pump_home_custom_level_ui_update(pump_info, blink_visible);
+    pump_home_custom_animation_ui_update(pump_info);
     const ble_ui_blink_sync_t ble_sync = {
         .sync_enable = (pump_info->mode.mode_blink_state != 0 ||
             pump_info->time.time_blink_state != 0 ||

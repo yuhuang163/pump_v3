@@ -12,7 +12,12 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_LABEL_TEXT_CMP                   (1)
+#define IS_SUPPORT_LABEL_TEXT_CMP                   (0)
+#define IS_SUPPORT_LABEL_DESC_CMP                   (0)
+
+#if IS_SUPPORT_LABEL_DESC_CMP
+#define HOME_LABEL_DESC_INDEX                       HOME_UI_DISPLAY_MIXED_MODE_DESC
+#endif
 
 #define IDLE_LABEL_X                                (44)
 #define IDLE_LABEL_Y                                (118)
@@ -30,27 +35,27 @@
 #define IDLE_TIME_TEXT_COLOR                        (0xD36682)
 #endif
 
-#define STIMULATION_LABEL_X                         (49)
-#define STIMULATION_LABEL_Y                         (155)
+#define STIMULATION_LABEL_X                         (44)
+#define STIMULATION_LABEL_Y                         (116)
 #define STIMULATION_TEXT_X                          (0)
-#define STIMULATION_TEXT_Y                          (207)
+#define STIMULATION_TEXT_Y                          (149)
 
-#define EXPRESSION_LABEL_X                          (49)
-#define EXPRESSION_LABEL_Y                          (141)
+#define EXPRESSION_LABEL_X                          (44)
+#define EXPRESSION_LABEL_Y                          (116)
 #define EXPRESSION_TEXT_X                           (0)
-#define EXPRESSION_TEXT_Y                           (193)
+#define EXPRESSION_TEXT_Y                           (149)
 
-#define MIXED_LABEL_X                               (49)
-#define MIXED_LABEL_Y                               (141)
+#define MIXED_LABEL_X                               (44)
+#define MIXED_LABEL_Y                               (108)
 #define MIXED_TEXT_X                                (0)
-#define MIXED_TEXT_Y                                (193)
+#define MIXED_TEXT_Y                                (144)
 
-#define CUSTOMIZE_LABEL_X                           (49)
-#define CUSTOMIZE_LABEL_Y                           (137)
+#define CUSTOMIZE_LABEL_X                           (44)
+#define CUSTOMIZE_LABEL_Y                           (130)
 #define CUSTOMIZE_TEXT_X                            (0)
-#define CUSTOMIZE_TEXT_Y                            (186)
+#define CUSTOMIZE_TEXT_Y                            (164)
 #define CUSTOMIZE_TIME_TEXT_X                       (0)
-#define CUSTOMIZE_TIME_TEXT_Y                       (104)
+#define CUSTOMIZE_TIME_TEXT_Y                       (110)
 
 #define MILK_BOOST_LABEL_X                          (44)
 #define MILK_BOOST_LABEL_Y                          (120)
@@ -104,13 +109,13 @@ const static home_custom_text_info_t home_custom_label_infos[HOME_CUSTOM_TEXT_MA
         0, IDLE_RECORD_TEXT_Y, false, 4},
     {"Fast, gentle suction to\ntrigger let-down",
         0, STIMULATION_TEXT_Y, true, 4},
-    {"Slow, deep suction\nfor efficient milk\nexpression",
+    {"Slow, deep suction for\nefficient milk expression",
         0, EXPRESSION_TEXT_Y, true, 4},
     {"Efficiently promote\nlet-down and better\nemptying",
         0, MIXED_TEXT_Y, true, 4},
     {"Suitable for daily use\nafter successful\nlactation",
         0, MILK_BOOST_TEXT_Y, true, 4},
-    {"Increase milk supply\nno more than\nonce a day",
+    {"Increase milk supply, no\nmore than once a day",
         0, POWER_PUMPING_TEXT_Y, true, 4},
     {"Edited & sync via\nMomcozy App",
         0, CUSTOMIZE_TEXT_Y, true, 4},
@@ -346,7 +351,11 @@ void home_custom_pump_label_ui_update(home_custom_ui_info_t *info)
         info->label.type = proc->home_display_type;
         info->label.force_update = true;
     }
-    info->label.type = HOME_UI_DISPLAY_POWER_PUMPING_DESC;
+
+    #if IS_SUPPORT_LABEL_DESC_CMP
+    info->label.type = HOME_LABEL_DESC_INDEX;
+    #endif
+    
     switch (info->label.type) {
         default:
         case HOME_UI_DISPLAY_DEFAULT:
@@ -367,7 +376,7 @@ void home_custom_pump_label_ui_update(home_custom_ui_info_t *info)
             break;
         }
         case HOME_UI_DISPLAY_EXPRESSION_MODE_DESC:{
-            home_label_bg_update(info, CUSTOM_RES_ID_HOME_WIDTH_LABLE,
+            home_label_bg_update(info, CUSTOM_RES_ID_HOME_NARROW_LABLE,
                 EXPRESSION_LABEL_X, EXPRESSION_LABEL_Y);
             home_label_text_update(info, HOME_CUSTOM_TEXT_EXPRESSION_MODE_DESC);
             home_label_button_update(info, false);

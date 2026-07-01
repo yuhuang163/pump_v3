@@ -47,7 +47,9 @@ typedef struct {
     uint8_t mode_type;
     uint8_t new_mode_type;
     uint8_t mode_blink_state; /// 模式闪烁状态: 0: 不闪烁, 1: 闪烁.
+    uint8_t is_rhythm_mode; /// 是否为韵律模式: 0: 否, 1: 是.
     uint32_t custom_mode_id;
+    char custom_id_str[8]; /// 个性化模式ID字符串
 } pump_home_custom_mode_info_t;
 
 typedef enum {
@@ -83,6 +85,9 @@ typedef struct {
     lv_obj_t *remain_m[PUMP_HOME_TIME_DIGIT_COUNT];
     lv_obj_t *remain_colon;
     lv_obj_t *remain_s[PUMP_HOME_TIME_DIGIT_COUNT];
+    lv_obj_t *progress_bg;
+    lv_obj_t *progress_fill;
+    lv_obj_t *progress_knob;
     uint8_t hours;
     uint8_t minutes;
     uint8_t seconds;
@@ -91,6 +96,9 @@ typedef struct {
     uint8_t time_blink_state; /// 时间闪烁状态: 0: 不闪烁, 1: 闪烁.
     uint32_t remain_time;
     uint32_t remain_time_shown;
+    uint32_t target_time;
+    uint32_t target_time_shown;
+    uint8_t progress_shown;
 } pump_home_custom_time_t;
 
 typedef struct {

@@ -14,7 +14,7 @@
 */
 #define PUMP_LEVEL_MAX                             (15)
 
-#define PUMP_LEVEL_RING_SIZE                       (308)
+#define PUMP_LEVEL_RING_SIZE                       (310)
 #define PUMP_LEVEL_RING_ADJUST_SIZE                (316)
 
 #define PUMP_LEFT_ARC_SIZE                         (92)
@@ -241,8 +241,8 @@ static void home_left_level_arc_update(home_custom_ui_info_t *info, uint16_t end
         level->arc = lv_arc_create(info->root);
         EXCEPTION_CHECK_VOID(level->arc);
         lv_arc_set_bg_angles(level->arc, PUMP_LEFT_ARC_START_ANGLE, PUMP_LEFT_ARC_END_ANGLE);
-        lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_BG_COLOR), LV_PART_MAIN);
-        lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_MAIN);
+        lv_obj_set_style_arc_opa(level->arc, LV_OPA_20, LV_PART_MAIN);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_INDICATOR);
         lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_INDICATOR);
         lv_obj_remove_style(level->arc, NULL, LV_PART_KNOB);
@@ -300,8 +300,8 @@ static void home_right_level_arc_update(home_custom_ui_info_t *info, uint16_t en
         level->arc = lv_arc_create(info->root);
         EXCEPTION_CHECK_VOID(level->arc);
         lv_arc_set_bg_angles(level->arc, PUMP_RIGHT_ARC_START_ANGLE, PUMP_RIGHT_ARC_END_ANGLE);
-        lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_BG_COLOR), LV_PART_MAIN);
-        lv_obj_set_style_arc_opa(level->arc, LV_OPA_70, LV_PART_MAIN);
+        lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_MAIN);
+        lv_obj_set_style_arc_opa(level->arc, LV_OPA_20, LV_PART_MAIN);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_INDICATOR);
         lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_INDICATOR);
         lv_obj_remove_style(level->arc, NULL, LV_PART_KNOB);

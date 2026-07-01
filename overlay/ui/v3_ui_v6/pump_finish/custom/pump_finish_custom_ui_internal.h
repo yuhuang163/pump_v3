@@ -22,12 +22,9 @@ typedef struct {
 
 typedef struct {
     lv_obj_t *root;
-#if IS_SUPPORT_PUMP_FINISH_COMP_BG
-    lv_obj_t *backgroud;
-#endif
+    lv_obj_t *background;
     lv_obj_t *icon;
     lv_obj_t *texts[PUMP_FINISH_CUSTOM_TIP_TEXT_COUNT];
-    res_img_info_t icon_info;
     uint8_t force_update;
     uint8_t rsv[15];
 } pump_finish_custom_ui_info_t;

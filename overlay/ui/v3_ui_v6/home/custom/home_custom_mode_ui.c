@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "persist_storage.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
@@ -12,11 +11,12 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_HOME_MODE_TEXT_CMP               (0)
+#define IS_SUPPORT_HOME_MODE_TEXT_CMP              (0)
 
 #if IS_SUPPORT_HOME_MODE_TEXT_CMP
 #define HOME_MODE_TITLE_COLOR                      (0x00FF00)
 #define HOME_MODE_NAME_COLOR                       (0x00FF00)
+#define HOME_MODE_CMP_INDEX                        BREAST_PUMP_CUSTOM_MODE
 #else
 #define HOME_MODE_TITLE_COLOR                      (0xBD4060)
 #define HOME_MODE_NAME_COLOR                       (0xD36682)
@@ -26,7 +26,7 @@
 #define HOME_MODE_NAME_Y                           (158)
 
 #define HOME_MODE_ICON_WIDTH                       (32)
-#define HOME_MODE_ICON_TITLE_GAP                   (6)
+#define HOME_MODE_ICON_TITLE_GAP                   (4)
 #define HOME_MODE_ICON_Y                           (74)
 
 /*
@@ -130,7 +130,9 @@ void home_custom_pump_mode_ui_remove(home_custom_ui_info_t *info)
 
 void home_custom_pump_mode_ui_update(home_custom_ui_info_t *info, bool blink_visible)
 {
-    info->mode.new_index = BREAST_PUMP_PP_MILK_TRACK_MODE; 
+    #if IS_SUPPORT_HOME_MODE_TEXT_CMP
+    info->mode.new_index = HOME_MODE_CMP_INDEX; 
+    #endif
     if (home_pump_mode_need_update(info)) {
         switch (info->mode.new_index) {
             default:
@@ -148,7 +150,7 @@ void home_custom_pump_mode_ui_update(home_custom_ui_info_t *info, bool blink_vis
             }
             case BREAST_PUMP_CUSTOM_MODE: {
                 char custom_str[24] = {0};
-                sprintf(custom_str, "Customized %02d", info->mode.custom_mode_id);
+                sprintf(custom_str, "Customized %s", info->mode.custom_id_str);
                 home_pump_mode_title_update(info, custom_str, CUSTOM_RES_ID_PUMP_RHYTHM_ICON);
                 break;
             }
