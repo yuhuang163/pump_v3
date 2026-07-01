@@ -10,7 +10,7 @@ extern "C" {
 
 /// LVGL 字体声明 - Quicksand 96px
 /// 包含字符: 0-9
-extern const lv_font_t lv_font_quicksand_80_semibold;
+extern const lv_font_t lv_font_quicksand_80_bold;
 
 #ifdef __cplusplus
 }
