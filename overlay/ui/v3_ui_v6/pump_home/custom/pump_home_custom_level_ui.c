@@ -25,6 +25,7 @@
 #define PUMP_LEVEL_ARC_WIDTH_ADJUST                (16)
 #define PUMP_LEVEL_INDICATOR_SIZE                  (16)
 #define PUMP_LEVEL_INDICATOR_SIZE_ADJUST           (24)
+#define PUMP_LEVEL_INDICATOR_EXT_DRAW              (PUMP_LEVEL_INDICATOR_SIZE_ADJUST / 2)
 #define PUMP_LEVEL_BG_SIZE                         (40)
 #define PUMP_LEVEL_BG_SIZE_ADJUST                  (49)
 #define PUMP_LEVEL_IMAGE_SCALE_NORMAL              (256)
@@ -106,6 +107,21 @@ static void pump_home_level_progress_bg_res_apply(pump_home_custom_ui_info_t *in
     ui_img_baj_theme_set_src(info->ui, level->progress_bg, pump_home_level_bg_res_id_get(adjust),
         RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
     lv_image_set_scale(level->progress_bg, PUMP_LEVEL_IMAGE_SCALE_NORMAL);
+}
+
+static void pump_home_level_arc_ext_draw_event_cb(lv_event_t *e)
+{
+    lv_event_set_ext_draw_size(e, PUMP_LEVEL_INDICATOR_EXT_DRAW);
+}
+
+static void pump_home_level_arc_clip_fix_apply(lv_obj_t *arc)
+{
+    if (arc == NULL || !lv_obj_is_valid(arc)) {
+        return;
+    }
+    lv_obj_add_flag(arc, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_add_event_cb(arc, pump_home_level_arc_ext_draw_event_cb, LV_EVENT_REFR_EXT_DRAW_SIZE, NULL);
+    lv_obj_refresh_ext_draw_size(arc);
 }
 
 static void pump_home_level_arc_style_apply(lv_obj_t *arc, bool adjust)
@@ -202,6 +218,7 @@ static void pump_home_left_level_arc_update(pump_home_custom_ui_info_t *info, ui
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_INDICATOR);
         lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_INDICATOR);
         lv_obj_remove_style(level->arc, NULL, LV_PART_KNOB);
+        pump_home_level_arc_clip_fix_apply(level->arc);
     }
     pump_home_level_arc_style_apply(level->arc, adjust);
     lv_arc_set_angles(level->arc, PUMP_LEFT_ARC_START_ANGLE, end_angle);
@@ -263,6 +280,7 @@ static void pump_home_right_level_arc_update(pump_home_custom_ui_info_t *info, u
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_INDICATOR);
         lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_INDICATOR);
         lv_obj_remove_style(level->arc, NULL, LV_PART_KNOB);
+        pump_home_level_arc_clip_fix_apply(level->arc);
     }
     pump_home_level_arc_style_apply(level->arc, adjust);
     lv_arc_set_angles(level->arc, end_angle, PUMP_RIGHT_ARC_END_ANGLE);

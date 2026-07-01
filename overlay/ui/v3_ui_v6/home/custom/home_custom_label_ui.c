@@ -12,17 +12,23 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_LABEL_TEXT_CMP                   (0)
+#define IS_SUPPORT_LABEL_TEXT_CMP                   (1)
 
-#define IDLE_LABEL_X                                (49)
-#define IDLE_LABEL_Y                                (138)
+#define IDLE_LABEL_X                                (44)
+#define IDLE_LABEL_Y                                (118)
 #define IDLE_TEXT_X                                 (0)
 #define IDLE_TEXT_Y                                 (152)
 #define IDLE_BUTTON_ICON_X                          (137)
 #define IDLE_BUTTON_ICON_Y                          (149)
 #define IDLE_BUTTON2_ICON_X                         (167)
+
+#if IS_SUPPORT_LABEL_TEXT_CMP
+#define IDLE_TEXT_COLOR                             (0x00FF00)
+#define IDLE_TIME_TEXT_COLOR                        (0x00FF00)
+#else
 #define IDLE_TEXT_COLOR                             (0xA0183B)
 #define IDLE_TIME_TEXT_COLOR                        (0xD36682)
+#endif
 
 #define STIMULATION_LABEL_X                         (49)
 #define STIMULATION_LABEL_Y                         (155)
@@ -46,19 +52,19 @@
 #define CUSTOMIZE_TIME_TEXT_X                       (0)
 #define CUSTOMIZE_TIME_TEXT_Y                       (104)
 
-#define MILK_BOOST_LABEL_X                          (49)
-#define MILK_BOOST_LABEL_Y                          (145)
+#define MILK_BOOST_LABEL_X                          (44)
+#define MILK_BOOST_LABEL_Y                          (120)
 #define MILK_BOOST_TEXT_X                           (0)
-#define MILK_BOOST_TEXT_Y                           (198)
+#define MILK_BOOST_TEXT_Y                           (158)
 #define MILK_BOOST_TIME_TEXT_X                      (0)
-#define MILK_BOOST_TIME_TEXT_Y                      (104)
+#define MILK_BOOST_TIME_TEXT_Y                      (110)
 
-#define POWER_PUMPING_LABEL_X                       (49)
-#define POWER_PUMPING_LABEL_Y                       (145)
+#define POWER_PUMPING_LABEL_X                       (44)
+#define POWER_PUMPING_LABEL_Y                       (126)
 #define POWER_PUMPING_TEXT_X                        (0)
-#define POWER_PUMPING_TEXT_Y                        (198)
+#define POWER_PUMPING_TEXT_Y                        (162)
 #define POWER_PUMPING_TIME_TEXT_X                   (0)
-#define POWER_PUMPING_TIME_TEXT_Y                   (104)
+#define POWER_PUMPING_TIME_TEXT_Y                   (110)
 
 #define IDLE_RECORD_LABEL_X                         (0)
 #define IDLE_RECORD_LABEL_Y                         (106)
@@ -340,7 +346,7 @@ void home_custom_pump_label_ui_update(home_custom_ui_info_t *info)
         info->label.type = proc->home_display_type;
         info->label.force_update = true;
     }
-    info->label.type = HOME_UI_DISPLAY_DEFAULT;
+    info->label.type = HOME_UI_DISPLAY_POWER_PUMPING_DESC;
     switch (info->label.type) {
         default:
         case HOME_UI_DISPLAY_DEFAULT:
@@ -400,7 +406,7 @@ void home_custom_pump_label_ui_update(home_custom_ui_info_t *info)
             }
             char time_text[16] = {0};
             snprintf(time_text, sizeof(time_text), "≈%d min", pump_time / 60);
-            home_label_bg_update(info, CUSTOM_RES_ID_HOME_WIDTH_LABLE, POWER_PUMPING_LABEL_X, POWER_PUMPING_LABEL_Y);
+            home_label_bg_update(info, CUSTOM_RES_ID_HOME_NARROW_LABLE, POWER_PUMPING_LABEL_X, POWER_PUMPING_LABEL_Y);
             home_label_text_update(info, HOME_CUSTOM_TEXT_POWER_PUMPING_DESC);
             home_label_button_update(info, false);
             home_label_icon_update(info, 0, 0, 0);
