@@ -677,26 +677,25 @@ static void data_bury_ring_reset_ram(void)
 int data_bury_ring_storage_reset(storage_manager_context_t *ctx)
 {
     uint8_t slot;
+    uint32_t t0 = get_timestamp();
 
     EXCEPTION_CHECK_INT(ctx);
     if (data_bury_ring_buf_alloc() != 0) {
-        LOGE("data bury storage reset alloc fail");
+        LOGE("data bury storage reset alloc fail, escaped: %lu ms", get_timestamp_ms(t0));
         return -1;
     }
     data_bury_ring_reset_ram();
     memset(&s_bury.flash.bank, 0, sizeof(s_bury.flash.bank));
     s_bury.flash.loaded = 1;
     reset_data_bury_flash_bank(ctx, &s_bury.flash.bank);
+    /* bank.count=0 且各槽 meta 空，运行时不会读旧 chunk；槽复用时 sync 会覆盖 chunk，故不必写零 */
     for (slot = 0; slot < DATA_BURY_FLASH_SLOT_NUM; slot++) {
         data_bury_ring_meta_t empty_meta;
         reset_data_bury_ring_meta(ctx, slot, &empty_meta);
-        if (data_bury_ring_save_slot_chunks(ctx, slot, s_bury.bufs.ring) != 0) {
-            LOGE("data bury storage reset clear slot=%u fail", (unsigned)slot);
-            return -1;
-        }
     }
     s_bury.store_ctx.inited = 1;
     s_bury.store_ctx.ctx    = ctx;
+    LOG_STORE_WRAP("data_bury_ring_storage_reset escaped: %lu ms", get_timestamp_ms(t0));
     return 0;
 }
 
@@ -991,6 +990,8 @@ static int data_bury_ring_peek_from_meta(const data_bury_ring_meta_t *meta, cons
 static int data_bury_ring_peek_oldest(storage_manager_context_t *ctx, data_bury_rec_hdr_t *hdr,
                                       uint8_t *out_payload, uint16_t out_buf_len)
 {
+    uint32_t flash_t0 = 0;
+
     EXCEPTION_CHECK_INT(ctx);
     EXCEPTION_CHECK_INT(hdr);
     if (!s_bury.store_ctx.inited || s_bury.store_ctx.ctx != ctx) {
@@ -1013,6 +1014,7 @@ static int data_bury_ring_peek_oldest(storage_manager_context_t *ctx, data_bury_
         }
         return ret;
     }
+    flash_t0 = get_timestamp();
     if (data_bury_flash_bank_ensure_loaded(ctx) != 0 || s_bury.flash.bank.count == 0) {
         LOGE("data bury peek oldest no flash pending bank_loaded=%u count=%u",
              (unsigned)s_bury.flash.loaded, (unsigned)s_bury.flash.bank.count);
@@ -1046,6 +1048,8 @@ static int data_bury_ring_peek_oldest(storage_manager_context_t *ctx, data_bury_
             }
             ret = data_bury_ring_peek_oldest(ctx, hdr, out_payload, out_buf_len);
         }
+        LOG_STORE_WRAP("data_bury_ring_peek_oldest flash escaped: %lu ms ret=%d",
+                       get_timestamp_ms(flash_t0), ret);
         return ret;
     }
 }
@@ -1054,6 +1058,7 @@ static int data_bury_ring_pop_oldest(storage_manager_context_t *ctx)
 {
     data_bury_rec_hdr_t hdr;
     int ret;
+    uint32_t flash_t0 = 0;
 
     EXCEPTION_CHECK_INT(ctx);
     if (s_bury.ram.meta.head != s_bury.ram.meta.tail) {
@@ -1073,6 +1078,7 @@ static int data_bury_ring_pop_oldest(storage_manager_context_t *ctx)
         return 0;
     }
 
+    flash_t0 = get_timestamp();
     if (data_bury_flash_bank_ensure_loaded(ctx) != 0 || s_bury.flash.bank.count == 0) {
         LOGE("data bury pop no flash pending bank_loaded=%u count=%u",
              (unsigned)s_bury.flash.loaded, (unsigned)s_bury.flash.bank.count);
@@ -1114,6 +1120,7 @@ static int data_bury_ring_pop_oldest(storage_manager_context_t *ctx)
         LOG_STORE_WRAP("-->data bury pop flash slot=%u cmd=0x%02x len=%u",
                        (unsigned)s_bury.flush.phys_slot, hdr.cmd_id, (unsigned)hdr.payload_len);
     }
+    LOG_STORE_WRAP("data_bury_ring_pop_oldest flash escaped: %lu ms ret=0", get_timestamp_ms(flash_t0));
     return 0;
 }
 
