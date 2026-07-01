@@ -12,14 +12,22 @@
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_HOME_MODE_TEXT_CMP               (0)
+
+#if IS_SUPPORT_HOME_MODE_TEXT_CMP
+#define HOME_MODE_TITLE_COLOR                      (0x00FF00)
+#define HOME_MODE_NAME_COLOR                       (0x00FF00)
+#else
 #define HOME_MODE_TITLE_COLOR                      (0xBD4060)
 #define HOME_MODE_NAME_COLOR                       (0xD36682)
-#define HOME_MODE_TITLE_Y                          (70)
+#endif
+
+#define HOME_MODE_TITLE_Y                          (79)
 #define HOME_MODE_NAME_Y                           (158)
 
 #define HOME_MODE_ICON_WIDTH                       (32)
 #define HOME_MODE_ICON_TITLE_GAP                   (6)
-#define HOME_MODE_ICON_Y                           (66)
+#define HOME_MODE_ICON_Y                           (74)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -122,7 +130,7 @@ void home_custom_pump_mode_ui_remove(home_custom_ui_info_t *info)
 
 void home_custom_pump_mode_ui_update(home_custom_ui_info_t *info, bool blink_visible)
 {
-    info->mode.new_index = BREAST_PUMP_MILK_BOOST_MODE; 
+    info->mode.new_index = BREAST_PUMP_PP_MILK_TRACK_MODE; 
     if (home_pump_mode_need_update(info)) {
         switch (info->mode.new_index) {
             default:

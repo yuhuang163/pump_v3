@@ -11,10 +11,10 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_HOME_STIMULATION_WAVE_Y               (112)
+#define PUMP_HOME_STIMULATION_WAVE_Y               (60)
 #define PUMP_HOME_LACTATION_WAVE_Y                 (60)
-#define PUMP_HOME_MIX_WAVE_Y                       (112)
-#define PUMP_HOME_RELAX_WAVE_Y                     (112)
+#define PUMP_HOME_MIX_WAVE_Y                       (60)
+#define PUMP_HOME_RELAX_WAVE_Y                     (60)
 
 #define PUMP_HOME_ANIM_TRANSITION_MS               (1000)
 #define PUMP_HOME_ANIM_FRAME_INTERVAL_MS           (1000 / PUMP_ANIMATION_FREQ)
@@ -117,6 +117,7 @@ static pump_home_base_anim_res_type_e pump_home_animation_res_type_get(uint16_t 
 
 static lv_coord_t pump_home_animation_wave_y_get(uint8_t mode_type)
 {
+    #if 0
     switch (mode_type) {
         case PUMP_MODE_STIMULATION:
             return PUMP_HOME_STIMULATION_WAVE_Y;
@@ -129,6 +130,8 @@ static lv_coord_t pump_home_animation_wave_y_get(uint8_t mode_type)
         default:
             return PUMP_HOME_STIMULATION_WAVE_Y;
     }
+    #endif
+    return PUMP_HOME_STIMULATION_WAVE_Y;
 }
 
 static uint8_t pump_home_animation_mode_type_get(pump_home_base_anim_res_type_e res_type)

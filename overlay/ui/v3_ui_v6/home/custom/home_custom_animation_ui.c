@@ -12,7 +12,7 @@
 *****************************************************************************************
 */
 #define HOME_IP_ANIM_X                             (0)
-#define HOME_IP_ANIM_Y                             (166)
+#define HOME_IP_ANIM_Y                             (209)
 #define HOME_ANIM_FRAME_INTERVAL_MS                (1000 / HOME_ANIMATION_FREQ)
 #define HOME_ANIM_FRAME_RES_INVALID                (0xFFFF)
 

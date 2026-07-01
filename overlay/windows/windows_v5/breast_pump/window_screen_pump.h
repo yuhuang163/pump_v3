@@ -18,7 +18,7 @@ extern "C" {
 #if (ROOT_UI_VERSION == ROOT_UI_V2)
 #define PUMP_ANIMATION_FREQ                    (24)
 #else
-#define PUMP_ANIMATION_FREQ                    (25)
+#define PUMP_ANIMATION_FREQ                    (20)
 #endif
 #define PUMP_MODE_ANIMATION_FREQ               (25) 
 #define PUMP_SPEED_ANIMATION_FREQ              (25) 

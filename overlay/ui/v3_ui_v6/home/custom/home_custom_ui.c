@@ -22,7 +22,11 @@
 */
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
-    #include "comparison_png2txt/home_ip11_360x360.txt"
+    // #include "comparison_png2txt/home_ip11_360x360.txt"
+    // #include "comparison_png2txt/home_ip12_360x360.txt"
+    // #include "comparison_png2txt/home_ip13_360x360.txt"
+    #include "comparison_png2txt/home_ip14_360x360.txt"
+    // #include "comparison_png2txt/LR_level_adjust11_360x360.txt"
 };
 #endif
 
@@ -207,10 +211,10 @@ int home_custom_ui_process(ui_manager_context_t *thiz)
     #else
     home_custom_blink_state_update(home_info, proc);
     const bool blink_visible = proc->state_blink_visible != 0;
+    home_custom_pump_label_ui_update(home_info);
+    home_custom_animation_ui_update(home_info);
     home_custom_pump_mode_ui_update(home_info, blink_visible);
     home_custom_pump_level_ui_update(home_info, blink_visible);
-    home_custom_animation_ui_update(home_info);
-    home_custom_pump_label_ui_update(home_info);
     const ble_ui_blink_sync_t ble_sync = {
         .sync_enable = (home_info->mode.mode_blink_state != 0 ||
             home_info->mode.icon_blink_state != 0 ||

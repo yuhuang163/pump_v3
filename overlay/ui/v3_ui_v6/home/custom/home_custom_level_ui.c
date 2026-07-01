@@ -13,29 +13,39 @@
 *****************************************************************************************
 */
 #define PUMP_LEVEL_MAX                             (15)
-#define PUMP_LEVEL_RING_SIZE                       (320)
 
-#define PUMP_LEFT_ARC_SIZE                         (47)
-#define PUMP_LEFT_ANGLE_OFFSET                     (11)
+#define PUMP_LEVEL_RING_SIZE                       (308)
+#define PUMP_LEVEL_RING_ADJUST_SIZE                (316)
+
+#define PUMP_LEFT_ARC_SIZE                         (92)
+#define PUMP_LEFT_ANGLE_OFFSET                     (65)
 #define PUMP_LEFT_ARC_START_ANGLE                  (90 + PUMP_LEFT_ANGLE_OFFSET)
 #define PUMP_LEFT_ARC_END_ANGLE                    (PUMP_LEFT_ARC_START_ANGLE + PUMP_LEFT_ARC_SIZE)
 #define PUMP_RIGHT_ARC_END_ANGLE                   (450 - PUMP_LEFT_ANGLE_OFFSET)
 #define PUMP_RIGHT_ARC_START_ANGLE                 (PUMP_RIGHT_ARC_END_ANGLE - PUMP_LEFT_ARC_SIZE)
-#define PUMP_LEVEL_ARC_WIDTH                       (8)
-#define PUMP_LEVEL_ARC_WIDTH_ADJUST                (16)
+
+#define PUMP_LEVEL_ARC_WIDTH                       (9)
+#define PUMP_LEVEL_ARC_WIDTH_ADJUST                (17)
+
 #define PUMP_LEVEL_INDICATOR_SIZE                  (16)
-#define PUMP_LEVEL_INDICATOR_SIZE_ADJUST           (24)
-#define PUMP_LEVEL_BG_SIZE                         (40)
-#define PUMP_LEVEL_BG_SIZE_ADJUST                  (49)
+#define PUMP_LEVEL_INDICATOR_ADJUST_SIZE           (24)
+#define PUMP_LEVEL_INDICATOR_EXT_DRAW              (PUMP_LEVEL_INDICATOR_ADJUST_SIZE / 2)
 #define PUMP_LEVEL_IMAGE_SCALE_NORMAL              (256)
 #define PUMP_LEVEL_ARC_BG_COLOR                    (0xE5C1C5)
 #define PUMP_LEVEL_ARC_ACTIVE_COLOR                (0xBD4060)
-#define PUMP_LEVEL_TEXT_COLOR                      (0xBD4060)
-#define PUMP_LEFT_LEVEL_BG_X                       (18)
-#define PUMP_LEFT_LEVEL_BG_Y                       (208)
-#define PUMP_RIGHT_LEVEL_BG_X                      (306)
+#define PUMP_LEVEL_TEXT_COLOR                      (0xFFFDFD)
+
+#define PUMP_LEFT_LEVEL_BG_X                       (42)
+#define PUMP_LEFT_LEVEL_BG_Y                       (254)
+#define PUMP_RIGHT_LEVEL_BG_X                      (282)
 #define PUMP_RIGHT_LEVEL_BG_Y                      (PUMP_LEFT_LEVEL_BG_Y)
-#define HOME_CUSTOM_LEVEL_BLINK_ENABLE               (0)
+
+#define PUMP_LEFT_LEVEL_ADJUST_BG_X                (38)
+#define PUMP_LEFT_LEVEL_ADJUST_BG_Y                (254)
+#define PUMP_RIGHT_LEVEL_ADJUST_BG_X               (280)
+#define PUMP_RIGHT_LEVEL_ADJUST_BG_Y               (PUMP_LEFT_LEVEL_ADJUST_BG_Y)
+
+#define HOME_CUSTOM_LEVEL_BLINK_ENABLE             (0)
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -58,14 +68,34 @@ static lv_coord_t home_level_arc_width_get(bool adjust)
     return adjust ? PUMP_LEVEL_ARC_WIDTH_ADJUST : PUMP_LEVEL_ARC_WIDTH;
 }
 
-static uint16_t home_level_indicator_size_get(bool adjust)
+static lv_coord_t home_level_ring_size_get(bool adjust)
 {
-    return adjust ? PUMP_LEVEL_INDICATOR_SIZE_ADJUST : PUMP_LEVEL_INDICATOR_SIZE;
+    return adjust ? PUMP_LEVEL_RING_ADJUST_SIZE : PUMP_LEVEL_RING_SIZE;
 }
 
-static lv_coord_t home_level_bg_offset_get(bool adjust)
+static uint16_t home_level_indicator_size_get(bool adjust)
 {
-    return adjust ? (lv_coord_t)((PUMP_LEVEL_BG_SIZE - PUMP_LEVEL_BG_SIZE_ADJUST) / 2) : 0;
+    return adjust ? PUMP_LEVEL_INDICATOR_ADJUST_SIZE : PUMP_LEVEL_INDICATOR_SIZE;
+}
+
+static lv_coord_t home_level_left_bg_x_get(bool adjust)
+{
+    return adjust ? PUMP_LEFT_LEVEL_ADJUST_BG_X : PUMP_LEFT_LEVEL_BG_X;
+}
+
+static lv_coord_t home_level_left_bg_y_get(bool adjust)
+{
+    return adjust ? PUMP_LEFT_LEVEL_ADJUST_BG_Y : PUMP_LEFT_LEVEL_BG_Y;
+}
+
+static lv_coord_t home_level_right_bg_x_get(bool adjust)
+{
+    return adjust ? PUMP_RIGHT_LEVEL_ADJUST_BG_X : PUMP_RIGHT_LEVEL_BG_X;
+}
+
+static lv_coord_t home_level_right_bg_y_get(bool adjust)
+{
+    return adjust ? PUMP_RIGHT_LEVEL_ADJUST_BG_Y : PUMP_RIGHT_LEVEL_BG_Y;
 }
 
 static uint16_t home_level_indicator_res_id_get(bool adjust)
@@ -108,11 +138,29 @@ static void home_level_progress_bg_res_apply(home_custom_ui_info_t *info, home_c
     lv_image_set_scale(level->progress_bg, PUMP_LEVEL_IMAGE_SCALE_NORMAL);
 }
 
+static void home_level_arc_ext_draw_event_cb(lv_event_t *e)
+{
+    lv_event_set_ext_draw_size(e, PUMP_LEVEL_INDICATOR_EXT_DRAW);
+}
+
+static void home_level_arc_clip_fix_apply(lv_obj_t *arc)
+{
+    if (arc == NULL || !lv_obj_is_valid(arc)) {
+        return;
+    }
+    lv_obj_add_flag(arc, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+    lv_obj_add_event_cb(arc, home_level_arc_ext_draw_event_cb, LV_EVENT_REFR_EXT_DRAW_SIZE, NULL);
+    lv_obj_refresh_ext_draw_size(arc);
+}
+
 static void home_level_arc_style_apply(lv_obj_t *arc, bool adjust)
 {
     if (arc == NULL || !lv_obj_is_valid(arc)) {
         return;
     }
+    const lv_coord_t ring_size = home_level_ring_size_get(adjust);
+    lv_obj_set_size(arc, ring_size, ring_size);
+    lv_obj_center(arc);
     const lv_coord_t arc_width = home_level_arc_width_get(adjust);
     lv_obj_set_style_arc_width(arc, arc_width, LV_PART_MAIN);
     lv_obj_set_style_arc_width(arc, arc_width, LV_PART_INDICATOR);
@@ -125,8 +173,7 @@ static void home_level_progress_style_apply(home_custom_ui_info_t *info, home_cu
         return;
     }
     home_level_progress_bg_res_apply(info, level, adjust);
-    lv_obj_align(level->progress_bg, LV_ALIGN_TOP_LEFT,
-        bg_x + home_level_bg_offset_get(adjust), bg_y + home_level_bg_offset_get(adjust));
+    lv_obj_align(level->progress_bg, LV_ALIGN_TOP_LEFT, bg_x, bg_y);
     if (level->progress != NULL && lv_obj_is_valid(level->progress)) {
         lv_obj_set_style_text_font(level->progress, adjust ?
             &lv_font_aeonik_soft_26_bold : &lv_font_aeonik_soft_20_semibold, 0);
@@ -178,9 +225,10 @@ static void home_left_level_progress_update(home_custom_ui_info_t *info, uint8_t
         EXCEPTION_CHECK_VOID(level->progress);
         lv_obj_set_style_text_color(level->progress, lv_color_hex(PUMP_LEVEL_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
-        lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 0);
+        lv_obj_align(level->progress, LV_ALIGN_CENTER, 0, 1);
     }
-    home_level_progress_style_apply(info, level, PUMP_LEFT_LEVEL_BG_X, PUMP_LEFT_LEVEL_BG_Y, adjust);
+    home_level_progress_style_apply(info, level, home_level_left_bg_x_get(adjust),
+        home_level_left_bg_y_get(adjust), adjust);
     snprintf(level_text, sizeof(level_text), "%d", level_val);
     lv_label_set_text(level->progress, level_text);
 }
@@ -192,14 +240,13 @@ static void home_left_level_arc_update(home_custom_ui_info_t *info, uint16_t end
     if (level->arc == NULL || !lv_obj_is_valid(level->arc)) {
         level->arc = lv_arc_create(info->root);
         EXCEPTION_CHECK_VOID(level->arc);
-        lv_obj_set_size(level->arc, PUMP_LEVEL_RING_SIZE, PUMP_LEVEL_RING_SIZE);
-        lv_obj_center(level->arc);
         lv_arc_set_bg_angles(level->arc, PUMP_LEFT_ARC_START_ANGLE, PUMP_LEFT_ARC_END_ANGLE);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_BG_COLOR), LV_PART_MAIN);
         lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_MAIN);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_INDICATOR);
         lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_INDICATOR);
         lv_obj_remove_style(level->arc, NULL, LV_PART_KNOB);
+        home_level_arc_clip_fix_apply(level->arc);
     }
     home_level_arc_style_apply(level->arc, adjust);
     lv_arc_set_angles(level->arc, PUMP_LEFT_ARC_START_ANGLE, end_angle);
@@ -237,9 +284,10 @@ static void home_right_level_progress_update(home_custom_ui_info_t *info, uint8_
         EXCEPTION_CHECK_VOID(level->progress);
         lv_obj_set_style_text_color(level->progress, lv_color_hex(PUMP_LEVEL_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
-        lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 0);
+        lv_obj_align(level->progress, LV_ALIGN_CENTER, 0, 1);
     }
-    home_level_progress_style_apply(info, level, PUMP_RIGHT_LEVEL_BG_X, PUMP_RIGHT_LEVEL_BG_Y, adjust);
+    home_level_progress_style_apply(info, level, home_level_right_bg_x_get(adjust),
+        home_level_right_bg_y_get(adjust), adjust);
     snprintf(level_text, sizeof(level_text), "%d", level_val);
     lv_label_set_text(level->progress, level_text);
 }
@@ -251,14 +299,13 @@ static void home_right_level_arc_update(home_custom_ui_info_t *info, uint16_t en
     if (level->arc == NULL || !lv_obj_is_valid(level->arc)) {
         level->arc = lv_arc_create(info->root);
         EXCEPTION_CHECK_VOID(level->arc);
-        lv_obj_set_size(level->arc, PUMP_LEVEL_RING_SIZE, PUMP_LEVEL_RING_SIZE);
-        lv_obj_center(level->arc);
         lv_arc_set_bg_angles(level->arc, PUMP_RIGHT_ARC_START_ANGLE, PUMP_RIGHT_ARC_END_ANGLE);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_BG_COLOR), LV_PART_MAIN);
-        lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_arc_opa(level->arc, LV_OPA_70, LV_PART_MAIN);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_INDICATOR);
         lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_INDICATOR);
         lv_obj_remove_style(level->arc, NULL, LV_PART_KNOB);
+        home_level_arc_clip_fix_apply(level->arc);
     }
     home_level_arc_style_apply(level->arc, adjust);
     lv_arc_set_angles(level->arc, end_angle, PUMP_RIGHT_ARC_END_ANGLE);
@@ -305,9 +352,8 @@ static void home_left_level_update(home_custom_ui_info_t *info, bool blink_visib
         level_val = PUMP_LEVEL_MAX;
     }
     const uint16_t end_angle = home_left_level_end_angle_get(level_val);
-
-    home_left_level_arc_update(info, end_angle, adjust);
     home_left_level_progress_update(info, level_val, adjust);
+    home_left_level_arc_update(info, end_angle, adjust);
     home_left_level_indicator_update(info, end_angle, adjust);
     level->value = level_val;
     level->adjust_active = adjust;
@@ -331,15 +377,15 @@ static void home_right_level_update(home_custom_ui_info_t *info, bool blink_visi
         level_val = PUMP_LEVEL_MAX;
     }
     const uint16_t end_angle = home_right_level_end_angle_get(level_val);
-
-    home_right_level_arc_update(info, end_angle, adjust);
     home_right_level_progress_update(info, level_val, adjust);
+    home_right_level_arc_update(info, end_angle, adjust);
     home_right_level_indicator_update(info, end_angle, adjust);
     level->value = level_val;
     level->adjust_active = adjust;
     home_level_side_blink_apply(level, info->level.right_blink_state, blink_visible);
 }
 
+#if 0
 static void home_level_separator_update(home_custom_ui_info_t *info)
 {
     if (info->level.separator == NULL || !lv_obj_is_valid(info->level.separator)) {
@@ -350,6 +396,7 @@ static void home_level_separator_update(home_custom_ui_info_t *info)
             RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
     }
 }
+#endif
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -368,7 +415,7 @@ void home_custom_pump_level_ui_remove(home_custom_ui_info_t *info)
 void home_custom_pump_level_ui_update(home_custom_ui_info_t *info, bool blink_visible)
 {
     EXCEPTION_CHECK_VOID(info);
-    home_level_separator_update(info);
+    // home_level_separator_update(info);
     home_left_level_update(info, blink_visible);
     home_right_level_update(info, blink_visible);
 }
