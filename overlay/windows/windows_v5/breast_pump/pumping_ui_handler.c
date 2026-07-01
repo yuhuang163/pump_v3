@@ -214,8 +214,12 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
     int pump_status = 0;
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (pump_status == BREAST_PUMP_PAUSE || pump_status == BREAST_PUMP_IDLE || pump_status == BREAST_PUMP_FINISH) {
-        int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;    
-        ///状态变化 触发泵奶启动埋点事件
+        int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;
+        ///如果是开机首次启动或者结算后的首次启动，则触发泵奶启动埋点事件
+        if (BREAST_PUMP_START == next_status) {
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START, 0, 0);
+        }
+        ///状态变化 触发泵奶状态切换埋点事件
         {
             int control_source = 0;
             READ_PUMP_CONTROL_SOURCE(proc->pump, control_source);
