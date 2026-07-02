@@ -12,13 +12,13 @@ extern "C" {
 #include "ui_manager_api.h" // IWYU pragma: keep
 #include "ble_manager_api.h" // IWYU pragma: keep
 
-#define BASE_BLE_UI_X                                      (168)
-#define BASE_BLE_UI_Y                                      (22)
+#define BASE_BLE_UI_X                                      (0)
+#define BASE_BLE_UI_Y                                      (16)
 #define BASE_PUMP_HOME_BLE_UI_X                            (0)
 #define BASE_PUMP_HOME_BLE_UI_Y                            (16)
 
-#define CUSTOM_BLE_UI_X                                    (168)
-#define CUSTOM_BLE_UI_Y                                    (22)
+#define CUSTOM_BLE_UI_X                                    (0)
+#define CUSTOM_BLE_UI_Y                                    (16)
 #define CUSTOM_PUMP_HOME_BLE_UI_X                          (0)
 #define CUSTOM_PUMP_HOME_BLE_UI_Y                          (16)
 
