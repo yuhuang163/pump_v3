@@ -645,12 +645,14 @@ do_rebuild_all() {
 
 do_bear_build() {
 	local t0=$(date +%s)
+	command -v bear >/dev/null 2>&1 || die "未找到 bear，请先安装: sudo apt install bear"
 	echo "开始使用 bear 编译（生成编译数据库）..."
-    # 先清理固件构建目录，确保编译数据库完整且无陈旧目标
-    do_clean_firmware
-    # 与常规固件构建保持一致，确保 O/BIN_DIR 与编译数据库一致
-    bear make -C "$PROJECT_DIR" -j16 firmware
-	echo "bear 编译完成，用时: $(duration_since "$t0")"
+	# 先清理固件构建目录，确保编译数据库完整且无陈旧目标
+	do_clean_firmware
+	# 与常规固件构建保持一致，输出到项目根目录 compile_commands.json
+	bear --output "$PROJECT_DIR/compile_commands.json" -- \
+		make -C "$PROJECT_DIR" -j16 firmware
+	echo "bear 编译完成，compile_commands.json -> $PROJECT_DIR/compile_commands.json，用时: $(duration_since "$t0")"
 }
 
 # 生成压缩 OTA 固件：输入为应用固件 bin，输出为 *_ota.bin
