@@ -376,7 +376,7 @@ uint16_t ui_popup_target_time_get(popup_ui_id_e type)
     uint16_t time = 3000;
     if (type == ID_POPUP_UI_AIRPLANE_MODE_PROMPT) {
         time = 5000;
-    } else if (type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+    } else if (type == ID_POPUP_UI_PUMP_FINISH_MANUAL || type == ID_POPUP_UI_THEME_RESELECT) {
         time = 3000;
     } else if (type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
         time = 10000;

@@ -63,6 +63,7 @@ typedef struct {
     uint8_t selected_index;
     uint8_t is_operated;
     uint8_t force_update;
+    uint8_t popup_ui_index;
     uint8_t rsv[13];
 } theme_guide_ui_info_t;
 
@@ -289,6 +290,7 @@ void ui_display_theme_guide_prepare(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(theme_info);
     }
     theme_info->force_update = true;
+    theme_info->popup_ui_index = ID_POPUP_UI_NONE;
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     theme_guide_root_init();
@@ -301,6 +303,7 @@ void ui_display_theme_guide_remove(ui_manager_context_t *thiz)
         ui_img_baj_release_decoded_buf(theme_info->preview[i]);
         ui_img_baj_release_decoded_buf(theme_info->radio[i]);
     }
+    ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(theme_info->root);
     u_free(theme_info);
     theme_info = NULL;
@@ -309,6 +312,7 @@ void ui_display_theme_guide_remove(ui_manager_context_t *thiz)
 int ui_display_theme_guide_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && theme_info && theme_info->root);
+    popup_ui_id_e popup_type = ID_POPUP_UI_NONE;
 
 #if IS_SUPPORT_THEME_GUIDE_UI_TEST
     static uint8_t test_selected_index = 0;
@@ -320,6 +324,7 @@ int ui_display_theme_guide_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(proc);
     theme_info->selected_index = proc->selected_index;
     theme_info->is_operated = proc->is_operated;
+    popup_type = proc->popup_ui_type;
 #endif
 
     theme_guide_bg_update(thiz);
@@ -328,6 +333,7 @@ int ui_display_theme_guide_process(ui_manager_context_t *thiz)
     theme_guide_preview_update(thiz);
     theme_guide_selection_update(thiz);
     theme_info->force_update = false;
+    ui_popup_update(thiz, popup_type, theme_info->root, &theme_info->popup_ui_index);
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();

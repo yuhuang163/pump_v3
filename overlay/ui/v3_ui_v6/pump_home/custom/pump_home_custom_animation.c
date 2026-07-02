@@ -11,10 +11,14 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_HOME_IP_ANIM_Y                        (196)
-#define PUMP_HOME_ANIM_TRANSITION_MS               (500)
-#define PUMP_HOME_ANIM_FRAME_INTERVAL_MS           (1000 / PUMP_ANIMATION_FREQ)
-#define PUMP_HOME_ANIM_FRAME_RES_INVALID           (0xFFFF)
+#define IS_SUPPORT_ANIM_TRANSITION                     (0) /// 动画过渡支持.
+#define PUMP_HOME_IP_ANIM_Y                            (196)
+#define PUMP_HOME_ANIM_FRAME_INTERVAL_MS               (1000 / PUMP_ANIMATION_FREQ)
+#define PUMP_HOME_ANIM_FRAME_RES_INVALID               (0xFFFF)
+
+#if IS_SUPPORT_ANIM_TRANSITION
+#define PUMP_HOME_ANIM_TRANSITION_MS                   (500)
+#endif
 
 typedef enum {
     PUMP_HOME_ANIM_PHASE_PLAY = 0,
@@ -189,6 +193,7 @@ static void pump_home_animation_apply(pump_home_custom_ui_info_t *info, uint16_t
     lv_obj_clear_flag(anim->wave, LV_OBJ_FLAG_HIDDEN);
 }
 
+#if IS_SUPPORT_ANIM_TRANSITION
 static void pump_home_animation_transition_begin(pump_home_custom_ui_info_t *info, uint16_t start_id,
     uint16_t end_id)
 {
@@ -233,6 +238,7 @@ static bool pump_home_animation_transition_update(pump_home_custom_ui_info_t *in
     anim->anim_phase = PUMP_HOME_ANIM_PHASE_PLAY;
     return false;
 }
+#endif
 
 static void pump_home_animation_frame_update(pump_home_custom_ui_info_t *info, uint8_t mode_type)
 {
@@ -289,18 +295,26 @@ void pump_home_custom_animation_ui_update(pump_home_custom_ui_info_t *info)
     } else if (anim->anim_mode_type != mode_type && anim->wave_res_type < PUMP_HOME_CUSTOM_ANIM_MAX) {
         pump_home_animation_mode_entry_get(mode_type, &start_id, &end_id);
         anim->anim_mode_type = mode_type;
+#if IS_SUPPORT_ANIM_TRANSITION
         if (anim->anim_phase == PUMP_HOME_ANIM_PHASE_PLAY) {
             pump_home_animation_transition_begin(info, start_id, end_id);
         } else {
             anim->pending_anim_start = start_id;
             anim->pending_anim_end = end_id;
         }
+#else
+        pump_home_animation_apply(info, start_id, end_id,
+            pump_home_animation_res_type_get(start_id));
+        pump_home_animation_wave_opa_set(info, LV_OPA_COVER);
+        anim->anim_phase = PUMP_HOME_ANIM_PHASE_PLAY;
+#endif
     }
 
     if (anim->wave_res_type >= PUMP_HOME_CUSTOM_ANIM_MAX) {
         return;
     }
 
+#if IS_SUPPORT_ANIM_TRANSITION
     if (anim->anim_phase != PUMP_HOME_ANIM_PHASE_PLAY) {
         if (anim->anim_play_state != 0) {
             return;
@@ -308,6 +322,7 @@ void pump_home_custom_animation_ui_update(pump_home_custom_ui_info_t *info)
         (void)pump_home_animation_transition_update(info);
         return;
     }
+#endif
 
     if (anim->anim_play_state != 0) {
         return;

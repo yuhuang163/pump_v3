@@ -98,10 +98,26 @@ static int get_img_res_version(res_theme_type_e theme_type)
     return 0;
 }
 
-static int get_current_theme_type(void)
+static int get_sys_theme_type(void)
 {
-    thiz->priv.theme_type = RES_THEME_TYPE_BASE;
     return thiz->priv.theme_type;
+}
+
+static int set_sys_theme_type(res_theme_type_e theme_type)
+{
+    thiz->priv.theme_type = theme_type;
+    if (thiz->priv.st) {
+        int sys_ui_style = 0;
+        if (theme_type == RES_THEME_TYPE_CUSTOM) {
+            sys_ui_style = SYS_UI_STYLE_CUSTOM;
+        } else if (theme_type == RES_THEME_TYPE_BASE) {
+            sys_ui_style = SYS_UI_STYLE_DEFAULT;
+        } else {
+            sys_ui_style = SYS_UI_STYLE_NONE;
+        }
+        return thiz->priv.st->put_store_ram_val(STORE_ID_SYS_UI_STYLE, sys_ui_style, 0, NULL);
+    }
+    return -1;
 }
 
 static int on_post_res_init(void *ptr) 
@@ -109,7 +125,20 @@ static int on_post_res_init(void *ptr)
     resource_manager_context_t *ctx = ptr;
     ctx->priv.res_init_completed = false;
     POST_TASK_HANDLER_NO_DELAY(on_res_init_cb, ptr, "res_init");
-
+    thiz->priv.st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    int sys_ui_style = 0;
+    if (thiz->priv.st) {
+        thiz->priv.st->get_store_ram_val(STORE_ID_SYS_UI_STYLE, 0, 0, &sys_ui_style);
+        if (sys_ui_style == SYS_UI_STYLE_CUSTOM) {
+            thiz->priv.theme_type = RES_THEME_TYPE_CUSTOM;
+        } else if (sys_ui_style == SYS_UI_STYLE_DEFAULT) {
+            thiz->priv.theme_type = RES_THEME_TYPE_BASE;
+        } else {
+            thiz->priv.theme_type = RES_THEME_TYPE_NONE;
+        }
+    } else {
+        thiz->priv.theme_type = RES_THEME_TYPE_BASE;
+    }
     return 0;
 }
 
@@ -127,7 +156,8 @@ void *register_module_for_res_manager_new(list_head_t *list_head)
     ptr->theme_res_data_load = theme_res_data_load_impl;
     ptr->res_data_unload = res_data_unload;
     ptr->get_img_res_version = get_img_res_version;
-    ptr->get_current_theme_type = get_current_theme_type;
+    ptr->get_sys_theme_type = get_sys_theme_type;
+    ptr->set_sys_theme_type = set_sys_theme_type;
     MUTEX_INIT(&ptr->priv.m_fs_rw_lock, fs_rw_lock);
     thiz = ptr;
 

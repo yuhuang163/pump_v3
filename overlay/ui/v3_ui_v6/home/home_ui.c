@@ -54,7 +54,7 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
     int res_theme_type = RES_THEME_TYPE_BASE;
 
     if (thiz && thiz->priv.res) {
-        res_theme_type = thiz->priv.res->get_current_theme_type();
+        res_theme_type = thiz->priv.res->get_sys_theme_type();
     }
     if (res_theme_type == RES_THEME_TYPE_CUSTOM) {
         prepare = home_custom_ui_prepare;

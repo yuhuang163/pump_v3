@@ -42,6 +42,7 @@ typedef struct {
     led_manager_context_t *led;
     ble_manager_context_t *ble;
     key_input_context_t *key;
+    resource_manager_context_t *res;
     uint32_t margic; /// 窗口标识.
     uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.

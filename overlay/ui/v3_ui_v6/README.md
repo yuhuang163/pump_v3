@@ -122,7 +122,7 @@ ui->hook->ui_animation_play_init(ui, play_info);
 支持 `RES_THEME_TYPE_BASE`（默认）与 `RES_THEME_TYPE_CUSTOM`（个性化）两套视觉资源。带主题的页面在门面文件（如 `home_ui.c`）中按当前主题类型动态绑定实现：
 
 ```c
-int res_theme_type = thiz->priv.res->get_current_theme_type();
+int res_theme_type = thiz->priv.res->get_sys_theme_type();
 if (res_theme_type == RES_THEME_TYPE_CUSTOM) {
     prepare = home_custom_ui_prepare;
     s_ops.remove  = home_custom_ui_remove;

@@ -39,13 +39,16 @@ typedef struct {
     battery_manager_context_t *battery;
     led_manager_context_t *led;
     key_input_context_t *key;
-    storage_manager_context_t *storage;
+    resource_manager_context_t *res;
+    airplane_mode_context_t *airplane;
     uint32_t margic;
     uint8_t window_run_state;
     uint32_t last_progress_ani_time;
     uint16_t current_ui_type;
+    uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
     uint8_t selected_index;
     uint8_t is_operated;
+    // uint8_t theme_guide_deployed; /// 主题引导部署标志.
     uint8_t rsv[14];
 } ui_proc_theme_guide_t;
 
@@ -59,8 +62,6 @@ static inline res_theme_type_e theme_guide_proc_get_selected_theme_type(const ui
 
 void start_theme_guide_ui_animation(ui_proc_theme_guide_t *proc);
 void stop_theme_guide_ui_animation(ui_proc_theme_guide_t *proc);
-void theme_guide_knob_event_handler(ui_proc_theme_guide_t *proc, bool is_left);
-void theme_guide_key_event_handler(ui_proc_theme_guide_t *proc, uint16_t keycode);
 
 #ifdef __cplusplus
 }
