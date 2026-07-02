@@ -20,7 +20,7 @@ extern "C" {
 #define CUSTOM_BLE_UI_X                                    (168)
 #define CUSTOM_BLE_UI_Y                                    (22)
 #define CUSTOM_PUMP_HOME_BLE_UI_X                          (0)
-#define CUSTOM_PUMP_HOME_BLE_UI_Y                          (20)
+#define CUSTOM_PUMP_HOME_BLE_UI_Y                          (16)
 
 #define BLE_UI_BLINK_PERIOD                                  (500) /// 1Hz 闪烁半周期(ms).
 #define BLE_UI_CONNECT_PROMPT_TIMEOUT_MS                     (30000) /// 未连接提示闪烁时长(ms).

@@ -12,7 +12,7 @@
 *****************************************************************************************
 */
 #define PUMP_HOME_IP_ANIM_Y                        (196)
-#define PUMP_HOME_ANIM_TRANSITION_MS               (1000)
+#define PUMP_HOME_ANIM_TRANSITION_MS               (500)
 #define PUMP_HOME_ANIM_FRAME_INTERVAL_MS           (1000 / PUMP_ANIMATION_FREQ)
 #define PUMP_HOME_ANIM_FRAME_RES_INVALID           (0xFFFF)
 
@@ -61,6 +61,17 @@ static pump_home_custom_anim_res_type_e pump_home_animation_res_type_get(uint16_
             return PUMP_HOME_CUSTOM_ANIM_SUCTION;
         default:
             return PUMP_HOME_CUSTOM_ANIM_MAX;
+    }
+}
+
+static void pump_home_animation_mode_entry_get(uint8_t mode_type, uint16_t *start_id, uint16_t *end_id)
+{
+    if (mode_type == PUMP_MODE_STIMULATION || mode_type == PUMP_MODE_MIX) {
+        *start_id = CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_START;
+        *end_id = CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_END;
+    } else {
+        *start_id = CUSTOM_RES_ID_YAWN_ANIM_IP_START;
+        *end_id = CUSTOM_RES_ID_YAWN_ANIM_IP_END;
     }
 }
 
@@ -238,10 +249,6 @@ static void pump_home_animation_frame_update(pump_home_custom_ui_info_t *info, u
     anim->last_frame_tick_ms = now;
 
     if (pump_home_animation_next_res_select(anim, mode_type, &start_id, &end_id, &res_type)) {
-        if (res_type != anim->wave_res_type && anim->wave_res_type < PUMP_HOME_CUSTOM_ANIM_MAX) {
-            pump_home_animation_transition_begin(info, start_id, end_id);
-            return;
-        }
         pump_home_animation_apply(info, start_id, end_id, res_type);
         return;
     }
@@ -278,6 +285,15 @@ void pump_home_custom_animation_ui_update(pump_home_custom_ui_info_t *info)
             pump_home_animation_apply(info, start_id, end_id, res_type);
             pump_home_animation_wave_opa_set(info, LV_OPA_COVER);
             anim->anim_phase = PUMP_HOME_ANIM_PHASE_PLAY;
+        }
+    } else if (anim->anim_mode_type != mode_type && anim->wave_res_type < PUMP_HOME_CUSTOM_ANIM_MAX) {
+        pump_home_animation_mode_entry_get(mode_type, &start_id, &end_id);
+        anim->anim_mode_type = mode_type;
+        if (anim->anim_phase == PUMP_HOME_ANIM_PHASE_PLAY) {
+            pump_home_animation_transition_begin(info, start_id, end_id);
+        } else {
+            anim->pending_anim_start = start_id;
+            anim->pending_anim_end = end_id;
         }
     }
 

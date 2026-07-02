@@ -20,11 +20,11 @@
 #endif
 
 #define IDLE_LABEL_X                                (44)
-#define IDLE_LABEL_Y                                (118)
+#define IDLE_LABEL_Y                                (110)
 #define IDLE_TEXT_X                                 (0)
-#define IDLE_TEXT_Y                                 (152)
+#define IDLE_TEXT_Y                                 (144)
 #define IDLE_BUTTON_ICON_X                          (137)
-#define IDLE_BUTTON_ICON_Y                          (149)
+#define IDLE_BUTTON_ICON_Y                          (141)
 #define IDLE_BUTTON2_ICON_X                         (167)
 
 #if IS_SUPPORT_LABEL_TEXT_CMP
@@ -36,40 +36,40 @@
 #endif
 
 #define STIMULATION_LABEL_X                         (44)
-#define STIMULATION_LABEL_Y                         (116)
+#define STIMULATION_LABEL_Y                         (107)
 #define STIMULATION_TEXT_X                          (0)
-#define STIMULATION_TEXT_Y                          (149)
+#define STIMULATION_TEXT_Y                          (144)
 
 #define EXPRESSION_LABEL_X                          (44)
-#define EXPRESSION_LABEL_Y                          (116)
+#define EXPRESSION_LABEL_Y                          (107)
 #define EXPRESSION_TEXT_X                           (0)
-#define EXPRESSION_TEXT_Y                           (149)
+#define EXPRESSION_TEXT_Y                           (144)
 
 #define MIXED_LABEL_X                               (44)
-#define MIXED_LABEL_Y                               (108)
+#define MIXED_LABEL_Y                               (104)
 #define MIXED_TEXT_X                                (0)
-#define MIXED_TEXT_Y                                (144)
+#define MIXED_TEXT_Y                                (142)
 
 #define CUSTOMIZE_LABEL_X                           (44)
-#define CUSTOMIZE_LABEL_Y                           (130)
+#define CUSTOMIZE_LABEL_Y                           (124)
 #define CUSTOMIZE_TEXT_X                            (0)
-#define CUSTOMIZE_TEXT_Y                            (164)
+#define CUSTOMIZE_TEXT_Y                            (158)
 #define CUSTOMIZE_TIME_TEXT_X                       (0)
-#define CUSTOMIZE_TIME_TEXT_Y                       (110)
+#define CUSTOMIZE_TIME_TEXT_Y                       (104)
 
 #define MILK_BOOST_LABEL_X                          (44)
 #define MILK_BOOST_LABEL_Y                          (120)
 #define MILK_BOOST_TEXT_X                           (0)
 #define MILK_BOOST_TEXT_Y                           (158)
 #define MILK_BOOST_TIME_TEXT_X                      (0)
-#define MILK_BOOST_TIME_TEXT_Y                      (110)
+#define MILK_BOOST_TIME_TEXT_Y                      (104)
 
 #define POWER_PUMPING_LABEL_X                       (44)
-#define POWER_PUMPING_LABEL_Y                       (126)
+#define POWER_PUMPING_LABEL_Y                       (124)
 #define POWER_PUMPING_TEXT_X                        (0)
-#define POWER_PUMPING_TEXT_Y                        (162)
+#define POWER_PUMPING_TEXT_Y                        (158)
 #define POWER_PUMPING_TIME_TEXT_X                   (0)
-#define POWER_PUMPING_TIME_TEXT_Y                   (110)
+#define POWER_PUMPING_TIME_TEXT_Y                   (104)
 
 #define IDLE_RECORD_LABEL_X                         (0)
 #define IDLE_RECORD_LABEL_Y                         (106)

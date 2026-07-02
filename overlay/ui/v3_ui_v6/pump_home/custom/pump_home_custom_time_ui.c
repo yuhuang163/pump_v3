@@ -12,19 +12,24 @@
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_PUMP_HOME_TIME_TEXT_CMP           (0)
 #define PUMP_HOME_CUSTOM_TIME_BLINK_ENABLE           (0) /// 0: 关闭时间闪烁, 1: 开启时间闪烁.
+#if IS_SUPPORT_PUMP_HOME_TIME_TEXT_CMP
+#define PUMP_TIME_COLOR                              (0x00FF00)
+#else
 #define PUMP_TIME_COLOR                              (0xBD4060)
+#endif
 #define PUMP_TIME_2SEG                               (72)  /// 两段计时 MM:SS
 #define PUMP_TIME_3SEG                               (60)  /// 三段计时 HH:MM:SS
 
 #define PUMP_TIME_3SEG_H_X                           (63)
-#define PUMP_TIME_3SEG_H_Y                           (149)
+#define PUMP_TIME_3SEG_H_Y                           (140)
 #define PUMP_TIME_3SEG_M_X                           (147)
 #define PUMP_TIME_3SEG_M_Y                           (PUMP_TIME_3SEG_H_Y)
 #define PUMP_TIME_3SEG_S_X                           (231)
 #define PUMP_TIME_3SEG_S_Y                           (PUMP_TIME_3SEG_M_Y)
 #define PUMP_TIME_3SEG_COL_H_X                       (133 - 5)
-#define PUMP_TIME_3SEG_COL_H_Y                       (146)
+#define PUMP_TIME_3SEG_COL_H_Y                       (137)
 #define PUMP_TIME_3SEG_COL_M_X                       (217 - 5)
 #define PUMP_TIME_3SEG_COL_M_Y                       (PUMP_TIME_3SEG_COL_H_Y)
 #define PUMP_TIME_3SEG_WIDTH                         (65)
@@ -32,27 +37,27 @@
 #define PUMP_TIME_CENTER_OFFSET                      (13)
 #define PUMP_TIME_2SEG_WIDTH                         (93)
 #define PUMP_TIME_2SEG_M_X                           (180 - PUMP_TIME_2SEG_WIDTH - PUMP_TIME_CENTER_OFFSET)
-#define PUMP_TIME_2SEG_M_Y                           (144)
+#define PUMP_TIME_2SEG_M_Y                           (137)
 #define PUMP_TIME_2SEG_S_X                           (180 + PUMP_TIME_CENTER_OFFSET)
 #define PUMP_TIME_2SEG_S_Y                           (PUMP_TIME_2SEG_M_Y)
 #define PUMP_TIME_2SEG_COL_X                         (0)
-#define PUMP_TIME_2SEG_COL_Y                         (137)
+#define PUMP_TIME_2SEG_COL_Y                         (132)
 
-#define PUMP_TIME_PROGRESS_X                         (88)
-#define PUMP_TIME_PROGRESS_Y                         (112)
-#define PUMP_TIME_PROGRESS_WIDTH                     (180)
-#define PUMP_TIME_PROGRESS_HEIGHT                    (4)
+#define PUMP_TIME_PROGRESS_X                         (60)
+#define PUMP_TIME_PROGRESS_Y                         (106)
+#define PUMP_TIME_PROGRESS_WIDTH                     (240)
+#define PUMP_TIME_PROGRESS_HEIGHT                    (5)
 #define PUMP_TIME_PROGRESS_KNOB_SIZE                 (11)
-#define PUMP_TIME_PROGRESS_BAR_COLOR                 (0xBD4060)
+#define PUMP_TIME_PROGRESS_BAR_COLOR                 (0xD36682)
 #define PUMP_TIME_PROGRESS_BG_COLOR                  (0xD36682)
 #define PUMP_TIME_PROGRESS_BG_OPA                    (LV_OPA_20)
-#define PUMP_TIME_REMAIN_X                           (227)
-#define PUMP_TIME_REMAIN_Y                           (124)
+#define PUMP_TIME_REMAIN_X                           (250)
+#define PUMP_TIME_REMAIN_Y                           (121)
 #define PUMP_TIME_REMAIN_MINUS_M_GAP                 (2)
 #define PUMP_TIME_REMAIN_DIGIT_WIDTH                 (24)
 
 #define PUMP_TIME_Y_OFFSET_OTHER                     (0)   /// 常规模式（当前坐标基准）
-#define PUMP_TIME_Y_OFFSET_REMAIN                    (12)  /// 有剩余时长模式
+#define PUMP_TIME_Y_OFFSET_REMAIN                    (20)  /// 有剩余时长模式
 
 /*
 * LOCAL FUNCTION DEFINITIONS

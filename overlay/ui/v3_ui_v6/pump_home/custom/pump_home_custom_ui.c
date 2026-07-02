@@ -18,6 +18,7 @@
 #if IS_SUPPORT_ROOT_PUMP_HOME_COMP_BG
 static PSRAM_DATA_LOC uint8_t pump_home_bg_data[] = {
     // #include "comparison_png2txt/pump_home5_360x360.txt"
+    // #include "comparison_png2txt/pump_home_11_360x360.txt"
     // #include "comparison_png2txt/pump_home_12_360x360.txt"
     #include "comparison_png2txt/pump_home_13_360x360.txt"
 };

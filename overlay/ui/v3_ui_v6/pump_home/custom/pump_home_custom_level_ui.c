@@ -17,15 +17,15 @@
 #define PUMP_LEVEL_RING_SIZE                       (310)
 #define PUMP_LEVEL_RING_ADJUST_SIZE                (316)
 
-#define PUMP_LEFT_ARC_SIZE                         (92)
-#define PUMP_LEFT_ANGLE_OFFSET                     (65)
+#define PUMP_LEFT_ARC_SIZE                         (50)
+#define PUMP_LEFT_ANGLE_OFFSET                     (37)
 #define PUMP_LEFT_ARC_START_ANGLE                  (90 + PUMP_LEFT_ANGLE_OFFSET)
 #define PUMP_LEFT_ARC_END_ANGLE                    (PUMP_LEFT_ARC_START_ANGLE + PUMP_LEFT_ARC_SIZE)
 #define PUMP_RIGHT_ARC_END_ANGLE                   (450 - PUMP_LEFT_ANGLE_OFFSET)
 #define PUMP_RIGHT_ARC_START_ANGLE                 (PUMP_RIGHT_ARC_END_ANGLE - PUMP_LEFT_ARC_SIZE)
 
 #define PUMP_LEVEL_ARC_WIDTH                       (9)
-#define PUMP_LEVEL_ARC_WIDTH_ADJUST                (17)
+#define PUMP_LEVEL_ARC_WIDTH_ADJUST                (16)
 
 #define PUMP_LEVEL_INDICATOR_SIZE                  (16)
 #define PUMP_LEVEL_INDICATOR_ADJUST_SIZE           (24)
@@ -33,16 +33,16 @@
 #define PUMP_LEVEL_IMAGE_SCALE_NORMAL              (256)
 #define PUMP_LEVEL_ARC_BG_COLOR                    (0xE5C1C5)
 #define PUMP_LEVEL_ARC_ACTIVE_COLOR                (0xBD4060)
-#define PUMP_LEVEL_TEXT_COLOR                      (0xFFFDFD)
+#define PUMP_LEVEL_TEXT_COLOR                      (0xC94265)
 
-#define PUMP_LEFT_LEVEL_BG_X                       (42)
-#define PUMP_LEFT_LEVEL_BG_Y                       (254)
-#define PUMP_RIGHT_LEVEL_BG_X                      (282)
+#define PUMP_LEFT_LEVEL_BG_X                       (12)
+#define PUMP_LEFT_LEVEL_BG_Y                       (137)
+#define PUMP_RIGHT_LEVEL_BG_X                      (308)
 #define PUMP_RIGHT_LEVEL_BG_Y                      (PUMP_LEFT_LEVEL_BG_Y)
 
-#define PUMP_LEFT_LEVEL_ADJUST_BG_X                (38)
-#define PUMP_LEFT_LEVEL_ADJUST_BG_Y                (254)
-#define PUMP_RIGHT_LEVEL_ADJUST_BG_X               (280)
+#define PUMP_LEFT_LEVEL_ADJUST_BG_X                (10)
+#define PUMP_LEFT_LEVEL_ADJUST_BG_Y                (133)
+#define PUMP_RIGHT_LEVEL_ADJUST_BG_X               (306)
 #define PUMP_RIGHT_LEVEL_ADJUST_BG_Y               (PUMP_LEFT_LEVEL_ADJUST_BG_Y)
 
 #define PUMP_HOME_CUSTOM_LEVEL_BLINK_ENABLE        (0) /// 0: 关闭力度闪烁, 1: 开启力度闪烁(不影响调节放大).
@@ -226,7 +226,7 @@ static void pump_home_left_level_progress_update(pump_home_custom_ui_info_t *inf
         EXCEPTION_CHECK_VOID(level->progress);
         lv_obj_set_style_text_color(level->progress, lv_color_hex(PUMP_LEVEL_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
-        lv_obj_align(level->progress, LV_ALIGN_CENTER, 0, 1);
+        lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 1);
     }
     pump_home_level_progress_style_apply(info, level, pump_home_level_left_bg_x_get(adjust),
         pump_home_level_left_bg_y_get(adjust), adjust);
@@ -287,7 +287,7 @@ static void pump_home_right_level_progress_update(pump_home_custom_ui_info_t *in
         EXCEPTION_CHECK_VOID(level->progress);
         lv_obj_set_style_text_color(level->progress, lv_color_hex(PUMP_LEVEL_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
-        lv_obj_align(level->progress, LV_ALIGN_CENTER, 0, 1);
+        lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 1);
     }
     pump_home_level_progress_style_apply(info, level, pump_home_level_right_bg_x_get(adjust),
         pump_home_level_right_bg_y_get(adjust), adjust);
