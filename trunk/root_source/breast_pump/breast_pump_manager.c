@@ -75,9 +75,9 @@ static void notify_breast_pump_completed(void)
     /// 重置常规模式
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
     if (PUMP_IS_COMMON_MODE(m_info->mode)) {
-        m_info->mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
+        m_info->mode = BREAST_PUMP_STIMULATION_MODE;
     }
-    m_info->common_mode = BREAST_PUMP_PUMP_MODE_DEFAULT;
+    m_info->common_mode = BREAST_PUMP_STIMULATION_MODE;
 }
 static int get_breast_pump_status_async(void)
 {
