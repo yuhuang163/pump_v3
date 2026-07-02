@@ -287,6 +287,12 @@ typedef struct {
     uint8_t aes_key[USER_BIND_AES_KEY_LEN]; /// 对称密钥，数据加解密
 } user_bind_info_t;
 
+typedef enum {
+    SYS_UI_STYLE_NONE = 0, // 无UI风格
+    SYS_UI_STYLE_DEFAULT = 1, // 默认UI风格
+    SYS_UI_STYLE_CUSTOM = 2, // 自定义UI风格
+} sys_ui_style_e;
+
 /// 描述系统配置
 typedef struct {
     int8_t  time_zone;             /// 时区

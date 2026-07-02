@@ -401,7 +401,7 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
     }
     ota_info->res_theme_type = RES_THEME_TYPE_BASE;
     if (thiz && thiz->priv.res) {
-        ota_info->res_theme_type  = thiz->priv.res->get_current_theme_type();
+        ota_info->res_theme_type  = thiz->priv.res->get_sys_theme_type();
     }
 }
 

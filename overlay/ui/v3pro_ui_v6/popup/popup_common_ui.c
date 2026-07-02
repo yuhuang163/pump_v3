@@ -352,7 +352,7 @@ void popup_window_ui_prepare(ui_manager_context_t *thiz, popup_ui_id_e type, uin
     popup_info->start_time = get_timestamp();
     popup_info->res_theme_type = RES_THEME_TYPE_BASE;
     if (thiz && thiz->priv.res) {
-        popup_info->res_theme_type  = thiz->priv.res->get_current_theme_type();
+        popup_info->res_theme_type  = thiz->priv.res->get_sys_theme_type();
     }
     LOG_UI("popup: %s, time:%d", popup_window_ui_name_get(thiz, type), time);
 }

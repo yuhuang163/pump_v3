@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "input_key_code.h" // IWYU pragma: keep
 #include "windows_manager.h"
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "window_screen_theme_guide.h" // IWYU pragma: keep
@@ -13,7 +12,7 @@
 */
 #define PAGE_STATIC_NAME                            theme_guide
 #define PAGE_NAME_STR                               "theme_guide"
-#define THEME_GUIDE_UI_KEY_CODE                     (KEY_CODE_KNOB_RIGHT | KEY_CODE_KNOB_LEFT | KEY_CODE_START)
+#define THEME_GUIDE_UI_KEY_CODE                     (KEY_CODE_KNOB_RIGHT | KEY_CODE_KNOB_LEFT | KEY_CODE_POWER)
 #define THEME_GUIDE_UI_KEY_TYPE                     KEY_EVENT_CLICK
 
 #define REMOVE_ALL_HANDER_TASK() \
@@ -21,7 +20,28 @@ do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
 } while (0)
 
+/*
+* LOCAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
 INIT_WINDOW_CONTEXT();
+
+/*
+* LOCAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+static void theme_guide_knob_event_handler(ui_proc_theme_guide_t *proc, bool is_left)
+{
+    proc->is_operated = 1;
+
+    if (is_left) {
+        if (proc->selected_index > THEME_GUIDE_SELECT_SIMPLE) {
+            proc->selected_index--;
+        }
+    } else if (proc->selected_index + 1 < THEME_GUIDE_SELECT_MAX) {
+        proc->selected_index++;
+    }
+}
 
 static int on_theme_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
@@ -37,8 +57,11 @@ static int on_theme_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uin
         theme_guide_knob_event_handler(proc, true);
     } else if (keycode == KEY_CODE_KNOB_RIGHT) {
         theme_guide_knob_event_handler(proc, false);
-    } else {
-        theme_guide_key_event_handler(proc, keycode);
+    } else if (keycode == KEY_CODE_POWER) {
+        if (proc->popup_ui_type == ID_POPUP_UI_THEME_RESELECT) {
+            return 0;
+        }
+        proc->popup_ui_type = ID_POPUP_UI_THEME_RESELECT;
     }
     return 0;
 }
@@ -107,6 +130,10 @@ static int exit_event_cb(window_lift_cycle_e new_state,
     return 0;
 }
 
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
 window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_t *wm, uint8_t window_id)
 {
     LOG_WM("%s window enter, time: %ld.", PAGE_NAME_STR, get_timestamp());
@@ -121,7 +148,8 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    proc->storage = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;

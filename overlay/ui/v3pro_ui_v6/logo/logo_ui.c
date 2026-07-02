@@ -44,7 +44,7 @@ void ui_display_logo_prepare(ui_manager_context_t *thiz)
     s_ops.process = logo_test_ui_process;
 #else
     if (thiz && thiz->priv.res) {
-        res_theme_type = thiz->priv.res->get_current_theme_type();
+        res_theme_type = thiz->priv.res->get_sys_theme_type();
     }
 
     if (res_theme_type == RES_THEME_TYPE_CUSTOM) {

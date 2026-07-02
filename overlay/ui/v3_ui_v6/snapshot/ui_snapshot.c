@@ -55,7 +55,7 @@ void ui_snap_shot_perpare(struct ui_manager_context *thiz)
     lv_obj_add_flag(snap_shot_obj, LV_OBJ_FLAG_HIDDEN); /// 隐藏快照对象
     int res_theme_type = RES_THEME_TYPE_BASE;
     if (thiz && thiz->priv.res) {
-        res_theme_type = thiz->priv.res->get_current_theme_type();
+        res_theme_type = thiz->priv.res->get_sys_theme_type();
     }
     for (uint8_t i = 0; i < UI_SNAP_SHOT_ID_MAX; i++) {
         ui_theme_img_resource_init(thiz, snap_shot_infos[i].img_id, 
