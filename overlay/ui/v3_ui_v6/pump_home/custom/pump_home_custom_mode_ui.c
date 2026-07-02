@@ -11,7 +11,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_PUMP_HOME_MODE_TEXT_CMP          (0)
+#define IS_SUPPORT_PUMP_HOME_MODE_TEXT_CMP         (0)
 
 #if IS_SUPPORT_PUMP_HOME_MODE_TEXT_CMP
 #define PUMP_HOME_MODE_TITLE_COLOR                 (0x00FF00)
@@ -21,10 +21,10 @@
 #define PUMP_HOME_MODE_NAME_COLOR                  (0xD36682)
 #endif
 
-#define PUMP_HOME_MODE_TITLE_Y                     (90)
-#define PUMP_HOME_RHYTHM_TITLE_Y                   (72)
-#define PUMP_HOME_MODE_NAME_X                      (90)
-#define PUMP_HOME_MODE_NAME_Y                      (124)
+#define PUMP_HOME_MODE_TITLE_Y                     (68)
+#define PUMP_HOME_RHYTHM_TITLE_Y                   (68)
+#define PUMP_HOME_MODE_NAME_X                      (60)
+#define PUMP_HOME_MODE_NAME_Y                      (121)
 
 /*
 * LOCAL FUNCTION DEFINITIONS

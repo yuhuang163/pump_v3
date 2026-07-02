@@ -28,8 +28,8 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/home_ip14_360x360.txt"
     // #include "comparison_png2txt/home_ip15_360x360.txt"
     // #include "comparison_png2txt/home_ip16_360x360.txt"
-    #include "comparison_png2txt/home_ip17_360x360.txt"
-    // #include "comparison_png2txt/LR_level_adjust11_360x360.txt"
+    // #include "comparison_png2txt/home_ip17_360x360.txt"
+    #include "comparison_png2txt/LR_level_adjust11_360x360.txt"
 };
 #endif
 

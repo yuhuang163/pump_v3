@@ -16,18 +16,18 @@
 #if IS_SUPPORT_HOME_MODE_TEXT_CMP
 #define HOME_MODE_TITLE_COLOR                      (0x00FF00)
 #define HOME_MODE_NAME_COLOR                       (0x00FF00)
-#define HOME_MODE_CMP_INDEX                        BREAST_PUMP_CUSTOM_MODE
+#define HOME_MODE_CMP_INDEX                        BREAST_PUMP_MIX_MODE
 #else
 #define HOME_MODE_TITLE_COLOR                      (0xBD4060)
 #define HOME_MODE_NAME_COLOR                       (0xD36682)
 #endif
 
-#define HOME_MODE_TITLE_Y                          (79)
+#define HOME_MODE_TITLE_Y                          (72)
 #define HOME_MODE_NAME_Y                           (158)
 
 #define HOME_MODE_ICON_WIDTH                       (32)
 #define HOME_MODE_ICON_TITLE_GAP                   (4)
-#define HOME_MODE_ICON_Y                           (74)
+#define HOME_MODE_ICON_Y                           (66)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -150,7 +150,11 @@ void home_custom_pump_mode_ui_update(home_custom_ui_info_t *info, bool blink_vis
             }
             case BREAST_PUMP_CUSTOM_MODE: {
                 char custom_str[24] = {0};
-                sprintf(custom_str, "Customized %s", info->mode.custom_id_str);
+                if (strlen(info->mode.custom_id_str) > 0) {
+                    sprintf(custom_str, "Customized %s", info->mode.custom_id_str);
+                } else {
+                    sprintf(custom_str, "Customized 01");
+                }
                 home_pump_mode_title_update(info, custom_str, CUSTOM_RES_ID_PUMP_RHYTHM_ICON);
                 break;
             }
