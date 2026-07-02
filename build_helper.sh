@@ -647,6 +647,7 @@ do_bear_build() {
 	local t0=$(date +%s)
 	command -v bear >/dev/null 2>&1 || die "未找到 bear，请先安装: sudo apt install bear"
 	echo "开始使用 bear 编译（生成编译数据库）..."
+
 	# 先清理固件构建目录，确保编译数据库完整且无陈旧目标
 	do_clean_firmware
 	# 与常规固件构建保持一致，输出到项目根目录 compile_commands.json

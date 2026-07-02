@@ -85,7 +85,7 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
 static void home_power_key_event_cb(ui_proc_home_t *proc)
 {
 #if IS_SUPPORT_NIGHT_LIGHT
-    if (proc->current_ui_type == HOME_UI_TYPE_HOME || proc->current_ui_type == HOME_UI_TYPE_BIND_QRCODE) {
+    if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         uint8_t battery_state = proc->battery->get_battery_state();
         if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
             battery_state == BATTERY_STATE_EMPTY ||
