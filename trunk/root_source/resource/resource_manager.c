@@ -88,6 +88,11 @@ static int theme_res_data_load_impl(uint16_t img_id, res_img_info_t *out)
     return res_data_load_with_theme(thiz, thiz->priv.theme_type, img_id, out);
 }
 
+static int res_data_load_by_theme_impl(res_theme_type_e theme_type, uint16_t img_id, res_img_info_t *out)
+{
+    return res_data_load_with_theme(thiz, theme_type, img_id, out);
+}
+
 static int get_img_res_version(res_theme_type_e theme_type)
 {
     if (theme_type == RES_THEME_TYPE_BASE) {
@@ -154,6 +159,7 @@ void *register_module_for_res_manager_new(list_head_t *list_head)
     ptr->wait_init_completed = wait_init_completed;
     ptr->base_res_data_load = base_res_data_load_impl;
     ptr->theme_res_data_load = theme_res_data_load_impl;
+    ptr->res_data_load_by_theme = res_data_load_by_theme_impl;
     ptr->res_data_unload = res_data_unload;
     ptr->get_img_res_version = get_img_res_version;
     ptr->get_sys_theme_type = get_sys_theme_type;

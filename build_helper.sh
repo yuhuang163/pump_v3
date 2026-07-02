@@ -649,7 +649,7 @@ do_bear_build() {
     # 先清理固件构建目录，确保编译数据库完整且无陈旧目标
     do_clean_firmware
     # 与常规固件构建保持一致，确保 O/BIN_DIR 与编译数据库一致
-    bear make -C "$PROJECT_DIR" -j16 firmware
+    bear -- make -C "$PROJECT_DIR" -j16 firmware
 	echo "bear 编译完成，用时: $(duration_since "$t0")"
 }
 
