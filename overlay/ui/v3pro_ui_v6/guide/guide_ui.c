@@ -4,30 +4,16 @@
 */
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
-#include "ui_manager.h"   // IWYU pragma: keep
-#include "guide_ui_internal.h" // IWYU pragma: keep
+#include "ui_manager.h" // IWYU pragma: keep
+#include "guide_base_ui_internal.h" // IWYU pragma: keep
+#include "guide_custom_ui_internal.h" // IWYU pragma: keep
 #include "window_screen_guide.h" // IWYU pragma: keep
-
-/*
-* DEFINES
-*****************************************************************************************
-*/
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
 static ui_page_ops_t s_ops = {0};
-
-/*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-
-/*
-* LOCAL FUNCTION DEFINITIONS
-*****************************************************************************************
-*/
 
 /*
 * GLOBAL FUNCTION DEFINITIONS

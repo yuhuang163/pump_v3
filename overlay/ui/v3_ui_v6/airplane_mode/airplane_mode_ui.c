@@ -170,7 +170,7 @@ void ui_display_airplane_mode_prepare(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(airplane_info);
     }
     airplane_info->force_update = true;
-    ble_ui_init(thiz);
+    // ble_ui_init(thiz);
     airplane_mode_root_init();
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
@@ -179,7 +179,7 @@ void ui_display_airplane_mode_prepare(ui_manager_context_t *thiz)
 void ui_display_airplane_mode_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && airplane_info && airplane_info->root);
-    ble_ui_deinit(thiz);
+    // ble_ui_deinit(thiz);
     ui_img_baj_release_decoded_buf(airplane_info->icon);
     ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(airplane_info->root);
@@ -194,7 +194,7 @@ int ui_display_airplane_mode_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(proc && proc->ble);
     airplane_mode_bg_update(thiz);
     airplane_mode_button_icon_update(thiz);
-    ble_ui_update(thiz, airplane_info->root, proc->ble, BASE_BLE_UI_X, BASE_BLE_UI_Y, NULL);
+    // ble_ui_update(thiz, airplane_info->root, proc->ble, BASE_BLE_UI_X, BASE_BLE_UI_Y, NULL);
     airplane_mode_texts_update();
     airplane_mode_popup_update(thiz, proc->popup_ui_type);
     airplane_info->force_update = false;
