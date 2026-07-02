@@ -11,7 +11,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_ANIM_TRANSITION                 (1)
+#define IS_SUPPORT_ANIM_TRANSITION                 (0)
 #define PUMP_HOME_STIMULATION_WAVE_Y               (60)
 #define PUMP_HOME_LACTATION_WAVE_Y                 (60)
 #define PUMP_HOME_MIX_WAVE_Y                       (60)

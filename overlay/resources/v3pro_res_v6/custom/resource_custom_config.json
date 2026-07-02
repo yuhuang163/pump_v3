@@ -148,14 +148,14 @@
     {
       "resource_id": "CUSTOM_RES_ID_BATTERY_ICON",
       "description": "电池电量图标",
-      "file": "baj/icon_battery_27x14_a8_q99_444.baj",
+      "file": "baj/icon_battery_28x15_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "CUSTOM_RES_ID_BATTERY_WARNING_ICON",
       "description": "电池警告图标",
-      "file": "baj/icon_battery_warning_27x14_a8_q99_444.baj",
+      "file": "baj/icon_battery_warning_28x15_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
