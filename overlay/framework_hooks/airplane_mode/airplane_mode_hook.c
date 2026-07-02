@@ -55,6 +55,7 @@ static int airplane_mode_key_event_handler(void *user_data, uint16_t keycode, ui
         if (wm->is_current_window(wm, ID_WINDOW_AIRPLANE_MODE) ||
             wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET) || 
             wm->is_current_window(wm, ID_WINDOW_CHARGE) ||
+            wm->is_current_window(wm, ID_WINDOW_POWER_OFF) ||
             wm->is_current_window(wm, ID_WINDOW_SYSTEM_ABNORMAL)) {
             LOG_AIR("in airplane mode or factory reset or charge window or abnormal window, ignore");
             return 0;

@@ -1633,8 +1633,8 @@ void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab)
     /// 先重置pump，再将pump状态设置为空闲
     WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_RESET, 1);
     app_broadcast_pump_status_to_window(BREAST_PUMP_RESET,OLD_BROADCAST_ALL_CT);
-    /// 延时发送APP强制完成广播
-    POST_TASK_HANDLER_DELAYED_ARG0(app_pump_broadcast_app_completed_delay_task_handler, PUMP_CTRL_TASK_DELAY_TIME,
+    /// 延时发送APP强制完成广播 
+    POST_TASK_HANDLER_DELAYED_ARG0(app_pump_broadcast_app_completed_delay_task_handler, 50,
                                     "app_pump_broadcast_app_completed_delay_task");
 }
  
