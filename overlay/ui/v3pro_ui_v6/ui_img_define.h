@@ -12,7 +12,6 @@ extern "C" {
 #if IS_SUPPORT_LVGL
 #include "lv_user_font.h" // IWYU pragma: keep
 #include "resource_id_define.h" // IWYU pragma: keep
-#include "common_ui.h" // IWYU pragma: keep
 #endif
 
 typedef struct {
