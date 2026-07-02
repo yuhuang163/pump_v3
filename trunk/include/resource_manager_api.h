@@ -66,6 +66,7 @@ typedef struct resource_manager_context {
     int (*wait_init_completed)(void *res); /// 等待初始化完成
     int (*base_res_data_load)(uint16_t img_id, res_img_info_t *out); /// 基础资源加载
     int (*theme_res_data_load)(uint16_t img_id, res_img_info_t *out); /// 主题资源加载
+    int (*res_data_load_by_theme)(res_theme_type_e theme_type, uint16_t img_id, res_img_info_t *out); /// 按指定主题分区加载
     void (*res_data_unload)(res_img_info_t *img); /// 释放资源
     int (*get_img_res_version)(res_theme_type_e theme_type); /// 获取基础资源版本
     int (*get_sys_theme_type)(void); /// 主题类型

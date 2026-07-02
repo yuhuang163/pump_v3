@@ -66,17 +66,16 @@ void ui_theme_img_resource_init(ui_manager_context_t *thiz, uint16_t id,
         ui_img_resource_deinit(thiz, info);
     }
 
-    int ret = 0;
     if (theme_type >= RES_THEME_TYPE_MAX) {
         LOGE("===> invalid theme type, theme=%d id=%u", (int)theme_type, (unsigned)id);
         return;
     }
-    
-    if (theme_type == RES_THEME_TYPE_BASE) {
-        ret = thiz->priv.res->base_res_data_load(id, info);
-    } else {
-        ret = thiz->priv.res->theme_res_data_load(id, info);
+
+    if (theme_type == RES_THEME_TYPE_NONE) {
+        theme_type = RES_THEME_TYPE_BASE;
     }
+
+    int ret = thiz->priv.res->res_data_load_by_theme(theme_type, id, info);
 
     if (ret != 0) {
         LOGE("===> load img data failed, theme=%d id=%u ret=%d",

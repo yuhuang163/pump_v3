@@ -5,6 +5,7 @@
 #include "ui_page_define.h"  // IWYU pragma: keep
 #include "window_screen_charge.h" // IWYU pragma: keep
 
+#if 0
 /*
 * DEFINES
 *****************************************************************************************
@@ -96,3 +97,4 @@ int switch_charge_night_light_onoff_ui(ui_proc_charge_t *proc)
 #endif
     return 0;
 }
+#endif

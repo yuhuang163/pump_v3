@@ -94,7 +94,12 @@ static const char *theme_guide_option_labels[THEME_GUIDE_OPTION_NUM] = {
 
 static const uint16_t theme_guide_preview_res_ids[THEME_GUIDE_OPTION_NUM] = {
     BASE_RES_ID_SYS_THEME_IMG,
-    BASE_RES_ID_IP_THEME_IMG,
+    CUSTOM_RES_ID_IP_THEME_IMG,
+};
+
+static const res_theme_type_e theme_guide_preview_theme_types[THEME_GUIDE_OPTION_NUM] = {
+    RES_THEME_TYPE_BASE,
+    RES_THEME_TYPE_CUSTOM,
 };
 
 /*
@@ -218,8 +223,9 @@ static void theme_guide_preview_update(ui_manager_context_t *thiz)
             theme_info->preview[i] = lv_image_create(theme_info->root);
             EXCEPTION_CHECK_VOID(theme_info->preview[i]);
         }
+        
         ui_img_baj_theme_set_src(thiz, theme_info->preview[i], theme_guide_preview_res_ids[i],
-            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+            theme_guide_preview_theme_types[i], UI_IMG_BAJ_DECODE_RGBA8888);
         lv_obj_align(theme_info->preview[i], LV_ALIGN_TOP_LEFT, preview_x[i], THEME_GUIDE_PREVIEW_Y);
     }
 }
