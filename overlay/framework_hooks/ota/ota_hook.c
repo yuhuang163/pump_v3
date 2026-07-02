@@ -55,9 +55,9 @@ static void ota_main_fw_event_callback(ota_event_type_e event, int arg1, int arg
         ///插入固件更新失败
         DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_OTA_START, 0u, 0u);
     } else if (event == OTA_EVENT_OTA_SUCCESS) {
-        ota_obj->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, true);
         ///插入固件更新完成，重启开机
         DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, DATA_BURY_SHUTDOWN_FW_UPDATE, 0);
+        ota_obj->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, true);
     }
 }
 

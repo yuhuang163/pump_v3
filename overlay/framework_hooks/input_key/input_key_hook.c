@@ -34,8 +34,9 @@ static int input_keyevent_route(struct key_input_context *ctx, uint16_t keycode,
         if (wm->is_current_window(wm, ID_WINDOW_AIRPLANE_MODE) ||
             wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET) || 
             wm->is_current_window(wm, ID_WINDOW_CHARGE) ||
-            wm->is_current_window(wm, ID_WINDOW_POWER_OFF)) {
-            LOG_KEY("in airplane mode or factory reset or charge window, ignore");
+            wm->is_current_window(wm, ID_WINDOW_POWER_OFF) ||
+            wm->is_current_window(wm, ID_WINDOW_SYSTEM_ABNORMAL)) { 
+            LOG_KEY("in airplane mode or factory reset or charge window or abnormal window, ignore");
             return 0;
         }
         breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
