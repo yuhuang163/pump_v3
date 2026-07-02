@@ -830,7 +830,8 @@ int data_bury_event_process_power_off(data_bury_manager_context_t *ctx,
     data_bury_event_cache_pump_shutdown(ctx, reason);
     if (ctx->priv.ble_ctx && ctx->priv.ble_ctx->ble_is_connected
         && ctx->priv.ble_ctx->ble_is_connected()) {
-        (void)data_bury_event_cache_bt_session_end(ctx, 0x13u);
+        ///关机动作，先不加入ble断开事件
+        //(void)data_bury_event_cache_bt_session_end(ctx, 0x13u);
     }
     return 0;
 }
