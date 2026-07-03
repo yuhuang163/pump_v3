@@ -271,7 +271,10 @@ static int charge_ibat_config(uint16_t current)
     if (s_charging_current == current) {
         return BSP_OK;
     }
-    int ret = charge_write_nbyte(CHARGE_IBAT_CHG_REG, &reg_data, 1);    
+    int ret = charge_write_nbyte(CHARGE_IBAT_CHG_REG, &reg_data, 1);
+    if (ret == BSP_OK) {
+        s_charging_current = current;
+    }
     LOG_PBUS("charge_ibat_config: %dmA, ret: %d", current, ret);
     return ret;
 }
@@ -494,7 +497,7 @@ static void charge_device_thread(void *arg)
 #endif
         if (get_timestamp_ms(log_timer) > 2000) {
             log_timer = get_timestamp();
-            BSP_LOG("charge status", "vbus:%dmV, ibus:%dmA, vbat:%dmV, ibat:%dmA, ntc:%.2fKOhm, temp:%.1f℃, status:0x%04X", 
+            BSP_LOG("charge infos", "vbus:%dmV, ibus:%dmA, vbat:%dmV, ibat:%dmA, ntc:%.2fKOhm, temp:%.1f, status:0x%04X", 
                      s_charge_status.vbus, s_charge_status.ibus, s_charge_status.vbat, s_charge_status.ibat, 
                      s_charge_status.ntc_resistance, s_charge_status.temp, s_charge_status.status);
         }

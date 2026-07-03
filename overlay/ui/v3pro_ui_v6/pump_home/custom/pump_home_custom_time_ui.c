@@ -51,7 +51,7 @@
 #define PUMP_TIME_PROGRESS_BAR_COLOR                 (0xD36682)
 #define PUMP_TIME_PROGRESS_BG_COLOR                  (0xD36682)
 #define PUMP_TIME_PROGRESS_BG_OPA                    (LV_OPA_20)
-#define PUMP_TIME_REMAIN_X                           (250)
+#define PUMP_TIME_REMAIN_X                           (250 - 12)
 #define PUMP_TIME_REMAIN_Y                           (121)
 #define PUMP_TIME_REMAIN_MINUS_M_GAP                 (2)
 #define PUMP_TIME_REMAIN_DIGIT_WIDTH                 (24)
