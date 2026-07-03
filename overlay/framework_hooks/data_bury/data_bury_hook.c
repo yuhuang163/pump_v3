@@ -271,7 +271,7 @@ static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_b
     pub_args.val = extra->val;
 
     if (!ble || !ble->ble_is_connected() || !ble->notify_enabled_check(BLE_SRV_ID_DATA_BURY)) {
-        LOG_BURY("data bury offline cache cmd=%s (ble not connected or notify disabled for data_BURY)", data_bury_hook_cmd_to_str(cmd_id));
+        LOG_BURY("data bury offline cache cmd=%s (ble not connected or notify disabled for data_bury)", data_bury_hook_cmd_to_str(cmd_id));
         return data_bury_hook_append_to_ring(ctx, cmd_id, extra->val, (uint16_t)extra->arg1);
     }
 
