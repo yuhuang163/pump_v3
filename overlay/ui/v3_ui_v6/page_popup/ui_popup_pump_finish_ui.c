@@ -15,7 +15,8 @@
 #define FINISH_MANUAL_CONTINUE_TEXT_Y                           (248)
 #define FINISH_MANUAL_RETURN_BUTTON_X                           (204)
 #define FINISH_MANUAL_RETURN_BUTTON_Y                           (FINISH_MANUAL_CONTINUE_BUTTON_Y)
-#define FINISH_MANUAL_RETURN_TEXT_X                             (190 + 23)
+// #define FINISH_MANUAL_RETURN_TEXT_X                             (190 + 23)
+#define FINISH_MANUAL_RETURN_TEXT_X                             (198)
 #define FINISH_MANUAL_RETURN_TEXT_Y                             (FINISH_MANUAL_CONTINUE_TEXT_Y)
 #define FINISH_MANUAL_TITLE_COLOR                               (0xFFFFFF)
 #define FINISH_MANUAL_TEXT_COLOR                                (0xD0D0D0)
@@ -27,7 +28,8 @@
 #define FINISH_TIMEOUT_CONTINUE_TEXT_Y                          (275)
 #define FINISH_TIMEOUT_RETURN_BUTTON_X                          (204)
 #define FINISH_TIMEOUT_RETURN_BUTTON_Y                          (FINISH_TIMEOUT_CONTINUE_BUTTON_Y)
-#define FINISH_TIMEOUT_RETURN_TEXT_X                            (190 + 25)
+// #define FINISH_TIMEOUT_RETURN_TEXT_X                            (190 + 25)
+#define FINISH_TIMEOUT_RETURN_TEXT_X                            (200)
 #define FINISH_TIMEOUT_RETURN_TEXT_Y                            (FINISH_TIMEOUT_CONTINUE_TEXT_Y)
 #define FINISH_TIMEOUT_TITLE_COLOR                              (0xFFFFFF)
 #define FINISH_TIMEOUT_TEXT_COLOR                               (0xD0D0D0)
@@ -56,7 +58,7 @@ const static ui_popup_text_info_t pump_finish_manual_infos[UI_POPUP_TEXT_COUNT] 
         &lv_font_aeonik_soft_26_semibold, LV_OPA_100, FINISH_MANUAL_TITLE_COLOR, 4},
     {"Continue", FINISH_MANUAL_CONTINUE_TEXT_X, FINISH_MANUAL_CONTINUE_TEXT_Y, 
         &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_MANUAL_TEXT_COLOR, 4},
-    {"End", FINISH_MANUAL_RETURN_TEXT_X, FINISH_MANUAL_RETURN_TEXT_Y, 
+    {"Finish", FINISH_MANUAL_RETURN_TEXT_X, FINISH_MANUAL_RETURN_TEXT_Y, 
         &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_MANUAL_TEXT_COLOR, 4},
 };
 
@@ -65,7 +67,7 @@ const static ui_popup_text_info_t pump_finish_timeout_infos[UI_POPUP_TEXT_COUNT]
         &lv_font_aeonik_soft_26_semibold, LV_OPA_100, FINISH_TIMEOUT_TITLE_COLOR, 10},
     {"Continue", FINISH_TIMEOUT_CONTINUE_TEXT_X, FINISH_TIMEOUT_CONTINUE_TEXT_Y, 
         &lv_font_aeonik_soft_22_medium, LV_OPA_100, FINISH_TIMEOUT_TEXT_COLOR, 4},
-    {"End", FINISH_TIMEOUT_RETURN_TEXT_X, FINISH_TIMEOUT_RETURN_TEXT_Y, 
+    {"Finish", FINISH_TIMEOUT_RETURN_TEXT_X, FINISH_TIMEOUT_RETURN_TEXT_Y, 
         &lv_font_aeonik_soft_22_medium, LV_OPA_100, FINISH_TIMEOUT_TEXT_COLOR, 4},
 };
 
