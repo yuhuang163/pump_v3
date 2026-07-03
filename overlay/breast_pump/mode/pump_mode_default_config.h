@@ -18,16 +18,13 @@ extern "C" {
 #error "REGULAR_PUMPING_MODE_LEN not defined. Check project_default_features.h include."
 #endif
 
-/// 常规模式默认工作时长，单位：秒（策略步长哨兵值，实际结束由用户设定时长控制
-#define NORMAL_MODE_DEFAULT_WORK_TIME               (SETTING_PUMP_TIME_MAX / 1000)
+/// 支持泵奶策略快速测试
+#define IS_SUPPORT_PUMP_MODE_FAST_TEST               (0)
 
+#if (IS_SUPPORT_PUMP_MODE_FAST_TEST == 0)
+/// 常规模式默认工作时长，单位：秒
+#define NORMAL_MODE_DEFAULT_WORK_TIME                (SETTING_PUMP_TIME_MAX / 1000)
 
-/// 无效工作时长，子模式不需要指定工作时长
-#define INVALID_WORK_TIME                            0  
-/// 吸乳模式默认周期 单位：毫秒
-#define PUMP_MODE_DEFAULT_PERIOD                     90 
-
-#if 1
 /// 个性化模式按摩默认时长2分钟，单位：秒
 #define CUSTOM_MODE_DEFAULT_MASSAGE_TIME             120  
 /// 个性化模式吸乳默认时长28分钟，单位：秒
@@ -81,6 +78,9 @@ extern "C" {
 /// Relax模式默认工作时长10分钟，单位：秒
 #define RELAX_MODE_WORK_TIME                         600
 #else
+/// 常规模式默认工作时长，单位：秒
+#define NORMAL_MODE_DEFAULT_WORK_TIME               (60)
+
 /// 个性化模式按摩默认时长2分钟，单位：秒
 #define CUSTOM_MODE_DEFAULT_MASSAGE_TIME             12  
 /// 个性化模式吸乳默认时长28分钟，单位：秒
@@ -133,6 +133,12 @@ extern "C" {
 /// Relax模式默认工作时长10分钟，单位：秒
 #define RELAX_MODE_WORK_TIME                         60
 #endif
+
+/// 无效工作时长，子模式不需要指定工作时长
+#define INVALID_WORK_TIME                            0  
+
+/// 吸乳模式默认周期 单位：毫秒
+#define PUMP_MODE_DEFAULT_PERIOD                     90 
 
 /// 自定义模式策略缓存最大32个
 #define CUSTOM_MODE_MOTOR_POLICY_NUMBER              32

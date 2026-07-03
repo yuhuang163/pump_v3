@@ -102,6 +102,7 @@ void pump_cancel_key_event_handler(ui_proc_pump_t *proc)
         return;
     } else if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+        pump_complete_event_handler(proc);
         return;
     }
     int pump_status = 0;
@@ -175,7 +176,7 @@ void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
     }
 #endif
 
-   if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP ||
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP ||
        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
         LOG_WM("ignore knob event.");
         return;
