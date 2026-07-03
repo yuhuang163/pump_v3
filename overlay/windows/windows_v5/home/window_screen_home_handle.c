@@ -67,6 +67,9 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
         return;
     }
 #endif
+    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
+        start_home_ui_animation(proc);
+    }
     home_pump_level_adjust_handler(proc, false);
 }
 
@@ -78,8 +81,11 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
         return;
     }
 #endif
-    home_pump_level_adjust_handler(proc, true);
 
+    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
+        start_home_ui_animation(proc);
+    }
+    home_pump_level_adjust_handler(proc, true);
 }
 
 static void home_power_key_event_cb(ui_proc_home_t *proc)
@@ -129,11 +135,13 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         home_cancel_key_event_handler(proc);
         return 0;
     }
-
+    
+#if 0
     if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
         LOG_WM("pump result, ignore key event.");
         return 0;
     }
+#endif
 
     switch (keycode) {
         case KEY_CODE_MODE:
