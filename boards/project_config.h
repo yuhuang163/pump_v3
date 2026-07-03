@@ -18,7 +18,7 @@ extern "C" {
 /// 蓝牙线程深度
 #define BLE_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 4 + 0)
 /// 吸奶线程深度
-#define BST_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 2 + 0)
+#define BST_THREAD_STACKSIZE                           (TASK_SIZE_DEFAULT * 3 + 0)
 /// lvgl线程深度
 #if CFG_LVGL_ENABLE
 #define LVGL_RENDER_THREAD_STACKSIZE                   (TASK_SIZE_DEFAULT * 16 + 0)

@@ -55,8 +55,14 @@ static void ota_main_fw_event_callback(ota_event_type_e event, int arg1, int arg
         ///插入固件更新失败
         DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_OTA_START, 0u, 0u);
     } else if (event == OTA_EVENT_OTA_SUCCESS) {
-        ///插入固件更新完成，重启开机
-        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, DATA_BURY_SHUTDOWN_FW_UPDATE, 0);
+        /// 固件更新完成，重启前记录关机原因并落盘
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_FW_UPDATE, 0);
+        storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+        if (st && st->hook && st->hook->on_power_off_force_save_route) {
+            st->hook->on_power_off_force_save_route(st);
+            msleep(100); /// 等待100ms，确保数据写入完成
+            st->flash_protect(true);
+        }
         ota_obj->end_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, true);
     }
 }

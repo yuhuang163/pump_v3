@@ -526,9 +526,8 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
 {
     breast_pump_manager_context_t *pump =
         (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-    uint8_t buf[DATA_BURY_EVT_PUMP_SESSION_END_MAX_LEN] = {0};
-    data_bury_evt_pump_session_end_fixed_t *evt =
-        (data_bury_evt_pump_session_end_fixed_t *)buf;
+    uint8_t *buf = NULL;
+    data_bury_evt_pump_session_end_fixed_t *evt;
     data_bury_evt_program_duration_t *program_durations;
     pump_result_info_t result = {0};
     int mode = 0;
@@ -555,6 +554,15 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
         data_bury_pump_session_pending_discard(ctx);
         return;
     }
+
+    buf = u_malloz(DATA_BURY_EVT_PUMP_SESSION_END_MAX_LEN);
+    if (!buf) {
+        LOGE("pump session end: alloc buf fail len=%u",
+             (unsigned)DATA_BURY_EVT_PUMP_SESSION_END_MAX_LEN);
+        data_bury_pump_session_pending_discard(ctx);
+        return;
+    }
+    evt = (data_bury_evt_pump_session_end_fixed_t *)buf;
 
     if (ctx->data_bury_alloc_pump_session_id_on_commit) {
         session_id = ctx->data_bury_alloc_pump_session_id_on_commit();
@@ -587,7 +595,7 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
         used_mode_count = 1u;
     }
 
-    memset(buf, 0, sizeof(buf));
+    memset(buf, 0, DATA_BURY_EVT_PUMP_SESSION_END_MAX_LEN);
     evt->device_side = ctx->data_bury_get_device_side();
     evt->use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt->evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
@@ -627,6 +635,7 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
     LOG_BURY("pump session end committed id=%u duration=%us modes=%u",
              (unsigned)session_id, (unsigned)(session_duration_ms / 1000u),
              (unsigned)used_mode_count);
+    u_free(buf);
 }
 
 static void data_bury_event_publish_charge_start(data_bury_manager_context_t *ctx)
