@@ -265,11 +265,10 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_KEYEVENT_CB(proc->key, "home_wm", proc, HOME_UI_KEY_CODE, HOME_UI_KEY_TYPE,
             on_home_ui_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_home_window_battery_state_change_cb);
-        proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
-        // home_page_display_type_update(proc);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        home_page_display_type_update(proc);
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
             show_home_pump_result_ui(proc);
         } else {
