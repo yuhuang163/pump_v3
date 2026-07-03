@@ -397,7 +397,7 @@ void home_pump_label_ui_update(home_base_ui_info_t *info)
             int pump_time = 0;
             storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
             if (st) {
-                st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, BREAST_PUMP_MILK_BOOST_MODE, 0, &pump_time);
+                st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, BREAST_PUMP_PP_MILK_TRACK_MODE, 0, &pump_time);
             }
             char time_text[16] = {0};
             snprintf(time_text, sizeof(time_text), "≈%d min", pump_time / 60);
@@ -412,7 +412,7 @@ void home_pump_label_ui_update(home_base_ui_info_t *info)
             int pump_time = 0;
             storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
             if (st) {
-                st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, BREAST_PUMP_MILK_BOOST_MODE, 0, &pump_time);
+                st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, BREAST_PUMP_CUSTOM_MODE, 0, &pump_time);
             }
             char time_text[16] = {0};
             snprintf(time_text, sizeof(time_text), "≈%d min", pump_time / 60);

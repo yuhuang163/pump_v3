@@ -33,7 +33,8 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
     proc->wm->set_window_guidance_deployed_flag(true);
     multi_func_msg_data_t msg = {0};
     LOG_WM("goto home window.");
-    msg.union_body.extra.window_id = ID_WINDOW_HOME;    
+    msg.union_body.extra.window_id = ID_WINDOW_HOME;  
+    msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_MODE_SELECT;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 

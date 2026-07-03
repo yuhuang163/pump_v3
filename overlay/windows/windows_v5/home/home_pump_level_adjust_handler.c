@@ -36,6 +36,7 @@ int home_pump_level_adjust_type_update(ui_proc_home_t *proc, uint8_t is_left)
         start_home_ui_animation(proc);
     }
     proc->level_adjust_time = get_timestamp();
+    home_pump_mode_adjust_exit_handler(proc);
     if (is_left) {
         proc->pump_level_display_type = HOME_PUMP_LEVEL_DISPLAY_LEFT_ADJUST;
         proc->level_adjust_pump_num = 1;
@@ -59,6 +60,7 @@ int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         proc->pump_level_display_type = HOME_PUMP_LEVEL_DISPLAY_BOTH_ADJUST;
         proc->level_adjust_pump_num = 2;
         proc->level_adjust_pump_index = 0;
+        home_pump_mode_adjust_exit_handler(proc);
     }
     READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
     if (is_increase) {

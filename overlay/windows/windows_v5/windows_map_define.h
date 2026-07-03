@@ -28,6 +28,7 @@ extern "C" {
 typedef enum {
     HOME_SUB_UI_TYPE_NONE = 0,
     HOME_SUB_UI_TYPE_PUMP_RESULT = 1,
+    HOME_SUB_UI_TYPE_PUMP_MODE_SELECT = 2,
     HOME_SUB_UI_TYPE_MAX
 } home_sub_ui_type_e;
 

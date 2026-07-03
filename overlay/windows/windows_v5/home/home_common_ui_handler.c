@@ -127,4 +127,38 @@ void home_page_display_type_update(ui_proc_home_t *proc)
         proc->home_display_type, timestamp, diff_time, proc->pump_record_time,
         battery_state);
 }
+#else
+void home_page_display_type_update(ui_proc_home_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    int work_mode = 0;
+    READ_PUMP_WORK_MODE(proc->pump, work_mode);
+    if (work_mode == BREAST_PUMP_MILK_BOOST_MODE && proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_MODE_SELECT) {
+        proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
+        return;
+    }
+
+    switch (work_mode) {
+        default:
+        case BREAST_PUMP_STIMULATION_MODE:
+            proc->home_display_type = HOME_UI_DISPLAY_SIMULATE_MODE_DESC;
+            break;
+        case BREAST_PUMP_LACTATION_MODE:
+            proc->home_display_type = HOME_UI_DISPLAY_EXPRESSION_MODE_DESC;
+            break;
+        case BREAST_PUMP_MIX_MODE:
+            proc->home_display_type = HOME_UI_DISPLAY_MIXED_MODE_DESC;
+            break;
+        case BREAST_PUMP_MILK_BOOST_MODE:
+            proc->home_display_type = HOME_UI_DISPLAY_MILK_BOOST_DESC;
+            break;
+        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+            proc->home_display_type = HOME_UI_DISPLAY_POWER_PUMPING_DESC;
+            break;
+        case BREAST_PUMP_CUSTOM_MODE:
+            proc->home_display_type = HOME_UI_DISPLAY_CUSTOMIZE_DESC;
+            break;
+    }
+}
 #endif
+

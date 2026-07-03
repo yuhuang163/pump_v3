@@ -134,7 +134,7 @@ int home_pump_mode_adjust_handler(ui_proc_home_t *proc, bool is_bf_mode)
 
     bool entering_select = (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_DEFAULT);
     if (entering_select) {
-        home_pump_mode_adjust_ui_exit(proc);
+        home_pump_level_adjust_exit_handler(proc);
     }
     proc->pump_mode_display_type = is_bf_mode ?
             HOME_PUMP_MODE_DISPLAY_BF_MODE : HOME_PUMP_MODE_DISPLAY_NORMAL_MODE;
