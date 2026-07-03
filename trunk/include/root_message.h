@@ -40,6 +40,7 @@ typedef enum {
     ID_POPUP_UI_LEVEL_ADJUST_WARNING , /// 档位范围调整警告
     ID_POPUP_UI_ONLY_AVAILABLE_IN_PUMPING,  /// 仅在泵奶中可以用
     ID_POPUP_UI_AIRPLANE_MODE_PROMPT,  /// 飞行模式提示弹窗
+    ID_POPUP_UI_FACTORY_RESET_CONFIRM,  /// 工厂重置确认弹窗
     ID_POPUP_UI_PUMP_FINISH_TIMEOUT, /// 泵奶完成，时间到
     ID_POPUP_UI_PUMP_WILL_FINISH_TIP, /// 泵奶即将结束10秒提示.
     ID_POPUP_UI_PUMP_FINISH_MANUAL,  /// 泵奶完成，手动完成

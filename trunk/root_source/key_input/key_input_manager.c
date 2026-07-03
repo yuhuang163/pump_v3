@@ -19,8 +19,6 @@
 #define MUTEX_UNLOCK_KEY(__lock)         do { MUTEX_UNLOCK(__lock); } while (0)
 #endif
 
-
-
 typedef struct {
     void *user_data;
     key_handler_t handler;

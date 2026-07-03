@@ -73,8 +73,7 @@ static void factory_reset_confirm_ui_after_policy(ui_manager_context_t *ui, int 
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     const bool blink_changed = factory_reset_confirm_ui_blink_update(proc);
-    ui_display_factory_reset_confirm_process(ui, proc->display_fac_rst_confirm_progress,
-        proc->state_blink_visible != 0);
+    ui_display_factory_reset_confirm_process(ui, proc->state_blink_visible != 0);
     if (blink_changed || factory_reset_confirm_ui_led_needs_update(proc)) {
         factory_reset_confirm_ui_led_update(proc);
     }
@@ -86,13 +85,19 @@ static void factory_reset_confirm_animation_progress_cb(void *user_data, int ind
     EXCEPTION_CHECK_VOID(ui);
     switch (state) {
         case ANI_TIMER_DRAW_FINISH:
-            factory_reset_confirm_ui_finish_policy(ui, index);
             break;
         case ANI_TIMER_DRAW_BEFORE:
             break;
         case ANI_TIMER_DRAW_AFTER:
             factory_reset_confirm_ui_after_policy(ui, index);
             break;
+        case ANI_POPUP_DISPLAY_FINISH: {
+            ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
+            if (proc && proc->popup_ui_type == ID_POPUP_UI_FACTORY_RESET_CONFIRM) {
+                factory_reset_confirm_ui_finish_policy(ui, index);
+            }
+            break;
+        }
         default:
             break;
     }

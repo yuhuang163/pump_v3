@@ -54,17 +54,19 @@ static void factory_reset_exit_task_cb(hdr_post_args_t *args)
 static void factory_cancel_key_event_handler(ui_proc_factory_reset_t *proc, uint16_t keytype)
 {
     if (keytype == KEY_EVENT_CLICK) {
+        proc->popup_ui_type = ID_POPUP_UI_NONE;
         POST_WM_TASK_HANDLER_NO_DELAY(factory_reset_exit_task_cb, proc, FACTORY_RESET_EXIT_TASK_NAME);
-        proc->display_fac_rst_confirm_progress = false;
     }
 }
 
 static void factory_power_key_event_handler(ui_proc_factory_reset_t *proc, uint16_t keytype)
 {
     if (keytype == KEY_EVENT_DOWN) {
-        proc->display_fac_rst_confirm_progress = true;
+        proc->popup_ui_type = ID_POPUP_UI_FACTORY_RESET_CONFIRM;
     } else if (keytype == KEY_EVENT_UP) {
-        proc->display_fac_rst_confirm_progress = false;
+        if (proc->popup_ui_type != ID_POPUP_UI_NONE) {
+            proc->popup_ui_type = ID_POPUP_UI_NONE;
+        }
     }
 }
 
