@@ -15,8 +15,8 @@
 
 #define HOME_SCREEN_SAVER_MID_GRAY_RING_SIZE                     (248)
 #define HOME_SCREEN_SAVER_INNER_GRAY_RING_SIZE                   (160)
-#define HOME_SCREEN_SAVER_MID_GRAY_RING_COLOR                    (0x131212)
-#define HOME_SCREEN_SAVER_INNER_GRAY_RING_COLOR                  (0x1D1C1C)
+#define HOME_SCREEN_SAVER_MID_GRAY_RING_COLOR                    (0x160B2A)
+#define HOME_SCREEN_SAVER_INNER_GRAY_RING_COLOR                  (0x291947)
 typedef struct {
     lv_obj_t * root;
 #if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
