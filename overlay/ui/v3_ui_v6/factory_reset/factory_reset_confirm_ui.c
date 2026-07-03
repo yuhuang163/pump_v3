@@ -12,12 +12,19 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_FACTORY_RESET_COMP_BG                  (0)
+#define IS_SUPPORT_RETURN_BTN                             (0)
 
 #define FACTORY_RESET_CONFIRM_FIRST_TEXT_COLOR            (0xA9A7A6)
 #define FACTORY_RESET_CONFIRM_TEXT_COLOR                  (0xFFFFFF)
+
+#if IS_SUPPORT_RETURN_BTN
 #define FACTORY_RESET_CONFIRM_TITLE_Y                     (123)
 #define FACTORY_RESET_CONFIRM_HINT_Y                      (160)
 #define FACTORY_RESET_CONFIRM_RETURN_BTN_Y                (244)
+#else
+#define FACTORY_RESET_CONFIRM_TITLE_Y                     (132)
+#define FACTORY_RESET_CONFIRM_HINT_Y                      (168)
+#endif
 
 typedef struct {
     const char *text;
@@ -112,6 +119,7 @@ static void ui_factory_reset_confirm_text_update(void)
     }
 }
 
+#if IS_SUPPORT_RETURN_BTN
 static void ui_factory_reset_confirm_return_btn_update(ui_manager_context_t *thiz)
 {
     if (ui_info->force_update == false) {
@@ -127,6 +135,7 @@ static void ui_factory_reset_confirm_return_btn_update(ui_manager_context_t *thi
         RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
     lv_obj_align(ui_info->return_icon, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_CONFIRM_RETURN_BTN_Y);
 }
+#endif
 
 #if 0
 static void ui_factory_reset_confirm_return_btn_blink_apply(bool blink_visible)
@@ -210,7 +219,9 @@ int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz, bool bl
     EXCEPTION_CHECK_INT(proc);
     ui_factory_reset_confirm_background_update();
     ui_factory_reset_confirm_text_update();
+#if IS_SUPPORT_RETURN_BTN
     ui_factory_reset_confirm_return_btn_update(thiz);
+#endif
     // ui_factory_reset_confirm_return_btn_blink_apply(blink_visible);
     ui_popup_update(thiz, proc->popup_ui_type, ui_info->root, &ui_info->popup_ui_index);
     ui_info->force_update = false;
