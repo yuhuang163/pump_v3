@@ -3,11 +3,9 @@
 *****************************************************************************************
 */
 #include "abnormal_manager_api.h"
-#include "bsp_common.h"
 #include "root_common.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "root_log_define.h"
-#include "stdbool.h"
 #include "time_utils.h" // IWYU pragma: keep
 #include "windows_manager_api.h" // IWYU pragma: keep
 
@@ -243,8 +241,8 @@ static void check_peripheral_communication_abnormal(void)
     }
     #endif
     
-    // 检查PD充电状态
-    #if IS_SUPPORT_PD_CHARGE
+    // 检查PD充电状态  pd如果检测异常会弹适配器异常界面，也暂时埋点不上报异常
+    /*#if IS_SUPPORT_PD_CHARGE
     {
         rt_device_node_t *battery_dev = (rt_device_node_t *)pbus->find_device(ID_DEVICE_BATTERY);
         if (battery_dev) {
@@ -255,7 +253,7 @@ static void check_peripheral_communication_abnormal(void)
             }
         }
     }
-    #endif
+    #endif*/
 
     // 检查LCD状态
     #if IS_SUPPORT_DEVICE_LCD
