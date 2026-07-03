@@ -35,6 +35,7 @@ static bool ui_popup_is_supported(popup_ui_id_e popup_type)
         case ID_POPUP_UI_OP_SUCCESS:
         case ID_POPUP_UI_OP_FAILED:
         case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
+        case ID_POPUP_UI_FACTORY_RESET_CONFIRM:
         case ID_POPUP_UI_THEME_RESELECT:
             return true;
         default:
@@ -71,6 +72,9 @@ static void ui_popup_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_t
             break;
         case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
             ui_popup_airplane_mode_ui_update(thiz, popup_type);
+            break;
+        case ID_POPUP_UI_FACTORY_RESET_CONFIRM:
+            ui_popup_factory_reset_confirm_ui_update(thiz, popup_type);
             break;
         case ID_POPUP_UI_THEME_RESELECT:
             ui_popup_theme_ui_update(thiz, popup_type);

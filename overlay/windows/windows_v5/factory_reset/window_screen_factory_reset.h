@@ -51,7 +51,7 @@ typedef struct {
     uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. factory_reset_ui_type_e
-    uint8_t display_fac_rst_confirm_progress; /// 显示工厂重置确认进度.
+    uint8_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
     uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
     uint8_t confirm_return_blink_visible; /// 确认页 return 灯上次闪烁相位.
     uint32_t led_blink_time; /// 上次LED闪烁时间.

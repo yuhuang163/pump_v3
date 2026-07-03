@@ -18,15 +18,6 @@
 #define FACTORY_RESET_CONFIRM_TITLE_Y                     (123)
 #define FACTORY_RESET_CONFIRM_HINT_Y                      (160)
 #define FACTORY_RESET_CONFIRM_RETURN_BTN_Y                (244)
-#define FACTORY_RESET_CONFIRM_ARC_SIZE                    (360)
-#define FACTORY_RESET_CONFIRM_ARC_WIDTH                   (12)
-#define FACTORY_RESET_CONFIRM_ARC_COLOR                   (0xBD4060)
-#define FACTORY_RESET_CONFIRM_ARC_START_ANGLE             (270)
-#define FACTORY_RESET_CONFIRM_ARC_FULL_SWEEP              (360)
-#define FACTORY_RESET_CONFIRM_DISPLAY_TIME                (3000)
-#define FACTORY_RESET_CONFIRM_DISPLAY_STEP_TIME           (100)
-#define FACTORY_RESET_CONFIRM_DISPLAY_MAX_VALUE           \
-    ((FACTORY_RESET_CONFIRM_DISPLAY_TIME / FACTORY_RESET_CONFIRM_DISPLAY_STEP_TIME) - 2)
 
 typedef struct {
     const char *text;
@@ -42,12 +33,9 @@ typedef struct {
     lv_obj_t * background;
 #endif
     lv_obj_t * text[2];
-    lv_obj_t * arc;
     lv_obj_t * return_icon;
-    uint32_t start_time;
-    uint16_t ring_progress;
     uint8_t force_update;
-    uint8_t display_progress;
+    uint8_t popup_ui_index;
 } ui_factory_reset_confirm_info_t;    
 
 /*
@@ -154,54 +142,6 @@ static void ui_factory_reset_confirm_return_btn_blink_apply(bool blink_visible)
 }
 #endif
 
-static void ui_factory_reset_confirm_arc_update(uint8_t display_progress)
-{
-    if (ui_info->arc == NULL || !lv_obj_is_valid(ui_info->arc)) {
-        ui_info->arc = lv_arc_create(ui_info->root);
-        EXCEPTION_CHECK_VOID(ui_info->arc);
-        lv_obj_set_size(ui_info->arc, FACTORY_RESET_CONFIRM_ARC_SIZE, FACTORY_RESET_CONFIRM_ARC_SIZE);
-        lv_obj_center(ui_info->arc);
-        lv_arc_set_bg_angles(ui_info->arc, 0, FACTORY_RESET_CONFIRM_ARC_FULL_SWEEP);
-        lv_arc_set_angles(ui_info->arc, 0, 0);
-        lv_arc_set_rotation(ui_info->arc, FACTORY_RESET_CONFIRM_ARC_START_ANGLE);
-        lv_obj_set_style_arc_color(ui_info->arc, lv_color_hex(FACTORY_RESET_CONFIRM_ARC_COLOR), LV_PART_MAIN);
-        lv_obj_set_style_arc_width(ui_info->arc, FACTORY_RESET_CONFIRM_ARC_WIDTH, LV_PART_MAIN);
-        lv_obj_set_style_arc_opa(ui_info->arc, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_arc_color(ui_info->arc, lv_color_hex(FACTORY_RESET_CONFIRM_ARC_COLOR), LV_PART_INDICATOR);
-        lv_obj_set_style_arc_width(ui_info->arc, FACTORY_RESET_CONFIRM_ARC_WIDTH, LV_PART_INDICATOR);
-        lv_obj_set_style_arc_opa(ui_info->arc, LV_OPA_COVER, LV_PART_INDICATOR);
-        lv_obj_remove_style(ui_info->arc, NULL, LV_PART_KNOB);
-    }
-
-    if (display_progress == 0) {
-        lv_obj_add_flag(ui_info->arc, LV_OBJ_FLAG_HIDDEN);
-        return;
-    }
-    lv_obj_clear_flag(ui_info->arc, LV_OBJ_FLAG_HIDDEN);
-
-    uint16_t ring_progress = get_timestamp_ms(ui_info->start_time) / FACTORY_RESET_CONFIRM_DISPLAY_STEP_TIME;
-    if (ui_info->force_update == false && ui_info->ring_progress == ring_progress) {
-        return;
-    }
-    ui_info->ring_progress = ring_progress;
-
-    if (ring_progress >= FACTORY_RESET_CONFIRM_DISPLAY_MAX_VALUE) {
-        lv_obj_set_style_arc_opa(ui_info->arc, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_arc_opa(ui_info->arc, LV_OPA_TRANSP, LV_PART_INDICATOR);
-        lv_arc_set_angles(ui_info->arc, 0, 0);
-        return;
-    }
-
-    lv_obj_set_style_arc_opa(ui_info->arc, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_arc_opa(ui_info->arc, LV_OPA_COVER, LV_PART_INDICATOR);
-
-    int16_t end_angle = 0;
-    if (ring_progress > 0) {
-        end_angle = (FACTORY_RESET_CONFIRM_ARC_FULL_SWEEP * ring_progress) / FACTORY_RESET_CONFIRM_DISPLAY_MAX_VALUE;
-    }
-    lv_arc_set_angles(ui_info->arc, 0, end_angle);
-}
-
 #if IS_SUPPORT_FACTORY_RESET_COMP_BG
 static void ui_factory_reset_confirm_background_update(void)
 {
@@ -250,39 +190,31 @@ void ui_display_factory_reset_confirm_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_start_time = get_timestamp();
     ui_factory_reset_confirm_root_init();
     ui_info->force_update = true;
+    ui_info->popup_ui_index = ID_POPUP_UI_NONE;
 }
 
 void ui_display_factory_reset_confirm_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && ui_info);
     ui_img_baj_release_decoded_buf(ui_info->return_icon);
+    ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(ui_info->root);
     u_free(ui_info);
     ui_info = NULL;
 }
 
-int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz,
-    uint8_t fac_rst_confirm_progress, bool blink_visible)
+int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz, bool blink_visible)
 {
     EXCEPTION_CHECK_INT(thiz && ui_info && ui_info->root);
+    ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)thiz->priv.play_info.user_data;
+    EXCEPTION_CHECK_INT(proc);
     ui_factory_reset_confirm_background_update();
     ui_factory_reset_confirm_text_update();
     ui_factory_reset_confirm_return_btn_update(thiz);
     // ui_factory_reset_confirm_return_btn_blink_apply(blink_visible);
-    if (fac_rst_confirm_progress != ui_info->display_progress) {
-        ui_info->display_progress = fac_rst_confirm_progress;
-        ui_info->start_time = get_timestamp();
-        ui_info->ring_progress = 0;
-    }
-    ui_factory_reset_confirm_arc_update(ui_info->display_progress);
+    ui_popup_update(thiz, proc->popup_ui_type, ui_info->root, &ui_info->popup_ui_index);
     ui_info->force_update = false;
     thiz->priv.fps_count++;
-    if (get_timestamp_ms(ui_info->start_time) >= FACTORY_RESET_CONFIRM_DISPLAY_TIME &&
-        ui_info->display_progress == 1) {
-        ui_animation_play_t *ani = &thiz->priv.play_info;
-        EXCEPTION_CHECK_INT(ani);
-        ani->progress_cb(thiz, 0, ANI_TIMER_DRAW_FINISH);
-    }
 
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
