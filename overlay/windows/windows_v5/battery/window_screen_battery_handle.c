@@ -59,6 +59,13 @@ static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
         return;
     }
 
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     if (proc->wm->is_window_guidance_deployed() == 0) {
         #if IS_SUPPORT_GUIDE_WINDOW
         LOG_WM("goto guide screen");
@@ -175,6 +182,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
+    proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
     /// 配置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
