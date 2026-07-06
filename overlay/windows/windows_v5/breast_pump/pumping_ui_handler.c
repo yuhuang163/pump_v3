@@ -234,6 +234,8 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         proc->pump_status = next_status;
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         show_pump_home_ui(proc);
+        pump_mode_adjust_exit_handler(proc);
+        pump_level_adjust_exit_handler(proc);
         LOG_UI("pump start ui create: %d", pump_status);
     } else {
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, 1);
@@ -250,7 +252,6 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
             WRITE_PUMP_CONTROL_SOURCE(proc->pump, false);
         }
         show_pump_home_ui(proc);
-        // pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_MANUAL);
         pump_mode_adjust_exit_handler(proc);
         pump_level_adjust_exit_handler(proc);
         LOG_UI("pump stop ui create: %d", pump_status);
