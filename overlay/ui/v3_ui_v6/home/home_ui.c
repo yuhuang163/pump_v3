@@ -14,7 +14,7 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_HOME_UI_TEST                         (0)
-#define HOME_POPUP_WINDOW_ID                            (ID_POPUP_UI_BT_CONNECTING)
+#define HOME_POPUP_WINDOW_ID                            (ID_POPUP_UI_PUMP_FINISH_MANUAL)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -40,13 +40,13 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
 {
     #if IS_SUPPORT_HOME_UI_TEST
     // ui_display_pump_complete_tip_prepare(thiz);
-    // popup_window_ui_prepare(thiz, HOME_POPUP_WINDOW_ID, 20 * 1000);
+    popup_window_ui_prepare(thiz, HOME_POPUP_WINDOW_ID, 20 * 1000);
     // ui_display_power_off_prepare(thiz);
     // ui_display_factory_reset_prepare(thiz);
     // ui_display_factory_reset_confirm_prepare(thiz);
     // ui_display_airplane_mode_prepare(thiz);
     // ui_display_ota_prepare(thiz);
-    ui_display_charge_adapter_screen_prepare(thiz);
+    // ui_display_charge_adapter_screen_prepare(thiz);
     // ui_display_home_screen_saver_prepare(thiz);
     // ui_display_theme_guide_prepare(thiz);
     #else
@@ -76,13 +76,13 @@ void ui_display_home_remove(ui_manager_context_t *thiz)
 {
     #if IS_SUPPORT_HOME_UI_TEST
     // ui_display_pump_complete_tip_remove(thiz);
-    // popup_window_ui_remove(thiz);
+    popup_window_ui_remove(thiz);
     // ui_display_power_off_remove(thiz);
     // ui_display_factory_reset_remove(thiz);
     // ui_display_factory_reset_confirm_remove(thiz);
     // ui_display_airplane_mode_remove(thiz);
     // ui_display_ota_remove(thiz);
-    ui_display_charge_adapter_screen_remove(thiz);
+    // ui_display_charge_adapter_screen_remove(thiz);
     // ui_display_home_screen_saver_remove(thiz);
     // ui_display_theme_guide_remove(thiz);
     #else
@@ -98,13 +98,13 @@ int ui_display_home_process(ui_manager_context_t *thiz)
 {
     #if IS_SUPPORT_HOME_UI_TEST
     // ui_display_pump_complete_tip_process(thiz);
-    // popup_window_ui_process(thiz, HOME_POPUP_WINDOW_ID);
+    popup_window_ui_process(thiz, HOME_POPUP_WINDOW_ID);
     // ui_display_power_off_process(thiz);
     // ui_display_factory_reset_process(thiz);
     // ui_display_factory_reset_confirm_process(thiz, 0);
     // ui_display_airplane_mode_process(thiz);
     // ui_display_ota_process(thiz);
-    ui_display_charge_adapter_process(thiz);
+    // ui_display_charge_adapter_process(thiz);
     // ui_display_home_screen_saver_process(thiz);
     // ui_display_theme_guide_process(thiz);
     #else

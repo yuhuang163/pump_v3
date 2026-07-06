@@ -62,11 +62,15 @@ void home_base_blink_state_update(home_base_ui_info_t *info, ui_proc_home_t *pro
 
     if (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_NORMAL_MODE &&
         PUMP_IS_COMMON_MODE(pump_mode)) {
+#if !HOME_MODE_SELECT_TRANSITION_ENABLE
         new_mode_blink = 1;
+#endif
     } else if (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_BF_MODE &&
         PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
+#if !HOME_MODE_SELECT_TRANSITION_ENABLE
         new_mode_blink = 1;
         new_icon_blink = 1;
+#endif
     }
 
     switch (proc->pump_level_display_type) {
@@ -221,7 +225,7 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     #else
     home_base_blink_state_update(home_info, proc);
     const bool blink_visible = proc->state_blink_visible != 0;
-    home_pump_mode_ui_update(home_info, blink_visible);
+    home_pump_mode_ui_update(home_info, blink_visible, proc->pump_mode_display_type);
     home_pump_level_ui_update(home_info, blink_visible);
     home_pump_label_ui_update(home_info);
     const ble_ui_blink_sync_t ble_sync = {

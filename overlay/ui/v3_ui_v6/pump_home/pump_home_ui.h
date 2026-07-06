@@ -14,6 +14,20 @@ extern "C" {
 #include "battery_ui.h" // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
 
+#ifndef PUMP_HOME_MODE_TITLE_BLINK_ENABLE
+#define PUMP_HOME_MODE_TITLE_BLINK_ENABLE                 (0)
+#endif
+
+#ifndef PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
+#define PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE           (1)
+#endif
+
+typedef enum {
+    PUMP_HOME_CAPSULE_STYLE_NONE = 0,
+    PUMP_HOME_CAPSULE_STYLE_COMMON,
+    PUMP_HOME_CAPSULE_STYLE_BF,
+} pump_home_capsule_style_e;
+
 /*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************

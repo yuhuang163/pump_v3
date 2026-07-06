@@ -42,10 +42,23 @@ typedef struct {
 typedef struct {
     lv_obj_t *title;
     lv_obj_t *mode;
+    lv_obj_t *title_capsule;
+    lv_obj_t *capsule_title;
+    lv_obj_t *select_dots[3];
     uint8_t index;
     uint8_t new_index;
     uint8_t mode_type;
     uint8_t new_mode_type;
+    uint8_t display_type;
+    uint8_t select_ui_active;
+    uint8_t select_capsule_style;
+    uint8_t select_dot_count;
+    uint8_t custom_mode_active;
+    int16_t select_clock_y_offset;
+    int16_t select_mode_y_offset;
+    int16_t select_remain_y_offset;
+    uint16_t mode_name_x;
+    uint16_t mode_name_y;
     uint8_t mode_blink_state; /// 模式闪烁状态: 0: 不闪烁, 1: 闪烁.
     uint8_t is_rhythm_mode; /// 是否为韵律模式: 0: 否, 1: 是.
     uint32_t custom_mode_id;
@@ -99,6 +112,7 @@ typedef struct {
     uint32_t target_time;
     uint32_t target_time_shown;
     uint8_t progress_shown;
+    uint8_t force_realign;
 } pump_home_custom_time_t;
 
 typedef struct {
@@ -119,13 +133,16 @@ typedef struct {
 *****************************************************************************************
 */
 void pump_home_custom_mode_ui_remove(pump_home_custom_ui_info_t *info);
-void pump_home_custom_mode_ui_update(pump_home_custom_ui_info_t *info, bool blink_visible);
+void pump_home_custom_mode_ui_update(pump_home_custom_ui_info_t *info, bool blink_visible,
+    pump_mode_display_type_e display_type);
+void pump_home_custom_select_offset_apply(pump_home_custom_ui_info_t *info);
 
 void pump_home_custom_level_ui_remove(pump_home_custom_ui_info_t *info);
 void pump_home_custom_level_ui_update(pump_home_custom_ui_info_t *info, bool blink_visible);
 
 void pump_home_custom_time_ui_remove(pump_home_custom_ui_info_t *info);
 void pump_home_custom_time_ui_update(pump_home_custom_ui_info_t *info, uint16_t hold_time, bool blink_visible);
+void pump_home_custom_time_apply_select_offset(pump_home_custom_ui_info_t *info);
 
 void pump_home_custom_animation_ui_remove(pump_home_custom_ui_info_t *info);
 void pump_home_custom_animation_ui_update(pump_home_custom_ui_info_t *info);

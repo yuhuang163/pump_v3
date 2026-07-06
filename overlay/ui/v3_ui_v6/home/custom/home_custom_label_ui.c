@@ -158,7 +158,7 @@ static void home_label_bg_update(home_custom_ui_info_t *info, uint16_t img_id,
         x_offset, 360);
     #else
     lv_obj_align(info->label.label, x_offset == 0 ? LV_ALIGN_TOP_MID : LV_ALIGN_TOP_LEFT,
-        x_offset, y_offset);
+        x_offset, y_offset + info->mode.select_label_y_offset);
     #endif
     info->label.label_img_id = img_id;
     info->label.label_bg_x = x_offset;
@@ -193,9 +193,11 @@ static void home_label_text_update(home_custom_ui_info_t *info, home_custom_text
     lv_obj_set_style_text_font(info->label.text, &lv_font_aeonik_soft_18_regular, 0);
     lv_obj_set_style_text_line_space(info->label.text, text_info->line_space, 0);
     if (text_info->x_offset == 0) {
-        lv_obj_align(info->label.text, LV_ALIGN_TOP_MID, 0, text_info->y_offset);
+        lv_obj_align(info->label.text, LV_ALIGN_TOP_MID, 0,
+            text_info->y_offset + info->mode.select_label_y_offset);
     } else {
-        lv_obj_align(info->label.text, LV_ALIGN_TOP_LEFT, text_info->x_offset, text_info->y_offset);
+        lv_obj_align(info->label.text, LV_ALIGN_TOP_LEFT, text_info->x_offset,
+            text_info->y_offset + info->mode.select_label_y_offset);
     }
     lv_obj_set_style_text_align(info->label.text,
         text_info->align_center ? LV_TEXT_ALIGN_CENTER : LV_TEXT_ALIGN_LEFT, 0);
@@ -314,10 +316,14 @@ static void home_label_time_update(home_custom_ui_info_t *info, const char *time
 
     lv_obj_clear_flag(info->label.time, LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(info->label.time, time_text);
+    info->label.label_time_x = x_offset;
+    info->label.label_time_y = y_offset;
     if (x_offset == 0) {
-        lv_obj_align(info->label.time, LV_ALIGN_TOP_MID, 0, y_offset);
+        lv_obj_align(info->label.time, LV_ALIGN_TOP_MID, 0,
+            y_offset + info->mode.select_time_y_offset);
     } else {
-        lv_obj_align(info->label.time, LV_ALIGN_TOP_LEFT, x_offset, y_offset);
+        lv_obj_align(info->label.time, LV_ALIGN_TOP_LEFT, x_offset,
+            y_offset + info->mode.select_time_y_offset);
     }
     strncpy(info->label.time_text, time_text, sizeof(info->label.time_text) - 1);
     info->label.time_text[sizeof(info->label.time_text) - 1] = '\0';
@@ -327,6 +333,44 @@ static void home_label_time_update(home_custom_ui_info_t *info, const char *time
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+void home_custom_pump_label_apply_select_offset(home_custom_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+
+    if (info->label.label != NULL && lv_obj_is_valid(info->label.label) &&
+        !lv_obj_has_flag(info->label.label, LV_OBJ_FLAG_HIDDEN)) {
+        lv_obj_align(info->label.label,
+            info->label.label_bg_x == 0 ? LV_ALIGN_TOP_MID : LV_ALIGN_TOP_LEFT,
+            info->label.label_bg_x,
+            info->label.label_bg_y + info->mode.select_label_y_offset);
+    }
+
+    if (info->label.text != NULL && lv_obj_is_valid(info->label.text) &&
+        !lv_obj_has_flag(info->label.text, LV_OBJ_FLAG_HIDDEN) &&
+        info->label.text_id < HOME_CUSTOM_TEXT_MAX) {
+        const home_custom_text_info_t *text_info = &home_custom_label_infos[info->label.text_id];
+        if (text_info->x_offset == 0) {
+            lv_obj_align(info->label.text, LV_ALIGN_TOP_MID, 0,
+                text_info->y_offset + info->mode.select_label_y_offset);
+        } else {
+            lv_obj_align(info->label.text, LV_ALIGN_TOP_LEFT, text_info->x_offset,
+                text_info->y_offset + info->mode.select_label_y_offset);
+        }
+    }
+
+    if (info->label.time != NULL && lv_obj_is_valid(info->label.time) &&
+        !lv_obj_has_flag(info->label.time, LV_OBJ_FLAG_HIDDEN) &&
+        info->label.time_text[0] != '\0') {
+        if (info->label.label_time_x == 0) {
+            lv_obj_align(info->label.time, LV_ALIGN_TOP_MID, 0,
+                info->label.label_time_y + info->mode.select_time_y_offset);
+        } else {
+            lv_obj_align(info->label.time, LV_ALIGN_TOP_LEFT, info->label.label_time_x,
+                info->label.label_time_y + info->mode.select_time_y_offset);
+        }
+    }
+}
+
 void home_custom_pump_label_ui_remove(home_custom_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
