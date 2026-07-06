@@ -117,11 +117,11 @@ int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_bf_mode)
             .adjust_to = proc->ui_mode_index,
         };
         DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
+        WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_mode_index, true, 1);
+        char *mode_name = "unknow";
+        READ_PUMP_MODE_NAME(proc->pump, proc->ui_mode_index, &mode_name);
+        LOG_UI("switch %s mode: %d", mode_name, proc->ui_mode_index);
     }
-    WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_mode_index, true, 1);
-    char *mode_name = "unknow";
-    READ_PUMP_MODE_NAME(proc->pump, proc->ui_mode_index, &mode_name);
-    LOG_UI("switch %s mode: %d", mode_name, proc->ui_mode_index);
     proc->exit_current_ui = false;
     return 0;
 }
