@@ -40,6 +40,13 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
         return;
     }
 
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     if (proc->wm->is_window_guidance_deployed() == 0) {
         #if IS_SUPPORT_GUIDE_WINDOW
         LOG_WM("goto guide screen");

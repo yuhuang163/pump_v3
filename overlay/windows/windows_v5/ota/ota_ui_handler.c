@@ -30,6 +30,7 @@ static void ota_display_completed_cb(hdr_post_args_t *args)
     ui_proc_ota_t *proc = (ui_proc_ota_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
     multi_func_msg_data_t msg = {0};
+
     if (proc->battery && proc->battery->is_low_battery()) {
         LOG_WM("battery is low power, goto battery screen");
         msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
@@ -55,6 +56,13 @@ static void ota_display_completed_cb(hdr_post_args_t *args)
     if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
         LOG_WM("goto airplane mode screen");
         msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }

@@ -60,6 +60,7 @@ typedef struct {
     tests_manager_context_t *tests;
     ble_manager_context_t *ble;
     airplane_mode_context_t *airplane;
+    resource_manager_context_t *res;
     led_manager_context_t *led;
     storage_manager_context_t *st;
     breast_pump_manager_context_t *pump;

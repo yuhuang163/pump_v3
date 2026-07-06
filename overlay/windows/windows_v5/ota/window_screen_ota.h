@@ -49,6 +49,7 @@ typedef struct {
     led_manager_context_t *led;
     ble_manager_context_t *ble;
     ota_manager_context_t *ota;
+    resource_manager_context_t *res;
     key_input_context_t *key;
     battery_manager_context_t *battery;
     airplane_mode_context_t *airplane;
