@@ -37,26 +37,28 @@ static bool pump_ui_blink_update(ui_proc_pump_t *proc)
 
 static bool pumping_ui_led_needs_update(const ui_proc_pump_t *proc)
 {
-    const bool is_finish_tip_popup =
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL ||
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP;
+    const bool is_finish_tip_popup = IS_PUMP_FINISH_TIP_POPUP(proc->popup_ui_type);
 
-    if (proc->pump_light_status == PUMP_LIGHT_STATUS_PAUSE) {
-        if (proc->pump_status != BREAST_PUMP_PAUSE) {
+    if (is_finish_tip_popup) {
+        if (proc->pump_light_status != PUMP_LIGHT_STATUS_FINISH_TIP) {
+            return true;
+        }
+#if IS_SUPPORT_PUMP_FINISH_TIP_LED_BLINK
+        return proc->finish_tip_blink_visible != proc->state_blink_visible;
+#else
+        return false;
+#endif
+    }
+    if (proc->pump_light_status == PUMP_LIGHT_STATUS_FINISH_TIP) {
+        return true;
+    }
+    if (proc->pump_status == BREAST_PUMP_PAUSE) {
+        if (proc->pump_light_status != PUMP_LIGHT_STATUS_PAUSE) {
             return true;
         }
         return proc->pump_pause_blink_state != proc->state_blink_visible;
     }
-    if (proc->pump_light_status == PUMP_LIGHT_STATUS_FINISH_TIP) {
-        if (!is_finish_tip_popup) {
-            return true;
-        }
-        return proc->finish_tip_blink_visible != proc->state_blink_visible;
-    }
-    if (proc->pump_status == BREAST_PUMP_PAUSE) {
-        return true;
-    }
-    if (is_finish_tip_popup) {
+    if (proc->pump_light_status == PUMP_LIGHT_STATUS_PAUSE) {
         return true;
     }
     return false;
@@ -66,33 +68,42 @@ static void pumping_ui_led_update(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->led);
     const bool blink_visible = proc->state_blink_visible != 0;
-    const uint8_t popup_type = proc->popup_ui_type;
-    const bool is_finish_tip_popup =
-        popup_type == ID_POPUP_UI_PUMP_FINISH_MANUAL ||
-        popup_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP;
-
-    if (proc->pump_status == BREAST_PUMP_PAUSE) {
-        if (proc->pump_light_status != PUMP_LIGHT_STATUS_PAUSE) {
-            proc->pump_light_status = PUMP_LIGHT_STATUS_PAUSE;
-        }
-        if (proc->pump_pause_blink_state != blink_visible) {
-            proc->led->set_led_level(PUMP_START_BL, blink_visible ? LED_LEVEL_MAX : 0);
-            proc->pump_pause_blink_state = blink_visible;
-        }
-        return;
-    }
+    const bool is_finish_tip_popup = IS_PUMP_FINISH_TIP_POPUP(proc->popup_ui_type);
 
     if (is_finish_tip_popup) {
+#if IS_SUPPORT_PUMP_FINISH_TIP_LED_BLINK
+        const uint8_t tip_led_level = blink_visible ? LED_LEVEL_MAX : 0;
+#else
+        const uint8_t tip_led_level = LED_LEVEL_MAX;
+#endif
         if (proc->pump_light_status != PUMP_LIGHT_STATUS_FINISH_TIP) {
             proc->pump_light_status = PUMP_LIGHT_STATUS_FINISH_TIP;
             proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, 0);
             proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, 0);
             proc->led->set_led_level(PUMP_MODE_BL, 0);
+            proc->led->set_led_level(PUMP_START_BL, tip_led_level);
+            proc->led->set_led_level(PUMP_FREQ_SET_BL, tip_led_level);
             proc->finish_tip_blink_visible = blink_visible;
         } else if (proc->finish_tip_blink_visible != blink_visible) {
-            proc->led->set_led_level(PUMP_START_BL, blink_visible ? LED_LEVEL_MAX : 0);
-            proc->led->set_led_level(PUMP_FREQ_SET_BL, blink_visible ? LED_LEVEL_MAX : 0);
+            proc->led->set_led_level(PUMP_START_BL, tip_led_level);
+            proc->led->set_led_level(PUMP_FREQ_SET_BL, tip_led_level);
             proc->finish_tip_blink_visible = blink_visible;
+        }
+        return;
+    }
+
+    if (proc->pump_status == BREAST_PUMP_PAUSE) {
+        const bool entering_pause = proc->pump_light_status != PUMP_LIGHT_STATUS_PAUSE;
+        if (entering_pause) {
+            proc->pump_light_status = PUMP_LIGHT_STATUS_PAUSE;
+            proc->led->set_led_level(PUMP_MODE_BL, LED_LEVEL_MAX);
+            proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
+            proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX);
+            proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, LED_LEVEL_MAX);
+        }
+        if (entering_pause || proc->pump_pause_blink_state != blink_visible) {
+            proc->led->set_led_level(PUMP_START_BL, blink_visible ? LED_LEVEL_MAX : 0);
+            proc->pump_pause_blink_state = blink_visible;
         }
         return;
     }
@@ -139,9 +150,16 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
     pump_mode_adjust_timeout_handler(proc);
     const bool blink_changed = pump_ui_blink_update(proc);
     ui_display_pump_home_screen_process(ui);
+#if IS_SUPPORT_PUMP_FINISH_TIP_LED_BLINK
     if (blink_changed || pumping_ui_led_needs_update(proc)) {
         pumping_ui_led_update(proc);
     }
+#else
+    if (pumping_ui_led_needs_update(proc) ||
+        (blink_changed && !IS_PUMP_FINISH_TIP_POPUP(proc->popup_ui_type))) {
+        pumping_ui_led_update(proc);
+    }
+#endif
 }
 
 static void pumping_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
