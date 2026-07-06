@@ -53,7 +53,7 @@ static void home_night_light_adjust_ui_after_policy(ui_manager_context_t *ui, in
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     ui_display_home_night_light_adjust_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
-    if (proc->exit_current_ui || time_diff >= HOME_NIGHT_LIGHT_ADJUST_DISPLAY_TIMEOUT) {
+    if (proc->exit_current_ui || time_diff >= HOME_NIGHT_LIGHT_ADJUST_SYNC_TIMEOUT) {
         proc->exit_current_ui = false;
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("night light adjust ui timeout: %d", time_diff);
