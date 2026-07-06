@@ -52,7 +52,7 @@ static void home_pump_result_ui_after_policy(ui_manager_context_t *ui, int index
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     ui_display_pump_complete_tip_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
-    if (proc->exit_current_ui || time_diff >= PUMP_RESULT_DISPLAY_TIMEOUT) {
+    if (proc->exit_current_ui || time_diff >= HOME_PUMP_RESULT_DISPLAY_TIMEOUT) {
         proc->exit_current_ui = false;
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("result ui timeout: %d", time_diff);

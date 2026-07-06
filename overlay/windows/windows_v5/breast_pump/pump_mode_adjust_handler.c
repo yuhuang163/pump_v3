@@ -133,7 +133,7 @@ void pump_mode_adjust_timeout_handler(ui_proc_pump_t *proc)
         return;
     }
 
-    if (get_timestamp_ms(proc->pump_mode_adjust_time) < PUMP_HOME_MODE_SELECT_DISPLAY_TIME) {
+    if (get_timestamp_ms(proc->pump_mode_adjust_time) < PUMP_MODE_SELECT_DISPLAY_TIMEOUT) {
         return;
     }
     proc->pump_mode_display_type = PUMP_MODE_DISPLAY_DEFAULT;

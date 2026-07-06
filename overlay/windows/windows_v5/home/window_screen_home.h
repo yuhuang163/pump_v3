@@ -37,9 +37,11 @@ extern "C" {
 /// 档位调节界面动画展示时间
 #define HOME_PUMP_LEVEL_DISPLAY_TIMEOUT        (5000) /// 5s
 
+/// 泵奶结果显示超时时间
+#define HOME_PUMP_RESULT_DISPLAY_TIMEOUT       (3000) /// 3s
+
 /// 夜灯调节界面动画展示时间
-#define HOME_NIGHT_LIGHT_ADJUST_DISPLAY_TIMEOUT (10000) /// 10s
-#define HOME_NIGHT_LIGHT_ADJUST_SYNC_TIMEOUT    (3000) /// 3s
+#define HOME_NIGHT_LIGHT_ADJUST_SYNC_TIMEOUT   (3000) /// 3s
 
 /// UTC 校准失效时间
 #define HOME_UTC_CALIB_EXPIRE_INTERVAL_SEC      (20 * 24 * 3600)

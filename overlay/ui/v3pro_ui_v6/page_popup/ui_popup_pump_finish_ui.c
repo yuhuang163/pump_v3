@@ -74,7 +74,7 @@ const static ui_popup_text_info_t pump_finish_timeout_infos[UI_POPUP_TEXT_COUNT]
 const static ui_popup_text_info_t pump_finish_charge_error_infos[UI_POPUP_TEXT_COUNT] = {
     {"Incompatible adapter", 0, FINISH_CHARGE_ERROR_TITLE_Y, 
         &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TITLE_COLOR, 4},
-    {"Pumping auto ending", 0, FINISH_CHARGE_ERROR_TITLE_Y + 36, 
+    {"Stopping pump...", 0, FINISH_CHARGE_ERROR_TITLE_Y + 36, 
         &lv_font_aeonik_soft_20_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TEXT_COLOR, 4},
 };
 

@@ -27,27 +27,11 @@ extern "C" {
 /// 判断泵奶时间
 #define IS_PUMPTIME_LESS_THEN_30S(result)      ((result)->real_valid_time_sec < 30 )
 #define IS_PUMPTIME_LESS_THEN_120S(result)     ((result)->real_valid_time_sec < 120)
-/// 循环显示超时时间
-#define LOOP_SHOW_TIMEOUT                      (5000) /// 5s
-/// 泵奶子UI显示时间
-#define PUMP_SUB_UI_DISPLAY_TIME               (5000) /// 5s
-/// 泵奶运行时长更新间隔
-#define PUMP_RUNNING_TIME_UPDATE_INTERVAL      (1000) /// 1s
-/// 泵奶模式切换超时时间
-#define PUMP_MODE_CHANGE_TIMEOUT               (2000) /// 2s
-/// 泵奶UI显示超时时间
-#define PUMP_MODE_DISPLAY_TIMEOUT              (10000) /// 10s
-#define PUMPING_MODE_DISPLAY_TIMEOUT           (5000) /// 5s
-/// 泵奶速度显示超时时间
-#define PUMP_SPEED_DISPLAY_TIMEOUT             (3000) /// 3s
-#define PUMP_SPEED_SYNC_TIMEOUT                (1000) /// 3s 
-/// 泵奶档位显示超时时间
-#define PUMP_LEVEL_DISPLAY_TIMEOUT             (3000) /// 3s 
-#define PUMP_LEVEL_SYNC_TIMEOUT                (1000) /// 3s 
-/// 泵奶主界面模式选择展示时间
-#define PUMP_HOME_MODE_SELECT_DISPLAY_TIME     (5000) /// 5s
+
 /// 泵奶主界面档位调节展示时间
-#define PUMP_HOME_LEVEL_DISPLAY_TIMEOUT        (5000) /// 5s
+#define PUMP_LEVEL_DISPLAY_TIMEOUT             (3000) /// 3s
+/// 泵奶主界面模式选择展示时间
+#define PUMP_MODE_SELECT_DISPLAY_TIMEOUT       (3000) /// 3s
 /// 泵奶结果显示超时时间
 #define PUMP_RESULT_DISPLAY_TIMEOUT            (3000) /// 3s
 /// 泵奶背光灯周期
