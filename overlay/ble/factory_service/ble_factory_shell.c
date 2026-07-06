@@ -462,12 +462,12 @@ static void ble_shell_custom_mode_step_info_update(const uint8_t *param, uint16_
     LOG_BLE("shell custom mode steps info: %d", steps_info->id.dat32);
     msleep(10);
     char mode_name[PUMP_MODE_NAME_LEN];   /// 模式名称
-    snprintf(mode_name, sizeof(mode_name), "Customize %d", id);
+    snprintf(mode_name, sizeof(mode_name), "%d", id % 100);
     storage->put_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE, 0, mode_name);
     msleep(10);
     memset(mode_name, 0, PUMP_MODE_NAME_LEN);
     storage->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE, 0, mode_name);
-    LOG_BLE("shell custom mode name: %s", mode_name);
+    LOG_BLE("shell custom mode id: %s", mode_name);
     msleep(10);
     storage->put_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, BREAST_PUMP_CUSTOM_MODE, true, 0);
     u_free(steps_info);
