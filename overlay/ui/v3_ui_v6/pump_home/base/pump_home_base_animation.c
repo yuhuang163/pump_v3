@@ -159,8 +159,9 @@ static void pump_home_animation_wave_align(pump_home_base_ui_info_t *info, uint8
     if (info->animation.wave == NULL || !lv_obj_is_valid(info->animation.wave)) {
         return;
     }
+    (void)mode_type;
     lv_obj_align(info->animation.wave, LV_ALIGN_TOP_MID, 0,
-        pump_home_animation_wave_y_get(mode_type));
+        PUMP_HOME_STIMULATION_WAVE_Y + info->mode.select_wave_y_offset);
 }
 
 static void pump_home_animation_wave_hide(pump_home_base_ui_info_t *info)

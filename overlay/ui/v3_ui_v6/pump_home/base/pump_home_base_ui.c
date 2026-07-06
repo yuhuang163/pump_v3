@@ -40,7 +40,9 @@ void pump_home_base_blink_state_update(pump_home_base_ui_info_t *info, ui_proc_p
 
     if (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_NORMAL_MODE &&
         PUMP_IS_COMMON_MODE(pump_mode)) {
+#if !PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
         new_mode_blink = 1;
+#endif
     }
     if (proc->pump_status == BREAST_PUMP_PAUSE) {
         new_time_blink = 1;
@@ -205,8 +207,8 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
     const bool blink_visible = proc->state_blink_visible != 0;
     pump_home_root_bg_update(thiz);
     pump_info->time.remain_time = target_valid_time > hold_time ? (target_valid_time - hold_time) : 0;
+    pump_home_base_mode_ui_update(pump_info, blink_visible, proc->pump_mode_display_type);
     pump_home_base_time_ui_update(pump_info, hold_time, blink_visible);
-    pump_home_base_mode_ui_update(pump_info, blink_visible);
     pump_home_base_animation_ui_update(pump_info);
     pump_home_base_level_ui_update(pump_info, blink_visible);
     const ble_ui_blink_sync_t ble_sync = {

@@ -56,6 +56,7 @@ typedef enum {
     CUSTOM_RES_ID_PUMP_LEVEL_INDICATOR, /// 泵奶力度指示符
     CUSTOM_RES_ID_PUMP_LEVEL_BIG_INDICATOR, /// 泵奶力度大指示符
     CUSTOM_RES_ID_PUMP_RHYTHM_ICON, /// 泵奶节奏图标
+    CUSTOM_RES_ID_PUMP_RHYTHM_WHITE_ICON, /// 泵奶节奏白色图标
     CUSTOM_RES_ID_PUMP_RELAX_ICON, /// 泵奶放松图标
 
     /* IP图标组 [10300..10399] */

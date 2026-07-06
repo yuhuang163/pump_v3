@@ -222,7 +222,8 @@ static void pump_home_time_progress_update(pump_home_custom_ui_info_t *info, uin
         lv_obj_set_style_bg_color(time->progress_bg, lv_color_hex(PUMP_TIME_PROGRESS_BG_COLOR), 0);
         lv_obj_set_style_bg_opa(time->progress_bg, PUMP_TIME_PROGRESS_BG_OPA, 0);
         lv_obj_clear_flag(time->progress_bg, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_align(time->progress_bg, LV_ALIGN_TOP_LEFT, PUMP_TIME_PROGRESS_X, PUMP_TIME_PROGRESS_Y);
+        lv_obj_align(time->progress_bg, LV_ALIGN_TOP_LEFT, PUMP_TIME_PROGRESS_X,
+            PUMP_TIME_PROGRESS_Y + info->mode.select_remain_y_offset);
     }
 
     lv_coord_t fill_width = PUMP_TIME_PROGRESS_WIDTH * progress / 100;
@@ -242,7 +243,8 @@ static void pump_home_time_progress_update(pump_home_custom_ui_info_t *info, uin
 
     lv_obj_set_size(time->progress_fill, fill_width, PUMP_TIME_PROGRESS_HEIGHT);
     lv_obj_set_style_radius(time->progress_fill, PUMP_TIME_PROGRESS_HEIGHT / 2, 0);
-    lv_obj_align(time->progress_fill, LV_ALIGN_TOP_LEFT, PUMP_TIME_PROGRESS_X, PUMP_TIME_PROGRESS_Y);
+    lv_obj_align(time->progress_fill, LV_ALIGN_TOP_LEFT, PUMP_TIME_PROGRESS_X,
+        PUMP_TIME_PROGRESS_Y + info->mode.select_remain_y_offset);
 
     if (time->progress_knob == NULL || !lv_obj_is_valid(time->progress_knob)) {
         time->progress_knob = lv_obj_create(info->root);
@@ -257,7 +259,7 @@ static void pump_home_time_progress_update(pump_home_custom_ui_info_t *info, uin
     }
 
     lv_coord_t knob_x = PUMP_TIME_PROGRESS_X + fill_width - PUMP_TIME_PROGRESS_KNOB_SIZE / 2;
-    lv_coord_t knob_y = PUMP_TIME_PROGRESS_Y +
+    lv_coord_t knob_y = PUMP_TIME_PROGRESS_Y + info->mode.select_remain_y_offset +
         (PUMP_TIME_PROGRESS_HEIGHT - PUMP_TIME_PROGRESS_KNOB_SIZE) / 2;
     lv_obj_align(time->progress_knob, LV_ALIGN_TOP_LEFT, knob_x, knob_y);
 
@@ -288,21 +290,21 @@ static void pump_home_time_remain_update(pump_home_custom_ui_info_t *info, uint8
     lv_coord_t x = PUMP_TIME_REMAIN_X;
 
     pump_home_time_symbol_label_update(&time->remain_minus, info->root, "-", font,
-        x, PUMP_TIME_REMAIN_Y, false);
+        x, PUMP_TIME_REMAIN_Y + info->mode.select_remain_y_offset, false);
     lv_obj_update_layout(time->remain_minus);
     x += lv_obj_get_width(time->remain_minus) + PUMP_TIME_REMAIN_MINUS_M_GAP;
 
     pump_home_time_pair_labels_update(time->remain_m, info->root, minutes, font,
-        x, PUMP_TIME_REMAIN_Y, PUMP_TIME_REMAIN_DIGIT_WIDTH, 0, false);
+        x, PUMP_TIME_REMAIN_Y + info->mode.select_remain_y_offset, PUMP_TIME_REMAIN_DIGIT_WIDTH, 0, false);
     x += PUMP_TIME_REMAIN_DIGIT_WIDTH + 1;
 
     pump_home_time_symbol_label_update(&time->remain_colon, info->root, ":", font,
-        x, PUMP_TIME_REMAIN_Y, false);
+        x, PUMP_TIME_REMAIN_Y + info->mode.select_remain_y_offset, false);
     lv_obj_update_layout(time->remain_colon);
     x += lv_obj_get_width(time->remain_colon) + 1;
 
     pump_home_time_pair_labels_update(time->remain_s, info->root, seconds, font,
-        x, PUMP_TIME_REMAIN_Y, PUMP_TIME_REMAIN_DIGIT_WIDTH, 0, false);
+        x, PUMP_TIME_REMAIN_Y + info->mode.select_remain_y_offset, PUMP_TIME_REMAIN_DIGIT_WIDTH, 0, false);
     time->remain_time_shown = time->remain_time;
 }
 
@@ -430,6 +432,12 @@ static void pump_home_time_blink_apply(pump_home_custom_ui_info_t *info, bool bl
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+void pump_home_custom_time_apply_select_offset(pump_home_custom_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+    info->time.force_realign = 1;
+}
+
 void pump_home_custom_time_ui_remove(pump_home_custom_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
@@ -438,7 +446,19 @@ void pump_home_custom_time_ui_remove(pump_home_custom_ui_info_t *info)
 void pump_home_custom_time_ui_update(pump_home_custom_ui_info_t *info, uint16_t hold_time, bool blink_visible)
 {
     EXCEPTION_CHECK_VOID(info);
-    int8_t y_offset = info->mode.is_rhythm_mode > 0 ? PUMP_TIME_Y_OFFSET_REMAIN : PUMP_TIME_Y_OFFSET_OTHER;
+    if (info->time.force_realign) {
+        info->time.hours = UINT8_MAX;
+        info->time.minutes = UINT8_MAX;
+        info->time.seconds = UINT8_MAX;
+        info->time.digit_size = 0;
+        info->time.y_offset = INT8_MAX;
+        info->time.remain_time_shown = UINT32_MAX;
+        info->time.progress_shown = UINT8_MAX;
+        info->time.target_time_shown = UINT32_MAX;
+        info->time.force_realign = 0;
+    }
+    int8_t y_offset = (info->mode.is_rhythm_mode > 0 ? PUMP_TIME_Y_OFFSET_REMAIN : PUMP_TIME_Y_OFFSET_OTHER) +
+        info->mode.select_clock_y_offset;
     uint8_t hours = hold_time / 3600;
     uint8_t minutes = (hold_time / 60) % 60;
     uint8_t seconds = hold_time % 60;

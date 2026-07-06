@@ -183,21 +183,21 @@ static void pump_home_time_remain_update(pump_home_base_ui_info_t *info, uint8_t
     lv_coord_t x = PUMP_TIME_REMAIN_MINUS_X;
 
     pump_home_time_symbol_label_update(&time->remain_minus, info->root, "-", font,
-        x, PUMP_TIME_REMAIN_Y, false);
+        x, PUMP_TIME_REMAIN_Y + info->mode.select_remain_y_offset, false);
     lv_obj_update_layout(time->remain_minus);
     x += lv_obj_get_width(time->remain_minus) + PUMP_TIME_REMAIN_MINUS_M_GAP;
 
     pump_home_time_pair_labels_update(time->remain_m, info->root, minutes, font,
-        x, PUMP_TIME_REMAIN_Y, PUMP_TIME_REMAIN_DIGIT_WIDTH, 0, false);
+        x, PUMP_TIME_REMAIN_Y + info->mode.select_remain_y_offset, PUMP_TIME_REMAIN_DIGIT_WIDTH, 0, false);
     x += PUMP_TIME_REMAIN_DIGIT_WIDTH + 1;
 
     pump_home_time_symbol_label_update(&time->remain_colon, info->root, ":", font,
-        x, PUMP_TIME_REMAIN_Y, false);
+        x, PUMP_TIME_REMAIN_Y + info->mode.select_remain_y_offset, false);
     lv_obj_update_layout(time->remain_colon);
     x += lv_obj_get_width(time->remain_colon) + 1;
 
     pump_home_time_pair_labels_update(time->remain_s, info->root, seconds, font,
-        x, PUMP_TIME_REMAIN_Y, PUMP_TIME_REMAIN_DIGIT_WIDTH, 0, false);
+        x, PUMP_TIME_REMAIN_Y + info->mode.select_remain_y_offset, PUMP_TIME_REMAIN_DIGIT_WIDTH, 0, false);
     time->remain_time_shown = time->remain_time;
 }
 
@@ -325,6 +325,12 @@ static void pump_home_time_blink_apply(pump_home_base_ui_info_t *info, bool blin
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+void pump_home_base_time_apply_select_offset(pump_home_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+    info->time.force_realign = 1;
+}
+
 void pump_home_base_time_ui_remove(pump_home_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
@@ -333,7 +339,17 @@ void pump_home_base_time_ui_remove(pump_home_base_ui_info_t *info)
 void pump_home_base_time_ui_update(pump_home_base_ui_info_t *info, uint16_t hold_time, bool blink_visible)
 {
     EXCEPTION_CHECK_VOID(info);
-    int8_t y_offset = pump_home_time_y_offset_get(info->mode.new_index);
+    if (info->time.force_realign) {
+        info->time.hours = UINT8_MAX;
+        info->time.minutes = UINT8_MAX;
+        info->time.seconds = UINT8_MAX;
+        info->time.digit_size = 0;
+        info->time.y_offset = INT8_MAX;
+        info->time.remain_time_shown = UINT32_MAX;
+        info->time.force_realign = 0;
+    }
+    int8_t y_offset = pump_home_time_y_offset_get(info->mode.new_index) +
+        info->mode.select_clock_y_offset;
     uint8_t hours = hold_time / 3600;
     uint8_t minutes = (hold_time / 60) % 60;
     uint8_t seconds = hold_time % 60;

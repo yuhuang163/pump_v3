@@ -265,6 +265,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "BASE_RES_ID_PUMP_RHYTHM_WHITE_ICON",
+      "description": "泵奶节奏白色图标",
+      "file": "baj/icon_pump_rhythm_white_32x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "BASE_RES_ID_PUMP_RELAX_ICON",
       "description": "泵奶放松图标",
       "file": "baj/icon_pump_relax_64x64_a8_q99_444.baj",
