@@ -42,6 +42,12 @@ extern "C" {
 #define PUMP_LEVEL_BLINK_TIMES                 (3)
 /// 泵奶完成页面允许被打断
 #define IS_ALLLOW_PUMP_COMPLETE_BREAK          (0)
+/// 泵奶完成提示弹窗(ID_POPUP_UI_PUMP_FINISH_MANUAL / ID_POPUP_UI_PUMP_WILL_FINISH_TIP)
+/// 开始键/频率键背光闪烁，0: 常亮，1: 闪烁
+#define IS_SUPPORT_PUMP_FINISH_TIP_LED_BLINK   (0)
+#define IS_PUMP_FINISH_TIP_POPUP(type) \
+    ((type) == ID_POPUP_UI_PUMP_FINISH_MANUAL || \
+     (type) == ID_POPUP_UI_PUMP_WILL_FINISH_TIP)
 
 /// 泵奶UI动作枚举
 typedef enum {

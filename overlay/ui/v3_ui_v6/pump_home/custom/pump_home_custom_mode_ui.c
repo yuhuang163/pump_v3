@@ -151,22 +151,25 @@ void pump_home_custom_mode_ui_update(pump_home_custom_ui_info_t *info, bool blin
                 info->mode.is_rhythm_mode = false;
                 break;
             case BREAST_PUMP_MILK_BOOST_MODE:
-                pump_home_mode_title_update(info,
-                    pump_home_mode_type_name_get(info->mode.new_mode_type), PUMP_HOME_RHYTHM_TITLE_Y);
-                pump_home_mode_name_update(info, "Milk Boost", PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+                pump_home_mode_title_update(info, "Milk Boost", PUMP_HOME_RHYTHM_TITLE_Y);
+                pump_home_mode_name_update(info,
+                    pump_home_mode_type_name_get(info->mode.new_mode_type),
+                    PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
                 info->mode.is_rhythm_mode = true;
                 break;
             case BREAST_PUMP_PP_MILK_TRACK_MODE:
-                pump_home_mode_title_update(info,
-                    pump_home_mode_type_name_get(info->mode.new_mode_type), PUMP_HOME_RHYTHM_TITLE_Y);
-                pump_home_mode_name_update(info, "Power Pumping", PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+                pump_home_mode_title_update(info, "Power Pumping", PUMP_HOME_RHYTHM_TITLE_Y);
+                pump_home_mode_name_update(info,
+                    pump_home_mode_type_name_get(info->mode.new_mode_type),
+                    PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
                 info->mode.is_rhythm_mode = true;
                 break;
             case BREAST_PUMP_CUSTOM_MODE:
-                pump_home_mode_title_update(info,
-                    pump_home_mode_type_name_get(info->mode.new_mode_type), PUMP_HOME_RHYTHM_TITLE_Y);
                 snprintf(rhythm_name, sizeof(rhythm_name), "Customize %s", info->mode.custom_id_str);
-                pump_home_mode_name_update(info, rhythm_name, PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+                pump_home_mode_title_update(info, rhythm_name, PUMP_HOME_RHYTHM_TITLE_Y);
+                pump_home_mode_name_update(info,
+                    pump_home_mode_type_name_get(info->mode.new_mode_type),
+                    PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
                 info->mode.is_rhythm_mode = true;
                 break;
         }
