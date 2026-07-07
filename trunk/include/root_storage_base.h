@@ -135,6 +135,10 @@ extern "C" {
 #define STORAGE_DATA_BURY_FLASH_BANK_MAGIC_NUM                               (0xAFFA5895)
 #endif
 
+#ifndef STORAGE_DATA_BURY_STORAGE_VERSION_MAGIC_NUM
+#define STORAGE_DATA_BURY_STORAGE_VERSION_MAGIC_NUM                          (0xAFFA5897)
+#endif
+
 #ifndef STORAGE_IMG_RES_OTA_MAGIC_NUM
 #define STORAGE_IMG_RES_OTA_MAGIC_NUM                                          (0xAFFA5896)
 #endif
