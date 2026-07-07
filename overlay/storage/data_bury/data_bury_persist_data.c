@@ -718,10 +718,80 @@ static int data_bury_ring_storage_init_internal(storage_manager_context_t *ctx)
     return 0;
 }
 
+static int write_data_bury_storage_version_to_flash(storage_manager_context_t *ctx,
+                                                    uint16_t version)
+{
+    int ret;
+    data_bury_storage_version_storage_t *store;
+
+    EXCEPTION_CHECK_INT(ctx);
+    store = u_malloz(sizeof(data_bury_storage_version_storage_t));
+    EXCEPTION_CHECK_INT(store);
+    store->magic = STORAGE_DATA_BURY_STORAGE_VERSION_MAGIC_NUM;
+    store->version = version;
+    store->crc = CRC16(&store->version, sizeof(store->version));
+    ret = user_database_put(ctx, PERSIST_KEY_DATA_BURY_STORAGE_VERSION, (uint8_t *)store,
+                            sizeof(data_bury_storage_version_storage_t));
+    if (ret != 0) {
+        LOGE("write data bury storage version failure! ret: %d version: %u",
+             ret, (unsigned)version);
+    }
+    u_free(store);
+    return ret;
+}
+
+static int read_data_bury_storage_version_from_flash(storage_manager_context_t *ctx,
+                                                     uint16_t *version)
+{
+    int ret;
+    data_bury_storage_version_storage_t *store;
+
+    EXCEPTION_CHECK_INT(ctx);
+    EXCEPTION_CHECK_INT(version);
+    store = u_malloz(sizeof(data_bury_storage_version_storage_t));
+    EXCEPTION_CHECK_INT(store);
+    ret = user_database_get(ctx, PERSIST_KEY_DATA_BURY_STORAGE_VERSION, (uint8_t *)store,
+                            sizeof(data_bury_storage_version_storage_t));
+    {
+        uint16_t crc = CRC16(&store->version, sizeof(store->version));
+        if (ret == 0 && store->magic == STORAGE_DATA_BURY_STORAGE_VERSION_MAGIC_NUM
+            && store->crc == crc) {
+            *version = store->version;
+        } else if (ret == 0) {
+            ret = -1;
+        }
+    }
+    u_free(store);
+    return ret;
+}
+
+static int data_bury_storage_version_migrate(storage_manager_context_t *ctx)
+{
+    uint16_t stored_version = 0;
+
+    EXCEPTION_CHECK_INT(ctx);
+    (void)read_data_bury_storage_version_from_flash(ctx, &stored_version);
+    if (stored_version == DATA_BURY_STORAGE_VERSION) {
+        return 0;
+    }
+    LOG_STORE_WRAP("data bury storage version mismatch stored=%u current=%u, reset queue",
+                   (unsigned)stored_version, (unsigned)DATA_BURY_STORAGE_VERSION);
+    if (data_bury_ring_storage_reset(ctx) != 0) {
+        LOGE("data bury storage version migrate reset fail");
+        return -1;
+    }
+    if (write_data_bury_storage_version_to_flash(ctx, DATA_BURY_STORAGE_VERSION) != 0) {
+        LOGE("data bury storage version migrate write fail");
+        return -2;
+    }
+    return 1;
+}
+
 int data_bury_infor_storage_init(store_func_args_t args)
 {
     data_bury_info_t *info;
     store_func_args_t boot_args;
+    int migrate_ret;
 
     EXCEPTION_CHECK_INT(args.ctx);
     info = (data_bury_info_t *)args.val;
@@ -730,6 +800,13 @@ int data_bury_infor_storage_init(store_func_args_t args)
     boot_args     = args;
     boot_args.val = &info->boot_seq;
     (void)read_data_bury_use_session_boot_seq_from_flash(boot_args);
+    migrate_ret = data_bury_storage_version_migrate(args.ctx);
+    if (migrate_ret < 0) {
+        return migrate_ret;
+    }
+    if (migrate_ret > 0) {
+        return 0;
+    }
     return data_bury_ring_storage_init_internal(args.ctx);
 }
 

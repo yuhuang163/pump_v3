@@ -19,6 +19,12 @@ extern "C" {
 #define DATA_BURY_EVENT_PAYLOAD_MAX        374u
 #define DATA_BURY_PUMP_SESSION_MAX_MODES    58u
 
+/*
+ * Flash/环内 packed 事件结构布局版本。
+ * 修改 data_bury_evt_*_t 字段或变长布局时递增，开机与 Flash 中版本不一致则清空埋点队列。
+ */
+#define DATA_BURY_STORAGE_VERSION           1u
+
 #define DATA_BURY_SVC_DATA                 APP_DATA_BURY_PROTOCOL_SVC_DATA
 /*============================================================================
  * Data Service 事件载荷（协议 7.1~7.19 / v1.0.2，packed 小端写入 Flash 环）
@@ -333,6 +339,12 @@ typedef struct {
 typedef struct {
     uint16_t boot_seq;
 } data_bury_info_t;
+
+typedef struct {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t crc;
+} data_bury_storage_version_storage_t;
 
 #ifdef __cplusplus
 }
