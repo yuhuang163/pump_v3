@@ -100,7 +100,7 @@ static void ui_popup_prepare(ui_manager_context_t *thiz, lv_obj_t *parent, popup
     operation_info->runtime.target_time = time;
     operation_info->countdown.max_value = time / 1000;
     operation_info->arc.ring_progress_max = (time > 0) ?
-        ((time / UI_POPUP_STATUS_DISPLAY_STEP_TIME) - 2) : 0;
+        ((time / UI_POPUP_STATUS_DISPLAY_STEP_TIME) - UI_POPUP_STATUS_ARC_RING_PROGRESS_LEAD_STEPS) : 0;
     operation_info->runtime.force_update = true;
     operation_info->runtime.start_time = get_timestamp();
     LOG_UI("pump status popup prepare %s", ui_popup_name_get(thiz, type));

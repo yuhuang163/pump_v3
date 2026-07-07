@@ -20,6 +20,8 @@ extern "C" {
 */
 #define POPUP_WINDOW_TEXT_COUNT                                    2
 #define POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME                      (100)
+/// 圆环进度提前结束的步数（每步 POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME ms）
+#define POPUP_WINDOW_STATUS_ARC_RING_PROGRESS_LEAD_STEPS           (4)
 
 /// 支持窗口背景图片
 #define IS_SUPPORT_POPUP_WINDOW_COMP_BG                            (0)

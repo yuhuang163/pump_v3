@@ -21,6 +21,8 @@ extern "C" {
 #define UI_POPUP_TEXT_COUNT                                        3
 #define UI_POPUP_ICON_COUNT                                        2
 #define UI_POPUP_STATUS_DISPLAY_STEP_TIME                          (100)
+/// 圆环进度提前结束的步数（每步 UI_POPUP_STATUS_DISPLAY_STEP_TIME ms）
+#define UI_POPUP_STATUS_ARC_RING_PROGRESS_LEAD_STEPS               (4)
 
 typedef struct {
     lv_obj_t *obj;
