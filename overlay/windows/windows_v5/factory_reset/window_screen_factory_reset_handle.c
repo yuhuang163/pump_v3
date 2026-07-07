@@ -46,6 +46,53 @@ static void factory_reset_exit_task_cb(hdr_post_args_t *args)
     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
         proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
     }
+
+    if (proc->battery && proc->battery->is_low_battery()) {
+        LOG_WM("battery is low power, goto battery screen");
+        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
+    if (proc->wm->is_window_factory_test_deployed() == 0) {
+        LOG_WM("goto factory test screen");
+        msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
+        LOG_WM("vbus plug in, goto charge screen");
+        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
+    if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
+        LOG_WM("goto airplane mode screen");
+        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+    
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
+    if (proc->wm->is_window_guidance_deployed() == 0) {
+#if IS_SUPPORT_GUIDE_WINDOW
+        LOG_WM("goto guide screen");
+        msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+#else
+        proc->wm->set_window_guidance_deployed_flag(true);
+#endif
+    }
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
@@ -188,6 +235,9 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
+
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;

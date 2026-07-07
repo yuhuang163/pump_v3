@@ -131,7 +131,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_KEYEVENT_CB(proc->key, "ota_wm", proc, OTA_UI_KEY_CODE, OTA_UI_KEY_TYPE,
             on_ota_ui_keyevent_hdr);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, 100);
+            proc->led->hook->set_key_backlight(proc->led, 0);
         }
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
