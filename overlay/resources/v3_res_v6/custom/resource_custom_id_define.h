@@ -26,6 +26,7 @@ typedef enum {
     CUSTOM_RES_ID_RETURN_BUTTON_ICON, /// 返回按钮指示图标
     CUSTOM_RES_ID_MODE_BUTTON_ICON, /// 模式按钮图标
     CUSTOM_RES_ID_PROGRAM_BUTTON_ICON, /// 程序按钮图标
+    CUSTOM_RES_ID_RETURN_BUTTON_24X24_ICON, /// 24x24返回按钮图标
 
     CUSTOM_RES_ID_CLOCK_COLON_ICON = 10099, /// 时钟冒号图标
     /* 主界面组 [10100..10150] */
@@ -35,7 +36,7 @@ typedef enum {
     CUSTOM_RES_ID_HOME_BIG_LABLE, /// 主页大标签
     CUSTOM_RES_ID_HOME_NARROW_LABLE, /// 主页窄标签
     CUSTOM_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, /// 飞行模式解锁按钮图标
-    CUSTOM_RES_ID_HOME_BLE_LABEL, /// 主页蓝牙标签
+    CUSTOM_RES_ID_GUIDE_LABLE, /// 引导标签
 
     /* 引导组 [10150..10200] */
     CUSTOM_RES_ID_GUIDE_PAGE1_IMG = 10150, /// 引导-页1图片
@@ -63,6 +64,7 @@ typedef enum {
     CUSTOM_RES_ID_HOME_IDLE_IP = 10300, /// 空闲界面IP图标
     CUSTOM_RES_ID_PUMP_FINISH_IP, /// 泵奶完成IP图标
     CUSTOM_RES_ID_CHARGE_ADAPTER_IP, /// 充电适配器IP图标
+    CUSTOM_RES_ID_GUIDE_IP, /// 引导IP图标
 
     /* 动画组 [11000..] */
     CUSTOM_RES_ID_YAWN_ANIM_IP_START = 11100, /// 打哈欠动画-开始

@@ -26,6 +26,7 @@ typedef enum {
     BASE_RES_ID_RETURN_BUTTON_ICON, /// 返回按钮指示图标
     BASE_RES_ID_MODE_BUTTON_ICON, /// 模式按钮图标
     BASE_RES_ID_PROGRAM_BUTTON_ICON, /// 程序按钮图标
+    BASE_RES_ID_RETURN_BUTTON_24X24_ICON, /// 24x24返回按钮图标
   
     BASE_RES_ID_CLOCK_COLON_ICON = 99, /// 时钟冒号图标
     /* 主界面组 [99..150] */
@@ -35,7 +36,7 @@ typedef enum {
     BASE_RES_ID_HOME_BIG_LABLE, /// 主页大标签
     BASE_RES_ID_HOME_NARROW_LABLE, /// 主页窄标签
     BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, /// 飞行模式解锁按钮图标
-    BASE_RES_ID_HOME_BLE_LABEL, /// 主页蓝牙标签
+    BASE_RES_ID_GUIDE_LABLE, /// 引导标签
 
     /* 引导组 [150..200] */
     BASE_RES_ID_GUIDE_PAGE1_IMG = 150, /// 引导-页1图片
