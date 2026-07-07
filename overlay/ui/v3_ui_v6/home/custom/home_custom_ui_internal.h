@@ -65,10 +65,7 @@ typedef struct {
 typedef struct {
     lv_obj_t *ip;
     res_img_info_t ip_info;
-    uint16_t frame_res_id; /// 当前帧资源ID
-    uint16_t frame_end_res_id; /// 末帧资源ID
-    uint16_t shown_frame_res_id; /// 已显示帧资源ID
-    uint32_t last_frame_tick_ms; /// 上次切帧时间
+    uint16_t animation_index; /// 当前动画帧索引
     uint8_t initialized; /// 动画是否已初始化
 } home_custom_animation_info_t;
 
