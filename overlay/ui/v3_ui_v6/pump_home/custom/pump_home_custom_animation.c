@@ -13,7 +13,7 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_ANIM_TRANSITION                     (0) /// 动画过渡支持.
-#define PUMP_HOME_IP_ANIM_Y                            (214)
+#define PUMP_HOME_IP_ANIM_Y                            (206)
 #define PUMP_HOME_ANIM_FRAME_INTERVAL_MS               (1000 / PUMP_ANIMATION_FREQ)
 #define PUMP_HOME_ANIM_FRAME_RES_INVALID               (0xFFFF)
 
