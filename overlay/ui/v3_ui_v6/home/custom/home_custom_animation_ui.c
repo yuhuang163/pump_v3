@@ -13,7 +13,7 @@
 *****************************************************************************************
 */
 #define HOME_IP_ANIM_X                             (0)
-#define HOME_IP_ANIM_Y                             (209)
+#define HOME_IP_ANIM_Y                             (214)
 #define HOME_ANIM_FRAME_INTERVAL_MS                (1000 / HOME_ANIMATION_FREQ)
 #define HOME_ANIM_FRAME_RES_INVALID                (0xFFFF)
 
@@ -66,6 +66,7 @@ static void home_animation_frame_show(home_custom_ui_info_t *info, uint16_t fram
 
     ui_img_baj_release_decoded_buf(anim->ip);
     if (ui_img_baj_set_src(anim->ip, img_info.data, img_info.size, UI_IMG_BAJ_DECODE_RGBA8888) != 0) {
+        LOG_UI("home_anim: set_src failed frame=%u size=%u", frame_id, img_info.size);
         home_animation_res_unload(info, &img_info);
         return;
     }
