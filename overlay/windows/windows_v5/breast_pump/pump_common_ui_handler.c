@@ -97,10 +97,14 @@ void pump_cancel_key_event_handler(ui_proc_pump_t *proc)
     }
     LOG_WM("cancel key event, popup ui type:%d.", proc->popup_ui_type);
     if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        /// 触发泵奶结束埋点
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 0);
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         pump_complete_event_handler(proc);
         return;
     } else if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
+        /// 触发泵奶结束埋点
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 0);
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         pump_complete_event_handler(proc);
         return;
