@@ -468,8 +468,10 @@ static void pump_copy_trial_mode_to_custom_mode(void)
         if (i >= trial_steps_info.policy_num) {
             break; // 如果步数大于最大步数，则跳出
         }
+        #if !IS_PUMP_STEPS_USE_SAME_SETTING
         storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, i, &trial_setting);
         storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, i, &trial_setting);
+        #endif
     }
     LOG_SRV("copy custom trial setting info to custom mode");
 
