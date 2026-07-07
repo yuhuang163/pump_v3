@@ -348,13 +348,17 @@ void pump_home_base_time_ui_update(pump_home_base_ui_info_t *info, uint16_t hold
         info->time.remain_time_shown = UINT32_MAX;
         info->time.force_realign = 0;
     }
-    int8_t y_offset = pump_home_time_y_offset_get(info->mode.new_index) +
-        info->mode.select_clock_y_offset;
+    int8_t y_offset = pump_home_time_y_offset_get(info->mode.new_index);
     uint8_t hours = hold_time / 3600;
     uint8_t minutes = (hold_time / 60) % 60;
     uint8_t seconds = hold_time % 60;
     // hours = minutes = seconds;
     uint8_t digit_size = (hours == 0) ? PUMP_TIME_2SEG : PUMP_TIME_3SEG;
+    if (digit_size == PUMP_TIME_3SEG) {
+        y_offset += info->mode.select_clock_y_offset;
+    } else {
+        y_offset += info->mode.select_clock_2seg_y_offset;
+    }
     pump_home_time_h_update(info, hours, digit_size, y_offset);
     pump_home_time_m_update(info, minutes, digit_size, y_offset);
     pump_home_time_s_update(info, seconds, digit_size, y_offset);

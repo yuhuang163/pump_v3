@@ -40,8 +40,10 @@
 #define PUMP_HOME_DOT_ACTIVE_COLOR                 (0xFFFFFF)
 #define PUMP_HOME_DOT_INACTIVE_COLOR               (0xD58599)
 
-#define PUMP_HOME_SELECT_CLOCK_Y_OFFSET_COMMON       (12)
-#define PUMP_HOME_SELECT_CLOCK_Y_OFFSET_BF           (18)
+#define PUMP_HOME_SELECT_CLOCK_Y_OFFSET_COMMON       (16)
+#define PUMP_HOME_SELECT_CLOCK_Y_OFFSET_BF           (16)
+#define PUMP_HOME_SELECT_CLOCK_2SEG_Y_OFFSET_COMMON  (12)
+#define PUMP_HOME_SELECT_CLOCK_2SEG_Y_OFFSET_BF      (18)
 #define PUMP_HOME_SELECT_MODE_Y_OFFSET_BF            (26)
 #define PUMP_HOME_SELECT_REMAIN_Y_OFFSET_BF          (26)
 
@@ -272,10 +274,12 @@ static uint8_t pump_home_mode_select_capsule_style_get(pump_mode_display_type_e 
 }
 
 static void pump_home_mode_select_layout_target_get(const pump_home_custom_ui_info_t *info,
-    bool shift_down, int16_t *clock_offset, int16_t *mode_offset, int16_t *remain_offset)
+    bool shift_down, int16_t *clock_offset, int16_t *clock_2seg_offset, int16_t *mode_offset,
+    int16_t *remain_offset)
 {
     if (!shift_down) {
         *clock_offset = 0;
+        *clock_2seg_offset = 0;
         *mode_offset = 0;
         *remain_offset = 0;
         return;
@@ -283,12 +287,14 @@ static void pump_home_mode_select_layout_target_get(const pump_home_custom_ui_in
 
     if (info->mode.select_capsule_style == PUMP_HOME_CAPSULE_STYLE_BF) {
         *clock_offset = PUMP_HOME_SELECT_CLOCK_Y_OFFSET_BF;
+        *clock_2seg_offset = PUMP_HOME_SELECT_CLOCK_2SEG_Y_OFFSET_BF;
         *mode_offset = PUMP_HOME_SELECT_MODE_Y_OFFSET_BF;
         *remain_offset = PUMP_HOME_SELECT_REMAIN_Y_OFFSET_BF;
         return;
     }
 
     *clock_offset = PUMP_HOME_SELECT_CLOCK_Y_OFFSET_COMMON;
+    *clock_2seg_offset = PUMP_HOME_SELECT_CLOCK_2SEG_Y_OFFSET_COMMON;
     *mode_offset = 0;
     *remain_offset = 0;
 }
@@ -340,6 +346,13 @@ static void pump_home_mode_select_clock_offset_anim_exec(void *var, int32_t v)
     pump_home_custom_select_offset_apply(info);
 }
 
+static void pump_home_mode_select_clock_2seg_offset_anim_exec(void *var, int32_t v)
+{
+    pump_home_custom_ui_info_t *info = (pump_home_custom_ui_info_t *)var;
+    info->mode.select_clock_2seg_y_offset = (int16_t)v;
+    pump_home_custom_select_offset_apply(info);
+}
+
 static void pump_home_mode_select_mode_offset_anim_exec(void *var, int32_t v)
 {
     pump_home_custom_ui_info_t *info = (pump_home_custom_ui_info_t *)var;
@@ -370,14 +383,16 @@ static void pump_home_mode_obj_start_offset_anim(pump_home_custom_ui_info_t *inf
 static void pump_home_mode_select_layout_shift(pump_home_custom_ui_info_t *info, bool shift_down, bool anim)
 {
     int16_t target_clock = 0;
+    int16_t target_clock_2seg = 0;
     int16_t target_mode = 0;
     int16_t target_remain = 0;
 
-    pump_home_mode_select_layout_target_get(info, shift_down, &target_clock,
+    pump_home_mode_select_layout_target_get(info, shift_down, &target_clock, &target_clock_2seg,
         &target_mode, &target_remain);
 
     if (!anim || info->force_update) {
         info->mode.select_clock_y_offset = target_clock;
+        info->mode.select_clock_2seg_y_offset = target_clock_2seg;
         info->mode.select_mode_y_offset = target_mode;
         info->mode.select_remain_y_offset = target_remain;
         pump_home_custom_select_offset_apply(info);
@@ -385,10 +400,13 @@ static void pump_home_mode_select_layout_shift(pump_home_custom_ui_info_t *info,
     }
 
     lv_anim_del(info, pump_home_mode_select_clock_offset_anim_exec);
+    lv_anim_del(info, pump_home_mode_select_clock_2seg_offset_anim_exec);
     lv_anim_del(info, pump_home_mode_select_mode_offset_anim_exec);
     lv_anim_del(info, pump_home_mode_select_remain_offset_anim_exec);
     pump_home_mode_obj_start_offset_anim(info, pump_home_mode_select_clock_offset_anim_exec,
         info->mode.select_clock_y_offset, target_clock);
+    pump_home_mode_obj_start_offset_anim(info, pump_home_mode_select_clock_2seg_offset_anim_exec,
+        info->mode.select_clock_2seg_y_offset, target_clock_2seg);
     if (info->mode.select_mode_y_offset != target_mode) {
         pump_home_mode_obj_start_offset_anim(info, pump_home_mode_select_mode_offset_anim_exec,
             info->mode.select_mode_y_offset, target_mode);

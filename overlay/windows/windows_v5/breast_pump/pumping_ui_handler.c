@@ -81,6 +81,9 @@ static void pumping_ui_led_update(ui_proc_pump_t *proc)
             proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, 0);
             proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, 0);
             proc->led->set_led_level(PUMP_MODE_BL, 0);
+            #if IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
+            proc->led->set_led_level(PUMP_BREASTFEEDING_BL, 0);
+            #endif
             proc->led->set_led_level(PUMP_START_BL, tip_led_level);
             proc->led->set_led_level(PUMP_FREQ_SET_BL, tip_led_level);
             proc->finish_tip_blink_visible = blink_visible;
@@ -100,6 +103,9 @@ static void pumping_ui_led_update(ui_proc_pump_t *proc)
             proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
             proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX);
             proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, LED_LEVEL_MAX);
+            #if IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
+            proc->led->set_led_level(PUMP_BREASTFEEDING_BL, LED_LEVEL_MAX);
+            #endif
         }
         if (entering_pause || proc->pump_pause_blink_state != blink_visible) {
             proc->led->set_led_level(PUMP_START_BL, blink_visible ? LED_LEVEL_MAX : 0);
@@ -114,6 +120,9 @@ static void pumping_ui_led_update(ui_proc_pump_t *proc)
         proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
         proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX);
         proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, LED_LEVEL_MAX);
+        #if IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
+        proc->led->set_led_level(PUMP_BREASTFEEDING_BL, LED_LEVEL_MAX);
+        #endif
         proc->pump_light_status = PUMP_LIGHT_STATUS_DEFAULT;
         proc->finish_tip_blink_visible = blink_visible;
         proc->pump_pause_blink_state = blink_visible;

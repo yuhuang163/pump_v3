@@ -56,6 +56,7 @@ typedef struct {
     uint8_t custom_mode_active;
     int16_t select_wave_y_offset;
     int16_t select_clock_y_offset;
+    int16_t select_clock_2seg_y_offset;
     int16_t select_mode_y_offset;
     int16_t select_remain_y_offset;
     uint16_t mode_name_x;
