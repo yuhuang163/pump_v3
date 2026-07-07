@@ -5,6 +5,7 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
+#include "ui_img_baj_decode.h" // IWYU pragma: keep
 #include "home_custom_ui_internal.h" // IWYU pragma: keep
 
 /*
@@ -29,6 +30,17 @@ static void home_animation_state_reset(home_custom_animation_info_t *anim)
     anim->initialized = 0;
 }
 
+static void home_animation_res_unload(home_custom_ui_info_t *info, res_img_info_t *img_info)
+{
+    resource_manager_context_t *res = info->ui ? info->ui->priv.res : NULL;
+
+    if (res != NULL && img_info->data != NULL) {
+        res->res_data_unload(img_info);
+        return;
+    }
+    memset(img_info, 0, sizeof(*img_info));
+}
+
 static void home_animation_ip_prepare(home_custom_ui_info_t *info)
 {
     if (info->animation.ip == NULL || !lv_obj_is_valid(info->animation.ip)) {
@@ -41,23 +53,24 @@ static void home_animation_ip_prepare(home_custom_ui_info_t *info)
 static void home_animation_frame_show(home_custom_ui_info_t *info, uint16_t frame_id)
 {
     home_custom_animation_info_t *anim = &info->animation;
+    res_img_info_t img_info = {0};
 
     if (anim->shown_frame_res_id == frame_id) {
         return;
     }
 
-    ui_img_baj_release_decoded_buf(anim->ip);
-    if (anim->ip_info.data != NULL) {
-        ui_img_resource_deinit(info->ui, &anim->ip_info);
-        memset(&anim->ip_info, 0, sizeof(anim->ip_info));
+    ui_theme_img_resource_init(info->ui, frame_id, RES_THEME_TYPE_CUSTOM, &img_info);
+    if (img_info.data == NULL) {
+        return;
     }
 
-    ui_theme_img_resource_init(info->ui, frame_id, RES_THEME_TYPE_CUSTOM, &anim->ip_info);
-    EXCEPTION_CHECK_VOID(anim->ip_info.data);
-    lv_fs_path_ex_t img_path;
-    lv_fs_make_path_from_buffer(&img_path, LV_FS_MEMFS_LETTER,
-        anim->ip_info.data, anim->ip_info.size, "baj");
-    lv_image_set_src(anim->ip, (const void *)&img_path);
+    ui_img_baj_release_decoded_buf(anim->ip);
+    if (ui_img_baj_set_src(anim->ip, img_info.data, img_info.size, UI_IMG_BAJ_DECODE_RGBA8888) != 0) {
+        home_animation_res_unload(info, &img_info);
+        return;
+    }
+
+    home_animation_res_unload(info, &img_info);
     anim->shown_frame_res_id = frame_id;
 }
 
@@ -102,7 +115,7 @@ void home_custom_animation_ui_remove(home_custom_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
     ui_img_baj_release_decoded_buf(info->animation.ip);
-    ui_img_resource_deinit(info->ui, &info->animation.ip_info);
+    home_animation_res_unload(info, &info->animation.ip_info);
     home_animation_state_reset(&info->animation);
 }
 
