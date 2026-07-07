@@ -35,7 +35,9 @@ static int input_keyevent_route(struct key_input_context *ctx, uint16_t keycode,
             wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET) || 
             wm->is_current_window(wm, ID_WINDOW_CHARGE) ||
             wm->is_current_window(wm, ID_WINDOW_POWER_OFF) ||
-            wm->is_current_window(wm, ID_WINDOW_SYSTEM_ABNORMAL)) { 
+            wm->is_current_window(wm, ID_WINDOW_SYSTEM_ABNORMAL) ||
+            wm->is_current_window(wm, ID_WINDOW_THEME_GUIDE) ||
+            wm->is_current_window(wm, ID_WINDOW_GUIDE)) { 
             LOG_KEY("in airplane mode or factory reset or charge window or abnormal window, ignore");
             return 0;
         }
