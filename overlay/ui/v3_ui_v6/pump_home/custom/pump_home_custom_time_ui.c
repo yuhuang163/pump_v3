@@ -222,9 +222,9 @@ static void pump_home_time_progress_update(pump_home_custom_ui_info_t *info, uin
         lv_obj_set_style_bg_color(time->progress_bg, lv_color_hex(PUMP_TIME_PROGRESS_BG_COLOR), 0);
         lv_obj_set_style_bg_opa(time->progress_bg, PUMP_TIME_PROGRESS_BG_OPA, 0);
         lv_obj_clear_flag(time->progress_bg, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_align(time->progress_bg, LV_ALIGN_TOP_LEFT, PUMP_TIME_PROGRESS_X,
-            PUMP_TIME_PROGRESS_Y + info->mode.select_remain_y_offset);
     }
+    lv_obj_align(time->progress_bg, LV_ALIGN_TOP_LEFT, PUMP_TIME_PROGRESS_X,
+        PUMP_TIME_PROGRESS_Y + info->mode.select_remain_y_offset);
 
     lv_coord_t fill_width = PUMP_TIME_PROGRESS_WIDTH * progress / 100;
     if (fill_width < PUMP_TIME_PROGRESS_HEIGHT && progress > 0) {
@@ -457,13 +457,17 @@ void pump_home_custom_time_ui_update(pump_home_custom_ui_info_t *info, uint16_t 
         info->time.target_time_shown = UINT32_MAX;
         info->time.force_realign = 0;
     }
-    int8_t y_offset = (info->mode.is_rhythm_mode > 0 ? PUMP_TIME_Y_OFFSET_REMAIN : PUMP_TIME_Y_OFFSET_OTHER) +
-        info->mode.select_clock_y_offset;
+    int8_t y_offset = info->mode.is_rhythm_mode > 0 ? PUMP_TIME_Y_OFFSET_REMAIN : PUMP_TIME_Y_OFFSET_OTHER;
     uint8_t hours = hold_time / 3600;
     uint8_t minutes = (hold_time / 60) % 60;
     uint8_t seconds = hold_time % 60;
     // hours = minutes = seconds;
     uint8_t digit_size = (hours == 0) ? PUMP_TIME_2SEG : PUMP_TIME_3SEG;
+    if (digit_size == PUMP_TIME_3SEG) {
+        y_offset += info->mode.select_clock_y_offset;
+    } else {
+        y_offset += info->mode.select_clock_2seg_y_offset;
+    }
     pump_home_time_h_update(info, hours, digit_size, y_offset);
     pump_home_time_m_update(info, minutes, digit_size, y_offset);
     pump_home_time_s_update(info, seconds, digit_size, y_offset);

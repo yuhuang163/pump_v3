@@ -24,6 +24,9 @@ extern "C" {
 #define PUMP_SPEED_ANIMATION_FREQ              (25) 
 #define PUMP_LEVEL_ANIMATION_FREQ              (20) 
 
+/// 是否支持泵奶中切换韵律
+#define IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM  (0)
+
 /// 判断泵奶时间
 #define IS_PUMPTIME_LESS_THEN_30S(result)      ((result)->real_valid_time_sec < 30 )
 #define IS_PUMPTIME_LESS_THEN_120S(result)     ((result)->real_valid_time_sec < 120)

@@ -146,7 +146,9 @@ void pump_mode_key_event_handler(ui_proc_pump_t *proc)
 
 void pump_breastfeeding_key_event_handler(ui_proc_pump_t *proc)
 {
-
+#if IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
+    pump_mode_adjust_handler(proc, true);
+#endif
 }
 
 void pump_level_control_key_event_handler(ui_proc_pump_t *proc, uint8_t is_left)
