@@ -22,6 +22,14 @@ extern "C" {
 
 /// 主界面动画展示时间
 #define GUIDE_ANIMATION_DISPLAY_TIME         (2000) /// 2s
+/// 单边力度调节静止超时
+#define GUIDE_LEVEL_ADJUST_IDLE_TIMEOUT_MS    (3000) /// 3s
+/// 力度调节后，展示页面停留时间
+#define GUIDE_LEVEL_ADJUST_IDLE_SHOW_TIME_MS  (200) /// 200ms
+#define GUIDE_DEFAULT_LEFT_LEVEL              (12)
+#define GUIDE_DEFAULT_RIGHT_LEVEL             (6)
+#define GUIDE_LEVEL_MIN                       (0)
+#define GUIDE_LEVEL_MAX                       (15)
 
 /// 主界面UI动作枚举
 typedef enum {
@@ -36,21 +44,21 @@ typedef enum {
 } guide_ui_type_e;
 
 typedef enum {
-    /// 引导页面V1
-    GUIDE_PAGE_GUIDE_QRCODE = 0, /// 引导二维码
-    GUIDE_PAGE_GUIDE_PHONE = 1, /// 引导手机
-    GUIDE_PAGE_GUIDE_CHASING_MILK = 2,
-    GUIDE_PAGE_GUIDE_ADJUST_LEVEL = 3,
-    GUIDE_PAGE_GUIDE_MILK_QUANTITY = 4,
-    /// 引导页面V2
-    GUIDE_PAGE_HOME = 0, /// 首页
-    GUIDE_PAGE_START_PUMP = 1, /// 开始泵奶
-    GUIDE_PAGE_SETTING_PUMP = 2, /// 设置泵奶
-    GUIDE_PAGE_STOP_PUMP = 3, /// 停止泵奶
-    GUIDE_PAGE_PUMP_MODE_SELECT = 4, /// 泵奶模式选择
-    GUIDE_PAGE_BIND_GUIDE = 5, /// 绑定引导
+    GUIDE_PAGE_PUMP_LEVEL_DOUBLE_ADJUST = 0, /// 引导泵奶力度双边调节
+    GUIDE_PAGE_PUMP_LEVEL_SINGLE_SELECT = 1, /// 引导泵奶力度单边选择
+    GUIDE_PAGE_PUMP_LEVEL_LEFT_ADJUST = 2, /// 引导泵奶力度左调节
+    GUIDE_PAGE_PUMP_LEVEL_RIGHT_ADJUST = 3, /// 引导泵奶力度右调节
+    GUIDE_PAGE_PUMP_MODE_SELECT = 4, /// 引导泵奶模式选择
+    GUIDE_PAGE_PUMP_MODE_UNSELECT = 5, /// 引导泵奶未选择模式
     GUIDE_PAGE_MAX,
 } guide_page_index_t;
+
+typedef enum {
+    GUIDE_MODE_SELECT_NONE = 0, /// 未选择模式
+    GUIDE_MODE_SELECT_MODE = 1, /// 选择模式
+    GUIDE_MODE_SELECT_BREASTFEEDING = 2, /// 选择哺乳
+    GUIDE_MODE_SELECT_MAX,
+} guide_mode_select_e;
 
 /// 主界面UI结构体
 typedef struct {
@@ -62,12 +70,16 @@ typedef struct {
     battery_manager_context_t *battery;
     led_manager_context_t *led;
     key_input_context_t *key;
+    breast_pump_manager_context_t *pump;
     uint32_t margic; /// 窗口标识.
     uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. guide_ui_type_e
     uint16_t page_index; /// 当前页面索引.
     uint16_t popup_ui_type; /// 当前弹窗类型. guide_operation_type_e
+    pump_setting_t setting; /// 泵奶设置信息.
+    uint8_t mode_selected; /// 是否已选择吸乳方案
+    uint32_t last_adjust_time; /// 上次力度调节时间
 } ui_proc_guide_t;
 
 /*

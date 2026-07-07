@@ -66,7 +66,7 @@ static void theme_guide_display_completed_cb(hdr_post_args_t *args)
     }
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
-    msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_MODE_SELECT;
+    msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_MODE_UNSELECT;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 

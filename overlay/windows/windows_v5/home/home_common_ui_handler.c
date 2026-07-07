@@ -133,11 +133,6 @@ void home_page_display_type_update(ui_proc_home_t *proc)
     EXCEPTION_CHECK_VOID(proc);
     int work_mode = 0;
     READ_PUMP_WORK_MODE(proc->pump, work_mode);
-    if (work_mode == BREAST_PUMP_MILK_BOOST_MODE && proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_MODE_SELECT) {
-        proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
-        return;
-    }
-
     switch (work_mode) {
         default:
         case BREAST_PUMP_STIMULATION_MODE:

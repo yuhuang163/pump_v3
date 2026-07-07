@@ -146,6 +146,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "BASE_RES_ID_RETURN_BUTTON_24X24_ICON",
+      "description": "24x24返回按钮图标",
+      "file": "baj/icon_return_button_min_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "BASE_RES_ID_COMMON_BG",
       "description": "通用背景",
       "file": "png/bg_common_ui.png",
@@ -184,6 +191,13 @@
       "resource_id": "BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON",
       "description": "飞行界面解锁按钮图标",
       "file": "baj/icon_travel_unlock_160x56_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_LABLE",
+      "description": "引导标签",
+      "file": "baj/label_guide_300x128_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },

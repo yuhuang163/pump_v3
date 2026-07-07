@@ -151,6 +151,7 @@ void stop_home_common_ui(ui_proc_home_t *proc);
 
 /// 模式选择界面按键处理
 int home_pump_mode_adjust_handler(ui_proc_home_t *proc, bool is_bf_mode);
+void home_pump_mode_adjust_enter(ui_proc_home_t *proc, bool is_bf_mode);
 void home_pump_mode_adjust_timeout_handler(ui_proc_home_t *proc);
 void home_pump_mode_adjust_ui_exit(ui_proc_home_t *proc);
 void home_pump_mode_adjust_exit_handler(ui_proc_home_t *proc);
