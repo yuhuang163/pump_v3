@@ -94,7 +94,7 @@ void popup_window_ui_prepare(ui_manager_context_t *thiz, popup_ui_id_e type, uin
     popup_info->runtime.target_time = time;
     popup_info->countdown.max_value = time / 1000;
     popup_info->arc.ring_progress_max = (time > 0) ?
-        ((time / POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME) - 2) : 0;
+        ((time / POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME) - POPUP_WINDOW_STATUS_ARC_RING_PROGRESS_LEAD_STEPS) : 0;
     popup_info->runtime.force_update = true;
     popup_info->runtime.start_time = get_timestamp();
     LOG_UI("popup: %s, time:%d", popup_window_name_get(thiz, type), time);

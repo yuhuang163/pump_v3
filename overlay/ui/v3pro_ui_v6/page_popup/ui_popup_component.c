@@ -222,7 +222,7 @@ void ui_popup_arc_update(ui_manager_context_t *thiz)
         lv_arc_set_bg_angles(info->arc.obj, 0, UI_POPUP_STATUS_ARC_SIZE);
         lv_arc_set_angles(info->arc.obj, 0, 0);
         lv_arc_set_rotation(info->arc.obj, UI_POPUP_STATUS_ARC_START_ANGLE);
-        lv_obj_set_style_arc_color(info->arc.obj, lv_color_hex(UI_POPUP_STATUS_ARC_START_ANGLE), LV_PART_MAIN);
+        lv_obj_set_style_arc_color(info->arc.obj, lv_color_hex(UI_POPUP_STATUS_ARC_COLOR), LV_PART_MAIN);
         lv_obj_set_style_arc_width(info->arc.obj, UI_POPUP_STATUS_ARC_WIDTH, LV_PART_MAIN);
         lv_obj_set_style_arc_opa(info->arc.obj, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_arc_color(info->arc.obj, lv_color_hex(UI_POPUP_STATUS_ARC_COLOR), LV_PART_INDICATOR);
