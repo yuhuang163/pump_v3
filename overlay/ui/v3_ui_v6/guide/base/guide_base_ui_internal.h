@@ -12,53 +12,71 @@ extern "C" {
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
+#include "ble_ui.h" // IWYU pragma: keep
 #include "window_screen_guide.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_GUIDE_COMP_BG                                (0)
-#define GUIDE_PAGE_IMG_NUM                                      (6)
-#define GUIDE_QRCODE_BG_COLOR                                   0xFFFFFF
-#define GUIDE_QRCODE_FG_COLOR                                   0x000000
-#define GUIDE_QRCODE_BORDER_COLOR                               (0xFFEAE6)
-#if 0
-#define GUIDE_QRCODE_SIZE                                       (124 - 4)
-#define GUIDE_QRCODE_ALIGN_Y                                    (68)
-#else
-#define GUIDE_QRCODE_SIZE                                       (124)
-#define GUIDE_QRCODE_ALIGN_Y                                    (66)
-#endif
-#define GUIDE_TEXT_NUM                                          (4 + 2)
-#define GUIDE_ARROW_TEXT_Y_OFFSET                               (316)
-#define GUIDE_TEXT_COLOR                                        (0xB25962)
-#define GUIDE_TITLE_TEXT_COLOR                                  (0xB25962)
-#define GUIDE_DESC_TEXT_COLOR                                   (0xC5757C)
-#define GUIDE_EXIT_TEXT_COLOR                                   (0xDCA7A5)
-#define GUIDE_BIND_TEXT_COLOR                                   (0x6A5A5B)
+typedef enum {
+    GUIDE_BASE_LEVEL_DISPLAY_DEFAULT = 0,
+    GUIDE_BASE_LEVEL_DISPLAY_LEFT_ADJUST,
+    GUIDE_BASE_LEVEL_DISPLAY_RIGHT_ADJUST,
+    GUIDE_BASE_LEVEL_DISPLAY_BOTH_ADJUST,
+} guide_base_level_display_type_e;
+
+typedef enum {
+    GUIDE_BASE_TEXT_DOUBLE_ADJUST = GUIDE_PAGE_PUMP_LEVEL_DOUBLE_ADJUST,
+    GUIDE_BASE_TEXT_SINGLE_SELECT = GUIDE_PAGE_PUMP_LEVEL_SINGLE_SELECT,
+    GUIDE_BASE_TEXT_LEFT_ADJUST = GUIDE_PAGE_PUMP_LEVEL_LEFT_ADJUST,
+    GUIDE_BASE_TEXT_RIGHT_ADJUST = GUIDE_PAGE_PUMP_LEVEL_RIGHT_ADJUST,
+    GUIDE_BASE_TEXT_MODE_SELECT = GUIDE_PAGE_PUMP_MODE_SELECT,
+    GUIDE_BASE_TEXT_MODE_UNSELECT = GUIDE_PAGE_PUMP_MODE_UNSELECT,
+    GUIDE_BASE_TEXT_MAX = GUIDE_PAGE_MAX,
+} guide_base_text_id_e;
 
 typedef struct {
-    lv_obj_t * root;
-    lv_obj_t * qrcode;
-    lv_obj_t * text[GUIDE_TEXT_NUM];
-    lv_obj_t * page_img;
-    res_img_info_t img_info;
+    lv_obj_t *arc;
+    lv_obj_t *indicator;
+    lv_obj_t *progress;
+    lv_obj_t *progress_bg;
+    uint8_t value;
+    uint8_t new_value;
+    uint8_t adjust_active;
+} guide_base_level_t;
+
+typedef struct {
+    guide_base_level_t left;
+    guide_base_level_t right;
+    lv_obj_t *separator;
+    uint8_t left_blink_state;
+    uint8_t right_blink_state;
+} guide_base_level_info_t;
+
+typedef struct {
+    lv_obj_t *title;
+    lv_obj_t *label;
+    lv_obj_t *text;
+    lv_obj_t *exit_text;
+    lv_obj_t *return_icon;
+    lv_obj_t *button[2];
+    uint8_t page_index;
+    uint8_t force_update;
+    uint8_t text_id;
+    uint16_t button_img_id[2];
+} guide_base_label_info_t;
+
+typedef struct {
+    lv_obj_t *root;
+    lv_obj_t *background;
+    guide_base_level_info_t level;
+    guide_base_label_info_t label;
+    ui_manager_context_t *ui;
     uint8_t force_update;
     uint8_t page_index;
-    uint8_t text_num;
-    char qr_str[120];
+    guide_base_level_display_type_e level_display_type;
 } guide_base_ui_info_t;
-
-typedef struct {
-    const char *text;
-    const lv_font_t *font;
-    uint16_t text_x;
-    uint16_t text_y;
-    uint8_t line_space;
-    uint32_t color;
-    lv_opa_t text_opa;
-} guide_text_info_t;
 
 /*
 * GLOBAL FUNCTION DECLARATIONS
@@ -66,13 +84,17 @@ typedef struct {
 */
 guide_base_ui_info_t *guide_base_info_get(void);
 
+void guide_base_blink_state_update(guide_base_ui_info_t *info, uint8_t page_index);
+
+void guide_pump_level_ui_remove(guide_base_ui_info_t *info);
+void guide_pump_level_ui_update(guide_base_ui_info_t *info, bool blink_visible);
+
+void guide_pump_label_ui_remove(guide_base_ui_info_t *info);
+void guide_pump_label_ui_update(guide_base_ui_info_t *info, uint8_t page_index);
+
 void guide_base_ui_prepare(ui_manager_context_t *thiz);
 void guide_base_ui_remove(ui_manager_context_t *thiz);
 int guide_base_ui_process(ui_manager_context_t *thiz);
-
-void guide_base_page_ui_update(ui_manager_context_t *thiz, uint8_t page_index);
-void guide_base_qrcode_ui_update(ui_manager_context_t *thiz, uint8_t page_index);
-void guide_base_text_ui_update(ui_manager_context_t *thiz, uint8_t page_index);
 
 #ifdef __cplusplus
 }

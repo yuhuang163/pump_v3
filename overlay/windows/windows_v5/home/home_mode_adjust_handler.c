@@ -125,6 +125,23 @@ void home_pump_mode_adjust_ui_exit(ui_proc_home_t *proc)
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_PUMP_MODE_UPDATE_DISPLAY_TASK_NAME);
 }
 
+void home_pump_mode_adjust_enter(ui_proc_home_t *proc, bool is_bf_mode)
+{
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    int work_mode = 0, last_expert_mode = 0, last_common_mode = 0, activate_status = 0;
+    READ_PUMP_WORK_MODE(proc->pump, work_mode);
+    READ_PUMP_EXPERT_MODE(proc->pump, false, last_expert_mode);
+    READ_PUMP_COMMON_MODE(proc->pump, false, last_common_mode);
+    READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
+
+    proc->pump_mode_display_type = is_bf_mode ?
+            HOME_PUMP_MODE_DISPLAY_BF_MODE : HOME_PUMP_MODE_DISPLAY_NORMAL_MODE;
+    proc->pump_mode_adjust_time = get_timestamp();
+    proc->ui_mode_index = enter_select_pump_mode(work_mode, is_bf_mode,
+            last_expert_mode, last_common_mode, activate_status);
+    update_home_display_for_mode(proc);
+}
+
 int home_pump_mode_adjust_handler(ui_proc_home_t *proc, bool is_bf_mode)
 {
     EXCEPTION_CHECK_INT(proc && proc->pump);
@@ -135,21 +152,14 @@ int home_pump_mode_adjust_handler(ui_proc_home_t *proc, bool is_bf_mode)
     bool entering_select = (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_DEFAULT);
     if (entering_select) {
         home_pump_level_adjust_exit_handler(proc);
-    }
-    proc->pump_mode_display_type = is_bf_mode ?
-            HOME_PUMP_MODE_DISPLAY_BF_MODE : HOME_PUMP_MODE_DISPLAY_NORMAL_MODE;
-    proc->pump_mode_adjust_time = get_timestamp();
-
-    int work_mode = 0, last_expert_mode = 0, last_common_mode = 0, activate_status = 0;
-    READ_PUMP_WORK_MODE(proc->pump, work_mode);
-    READ_PUMP_EXPERT_MODE(proc->pump, false, last_expert_mode);
-    READ_PUMP_COMMON_MODE(proc->pump, false, last_common_mode);
-    READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
-
-    if (entering_select) {
-        proc->ui_mode_index = enter_select_pump_mode(work_mode, is_bf_mode,
-                last_expert_mode, last_common_mode, activate_status);
+        home_pump_mode_adjust_enter(proc, is_bf_mode);
     } else {
+        int work_mode = 0, last_expert_mode = 0, last_common_mode = 0, activate_status = 0;
+        proc->pump_mode_adjust_time = get_timestamp();
+        READ_PUMP_WORK_MODE(proc->pump, work_mode);
+        READ_PUMP_EXPERT_MODE(proc->pump, false, last_expert_mode);
+        READ_PUMP_COMMON_MODE(proc->pump, false, last_common_mode);
+        READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
         proc->ui_mode_index = cycle_pump_mode(work_mode, is_bf_mode,
                 last_expert_mode, last_common_mode, activate_status);
     }

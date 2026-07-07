@@ -276,12 +276,19 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        home_page_display_type_update(proc);
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
             show_home_pump_result_ui(proc);
+            return 0;
+        } else if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_MODE_UNSELECT) {
+            proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
+        } else if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_MODE_ADJUST) {
+            home_pump_mode_adjust_enter(proc, false);
+        } else if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RHYTHM_ADJUST) {
+            home_pump_mode_adjust_enter(proc, true);
         } else {
-            start_home_ui_animation(proc);
+            home_page_display_type_update(proc);
         }
+        start_home_ui_animation(proc);
     }
     return 0;
 }

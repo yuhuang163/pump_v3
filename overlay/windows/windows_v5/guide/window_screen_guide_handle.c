@@ -15,7 +15,7 @@
 #define PAGE_STATIC_NAME                            guide
 #define PAGE_NAME_STR                               "guide"
 #define GUIDE_UI_KEY_CODE                           ALL_KEY_CODE_NO_COMBINE
-#define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK | KEY_EVENT_LONG_3S)
+#define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK)
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -86,7 +86,17 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+            proc->led->hook->set_key_backlight(proc->led, 0);
+            proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
+        }
+        proc->page_index = GUIDE_PAGE_PUMP_LEVEL_DOUBLE_ADJUST;
+        proc->mode_selected = 0;
+        proc->last_adjust_time = get_timestamp();
+        proc->setting.level[0] = BREAST_PUMP_LEVEL_1;
+        proc->setting.level[1] = BREAST_PUMP_LEVEL_1;
+        proc->setting.speed = BREAST_PUMP_SPEED_MID;
+        if (proc->pump) {
+            WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
         }
         start_guide_ui_animation(proc);
     }
@@ -131,13 +141,13 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     ui_proc_guide_t *proc = u_malloz(sizeof(ui_proc_guide_t));
     SET_WINDOW_CONTEXT(proc);
     proc->margic = UI_WINDOW_MARGIC_CODE;
-    proc->current_ui_type = GUIDE_UI_TYPE_NONE;
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;
