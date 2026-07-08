@@ -41,9 +41,7 @@ typedef struct {
 
 typedef struct {
     lv_obj_t * root;
-#if IS_SUPPORT_SYS_ABNORMAL_COMP_BG
-    lv_obj_t * backgroud;
-#endif
+    lv_obj_t * background;
     lv_obj_t * icon;
     lv_obj_t * texts[SYS_ABNORMAL_TIP_TEXT_COUNT];
     res_img_info_t icon_info;
@@ -103,7 +101,8 @@ static void system_abnormal_ui_root_init(void)
         s_abnormal_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(s_abnormal_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
-    lv_obj_set_style_bg_color(s_abnormal_info->root, lv_color_hex(0xEDE3E5), 0);     /// 设置背景颜色
+    // lv_obj_set_style_bg_color(s_abnormal_info->root, lv_color_hex(0xEDE3E5), 0);     /// 设置背景颜色
+    lv_obj_set_style_bg_color(s_abnormal_info->root, lv_color_black(), 0);     /// 设置背景颜色
     lv_obj_set_style_bg_opa(s_abnormal_info->root, LV_OPA_COVER, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(s_abnormal_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(s_abnormal_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
@@ -186,19 +185,19 @@ static void system_abnormal_ui_bg_update(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(thiz && s_abnormal_info && s_abnormal_info->root);
     static uint32_t start_time = 0;
     static uint8_t status = 0;
-    if (s_abnormal_info->backgroud == NULL || !lv_obj_is_valid(s_abnormal_info->backgroud)) {
-        s_abnormal_info->backgroud = lv_image_create(s_abnormal_info->root);
-        EXCEPTION_CHECK_VOID(s_abnormal_info->backgroud);
+    if (s_abnormal_info->background == NULL || !lv_obj_is_valid(s_abnormal_info->background)) {
+        s_abnormal_info->background = lv_image_create(s_abnormal_info->root);
+        EXCEPTION_CHECK_VOID(s_abnormal_info->background);
     }
     lv_fs_path_ex_t bg_img_path;
     if (status == 0) {
-        lv_obj_add_flag(s_abnormal_info->backgroud, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(s_abnormal_info->background, LV_OBJ_FLAG_HIDDEN);
     } else {
-        lv_obj_clear_flag(s_abnormal_info->backgroud, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(s_abnormal_info->background, LV_OBJ_FLAG_HIDDEN);
         lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, sys_abnormal_bg_data,
             sizeof(sys_abnormal_bg_data), "png");
-        lv_image_set_src(s_abnormal_info->backgroud, (const void *)&bg_img_path);
-        lv_obj_align(s_abnormal_info->backgroud, LV_ALIGN_CENTER, 0, 0);
+        lv_image_set_src(s_abnormal_info->background, (const void *)&bg_img_path);
+        lv_obj_align(s_abnormal_info->background, LV_ALIGN_CENTER, 0, 0);
     }
 
     if (get_timestamp() - start_time > 1000) {
@@ -209,7 +208,20 @@ static void system_abnormal_ui_bg_update(ui_manager_context_t *thiz)
 #else
 static void system_abnormal_ui_bg_update(ui_manager_context_t *thiz)
 {
-    //ui_bg_update(thiz, s_abnormal_info->root);
+    #if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+    #endif
+    if (s_abnormal_info->background == NULL || !lv_obj_is_valid(s_abnormal_info->background)) {
+        s_abnormal_info->background = lv_image_create(s_abnormal_info->root);
+        EXCEPTION_CHECK_VOID(s_abnormal_info->background);
+        lv_obj_align(s_abnormal_info->background, LV_ALIGN_CENTER, 0, 0);
+        #if LV_USE_SNAPSHOT
+        lv_image_set_src(s_abnormal_info->background, background_snapshot);
+        #else
+        lv_obj_add_flag(s_abnormal_info->background, LV_OBJ_FLAG_HIDDEN);
+        #endif
+    }
 }
 #endif
 

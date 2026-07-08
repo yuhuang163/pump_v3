@@ -26,10 +26,11 @@ typedef enum {
     CUSTOM_RES_ID_RETURN_BUTTON_ICON, /// 返回按钮指示图标
     CUSTOM_RES_ID_MODE_BUTTON_ICON, /// 模式按钮图标
     CUSTOM_RES_ID_PROGRAM_BUTTON_ICON, /// 程序按钮图标
+    CUSTOM_RES_ID_RETURN_BUTTON_24X24_ICON, /// 24x24返回按钮图标
     CUSTOM_RES_ID_BATTERY_ICON, /// 电池电量图标
     CUSTOM_RES_ID_BATTERY_WARNING_ICON, /// 电池警告图标
     CUSTOM_RES_ID_CHARGE_PAGE_ICON, /// 充电页面图标
-    
+
     CUSTOM_RES_ID_CLOCK_COLON_ICON = 10099, /// 时钟冒号图标
     /* 主界面组 [10100..10150] */
     CUSTOM_RES_ID_COMMON_BG = 10100, /// 通用背景
@@ -38,7 +39,7 @@ typedef enum {
     CUSTOM_RES_ID_HOME_BIG_LABLE, /// 主页大标签
     CUSTOM_RES_ID_HOME_NARROW_LABLE, /// 主页窄标签
     CUSTOM_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, /// 飞行模式解锁按钮图标
-    CUSTOM_RES_ID_HOME_BLE_LABEL, /// 主页蓝牙标签
+    CUSTOM_RES_ID_GUIDE_LABLE, /// 引导标签
 
     /* 引导组 [10150..10200] */
     CUSTOM_RES_ID_GUIDE_PAGE1_IMG = 10150, /// 引导-页1图片
@@ -59,12 +60,14 @@ typedef enum {
     CUSTOM_RES_ID_PUMP_LEVEL_INDICATOR, /// 泵奶力度指示符
     CUSTOM_RES_ID_PUMP_LEVEL_BIG_INDICATOR, /// 泵奶力度大指示符
     CUSTOM_RES_ID_PUMP_RHYTHM_ICON, /// 泵奶节奏图标
+    CUSTOM_RES_ID_PUMP_RHYTHM_WHITE_ICON, /// 泵奶节奏白色图标
     CUSTOM_RES_ID_PUMP_RELAX_ICON, /// 泵奶放松图标
 
     /* IP图标组 [10300..10399] */
     CUSTOM_RES_ID_HOME_IDLE_IP = 10300, /// 空闲界面IP图标
     CUSTOM_RES_ID_PUMP_FINISH_IP, /// 泵奶完成IP图标
     CUSTOM_RES_ID_CHARGE_ADAPTER_IP, /// 充电适配器IP图标
+    CUSTOM_RES_ID_GUIDE_IP, /// 引导IP图标
 
     /* 动画组 [11000..] */
     CUSTOM_RES_ID_YAWN_ANIM_IP_START = 11100, /// 打哈欠动画-开始

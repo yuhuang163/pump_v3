@@ -22,7 +22,7 @@
 */
 #if IS_SUPPORT_ROOT_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
-    #include "comparison_png2txt/home_ip31_360x360.txt"
+    // #include "comparison_png2txt/home_ip11_360x360.txt"
     // #include "comparison_png2txt/home_ip12_360x360.txt"
     // #include "comparison_png2txt/home_ip13_360x360.txt"
     // #include "comparison_png2txt/home_ip14_360x360.txt"
@@ -30,7 +30,8 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/home_ip16_360x360.txt"
     // #include "comparison_png2txt/home_ip17_360x360.txt"
     // #include "comparison_png2txt/LR_level_adjust11_360x360.txt"
-
+    // #include "comparison_png2txt/pumping_timeout11_360x360.txt"
+    #include "comparison_png2txt/pumping_timeout12_360x360.txt"
 };
 #endif
 
@@ -58,11 +59,15 @@ void home_custom_blink_state_update(home_custom_ui_info_t *info, ui_proc_home_t 
 
     if (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_NORMAL_MODE &&
         PUMP_IS_COMMON_MODE(pump_mode)) {
+#if !HOME_MODE_SELECT_TRANSITION_ENABLE
         new_mode_blink = 1;
+#endif
     } else if (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_BF_MODE &&
         PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
+#if !HOME_MODE_SELECT_TRANSITION_ENABLE
         new_mode_blink = 1;
         new_icon_blink = 1;
+#endif
     }
 
     switch (proc->pump_level_display_type) {
@@ -216,13 +221,13 @@ int home_custom_ui_process(ui_manager_context_t *thiz)
     }
     home_root_bg_update(thiz);
     #if IS_SUPPORT_HOME_UI_TEST
-    proc->popup_ui_type = ID_POPUP_UI_PUMP_PAUSE_TIMEOUT;
+    proc->popup_ui_type = ID_POPUP_UI_PUMP_WILL_FINISH_TIP;
     #else
     home_custom_blink_state_update(home_info, proc);
     const bool blink_visible = proc->state_blink_visible != 0;
+    home_custom_pump_mode_ui_update(home_info, blink_visible, proc->pump_mode_display_type);
     home_custom_pump_label_ui_update(home_info);
     home_custom_animation_ui_update(home_info);
-    home_custom_pump_mode_ui_update(home_info, blink_visible);
     home_custom_pump_level_ui_update(home_info, blink_visible);
     const ble_ui_blink_sync_t ble_sync = {
         .sync_enable = (home_info->mode.mode_blink_state != 0 ||
