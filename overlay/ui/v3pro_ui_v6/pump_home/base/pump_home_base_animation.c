@@ -5,6 +5,7 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
+#include "ui_img_resource.h" // IWYU pragma: keep
 #include "pump_home_base_ui_internal.h" // IWYU pragma: keep
 
 /*
@@ -159,8 +160,9 @@ static void pump_home_animation_wave_align(pump_home_base_ui_info_t *info, uint8
     if (info->animation.wave == NULL || !lv_obj_is_valid(info->animation.wave)) {
         return;
     }
+    (void)mode_type;
     lv_obj_align(info->animation.wave, LV_ALIGN_TOP_MID, 0,
-        pump_home_animation_wave_y_get(mode_type));
+        PUMP_HOME_STIMULATION_WAVE_Y + info->mode.select_wave_y_offset);
 }
 
 static void pump_home_animation_wave_hide(pump_home_base_ui_info_t *info)
@@ -168,9 +170,10 @@ static void pump_home_animation_wave_hide(pump_home_base_ui_info_t *info)
     if (info->animation.wave == NULL || !lv_obj_is_valid(info->animation.wave)) {
         return;
     }
-    ui_img_baj_release_decoded_buf(info->animation.wave);
-    ui_img_resource_deinit(info->ui, &info->animation.wave_info);
-    memset(&info->animation.wave_info, 0, sizeof(info->animation.wave_info));
+    if (info->animation.wave_info.data != NULL) {
+        ui_img_resource_deinit(info->ui, &info->animation.wave_info);
+        memset(&info->animation.wave_info, 0, sizeof(info->animation.wave_info));
+    }
     info->animation.shown_frame_res_id = PUMP_HOME_ANIM_FRAME_RES_INVALID;
     lv_obj_add_flag(info->animation.wave, LV_OBJ_FLAG_HIDDEN);
 }
@@ -210,7 +213,6 @@ static void pump_home_animation_frame_show(pump_home_base_ui_info_t *info, uint1
         return;
     }
 
-    ui_img_baj_release_decoded_buf(anim->wave);
     if (anim->wave_info.data != NULL) {
         ui_img_resource_deinit(info->ui, &anim->wave_info);
         memset(&anim->wave_info, 0, sizeof(anim->wave_info));
@@ -319,9 +321,10 @@ static void pump_home_animation_frame_update(pump_home_base_ui_info_t *info)
 */
 void pump_home_base_animation_ui_remove(pump_home_base_ui_info_t *info)
 {
-    EXCEPTION_CHECK_VOID(info);
-    ui_img_baj_release_decoded_buf(info->animation.wave);
-    ui_img_resource_deinit(info->ui, &info->animation.wave_info);
+    EXCEPTION_CHECK_VOID(info && info->ui);
+    if (info->animation.wave_info.data != NULL) {
+        ui_img_resource_deinit(info->ui, &info->animation.wave_info);
+    }
     pump_home_animation_state_reset(info);
 }
 

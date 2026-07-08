@@ -16,6 +16,19 @@ extern "C" {
 * DEFINES
 *****************************************************************************************
 */
+#ifndef HOME_MODE_TITLE_BLINK_ENABLE
+#define HOME_MODE_TITLE_BLINK_ENABLE                      (0)
+#endif
+
+#ifndef HOME_MODE_SELECT_TRANSITION_ENABLE
+#define HOME_MODE_SELECT_TRANSITION_ENABLE                (1)
+#endif
+
+typedef enum {
+    HOME_MODE_CAPSULE_STYLE_NONE = 0,
+    HOME_MODE_CAPSULE_STYLE_COMMON,
+    HOME_MODE_CAPSULE_STYLE_BF,
+} home_mode_capsule_style_e;
 
 /*
 * GLOBAL FUNCTION DECLARATION

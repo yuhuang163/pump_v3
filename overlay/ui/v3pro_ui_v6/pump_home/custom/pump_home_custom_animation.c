@@ -5,6 +5,7 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
+#include "ui_img_resource.h" // IWYU pragma: keep
 #include "pump_home_custom_ui_internal.h" // IWYU pragma: keep
 
 /*
@@ -12,7 +13,7 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_ANIM_TRANSITION                     (0) /// 动画过渡支持.
-#define PUMP_HOME_IP_ANIM_Y                            (196)
+#define PUMP_HOME_IP_ANIM_Y                            (206)
 #define PUMP_HOME_ANIM_FRAME_INTERVAL_MS               (1000 / PUMP_ANIMATION_FREQ)
 #define PUMP_HOME_ANIM_FRAME_RES_INVALID               (0xFFFF)
 
@@ -136,9 +137,10 @@ static void pump_home_animation_wave_hide(pump_home_custom_ui_info_t *info)
     if (info->animation.wave == NULL || !lv_obj_is_valid(info->animation.wave)) {
         return;
     }
-    ui_img_baj_release_decoded_buf(info->animation.wave);
-    ui_img_resource_deinit(info->ui, &info->animation.wave_info);
-    memset(&info->animation.wave_info, 0, sizeof(info->animation.wave_info));
+    if (info->animation.wave_info.data != NULL) {
+        ui_img_resource_deinit(info->ui, &info->animation.wave_info);
+        memset(&info->animation.wave_info, 0, sizeof(info->animation.wave_info));
+    }
     info->animation.shown_frame_res_id = PUMP_HOME_ANIM_FRAME_RES_INVALID;
     lv_obj_add_flag(info->animation.wave, LV_OBJ_FLAG_HIDDEN);
 }
@@ -156,23 +158,25 @@ static void pump_home_animation_wave_prepare(pump_home_custom_ui_info_t *info)
 static void pump_home_animation_frame_show(pump_home_custom_ui_info_t *info, uint16_t frame_id)
 {
     pump_home_custom_animation_info_t *anim = &info->animation;
+    ui_manager_context_t *thiz = info->ui;
 
     if (anim->shown_frame_res_id == frame_id) {
         return;
     }
 
-    ui_img_baj_release_decoded_buf(anim->wave);
     if (anim->wave_info.data != NULL) {
-        ui_img_resource_deinit(info->ui, &anim->wave_info);
+        ui_img_resource_deinit(thiz, &anim->wave_info);
         memset(&anim->wave_info, 0, sizeof(anim->wave_info));
     }
+    ui_theme_img_resource_init(thiz, frame_id, RES_THEME_TYPE_CUSTOM, &anim->wave_info);
+    if (anim->wave_info.data == NULL) {
+        return;
+    }
 
-    ui_theme_img_resource_init(info->ui, frame_id, RES_THEME_TYPE_CUSTOM, &anim->wave_info);
-    EXCEPTION_CHECK_VOID(anim->wave_info.data);
-    lv_fs_path_ex_t img_path;
-    lv_fs_make_path_from_buffer(&img_path, LV_FS_MEMFS_LETTER,
+    lv_fs_path_ex_t animation_img_path;
+    lv_fs_make_path_from_buffer(&animation_img_path, LV_FS_MEMFS_LETTER,
         anim->wave_info.data, anim->wave_info.size, "baj");
-    lv_image_set_src(anim->wave, (const void *)&img_path);
+    lv_image_set_src(anim->wave, (const void *)&animation_img_path);
     anim->shown_frame_res_id = frame_id;
 }
 
@@ -269,9 +273,10 @@ static void pump_home_animation_frame_update(pump_home_custom_ui_info_t *info, u
 */
 void pump_home_custom_animation_ui_remove(pump_home_custom_ui_info_t *info)
 {
-    EXCEPTION_CHECK_VOID(info);
-    ui_img_baj_release_decoded_buf(info->animation.wave);
-    ui_img_resource_deinit(info->ui, &info->animation.wave_info);
+    EXCEPTION_CHECK_VOID(info && info->ui);
+    if (info->animation.wave_info.data != NULL) {
+        ui_img_resource_deinit(info->ui, &info->animation.wave_info);
+    }
     pump_home_animation_state_reset(info);
 }
 

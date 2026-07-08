@@ -12,7 +12,7 @@
       "start_resource_id": "CUSTOM_RES_ID_YAWN_ANIM_IP_START",
       "end_resource_id": "CUSTOM_RES_ID_YAWN_ANIM_IP_END",
       "description": "打哈欠动画",
-      "file_template": "animation/yawn/baj/X_{file_index:05d}_188x175_a4_q99_422.baj",
+      "file_template": "animation/yawn/baj/X_{file_index:05d}_180x168_a4_q99_422.baj",
       "start_file_index": 0,
       "id_to_file_offset": -11100,
       "x_offset": 0,
@@ -23,7 +23,7 @@
       "start_resource_id": "CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_START",
       "end_resource_id": "CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_END",
       "description": "摇奶瓶动画",
-      "file_template": "animation/shake_bottle/baj/C_{file_index:05d}_188x175_a4_q99_422.baj",
+      "file_template": "animation/shake_bottle/baj/C_{file_index:05d}_180x168_a4_q99_422.baj",
       "start_file_index": 0,
       "id_to_file_offset": -11200,
       "x_offset": 0,
@@ -34,7 +34,7 @@
       "start_resource_id": "CUSTOM_RES_ID_SUCTION_ANIM_IP_START",
       "end_resource_id": "CUSTOM_RES_ID_SUCTION_ANIM_IP_END",
       "description": "吸奶动画",
-      "file_template": "animation/suction/baj/S_{file_index:05d}_188x175_a4_q99_422.baj",
+      "file_template": "animation/suction/baj/S_{file_index:05d}_180x168_a4_q99_422.baj",
       "start_file_index": 0,
       "id_to_file_offset": -11300,
       "x_offset": 0,
@@ -45,7 +45,7 @@
       "start_resource_id": "CUSTOM_RES_ID_HD_ANIM_IP_START",
       "end_resource_id": "CUSTOM_RES_ID_HD_ANIM_IP_END",
       "description": "首页默认动画帧",
-      "file_template": "animation/home_default/baj/s_{file_index:05d}_188x151_a4_q99_422.baj",
+      "file_template": "animation/home_default/baj/s_{file_index:05d}_180x145_a4_q99_422.baj",
       "start_file_index": 0,
       "id_to_file_offset": -11500,
       "x_offset": 0,
@@ -146,6 +146,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "CUSTOM_RES_ID_RETURN_BUTTON_24X24_ICON",
+      "description": "24x24返回按钮图标",
+      "file": "baj/icon_return_button_min_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "CUSTOM_RES_ID_BATTERY_ICON",
       "description": "电池电量图标",
       "file": "baj/icon_battery_28x15_a8_q99_444.baj",
@@ -209,6 +216,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "CUSTOM_RES_ID_GUIDE_LABLE",
+      "description": "引导标签",
+      "file": "baj/label_guide_280x128_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "CUSTOM_RES_ID_IP_THEME_IMG",
       "description": "IP主题引导图片",
       "file": "baj/page_ip_theme_140x140_a8_q99_444.baj",
@@ -265,6 +279,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "CUSTOM_RES_ID_PUMP_RHYTHM_WHITE_ICON",
+      "description": "泵奶节奏白色图标",
+      "file": "baj/icon_pump_rhythm_white_32x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "CUSTOM_RES_ID_PUMP_RELAX_ICON",
       "description": "泵奶放松图标",
       "file": "baj/icon_pump_relax_64x64_a8_q99_444.baj",
@@ -289,6 +310,13 @@
       "resource_id": "CUSTOM_RES_ID_CHARGE_ADAPTER_IP",
       "description": "充电适配器错误IP图标",
       "file": "baj/ip_charge_error_168x168_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "CUSTOM_RES_ID_GUIDE_IP",
+      "description": "引导IP图标",
+      "file": "baj/ip_guide_160x130_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     }
