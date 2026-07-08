@@ -95,7 +95,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+            proc->led->hook->set_key_backlight(proc->led, 0);
         }
         start_theme_guide_ui_animation(proc);
     }
