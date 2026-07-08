@@ -25,30 +25,13 @@ const static data_bury_event_process_handle_t data_bury_event_process_list[] = {
     { DATA_BURY_TRIGGER_EVT_EXCEPTION, data_bury_event_process_exception },
 };
 
-static servers_manager_context_t *data_bury_hook_get_servers_ctx(data_bury_manager_context_t *ctx)
-{
-    servers_manager_context_t *servers;
-
-    if (!ctx) {
-        return NULL;
-    }
-    servers = ctx->priv.servers_ctx;
-    if (!servers) {
-        servers = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-        ctx->priv.servers_ctx = servers;
-    }
-    return servers;
-}
-
 static int on_data_bury_br_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2,
                                           broadcast_priv_data_t *pdata)
 {
     data_bury_manager_context_t *ctx = context;
 
     (void)pdata;
-    if (!ctx) {
-        return -1;
-    }
+    EXCEPTION_CHECK_INT(ctx);
     if (ctx->data_bury_is_enable && !ctx->data_bury_is_enable()) {
         return 0;
     }
@@ -202,8 +185,10 @@ static int data_bury_hook_append_to_ring(data_bury_manager_context_t *ctx, uint8
     storage_manager_context_t *st;
     data_bury_ring_append_args_t append;
 
-    if (!ctx || !packed || packed_len == 0u) {
-        LOGE("data bury hook append invalid ctx=%p packed=%p packed_len=%u", ctx, packed, packed_len);
+    EXCEPTION_CHECK_INT(ctx);
+    EXCEPTION_CHECK_INT(packed);
+    if (packed_len == 0u) {
+        LOGE("data bury hook append invalid packed_len=%u", (unsigned)packed_len);
         return -1;
     }
     if (packed_len > DATA_BURY_EVENT_PAYLOAD_MAX) {
@@ -213,14 +198,7 @@ static int data_bury_hook_append_to_ring(data_bury_manager_context_t *ctx, uint8
     }
 
     st = ctx->priv.storage_ctx;
-    if (!st) {
-        st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-        ctx->priv.storage_ctx = st;
-    }
-    if (!st) {
-        LOGE("data bury hook append invalid storage ctx=%p", ctx);
-        return -3;
-    }
+    EXCEPTION_CHECK_INT(st);
 
     append.svc_id = APP_DATA_BURY_PROTOCOL_SVC_DATA;
     append.cmd_id = cmd_id;
@@ -242,8 +220,11 @@ static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_b
     uint8_t cmd_id;
     int ret;
 
-    if (!ctx || !extra || !extra->val || extra->arg1 <= 0) {
-        LOGE("data bury hook publish event invalid ctx=%p extra=%p", ctx, extra);
+    EXCEPTION_CHECK_INT(ctx);
+    EXCEPTION_CHECK_INT(extra);
+    EXCEPTION_CHECK_INT(extra->val);
+    if (extra->arg1 <= 0) {
+        LOGE("data bury hook publish event invalid arg1=%d", extra->arg1);
         return -1;
     }
 
@@ -262,10 +243,6 @@ static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_b
 #endif
 
     ble = ctx->priv.ble_ctx;
-    if (!ble) {
-        ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
-        ctx->priv.ble_ctx = ble;
-    }
 
     pub_args.arg1 = extra->arg1;
     pub_args.val = extra->val;
@@ -275,8 +252,9 @@ static int data_bury_hook_publish_event(data_bury_manager_context_t *ctx, data_b
         return data_bury_hook_append_to_ring(ctx, cmd_id, extra->val, (uint16_t)extra->arg1);
     }
 
-    servers = data_bury_hook_get_servers_ctx(ctx);
-    if (!servers || !servers->hook || !servers->hook->data_bury_server_data_publish) {
+    servers = ctx->priv.servers_ctx;
+    EXCEPTION_CHECK_INT(servers);
+    if (!servers->hook || !servers->hook->data_bury_server_data_publish) {
         LOGE("data bury hook server not ready servers=%p", servers);
         return -3;
     }
@@ -332,31 +310,25 @@ static int data_bury_hook_flush_pending(data_bury_manager_context_t *ctx)
     uint16_t pending = 0;
     int ret;
 
-    if (!ctx) {
-        return -1;
-    }
+    EXCEPTION_CHECK_INT(ctx);
     if (data_bury_hook_is_pump_working()) {
         LOG_BURY("data bury flush pending skip: pump working");
         return 0;
     }
 
-    servers = data_bury_hook_get_servers_ctx(ctx);
-    if (!servers || !servers->hook || !servers->hook->data_bury_server_data_publish) {
+    servers = ctx->priv.servers_ctx;
+    EXCEPTION_CHECK_INT(servers);
+    if (!servers->hook || !servers->hook->data_bury_server_data_publish) {
         return -1;
     }
 
     st = ctx->priv.storage_ctx;
-    if (!st) {
-        st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-        ctx->priv.storage_ctx = st;
-    }
+    EXCEPTION_CHECK_INT(st);
     ble = ctx->priv.ble_ctx;
-    if (!ble) {
-        ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
-        ctx->priv.ble_ctx = ble;
-    }
-    if (!st || !ble || !ble->ble_is_connected()) {
-        LOG_BURY("data bury flush pending failed st=%p ble=%p", st, ble);
+    EXCEPTION_CHECK_INT(ble);
+    if (!ble->ble_is_connected() || !ble->notify_enabled_check(BLE_SRV_ID_DATA_BURY)) {
+        LOG_BURY("data bury flush pending skip (ble not connected or notify disabled for data_bury) st=%p ble=%p",
+                 st, ble);
         return -1;
     }
 
@@ -421,9 +393,8 @@ static int data_bury_thread_route(data_bury_manager_context_t *ctx, void *msg)
 {
     multi_func_msg_data_t *m = (multi_func_msg_data_t *)msg;
 
-    if (!ctx || !m) {
-        return -1;
-    }
+    EXCEPTION_CHECK_INT(ctx);
+    EXCEPTION_CHECK_INT(m);
     if (m->union_body.data_bury_extra.event_type == DATA_BURY_EVT_FLUSH_PENDING) {
         return data_bury_hook_flush_pending(ctx);
     }
@@ -454,9 +425,7 @@ static int data_bury_thread_route(data_bury_manager_context_t *ctx, void *msg)
 
 static int on_prepare_data_bury_hook_route(data_bury_manager_context_t *ctx)
 {
-    if (!ctx) {
-        return -1;
-    }
+    EXCEPTION_CHECK_INT(ctx);
     data_bury_event_handler_init_params();
     ctx->priv.event_process_list = data_bury_event_process_list;
     ctx->priv.event_process_list_len = (uint16_t)LENGTH_OF_ARRAY(data_bury_event_process_list);
@@ -465,9 +434,7 @@ static int on_prepare_data_bury_hook_route(data_bury_manager_context_t *ctx)
 
 static int on_post_data_bury_hook_route(data_bury_manager_context_t *ctx)
 {
-    if (!ctx) {
-        return -1;
-    }
+    EXCEPTION_CHECK_INT(ctx);
     ctx->priv.servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
     ctx->priv.storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     ctx->priv.ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
@@ -476,9 +443,7 @@ static int on_post_data_bury_hook_route(data_bury_manager_context_t *ctx)
 
 void register_data_bury_hook(data_bury_manager_context_t *ctx)
 {
-    if (!ctx) {
-        return;
-    }
+    EXCEPTION_CHECK_VOID(ctx);
     ctx->hook = u_malloz(sizeof(struct data_bury_manager_hook));
     if (!ctx->hook) {
         return;

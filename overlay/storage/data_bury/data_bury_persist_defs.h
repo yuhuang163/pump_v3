@@ -312,17 +312,23 @@ typedef struct {
 } data_bury_flash_bank_t;
 
 typedef struct {
-    uint32_t magic;
+    data_bury_ring_meta_t meta;
+    uint16_t event_count;
+} data_bury_slot_meta_t;
+
+/** 埋点控制信息：bank / boot_seq / 版本 / 各槽 meta，开机一次读入 RAM，按需整包写回 */
+typedef struct {
     data_bury_flash_bank_t bank;
-    uint16_t crc;
-} data_bury_flash_bank_storage_t;
+    uint16_t boot_seq;
+    uint16_t storage_version;
+    data_bury_slot_meta_t slots[DATA_BURY_FLASH_SLOT_NUM];
+} data_bury_ctrl_info_t;
 
 typedef struct {
     uint32_t magic;
-    data_bury_ring_meta_t meta;
-    uint16_t event_count;
+    data_bury_ctrl_info_t info;
     uint16_t crc;
-} data_bury_ring_meta_storage_t;
+} data_bury_ctrl_storage_t;
 
 typedef struct {
     uint32_t magic;
@@ -331,20 +337,8 @@ typedef struct {
 } data_bury_ring_chunk_storage_t;
 
 typedef struct {
-    uint32_t magic;
-    uint16_t boot_seq;
-    uint16_t crc;
-} data_bury_use_session_boot_seq_storage_t;
-
-typedef struct {
     uint16_t boot_seq;
 } data_bury_info_t;
-
-typedef struct {
-    uint32_t magic;
-    uint16_t version;
-    uint16_t crc;
-} data_bury_storage_version_storage_t;
 
 #ifdef __cplusplus
 }
