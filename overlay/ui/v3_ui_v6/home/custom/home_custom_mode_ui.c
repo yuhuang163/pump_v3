@@ -422,6 +422,8 @@ static void home_pump_mode_select_layout_shift(home_custom_ui_info_t *info, bool
 
 static void home_pump_mode_capsule_create(home_custom_ui_info_t *info)
 {
+    bool capsule_newly_created = false;
+
     if (info->mode.title_capsule == NULL || !lv_obj_is_valid(info->mode.title_capsule)) {
         info->mode.title_capsule = lv_obj_create(info->root);
         EXCEPTION_CHECK_VOID(info->mode.title_capsule);
@@ -430,6 +432,7 @@ static void home_pump_mode_capsule_create(home_custom_ui_info_t *info)
         lv_obj_set_style_bg_color(info->mode.title_capsule, lv_color_hex(HOME_MODE_CAPSULE_BG_COLOR), 0);
         lv_obj_set_style_bg_opa(info->mode.title_capsule, LV_OPA_COVER, 0);
         lv_obj_clear_flag(info->mode.title_capsule, LV_OBJ_FLAG_SCROLLABLE);
+        capsule_newly_created = true;
     }
 
     if (info->mode.capsule_title == NULL || !lv_obj_is_valid(info->mode.capsule_title)) {
@@ -444,6 +447,11 @@ static void home_pump_mode_capsule_create(home_custom_ui_info_t *info)
         info->mode.capsule_icon = lv_image_create(info->mode.title_capsule);
         EXCEPTION_CHECK_VOID(info->mode.capsule_icon);
         lv_obj_add_flag(info->mode.capsule_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (capsule_newly_created) {
+        lv_obj_add_flag(info->mode.title_capsule, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_opa(info->mode.title_capsule, LV_OPA_TRANSP, 0);
     }
 }
 
@@ -806,6 +814,7 @@ void home_custom_pump_mode_ui_remove(home_custom_ui_info_t *info)
 void home_custom_pump_mode_ui_update(home_custom_ui_info_t *info, bool blink_visible,
     home_pump_mode_display_type_e display_type)
 {
+    home_pump_mode_capsule_create(info);
     const bool mode_changed = home_pump_mode_need_update(info);
 
     #if IS_SUPPORT_HOME_MODE_TEXT_CMP
