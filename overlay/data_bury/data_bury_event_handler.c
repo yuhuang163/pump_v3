@@ -114,7 +114,7 @@ static int data_bury_event_cache_publish(data_bury_manager_context_t *ctx, serve
         LOGE("data bury event cache fail id=%d cmd=0x%02x len=%u", (int)id, cmd_id, (unsigned)payload_len);
         return -4;
     }
-    LOG_BURY("data bury event cached id=%d cmd=0x%02x len=%u", (int)id, cmd_id, (unsigned)payload_len);
+    LOG_BURY("data bury cached offline cmd=0x%02x len=%u", cmd_id, (unsigned)payload_len);
     return 0;
 }
 
