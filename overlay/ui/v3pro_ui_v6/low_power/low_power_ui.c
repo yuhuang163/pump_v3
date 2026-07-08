@@ -5,15 +5,139 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
-#include "low_power_base_ui_internal.h" // IWYU pragma: keep
-#include "low_power_custom_ui_internal.h" // IWYU pragma: keep
 #include "window_screen_battery.h" // IWYU pragma: keep
+
+/*
+* DEFINES
+*****************************************************************************************
+*/
+#define IS_SUPPORT_LOW_POWER_COMP_BG                          (0)
+#define LOW_POWER_ICON_Y                                      (118)
+#define LOW_POWER_TEXT_Y                                      (189)
+#define LOW_POWER_TEXT_COLOR                                  (0x240F1B)
+
+typedef struct {
+    lv_obj_t * root;
+    lv_obj_t * background;
+    lv_obj_t * icon;
+    lv_obj_t * text;
+    uint8_t force_update;
+    uint8_t rsv[15];
+} low_power_display_info_t;
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-static ui_page_ops_t s_ops = {0};
+#if IS_SUPPORT_LOW_POWER_COMP_BG
+static PSRAM_DATA_LOC uint8_t low_power_bg_data[] = {
+    #include "comparison_png2txt/low_power_p1_360x360.txt"
+};
+#endif
+
+static low_power_display_info_t *low_power_info;
+
+static const char *low_power_text = "Battery too low\nConnect to a charger";
+
+/*
+* LOCAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+static void low_power_root_init(void)
+{
+    if (low_power_info->root == NULL || !lv_obj_is_valid(low_power_info->root)) {
+        low_power_info->root = lv_obj_create(lv_screen_active());
+    }
+    lv_obj_set_size(low_power_info->root, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(low_power_info->root, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(low_power_info->root, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(low_power_info->root, 0, 0);
+    lv_obj_set_style_pad_all(low_power_info->root, 0, 0);
+    lv_obj_align(low_power_info->root, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_clear_flag(low_power_info->root, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(low_power_info->root, LV_OBJ_FLAG_SCROLLABLE);
+}
+
+#if IS_SUPPORT_LOW_POWER_COMP_BG
+static void low_power_bg_update(ui_manager_context_t *thiz)
+{
+    static uint32_t start_time = 0;
+    static uint8_t status = 0;
+
+    if (low_power_info->background == NULL || !lv_obj_is_valid(low_power_info->background)) {
+        low_power_info->background = lv_image_create(low_power_info->root);
+        EXCEPTION_CHECK_VOID(low_power_info->background);
+    }
+
+    if (status == 0) {
+        lv_obj_add_flag(low_power_info->background, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_fs_path_ex_t bg_img_path;
+        lv_obj_clear_flag(low_power_info->background, LV_OBJ_FLAG_HIDDEN);
+        lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, low_power_bg_data,
+            sizeof(low_power_bg_data), "png");
+        lv_image_set_src(low_power_info->background, (const void *)&bg_img_path);
+        lv_obj_align(low_power_info->background, LV_ALIGN_CENTER, 0, 0);
+    }
+
+    if (get_timestamp() - start_time > 1000) {
+        start_time = get_timestamp();
+        status = (status == 0) ? 1 : 0;
+    }
+}
+#else
+static void low_power_bg_update(ui_manager_context_t *thiz)
+{
+    #if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+    #endif
+    if (low_power_info->background == NULL || !lv_obj_is_valid(low_power_info->background)) {
+        low_power_info->background = lv_image_create(low_power_info->root);
+        EXCEPTION_CHECK_VOID(low_power_info->background);
+        lv_obj_align(low_power_info->background, LV_ALIGN_CENTER, 0, 0);
+        #if LV_USE_SNAPSHOT
+        lv_image_set_src(low_power_info->background, background_snapshot);
+        #else
+        lv_obj_add_flag(low_power_info->background, LV_OBJ_FLAG_HIDDEN);
+        #endif
+    }
+}
+#endif
+
+static void low_power_icon_update(ui_manager_context_t *thiz)
+{
+    if (low_power_info->force_update == false) {
+        return;
+    }
+
+    if (low_power_info->icon == NULL ||
+        !lv_obj_is_valid(low_power_info->icon)) {
+        low_power_info->icon = lv_image_create(low_power_info->root);
+        EXCEPTION_CHECK_VOID(low_power_info->icon);
+    }
+    ui_img_baj_theme_set_src(thiz, low_power_info->icon,
+        BASE_RES_ID_BATTERY_LOW_POWER_ICON, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    lv_obj_align(low_power_info->icon, LV_ALIGN_TOP_MID, 0, LOW_POWER_ICON_Y);
+}
+
+static void low_power_text_update(void)
+{
+    if (low_power_info->force_update == false) {
+        return;
+    }
+
+    if (low_power_info->text == NULL || !lv_obj_is_valid(low_power_info->text)) {
+        low_power_info->text = lv_label_create(low_power_info->root);
+        EXCEPTION_CHECK_VOID(low_power_info->text);
+    }
+    lv_label_set_text(low_power_info->text, low_power_text);
+    lv_obj_set_style_text_color(low_power_info->text, lv_color_hex(LOW_POWER_TEXT_COLOR), 0);
+    lv_obj_set_style_text_font(low_power_info->text, &lv_font_aeonik_soft_24_semibold, 0);
+    lv_obj_set_style_text_line_space(low_power_info->text, 4, 0);
+    lv_obj_set_style_text_align(low_power_info->text, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(low_power_info->text, LV_ALIGN_TOP_MID, 0, LOW_POWER_TEXT_Y);
+}
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -21,41 +145,38 @@ static ui_page_ops_t s_ops = {0};
 */
 void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz)
 {
-    void (*prepare)(ui_manager_context_t *thiz) = NULL;
-    int res_theme_type = RES_THEME_TYPE_BASE;
-
-    if (thiz && thiz->priv.res) {
-        res_theme_type = thiz->priv.res->get_sys_theme_type();
+    EXCEPTION_CHECK_VOID(thiz);
+    if (low_power_info == NULL) {
+        low_power_info = (low_power_display_info_t *)u_malloz(sizeof(low_power_display_info_t));
+        EXCEPTION_CHECK_VOID(low_power_info);
     }
-
-    if (res_theme_type == RES_THEME_TYPE_CUSTOM) {
-        prepare = low_power_custom_ui_prepare;
-        s_ops.remove = low_power_custom_ui_remove;
-        s_ops.process = low_power_custom_ui_process;
-    } else {
-        prepare = low_power_base_ui_prepare;
-        s_ops.remove = low_power_base_ui_remove;
-        s_ops.process = low_power_base_ui_process;
-    }
-
-    if (prepare) {
-        prepare(thiz);
-    }
+    low_power_info->force_update = true;
+    low_power_root_init();
+    thiz->priv.fps_count = 0;
+    thiz->priv.fps_start_time = get_timestamp();
 }
 
 void ui_display_battery_low_power_remove(ui_manager_context_t *thiz)
 {
-    if (s_ops.remove) {
-        s_ops.remove(thiz);
-    } else {
-        LOGE("remove is null");
-    }
+    EXCEPTION_CHECK_VOID(thiz && low_power_info && low_power_info->root);
+    ui_img_baj_release_decoded_buf(low_power_info->icon);
+    LVGL_OBJ_DELETE(low_power_info->root);
+    u_free(low_power_info);
+    low_power_info = NULL;
 }
 
 int ui_display_battery_low_power_process(ui_manager_context_t *thiz)
 {
-    if (s_ops.process) {
-        return s_ops.process(thiz);
+    EXCEPTION_CHECK_INT(thiz && low_power_info && low_power_info->root);
+    low_power_bg_update(thiz);
+    low_power_icon_update(thiz);
+    low_power_text_update();
+    low_power_info->force_update = false;
+    thiz->priv.fps_count++;
+    if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
+        LOG_UI("===> battery low power fps=%d", thiz->priv.fps_count);
+        thiz->priv.fps_start_time = get_timestamp();
+        thiz->priv.fps_count = 0;
     }
-    return 0;
+    return thiz->priv.fps_count;
 }

@@ -30,6 +30,8 @@ typedef enum {
     BASE_RES_ID_BATTERY_ICON, /// 电池电量图标
     BASE_RES_ID_BATTERY_WARNING_ICON, /// 电池警告图标
     BASE_RES_ID_CHARGE_PAGE_ICON, /// 充电页面图标
+    BASE_RES_ID_POWER_ECO_ICON, /// 电源节能图标
+    BASE_RES_ID_BATTERY_LOW_POWER_ICON, /// 电池低电量图标
   
     BASE_RES_ID_CLOCK_COLON_ICON = 99, /// 时钟冒号图标
     /* 主界面组 [99..150] */
