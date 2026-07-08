@@ -92,6 +92,17 @@ static void guide_level_adjust_side(ui_proc_guide_t *proc, bool is_left, bool is
     }
 }
 
+static bool guide_ui_blink_update(ui_proc_guide_t *proc)
+{
+    const uint8_t blink_visible =
+        ((get_timestamp() / GUIDE_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
+    if (proc->state_blink_visible == blink_visible) {
+        return false;
+    }
+    proc->state_blink_visible = blink_visible;
+    return true;
+}
+
 static void guide_idle_timeout_handler(ui_proc_guide_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
@@ -116,6 +127,7 @@ static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_proc_guide_t *proc = (ui_proc_guide_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
     guide_idle_timeout_handler(proc);
+    guide_ui_blink_update(proc);
     ui_display_guide_process(ui);
 }
 
