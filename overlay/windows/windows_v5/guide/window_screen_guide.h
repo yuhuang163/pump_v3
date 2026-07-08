@@ -22,6 +22,7 @@ extern "C" {
 
 /// 主界面动画展示时间
 #define GUIDE_ANIMATION_DISPLAY_TIME         (2000) /// 2s
+#define GUIDE_BLINK_PERIOD                   (500)
 /// 单边力度调节静止超时
 #define GUIDE_LEVEL_ADJUST_IDLE_TIMEOUT_MS    (3000) /// 3s
 /// 力度调节后，展示页面停留时间
@@ -79,6 +80,7 @@ typedef struct {
     uint16_t popup_ui_type; /// 当前弹窗类型. guide_operation_type_e
     pump_setting_t setting; /// 泵奶设置信息.
     uint8_t mode_selected; /// 是否已选择吸乳方案
+    uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
     uint32_t last_adjust_time; /// 上次力度调节时间
 } ui_proc_guide_t;
 

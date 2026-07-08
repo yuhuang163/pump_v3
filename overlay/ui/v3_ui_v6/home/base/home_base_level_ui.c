@@ -36,7 +36,12 @@
 #define PUMP_LEFT_LEVEL_BG_Y                       (208)
 #define PUMP_RIGHT_LEVEL_BG_X                      (306)
 #define PUMP_RIGHT_LEVEL_BG_Y                      (PUMP_LEFT_LEVEL_BG_Y)
-#define HOME_BASE_LEVEL_BLINK_ENABLE               (0) /// 0: 关闭力度闪烁, 1: 开启力度闪烁(不影响调节放大).
+
+#if IS_SUPPORT_PUMP_LEVEL_ADJUST_BLINK
+#define HOME_BASE_LEVEL_BLINK_ENABLE               (1) /// 0: 关闭力度闪烁, 1: 开启力度闪烁(不影响调节放大).
+#else
+#define HOME_BASE_LEVEL_BLINK_ENABLE               (0) 
+#endif
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -159,7 +164,7 @@ static void home_level_side_blink_apply(home_base_level_t *level,
     const bool visible = true;
 #endif
     home_level_obj_visible_set(level->arc, visible);
-    home_level_obj_visible_set(level->progress_bg, visible);
+    // home_level_obj_visible_set(level->progress_bg, visible);
 }
 
 static void home_left_level_indicator_update(home_base_ui_info_t *info, uint16_t end_angle,

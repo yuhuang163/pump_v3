@@ -177,7 +177,8 @@ int guide_base_ui_process(ui_manager_context_t *thiz)
     guide_info->level.right.new_value = proc->setting.level[1];
     guide_base_root_bg_update(thiz);
     guide_base_blink_state_update(guide_info, proc->page_index);
-    guide_pump_level_ui_update(guide_info, true);
+    const bool blink_visible = proc->state_blink_visible != 0;
+    guide_pump_level_ui_update(guide_info, blink_visible);
     guide_pump_label_ui_update(guide_info, proc->page_index);
 
     const ble_ui_blink_sync_t ble_sync = {

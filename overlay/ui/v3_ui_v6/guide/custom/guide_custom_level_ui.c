@@ -43,6 +43,11 @@
 #define PUMP_LEFT_LEVEL_ADJUST_BG_Y                (133)
 #define PUMP_RIGHT_LEVEL_ADJUST_BG_X               (306)
 #define PUMP_RIGHT_LEVEL_ADJUST_BG_Y               (PUMP_LEFT_LEVEL_ADJUST_BG_Y)
+#if IS_SUPPORT_PUMP_LEVEL_ADJUST_BLINK
+#define GUIDE_CUSTOM_LEVEL_BLINK_ENABLE            (1) /// 0: 关闭力度闪烁, 1: 开启力度闪烁(不影响调节放大).
+#else
+#define GUIDE_CUSTOM_LEVEL_BLINK_ENABLE            (0)
+#endif
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -180,10 +185,14 @@ static void guide_level_progress_style_apply(guide_custom_ui_info_t *info, guide
 static void guide_level_side_blink_apply(guide_custom_level_t *level,
     uint8_t blink_state, bool blink_visible)
 {
+#if GUIDE_CUSTOM_LEVEL_BLINK_ENABLE
+    const bool visible = (blink_state == 0) || blink_visible;
+#else
     (void)blink_state;
-    (void)blink_visible;
-    guide_level_obj_visible_set(level->arc, true);
-    guide_level_obj_visible_set(level->progress_bg, true);
+    const bool visible = true;
+#endif
+    guide_level_obj_visible_set(level->arc, visible);
+    // guide_level_obj_visible_set(level->progress_bg, visible);
 }
 
 static void guide_left_level_indicator_update(guide_custom_ui_info_t *info, uint16_t end_angle,

@@ -182,6 +182,8 @@ extern "C" {
 #define IS_SUPPORT_TOUCH_IC_OTA                          (1)
 #endif
 
+/// 支持力度调节闪烁
+#define IS_SUPPORT_PUMP_LEVEL_ADJUST_BLINK               (0)
 
 #ifdef __cplusplus
 }
