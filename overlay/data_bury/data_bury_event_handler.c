@@ -12,7 +12,6 @@
 typedef struct {
     uint8_t session_start_mode;
     uint8_t bt_session_cached;
-    uint8_t bt_remote_initiated;
     uint32_t bt_connect_timestamp_utc;
     uint16_t bt_connection_setup_duration;
     int8_t bt_signal_strength_rssi;
@@ -244,9 +243,6 @@ static int8_t data_bury_event_sample_ble_rssi(data_bury_manager_context_t *ctx)
     if (!ble || !ble->priv.ble_dev || !ble->priv.ble_dev->ioctl) {
         return (int8_t)0xFF;
     }
-    if (ble->priv.connect_idx == 0u) {
-        return (int8_t)0xFF;
-    }
     (void)DEVICE_IOCTL_ARGS(ble->priv.ble_dev, OP_CODE_BLE_TEST_GET_RSSI_VALUE, &rssi);
     return (int8_t)rssi;
 }
@@ -267,7 +263,6 @@ static uint8_t data_bury_event_hci_to_app_disconnect_reason(uint8_t hci_reason)
 static void data_bury_event_bt_session_cache_clear(void)
 {
     s_event_rt.bt_session_cached = 0u;
-    s_event_rt.bt_remote_initiated = 0u;
     s_event_rt.bt_connect_timestamp_utc = 0u;
     s_event_rt.bt_connection_setup_duration = 0u;
     s_event_rt.bt_signal_strength_rssi = (int8_t)0xFF;
@@ -286,7 +281,6 @@ static void data_bury_event_bt_session_cache_save(data_bury_manager_context_t *c
         setup_ms = 0xFFFFu;
     }
     s_event_rt.bt_session_cached = 1u;
-    s_event_rt.bt_remote_initiated = 1u;
     s_event_rt.bt_connect_timestamp_utc = platform_get_utc_time();
     s_event_rt.bt_connection_setup_duration = (uint16_t)setup_ms;
     if (rssi == 0 || rssi == (int8_t)0xFF) {
@@ -303,30 +297,35 @@ static int data_bury_event_build_bt_session_end_evt(data_bury_manager_context_t 
                                                     data_bury_evt_bt_connect_t *evt)
 {
     uint8_t app_reason;
+    uint8_t connect_ok;
 
     if (!ctx || !evt) {
         return -1;
     }
-    if (!s_event_rt.bt_session_cached || !s_event_rt.bt_remote_initiated) {
-        return 0;
-    }
+    connect_ok = (s_event_rt.bt_session_cached != 0u);
     app_reason = data_bury_event_hci_to_app_disconnect_reason(hci_reason);
-    if (app_reason == DATA_BURY_BT_DISCONNECT_REASON_SKIP) {
+    if (connect_ok && app_reason == DATA_BURY_BT_DISCONNECT_REASON_SKIP) {
         LOG_BURY("bt session end skip: hci_reason=0x%02x", (unsigned)hci_reason);
         data_bury_event_bt_session_cache_clear();
         return 0;
+    }
+    if (!connect_ok && app_reason == DATA_BURY_BT_DISCONNECT_REASON_SKIP) {
+        app_reason = DATA_BURY_BT_DISCONNECT_REASON_TIMEOUT;
     }
 
     memset(evt, 0, sizeof(*evt));
     evt->device_side = ctx->data_bury_get_device_side();
     evt->use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
-    evt->evt_timestamp = s_event_rt.bt_connect_timestamp_utc;
-    evt->connect_result = DATA_BURY_BT_CONNECT_RESULT_SESSION_END;
-    evt->connection_setup_duration = s_event_rt.bt_connection_setup_duration;
-    evt->bt_signal_strength_rssi = s_event_rt.bt_signal_strength_rssi;
+    evt->evt_timestamp = connect_ok ? s_event_rt.bt_connect_timestamp_utc : platform_get_utc_time();
+    evt->connect_result =  (app_reason == DATA_BURY_BT_DISCONNECT_REASON_TIMEOUT) ? DATA_BURY_BT_CONNECT_RESULT_FAIL
+                                           : DATA_BURY_BT_CONNECT_RESULT_SUCCESS;
+    evt->connection_setup_duration = connect_ok ? s_event_rt.bt_connection_setup_duration : 0u;
+    evt->bt_signal_strength_rssi = connect_ok ? s_event_rt.bt_signal_strength_rssi
+                                               : data_bury_event_sample_ble_rssi(ctx);
     evt->disconnect_timestamp = platform_get_utc_time();
     evt->disconnect_reason = app_reason;
-    LOG_BURY("bt session end: connect_ts=%u setup_ms=%u rssi=%d reason=0x%02x",
+    LOG_BURY("bt session end: connect_ok=%u result=%u connect_ts=%u setup_ms=%u rssi=%d reason=0x%02x",
+             (unsigned)connect_ok, (unsigned)evt->connect_result,
              (unsigned)evt->evt_timestamp,
              (unsigned)evt->connection_setup_duration,
              (int)evt->bt_signal_strength_rssi,
