@@ -124,11 +124,6 @@ static void pump_home_time_pair_labels_update(lv_obj_t *labels[PUMP_HOME_TIME_DI
     uint8_t value, const lv_font_t *font, lv_coord_t seg_x, lv_coord_t seg_y, lv_coord_t seg_width,
     int8_t y_offset, bool hidden)
 {
-    if (hidden) {
-        pump_home_time_pair_labels_set_hidden(labels, true);
-        return;
-    }
-
     lv_coord_t cell_width = seg_width / PUMP_HOME_TIME_DIGIT_COUNT;
     char digit_text[2] = {0};
 
@@ -148,7 +143,11 @@ static void pump_home_time_pair_labels_update(lv_obj_t *labels[PUMP_HOME_TIME_DI
         lv_obj_set_style_text_font(labels[i], font, 0);
         lv_label_set_text(labels[i], digit_text);
         lv_obj_align(labels[i], LV_ALIGN_TOP_LEFT, seg_x + i * cell_width, seg_y + y_offset);
-        lv_obj_clear_flag(labels[i], LV_OBJ_FLAG_HIDDEN);
+        if (hidden) {
+            lv_obj_add_flag(labels[i], LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_clear_flag(labels[i], LV_OBJ_FLAG_HIDDEN);
+        }
     }
 }
 
