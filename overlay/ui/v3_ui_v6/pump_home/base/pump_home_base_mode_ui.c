@@ -430,6 +430,8 @@ static void pump_home_mode_select_layout_shift(pump_home_base_ui_info_t *info, b
 
 static void pump_home_mode_capsule_create(pump_home_base_ui_info_t *info)
 {
+    bool capsule_newly_created = false;
+
     if (info->mode.title_capsule == NULL || !lv_obj_is_valid(info->mode.title_capsule)) {
         info->mode.title_capsule = lv_obj_create(info->root);
         EXCEPTION_CHECK_VOID(info->mode.title_capsule);
@@ -438,6 +440,7 @@ static void pump_home_mode_capsule_create(pump_home_base_ui_info_t *info)
         lv_obj_set_style_bg_color(info->mode.title_capsule, lv_color_hex(PUMP_HOME_CAPSULE_BG_COLOR), 0);
         lv_obj_set_style_bg_opa(info->mode.title_capsule, LV_OPA_COVER, 0);
         lv_obj_clear_flag(info->mode.title_capsule, LV_OBJ_FLAG_SCROLLABLE);
+        capsule_newly_created = true;
     }
 
     if (info->mode.capsule_title == NULL || !lv_obj_is_valid(info->mode.capsule_title)) {
@@ -446,6 +449,11 @@ static void pump_home_mode_capsule_create(pump_home_base_ui_info_t *info)
         lv_obj_set_style_text_color(info->mode.capsule_title, lv_color_hex(PUMP_HOME_CAPSULE_TITLE_COLOR), 0);
         lv_obj_set_style_text_font(info->mode.capsule_title, &lv_font_aeonik_soft_20_bold, 0);
         lv_obj_set_style_text_align(info->mode.capsule_title, LV_TEXT_ALIGN_CENTER, 0);
+    }
+
+    if (capsule_newly_created) {
+        lv_obj_add_flag(info->mode.title_capsule, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_opa(info->mode.title_capsule, LV_OPA_TRANSP, 0);
     }
 }
 
@@ -807,6 +815,7 @@ void pump_home_base_mode_ui_remove(pump_home_base_ui_info_t *info)
 void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info, bool blink_visible,
     pump_mode_display_type_e display_type)
 {
+    pump_home_mode_capsule_create(info);
     char rhythm_name[24] = {0};
     const bool mode_changed = pump_home_mode_need_update(info);
 
