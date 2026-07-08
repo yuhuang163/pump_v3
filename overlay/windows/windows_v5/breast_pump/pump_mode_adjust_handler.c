@@ -90,22 +90,27 @@ int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_bf_mode)
     if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
         show_pump_home_ui(proc); /// 显示泵奶主界面
     }
-    proc->pump_mode_adjust_time = get_timestamp();
-    bool entering_select = (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_DEFAULT);
+
+    pump_mode_display_type_e target_display_type = is_bf_mode ?
+            PUMP_MODE_DISPLAY_BF_MODE : PUMP_MODE_DISPLAY_NORMAL_MODE;
+    bool entering_select = (proc->pump_mode_display_type != target_display_type);
+    int work_mode = 0, last_expert_mode = 0, last_common_mode = 0, activate_status = 0;
     if (entering_select) {
         pump_level_adjust_exit_handler(proc);
-    }
-    proc->pump_mode_display_type = is_bf_mode ?
-            PUMP_MODE_DISPLAY_BF_MODE : PUMP_MODE_DISPLAY_NORMAL_MODE;
-    int work_mode = 0, last_expert_mode = 0, last_common_mode = 0, activate_status = 0;
-    READ_PUMP_WORK_MODE(proc->pump, work_mode);
-    READ_PUMP_EXPERT_MODE(proc->pump, false, last_expert_mode);
-    READ_PUMP_COMMON_MODE(proc->pump, false, last_common_mode);
-    READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
-    if (entering_select) {
+        proc->pump_mode_display_type = target_display_type;
+        proc->pump_mode_adjust_time = get_timestamp();
+        READ_PUMP_WORK_MODE(proc->pump, work_mode);
+        READ_PUMP_EXPERT_MODE(proc->pump, false, last_expert_mode);
+        READ_PUMP_COMMON_MODE(proc->pump, false, last_common_mode);
+        READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
         proc->ui_mode_index = enter_select_pump_mode(work_mode, is_bf_mode,
                 last_expert_mode, last_common_mode, activate_status);
     } else {
+        proc->pump_mode_adjust_time = get_timestamp();
+        READ_PUMP_WORK_MODE(proc->pump, work_mode);
+        READ_PUMP_EXPERT_MODE(proc->pump, false, last_expert_mode);
+        READ_PUMP_COMMON_MODE(proc->pump, false, last_common_mode);
+        READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
         proc->ui_mode_index = cycle_pump_mode(work_mode, is_bf_mode,
                 last_expert_mode, last_common_mode, activate_status);
     }

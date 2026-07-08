@@ -149,7 +149,9 @@ int home_pump_mode_adjust_handler(ui_proc_home_t *proc, bool is_bf_mode)
         start_home_ui_animation(proc);
     }
 
-    bool entering_select = (proc->pump_mode_display_type == HOME_PUMP_MODE_DISPLAY_DEFAULT);
+    home_pump_mode_display_type_e target_display_type = is_bf_mode ?
+            HOME_PUMP_MODE_DISPLAY_BF_MODE : HOME_PUMP_MODE_DISPLAY_NORMAL_MODE;
+    bool entering_select = (proc->pump_mode_display_type != target_display_type);
     if (entering_select) {
         home_pump_level_adjust_exit_handler(proc);
         home_pump_mode_adjust_enter(proc, is_bf_mode);

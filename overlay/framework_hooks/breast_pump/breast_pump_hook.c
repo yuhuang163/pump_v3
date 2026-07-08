@@ -303,6 +303,26 @@ static void stop_breast_pump_work_route(breast_pump_manager_context_t *ctx, int 
     LOG_PMP("stop, work_time=%d", PUMP_TIME_TO_SECOND(result_info->work_valid_time));
 }
 
+static void update_last_mode_by_type(breast_pump_manager_context_t *ctx, uint8_t mode)
+{
+    breast_pump_info_t *m_info = &ctx->priv.m_info;
+    struct storage_manager_context *st = ctx->priv.st;
+
+    if (PUMP_IS_COMMON_MODE(mode)) {
+        m_info->common_mode = mode;
+        if (st) {
+            st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE,
+                BREAST_PUMP_MODE_TYPE_COMMON, mode, NULL);
+        }
+    } else if (PUMP_IS_BREASTFEEDING_MODE(mode)) {
+        m_info->breastfeeding_mode = mode;
+        if (st) {
+            st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE,
+                BREAST_PUMP_MODE_TYPE_BREASTFEEDING, mode, NULL);
+        }
+    }
+}
+
 static void mode_change_route(breast_pump_manager_context_t *ctx, uint8_t mode)
 {
     breast_pump_info_t *m_info = &ctx->priv.m_info;
@@ -319,7 +339,8 @@ static void mode_change_route(breast_pump_manager_context_t *ctx, uint8_t mode)
         }
         breast_pump_mode_update(ctx, result_info);
     } else {
-        LOG_PMP("mode change: %d, ignore", mode);
+        update_last_mode_by_type(ctx, mode);
+        LOG_PMP("mode change: %d, update last mode", mode);
     }
 }
 
