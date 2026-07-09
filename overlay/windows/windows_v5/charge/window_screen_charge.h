@@ -49,6 +49,7 @@ typedef struct {
     airplane_mode_context_t *airplane;
     power_manager_context_t *pm;
     ble_manager_context_t *ble;
+    resource_manager_context_t *res;
     broadcast_obj_t receiver;
     window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;

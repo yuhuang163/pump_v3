@@ -38,6 +38,13 @@ static void airplane_mode_exit_cb(hdr_post_args_t *args)
     }
     proc->airplane->exit(AIRPLANE_MODE_EXIT);
     multi_func_msg_data_t msg = {0};
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     if (proc->battery && proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
         msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
         LOG_WM("goto charge screen");

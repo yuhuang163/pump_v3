@@ -96,7 +96,7 @@ static int start_ota_upgrade(ota_object_e object, on_write_img_data_cb_ptr cb)
         wm->is_current_window && wm->is_current_window(wm, ID_WINDOW_OTA_UPGRADE) == 0) {
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_OTA_UPGRADE;
-        msg.union_body.extra.is_bg_dispatch = 0x01;
+        msg.union_body.extra.is_bg_dispatch = 0;
         wm->dispatch_new_window_args(wm, &msg);
     }
     SEND_BROADCAST_ARGS1(ID_BROADCAST_OTA_STATE_CHANGE, OTA_UPGRADE_STATE_START);

@@ -43,8 +43,11 @@ static void factory_reset_exit_task_cb(hdr_post_args_t *args)
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)args->user_data;
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     multi_func_msg_data_t msg = {0};
-    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-        proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
     }
 
     if (proc->battery && proc->battery->is_low_battery()) {
@@ -162,15 +165,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     window_manager_context_t *wm = proc->wm;
     ui_manager_context_t *ui = proc->ui;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
-        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, 0);
-        }
-
-        if (proc->current_ui_type == FACTORY_RESET_UI_TYPE_FACTORY_RESET_CONFIRM) {
-            if (proc->led) {
-                proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
-            }
-        }
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
         if (proc->extra.arg1 != 0) {
             ADD_KEYEVENT_CB(proc->key, "factory_reset_wm", proc, FACTORY_RESET_UI_KEY_CODE, FACTORY_RESET_UI_KEY_TYPE,
@@ -179,10 +173,18 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_factory_reset_window_battery_state_change_cb);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, 0);
+        }
+
         if (proc->extra.arg1 == 0) {
             factory_reset_handle(proc, 1000);
         } else {
             show_factory_reset_confirm_ui(proc);
+            if (proc->led) {
+                proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
+            }
         } 
     }
     return 0;

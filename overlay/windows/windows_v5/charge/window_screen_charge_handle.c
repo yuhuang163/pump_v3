@@ -42,6 +42,13 @@ INIT_WINDOW_CONTEXT();
 static void charge_display_exit_cb(ui_proc_charge_t *proc)
 {
     multi_func_msg_data_t msg = {0};
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     if (proc->battery && proc->battery->is_low_battery()) {
         LOG_WM("battery is low power, goto battery screen");
         msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
@@ -232,6 +239,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     proc->pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
     /// 配置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
