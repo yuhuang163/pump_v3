@@ -179,18 +179,22 @@ static void data_bury_fill_pump_session_id(void *payload, uint16_t payload_len, 
 
 static void data_bury_fill_evt_common_hdr(void *payload, uint16_t payload_len, servers_publish_data_id_e id)
 {
-    data_bury_evt_common_hdr_t *hdr;
+    uint32_t use_session_id;
+    uint32_t evt_timestamp;
     uint16_t pump_session_id;
 
     if (!payload || payload_len < DATA_BURY_EVT_COMMON_HDR_LEN) {
         return;
     }
-    hdr = (data_bury_evt_common_hdr_t *)payload;
-    if (hdr->use_session_id == 0u || hdr->use_session_id == DATA_BURY_EVT_USE_SESSION_PLACEHOLDER) {
-        hdr->use_session_id = data_bury_get_use_session_id();
+    use_session_id = data_bury_evt_get_u32_le(payload, DATA_BURY_EVT_COMMON_USE_SESSION_ID_OFF);
+    if (use_session_id == 0u || use_session_id == DATA_BURY_EVT_USE_SESSION_PLACEHOLDER) {
+        data_bury_evt_put_u32_le(payload, DATA_BURY_EVT_COMMON_USE_SESSION_ID_OFF,
+                                 data_bury_get_use_session_id());
     }
-    if (hdr->evt_timestamp == 0u || hdr->evt_timestamp == DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER) {
-        hdr->evt_timestamp = data_bury_get_evt_timestamp();
+    evt_timestamp = data_bury_evt_get_u32_le(payload, DATA_BURY_EVT_COMMON_EVT_TIMESTAMP_OFF);
+    if (evt_timestamp == 0u || evt_timestamp == DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER) {
+        data_bury_evt_put_u32_le(payload, DATA_BURY_EVT_COMMON_EVT_TIMESTAMP_OFF,
+                                 data_bury_get_evt_timestamp());
     }
     if (!data_bury_publish_id_has_pump_session_id(id)
         || payload_len < DATA_BURY_EVT_PUMP_SESSION_ID_OFF + 2u) {
