@@ -180,6 +180,10 @@ static void polling_battery_status(void *user_data)
                 msg.union_body.extra.popup_exit_time = 3000;
                 msg.union_body.extra.forbid_short_press_exit_popup = true;
                 wm->dispatch_new_window_args(wm, &msg);
+                /// 如果当前是泵奶窗口，则触发泵奶结束埋点
+                if(wm->is_current_window(wm, ID_WINDOW_PUMP) == 0) {
+                    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_LOW_BATTERY, 0);
+                }
             } else {
                 LOG_MISC("in charge or logo window, ignore popup window.");
             }

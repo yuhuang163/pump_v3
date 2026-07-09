@@ -70,6 +70,8 @@ static int data_bury_event_publish(data_bury_manager_context_t *ctx, servers_pub
     return ctx->data_bury_publish(id, &args);
 }
 
+#define DATA_BURY_PUMP_SESSION_END_CACHE_IMMEDIATE  1
+
 static uint8_t data_bury_event_publish_id_to_cmd(servers_publish_data_id_e id)
 {
     switch (id) {
@@ -79,6 +81,10 @@ static uint8_t data_bury_event_publish_id_to_cmd(servers_publish_data_id_e id)
         return APP_BURY_CMD_BT_CONNECT_EVENT;
     case SERVERS_PUBLISH_DATA_DATA_BURY_FIRMWARE_UPDATE:
         return APP_BURY_CMD_FIRMWARE_UPDATE;
+    case SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_START:
+        return APP_BURY_CMD_PUMP_SESSION_START;
+    case SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_END:
+        return APP_BURY_CMD_PUMP_SESSION_END;
     default:
         return 0u;
     }
@@ -527,7 +533,8 @@ static void data_bury_event_publish_exception(data_bury_manager_context_t *ctx,
              (unsigned)error_code, (unsigned)error_data);
 }
 
-static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t *ctx, uint8_t end_reason)
+static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t *ctx, uint8_t end_reason,
+                                                    uint8_t cache_immediate)
 {
     breast_pump_manager_context_t *pump =
         (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
@@ -624,11 +631,19 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
 
     payload_len = DATA_BURY_EVT_PUMP_SESSION_END_PAYLOAD_LEN(used_mode_count);
     s_event_rt.pending_pump_session_start.pump_session_id = session_id;
-    (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_START,
-                                    &s_event_rt.pending_pump_session_start,
-                                    (uint16_t)sizeof(s_event_rt.pending_pump_session_start), 0u);
-    (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_END,
-                                    buf, payload_len, 100u);
+    if (cache_immediate) {
+        (void)data_bury_event_cache_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_START,
+                                            &s_event_rt.pending_pump_session_start,
+                                            (uint16_t)sizeof(s_event_rt.pending_pump_session_start));
+        (void)data_bury_event_cache_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_END,
+                                            buf, payload_len);
+    } else {
+        (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_START,
+                                      &s_event_rt.pending_pump_session_start,
+                                      (uint16_t)sizeof(s_event_rt.pending_pump_session_start), 0u);
+        (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_END,
+                                      buf, payload_len, 100u);
+    }
 
     s_event_rt.pump_session_start_pending = 0u;
     s_event_rt.pending_pump_session_start_ms = 0u;
@@ -637,7 +652,8 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
     if (ctx->data_bury_pump_session_end) {
         ctx->data_bury_pump_session_end();
     }
-    LOG_BURY("pump session end committed id=%u duration=%us modes=%u",
+    LOG_BURY("pump session end %s id=%u duration=%us modes=%u",
+             cache_immediate ? "cached" : "committed",
              (unsigned)session_id, (unsigned)(session_duration_ms / 1000u),
              (unsigned)used_mode_count);
     u_free(buf);
@@ -853,11 +869,15 @@ int data_bury_event_process_pump_session_end(data_bury_manager_context_t *ctx,
                                                     const data_bury_trigger_args_t *args)
 {
     uint8_t end_reason = DATA_BURY_END_REASON_MANUAL;
+    uint8_t cache_immediate = 0u;
 
     if (args && args->arg1 >= 0) {
         end_reason = (uint8_t)args->arg1;
     }
-    data_bury_event_commit_pump_session_end(ctx, end_reason);
+    if (args && args->arg2 == DATA_BURY_PUMP_SESSION_END_CACHE_IMMEDIATE) {
+        cache_immediate = 1u;
+    }
+    data_bury_event_commit_pump_session_end(ctx, end_reason, cache_immediate);
     return 0;
 }
 
