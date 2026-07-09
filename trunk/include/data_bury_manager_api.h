@@ -141,9 +141,9 @@ typedef struct {
 #define DATA_BURY_FIRMWARE_UPDATE_RESULT_SUCCESS  0x00u
 #define DATA_BURY_FIRMWARE_UPDATE_RESULT_FAILURE  0x01u
 
-/** EVT_003 connect_result：0=建链失败(HCI)，1=建链成功后会话结束(断链上报) */
-#define DATA_BURY_BT_CONNECT_RESULT_FAIL          0x00u
-#define DATA_BURY_BT_CONNECT_RESULT_SESSION_END   0x01u
+/** EVT_003 connect_result：1=建链失败(HCI)，0=建链成功后会话结束(断链上报) */
+#define DATA_BURY_BT_CONNECT_RESULT_FAIL          0x01u
+#define DATA_BURY_BT_CONNECT_RESULT_SUCCESS       0x00u
 
 /** EVT_003 disconnect_reason（协议业务码） */
 #define DATA_BURY_BT_DISCONNECT_REASON_USER       0x00u
