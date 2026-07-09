@@ -211,6 +211,8 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
         #endif
         ///插入关机数据埋点 0:手动关机 1:低电量关机 2:自动休眠关机 3:异常关机 4:固件更新关机 5:过热关机
         DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_USER_MANUAL, 0);
+        /// 触发泵奶结束埋点 arg2 ==1 表示立即写入cache
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 1);
 
         #if IS_SUPPORT_SLEEP_POWER_OFF
             POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_OFF,
