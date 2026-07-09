@@ -30,7 +30,15 @@ static bool lcd_qspi_ready = false;
 #if LV_USE_LOG && !LV_LOG_PRINTF
 static void print_cb(lv_log_level_t level, const char *buf)
 {
+    static const char level_tag[] = "TIDEWU";
+    char prefix[8];
+    int prefix_len = snprintf(prefix, sizeof(prefix), "[%c] ",
+                              (level < (int)sizeof(level_tag) - 1) ? level_tag[level] : '?');
+    if (prefix_len > 0) {
+        hal_trace_output((const unsigned char *)prefix, (unsigned int)prefix_len);
+    }
     hal_trace_output((const unsigned char *)buf, strlen(buf));
+    hal_trace_output((const unsigned char *)"\r\n", 2);
 }
 #endif
 

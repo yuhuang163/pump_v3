@@ -63,6 +63,13 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static bool pump_home_time_is_rhythm_mode(uint8_t mode_index)
+{
+    return mode_index == BREAST_PUMP_MILK_BOOST_MODE ||
+        mode_index == BREAST_PUMP_PP_MILK_TRACK_MODE ||
+        mode_index == BREAST_PUMP_CUSTOM_MODE;
+}
+
 static void pump_home_time_symbol_label_update(lv_obj_t **label, lv_obj_t *root, const char *text,
     const lv_font_t *font, lv_coord_t x, lv_coord_t y, bool hidden)
 {
@@ -188,7 +195,7 @@ static void pump_home_time_progress_update(pump_home_custom_ui_info_t *info, uin
     uint16_t hold_time)
 {
     pump_home_custom_time_t *time = &info->time;
-    bool hidden = info->mode.is_rhythm_mode > 0 ? false : true;
+    bool hidden = !pump_home_time_is_rhythm_mode(mode_index);
 
     if (hidden) {
         pump_home_time_progress_set_hidden(time, true);
@@ -270,7 +277,7 @@ static void pump_home_time_progress_update(pump_home_custom_ui_info_t *info, uin
 static void pump_home_time_remain_update(pump_home_custom_ui_info_t *info, uint8_t mode_index)
 {
     pump_home_custom_time_t *time = &info->time;
-    bool hidden = info->mode.is_rhythm_mode > 0 ? false : true;
+    bool hidden = !pump_home_time_is_rhythm_mode(mode_index);
 
     if (hidden) {
         pump_home_time_remain_set_hidden(time, true);
@@ -434,7 +441,15 @@ static void pump_home_time_blink_apply(pump_home_custom_ui_info_t *info, bool bl
 void pump_home_custom_time_apply_select_offset(pump_home_custom_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
-    info->time.force_realign = 1;
+
+    if (info->time.applied_clock_y_offset != info->mode.select_clock_y_offset ||
+        info->time.applied_clock_2seg_y_offset != info->mode.select_clock_2seg_y_offset ||
+        info->time.applied_remain_y_offset != info->mode.select_remain_y_offset) {
+        info->time.applied_clock_y_offset = info->mode.select_clock_y_offset;
+        info->time.applied_clock_2seg_y_offset = info->mode.select_clock_2seg_y_offset;
+        info->time.applied_remain_y_offset = info->mode.select_remain_y_offset;
+        info->time.force_realign = 1;
+    }
 }
 
 void pump_home_custom_time_ui_remove(pump_home_custom_ui_info_t *info)
@@ -456,7 +471,8 @@ void pump_home_custom_time_ui_update(pump_home_custom_ui_info_t *info, uint16_t 
         info->time.target_time_shown = UINT32_MAX;
         info->time.force_realign = 0;
     }
-    int8_t y_offset = info->mode.is_rhythm_mode > 0 ? PUMP_TIME_Y_OFFSET_REMAIN : PUMP_TIME_Y_OFFSET_OTHER;
+    int8_t y_offset = pump_home_time_is_rhythm_mode(info->mode.new_index) ?
+        PUMP_TIME_Y_OFFSET_REMAIN : PUMP_TIME_Y_OFFSET_OTHER;
     uint8_t hours = hold_time / 3600;
     uint8_t minutes = (hold_time / 60) % 60;
     uint8_t seconds = hold_time % 60;

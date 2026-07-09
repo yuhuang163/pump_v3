@@ -6,7 +6,6 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "pump_home_custom_ui_internal.h" // IWYU pragma: keep
-#include "breast_pump_manager_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -170,18 +169,75 @@ static void pump_home_mode_title_blink_apply(pump_home_custom_ui_info_t *info, b
 }
 #endif
 
-static bool pump_home_mode_need_update(pump_home_custom_ui_info_t *info)
+static bool pump_home_mode_is_rhythm_mode(uint8_t mode_index)
 {
-    if (info->force_update) {
-        return true;
+    return mode_index == BREAST_PUMP_MILK_BOOST_MODE ||
+        mode_index == BREAST_PUMP_PP_MILK_TRACK_MODE ||
+        mode_index == BREAST_PUMP_CUSTOM_MODE;
+}
+
+static void pump_home_mode_apply_index_change(pump_home_custom_ui_info_t *info)
+{
+    char rhythm_name[24] = {0};
+
+    switch (info->mode.new_index) {
+        default:
+        case BREAST_PUMP_STIMULATION_MODE:
+            pump_home_mode_title_update(info, "Stimulation");
+            pump_home_mode_name_update(info, NULL, 0, 0);
+            break;
+        case BREAST_PUMP_LACTATION_MODE:
+            pump_home_mode_title_update(info, "Expression");
+            pump_home_mode_name_update(info, NULL, 0, 0);
+            break;
+        case BREAST_PUMP_MIX_MODE:
+            pump_home_mode_title_update(info, "Mixed");
+            pump_home_mode_name_update(info, NULL, 0, 0);
+            break;
+        case BREAST_PUMP_MILK_BOOST_MODE:
+            pump_home_mode_title_update(info, "Milk Boost");
+            pump_home_mode_name_update(info,
+                pump_home_mode_type_name_get(info->mode.new_mode_type),
+                PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+            break;
+        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+            pump_home_mode_title_update(info, "Power Pumping");
+            pump_home_mode_name_update(info,
+                pump_home_mode_type_name_get(info->mode.new_mode_type),
+                PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+            break;
+        case BREAST_PUMP_CUSTOM_MODE:
+            snprintf(rhythm_name, sizeof(rhythm_name), "Customize %s", info->mode.custom_id_str);
+            pump_home_mode_title_update(info, rhythm_name);
+            pump_home_mode_name_update(info,
+                pump_home_mode_type_name_get(info->mode.new_mode_type),
+                PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+            break;
     }
-    if (info->mode.index != info->mode.new_index) {
-        return true;
+
+    info->mode.index = info->mode.new_index;
+    info->mode.mode_type = info->mode.new_mode_type;
+    info->mode.is_rhythm_mode = pump_home_mode_is_rhythm_mode(info->mode.index) ? 1 : 0;
+}
+
+static void pump_home_mode_apply_type_change(pump_home_custom_ui_info_t *info)
+{
+    if (!pump_home_mode_is_rhythm_mode(info->mode.new_index)) {
+        info->mode.mode_type = info->mode.new_mode_type;
+        return;
     }
-    if (info->mode.mode_type != info->mode.new_mode_type) {
-        return true;
+
+    const char *new_name = pump_home_mode_type_name_get(info->mode.new_mode_type);
+    if (info->mode.mode != NULL && lv_obj_is_valid(info->mode.mode)) {
+        const char *cur_name = lv_label_get_text(info->mode.mode);
+        if (cur_name != NULL && strcmp(cur_name, new_name) == 0) {
+            info->mode.mode_type = info->mode.new_mode_type;
+            return;
+        }
     }
-    return false;
+
+    pump_home_mode_name_update(info, new_name, PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
+    info->mode.mode_type = info->mode.new_mode_type;
 }
 
 #if PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
@@ -738,7 +794,7 @@ static void pump_home_mode_select_refresh(pump_home_custom_ui_info_t *info)
 }
 
 static void pump_home_mode_select_ui_apply(pump_home_custom_ui_info_t *info,
-    pump_mode_display_type_e display_type, bool mode_changed)
+    pump_mode_display_type_e display_type, bool mode_index_changed)
 {
     const bool select_ui = pump_home_mode_select_ui_active(display_type, info->mode.new_index);
     const bool prev_select_ui = info->mode.select_ui_active != 0;
@@ -758,15 +814,17 @@ static void pump_home_mode_select_ui_apply(pump_home_custom_ui_info_t *info,
         const bool dot_count_changed = prev_dot_count != info->mode.select_dot_count;
         const bool custom_changed = prev_custom_active != info->mode.custom_mode_active;
 
-        if (style_changed || dot_count_changed || custom_changed || mode_changed) {
+        if (style_changed || dot_count_changed || custom_changed || mode_index_changed) {
             pump_home_mode_select_refresh(info);
-            if (style_changed || mode_changed) {
+            if (style_changed || mode_index_changed) {
                 pump_home_mode_select_layout_shift(info, true, anim);
             }
         }
-    } else if (info->mode.title != NULL && lv_obj_is_valid(info->mode.title)) {
-        pump_home_mode_obj_visible_set(info->mode.title, true);
-        lv_obj_set_style_opa(info->mode.title, LV_OPA_COVER, 0);
+    } else if (!select_ui && (prev_select_ui || info->force_update)) {
+        if (info->mode.title != NULL && lv_obj_is_valid(info->mode.title)) {
+            pump_home_mode_obj_visible_set(info->mode.title, true);
+            lv_obj_set_style_opa(info->mode.title, LV_OPA_COVER, 0);
+        }
         pump_home_mode_select_group_visible_set(info, false, LV_OPA_TRANSP);
     }
 
@@ -813,58 +871,40 @@ void pump_home_custom_mode_ui_remove(pump_home_custom_ui_info_t *info)
 void pump_home_custom_mode_ui_update(pump_home_custom_ui_info_t *info, bool blink_visible,
     pump_mode_display_type_e display_type)
 {
-    pump_home_mode_capsule_create(info);
-    char rhythm_name[24] = {0};
-    const bool mode_changed = pump_home_mode_need_update(info);
-
     EXCEPTION_CHECK_VOID(info);
-    if (mode_changed) {
-        switch (info->mode.new_index) {
-            default:
-            case BREAST_PUMP_STIMULATION_MODE:
-                pump_home_mode_title_update(info, "Stimulation");
-                pump_home_mode_name_update(info, NULL, 0, 0);
-                info->mode.is_rhythm_mode = 0;
-                break;
-            case BREAST_PUMP_LACTATION_MODE:
-                pump_home_mode_title_update(info, "Expression");
-                pump_home_mode_name_update(info, NULL, 0, 0);
-                info->mode.is_rhythm_mode = 0;
-                break;
-            case BREAST_PUMP_MIX_MODE:
-                pump_home_mode_title_update(info, "Mixed");
-                pump_home_mode_name_update(info, NULL, 0, 0);
-                info->mode.is_rhythm_mode = 0;
-                break;
-            case BREAST_PUMP_MILK_BOOST_MODE:
-                pump_home_mode_title_update(info, "Milk Boost");
-                pump_home_mode_name_update(info,
-                    pump_home_mode_type_name_get(info->mode.new_mode_type),
-                    PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
-                info->mode.is_rhythm_mode = 1;
-                break;
-            case BREAST_PUMP_PP_MILK_TRACK_MODE:
-                pump_home_mode_title_update(info, "Power Pumping");
-                pump_home_mode_name_update(info,
-                    pump_home_mode_type_name_get(info->mode.new_mode_type),
-                    PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
-                info->mode.is_rhythm_mode = 1;
-                break;
-            case BREAST_PUMP_CUSTOM_MODE:
-                snprintf(rhythm_name, sizeof(rhythm_name), "Customize %s", info->mode.custom_id_str);
-                pump_home_mode_title_update(info, rhythm_name);
-                pump_home_mode_name_update(info,
-                    pump_home_mode_type_name_get(info->mode.new_mode_type),
-                    PUMP_HOME_MODE_NAME_X, PUMP_HOME_MODE_NAME_Y);
-                info->mode.is_rhythm_mode = 1;
-                break;
-        }
-        info->mode.index = info->mode.new_index;
-        info->mode.mode_type = info->mode.new_mode_type;
+
+    const bool mode_index_changed = info->force_update ||
+        info->mode.index != info->mode.new_index;
+    const bool mode_type_changed = info->mode.mode_type != info->mode.new_mode_type;
+#if PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
+    const bool select_ui = pump_home_mode_select_ui_active(display_type, info->mode.new_index);
+    const bool select_ui_transition = (info->mode.select_ui_active != 0) != select_ui;
+    const bool display_changed = info->mode.display_type != (uint8_t)display_type;
+#endif
+
+#if PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
+    if (!info->force_update && !mode_index_changed && !mode_type_changed &&
+        !select_ui_transition && !display_changed) {
+#else
+    if (!info->force_update && !mode_index_changed && !mode_type_changed) {
+#endif
+#if PUMP_HOME_MODE_TITLE_BLINK_ENABLE
+        pump_home_mode_title_blink_apply(info, blink_visible);
+#else
+        (void)blink_visible;
+#endif
+        return;
+    }
+
+    if (mode_index_changed) {
+        pump_home_mode_capsule_create(info);
+        pump_home_mode_apply_index_change(info);
+    } else if (mode_type_changed) {
+        pump_home_mode_apply_type_change(info);
     }
 
 #if PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
-    pump_home_mode_select_ui_apply(info, display_type, mode_changed);
+    pump_home_mode_select_ui_apply(info, display_type, mode_index_changed);
 #else
     (void)display_type;
 #endif
