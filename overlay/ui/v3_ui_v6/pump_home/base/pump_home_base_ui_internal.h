@@ -108,6 +108,9 @@ typedef struct {
     uint32_t remain_time;
     uint32_t remain_time_shown;
     uint8_t force_realign;
+    int16_t applied_clock_y_offset;
+    int16_t applied_clock_2seg_y_offset;
+    int16_t applied_remain_y_offset;
 } pump_home_base_time_t;
 
 typedef struct {

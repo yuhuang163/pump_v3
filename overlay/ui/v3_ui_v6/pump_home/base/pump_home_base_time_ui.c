@@ -327,7 +327,15 @@ static void pump_home_time_blink_apply(pump_home_base_ui_info_t *info, bool blin
 void pump_home_base_time_apply_select_offset(pump_home_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
-    info->time.force_realign = 1;
+
+    if (info->time.applied_clock_y_offset != info->mode.select_clock_y_offset ||
+        info->time.applied_clock_2seg_y_offset != info->mode.select_clock_2seg_y_offset ||
+        info->time.applied_remain_y_offset != info->mode.select_remain_y_offset) {
+        info->time.applied_clock_y_offset = info->mode.select_clock_y_offset;
+        info->time.applied_clock_2seg_y_offset = info->mode.select_clock_2seg_y_offset;
+        info->time.applied_remain_y_offset = info->mode.select_remain_y_offset;
+        info->time.force_realign = 1;
+    }
 }
 
 void pump_home_base_time_ui_remove(pump_home_base_ui_info_t *info)
