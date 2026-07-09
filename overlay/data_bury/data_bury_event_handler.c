@@ -309,6 +309,8 @@ static int data_bury_event_build_bt_session_end_evt(data_bury_manager_context_t 
 {
     uint8_t app_reason;
     uint8_t connect_ok;
+    uint32_t connect_ts;
+    uint32_t disconnect_ts;
 
     if (!ctx || !evt) {
         return -1;
@@ -327,17 +329,19 @@ static int data_bury_event_build_bt_session_end_evt(data_bury_manager_context_t 
     memset(evt, 0, sizeof(*evt));
     evt->device_side = ctx->data_bury_get_device_side();
     evt->use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
-    evt->evt_timestamp = connect_ok ? s_event_rt.bt_connect_timestamp_utc : platform_get_utc_time();
+    connect_ts = connect_ok ? s_event_rt.bt_connect_timestamp_utc : platform_get_utc_time();
+    data_bury_evt_put_u32_le(evt, DATA_BURY_EVT_COMMON_EVT_TIMESTAMP_OFF, connect_ts);
     evt->connect_result =  (app_reason == DATA_BURY_BT_DISCONNECT_REASON_TIMEOUT) ? DATA_BURY_BT_CONNECT_RESULT_FAIL
                                            : DATA_BURY_BT_CONNECT_RESULT_SUCCESS;
     evt->connection_setup_duration = connect_ok ? s_event_rt.bt_connection_setup_duration : 0u;
     evt->bt_signal_strength_rssi = connect_ok ? s_event_rt.bt_signal_strength_rssi
                                                : data_bury_event_sample_ble_rssi(ctx);
-    evt->disconnect_timestamp = platform_get_utc_time();
+    disconnect_ts = platform_get_utc_time();
+    data_bury_evt_put_u32_le(evt, DATA_BURY_EVT_BT_CONNECT_DISCONNECT_TS_OFF, disconnect_ts);
     evt->disconnect_reason = app_reason;
     LOG_BURY("bt session end: connect_ok=%u result=%u connect_ts=%u setup_ms=%u rssi=%d reason=0x%02x",
              (unsigned)connect_ok, (unsigned)evt->connect_result,
-             (unsigned)evt->evt_timestamp,
+             (unsigned)connect_ts,
              (unsigned)evt->connection_setup_duration,
              (int)evt->bt_signal_strength_rssi,
              (unsigned)evt->disconnect_reason);
@@ -404,7 +408,13 @@ static void data_bury_event_buffer_pump_session_start(data_bury_manager_context_
 
     evt.device_side = ctx->data_bury_get_device_side();
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
-    evt.evt_timestamp = platform_get_utc_time();
+    {
+        uint32_t start_ts = platform_get_utc_time();
+
+        data_bury_evt_put_u32_le(&evt, DATA_BURY_EVT_COMMON_EVT_TIMESTAMP_OFF, start_ts);
+        LOG_BURY("pump session start buffered ts=%u (commit on valid end >= %us)",
+                 (unsigned)start_ts, (unsigned)DATA_BURY_PUMP_SESSION_MIN_DURATION_SEC);
+    }
     evt.pump_session_id = 0u;
     evt.initial_mode_type = bury_mode;
     evt.initial_suction_level = 0u;
@@ -415,8 +425,6 @@ static void data_bury_event_buffer_pump_session_start(data_bury_manager_context_
     s_event_rt.pending_pump_session_start_ms = get_timestamp_ms(0);
     s_event_rt.pump_session_start_pending = 1u;
     data_bury_session_mode_queue_begin();
-    LOG_BURY("pump session start buffered ts=%u (commit on valid end >= %us)",
-             (unsigned)evt.evt_timestamp, (unsigned)DATA_BURY_PUMP_SESSION_MIN_DURATION_SEC);
 }
 
 static void data_bury_event_record_pump_mode_switch(uint32_t adjust_from, uint32_t adjust_to,

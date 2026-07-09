@@ -46,9 +46,7 @@ static void ota_main_fw_event_callback(ota_event_type_e event, int arg1, int arg
     if (event == OTA_EVENT_START_OTA || event == OTA_EVENT_RESUME_OTA) {
         ota_obj->set_ota_upgrade_progress(OTA_OBJECT_MAIN_FIRMWARE, arg1, arg2);
         ota_obj->start_ota_upgrade(OTA_OBJECT_MAIN_FIRMWARE, NULL);
-        if (event == OTA_EVENT_START_OTA) {
-            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_OTA_START, 0, 0);
-        }
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_OTA_START, 0, 0);
     } else if (event == OTA_EVENT_OTA_PROGRESS) {
         ota_obj->set_ota_upgrade_progress(OTA_OBJECT_MAIN_FIRMWARE, arg1, arg2);
     } else if (event == OTA_EVENT_OTA_FAIL) {

@@ -39,11 +39,34 @@ typedef struct __attribute__((packed)) {
 } data_bury_evt_common_hdr_t;
 
 #define DATA_BURY_EVT_COMMON_HDR_LEN            ((uint16_t)sizeof(data_bury_evt_common_hdr_t))
+#define DATA_BURY_EVT_COMMON_USE_SESSION_ID_OFF 1u
+#define DATA_BURY_EVT_COMMON_EVT_TIMESTAMP_OFF  5u
 #define DATA_BURY_EVT_PUMP_SESSION_ID_OFF       9u
 
 #define DATA_BURY_EVT_USE_SESSION_PLACEHOLDER   0xFFFFFFFFu
 #define DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER     0xFFFFFFFFu
 #define DATA_BURY_EVT_PUMP_SESSION_ID_PLACEHOLDER 0xFFFFu
+
+/* packed 载荷内小端 uint32 读写，避免非对齐结构体字段赋值未落栈 */
+static inline uint32_t data_bury_evt_get_u32_le(const void *base, uint16_t off)
+{
+    const uint8_t *p = (const uint8_t *)base + off;
+
+    return (uint32_t)p[0]
+         | ((uint32_t)p[1] << 8)
+         | ((uint32_t)p[2] << 16)
+         | ((uint32_t)p[3] << 24);
+}
+
+static inline void data_bury_evt_put_u32_le(void *base, uint16_t off, uint32_t v)
+{
+    uint8_t *p = (uint8_t *)base + off;
+
+    p[0] = (uint8_t)(v);
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
 
 /* CMD:0x01 EVT_001 pump_startup */
 typedef struct __attribute__((packed)) {
@@ -74,6 +97,8 @@ typedef struct __attribute__((packed)) {
     uint32_t disconnect_timestamp;
     uint8_t  disconnect_reason;
 } data_bury_evt_bt_connect_t;
+
+#define DATA_BURY_EVT_BT_CONNECT_DISCONNECT_TS_OFF 13u
 
 /* CMD:0x04 EVT_004 pump_session_start */
 typedef struct __attribute__((packed)) {
