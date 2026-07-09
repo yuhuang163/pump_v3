@@ -148,6 +148,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
     proc->show_countdown_time = 0;
     /// 配置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;

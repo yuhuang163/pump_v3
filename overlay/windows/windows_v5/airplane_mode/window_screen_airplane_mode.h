@@ -51,6 +51,7 @@ typedef struct ui_proc_airplane_mode {
     breast_pump_manager_context_t *pump;
     led_manager_context_t *led;
     airplane_mode_context_t *airplane;
+    resource_manager_context_t *res;
     broadcast_obj_t receiver;
     window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;

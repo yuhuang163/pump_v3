@@ -37,6 +37,13 @@ static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
 {
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_BATTERY);
     multi_func_msg_data_t msg = {0};
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     if (proc->wm->is_window_factory_test_deployed() == 0) {
         LOG_WM("goto factory test screen");
         msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
@@ -132,6 +139,9 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+        }
         show_battery_low_power_ui(proc);
         POST_WM_TASK_HANDLER_DELAYED_ARG2(battery_ui_common_cb, 3000, BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF,
                 proc, BATTERY_LOW_POWER_TASK_NAME);
@@ -183,6 +193,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     /// 配置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;

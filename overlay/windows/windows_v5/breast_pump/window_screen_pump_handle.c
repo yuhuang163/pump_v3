@@ -280,7 +280,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         int mode_index = 0;
         READ_PUMP_WORK_MODE(proc->pump, mode_index);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, 100);
+            proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
             #if !IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
             proc->led->set_led_level(PUMP_BREASTFEEDING_BL, 0);
             #endif
@@ -301,9 +301,6 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_pump_ui_animation(proc); 
-            #if !IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
-            proc->led->set_led_level(PUMP_BREASTFEEDING_BL, LED_LEVEL_MAX);
-            #endif
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);

@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "breast_pump_manager_api.h"
 #include "input_key_code.h"
 #include "persist_storage.h"
 #include "ui_page_define.h"  // IWYU pragma: keep
