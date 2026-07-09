@@ -21,6 +21,9 @@ typedef struct {
     uint8_t pump_session_start_pending;
     uint32_t pending_pump_session_start_ms;
     data_bury_evt_pump_session_start_t pending_pump_session_start;
+    uint8_t ota_session_active;
+    uint32_t ota_start_timestamp_utc;
+    uint16_t ota_update_from_version;
 } data_bury_event_runtime_t;
 
 static data_bury_event_runtime_t s_event_rt;
@@ -73,6 +76,8 @@ static uint8_t data_bury_event_publish_id_to_cmd(servers_publish_data_id_e id)
         return APP_BURY_CMD_PUMP_SHUTDOWN;
     case SERVERS_PUBLISH_DATA_DATA_BURY_BT_CONNECT_EVENT:
         return APP_BURY_CMD_BT_CONNECT_EVENT;
+    case SERVERS_PUBLISH_DATA_DATA_BURY_FIRMWARE_UPDATE:
+        return APP_BURY_CMD_FIRMWARE_UPDATE;
     default:
         return 0u;
     }
@@ -678,18 +683,59 @@ static void data_bury_event_publish_charge_end(data_bury_manager_context_t *ctx,
                                     &evt, (uint16_t)sizeof(evt), 0u);
 }
 
-static void data_bury_event_publish_firmware_update_start(data_bury_manager_context_t *ctx, uint8_t is_success, uint16_t update_err_code)
+static uint16_t data_bury_event_get_firmware_version_packed(void)
+{
+    return (uint16_t)(((ROOT_FIRMWARE_VERSION / 100) << 8) | (ROOT_FIRMWARE_VERSION % 100));
+}
+
+static void data_bury_event_ota_session_reset(void)
+{
+    s_event_rt.ota_session_active = 0u;
+    s_event_rt.ota_start_timestamp_utc = 0u;
+    s_event_rt.ota_update_from_version = 0u;
+}
+
+static void data_bury_event_build_firmware_update_evt(data_bury_manager_context_t *ctx,
+                                                      data_bury_evt_firmware_update_t *evt,
+                                                      uint8_t is_success, uint16_t update_err_code)
+{
+    if (!ctx || !evt) {
+        return;
+    }
+    memset(evt, 0, sizeof(*evt));
+    evt->device_side = ctx->data_bury_get_device_side();
+    evt->use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
+    if (s_event_rt.ota_session_active && s_event_rt.ota_start_timestamp_utc != 0u) {
+        evt->evt_timestamp = s_event_rt.ota_start_timestamp_utc;
+        evt->update_from = s_event_rt.ota_update_from_version;
+    } else {
+        evt->evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
+        evt->update_from = data_bury_event_get_firmware_version_packed();
+    }
+    evt->update_result = is_success ? DATA_BURY_FIRMWARE_UPDATE_RESULT_SUCCESS
+                                    : DATA_BURY_FIRMWARE_UPDATE_RESULT_FAILURE;
+    evt->update_err = update_err_code;
+}
+
+static void data_bury_event_publish_firmware_update(data_bury_manager_context_t *ctx, uint8_t is_success,
+                                                    uint16_t update_err_code)
 {
     data_bury_evt_firmware_update_t evt = {0};
 
-    evt.device_side = ctx->data_bury_get_device_side();
-    evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
-    evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
-    evt.update_from = (uint16_t)(((ROOT_FIRMWARE_VERSION / 100) << 8) | (ROOT_FIRMWARE_VERSION % 100));
-    evt.update_result = is_success ? DATA_BURY_FIRMWARE_UPDATE_RESULT_SUCCESS : DATA_BURY_FIRMWARE_UPDATE_RESULT_FAILURE;
-    evt.update_err = update_err_code;
+    data_bury_event_build_firmware_update_evt(ctx, &evt, is_success, update_err_code);
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_FIRMWARE_UPDATE,
                                     &evt, (uint16_t)sizeof(evt), 0u);
+    data_bury_event_ota_session_reset();
+}
+
+static int data_bury_event_cache_firmware_update(data_bury_manager_context_t *ctx, uint8_t is_success,
+                                               uint16_t update_err_code)
+{
+    data_bury_evt_firmware_update_t evt = {0};
+
+    data_bury_event_build_firmware_update_evt(ctx, &evt, is_success, update_err_code);
+    return data_bury_event_cache_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_FIRMWARE_UPDATE,
+                                        &evt, (uint16_t)sizeof(evt));
 }
 
 static void data_bury_event_flush_pending_if_connected(data_bury_manager_context_t *ctx)
@@ -823,6 +869,7 @@ int data_bury_event_process_power_on(data_bury_manager_context_t *ctx,
     }
     data_bury_pump_session_pending_discard(ctx);
     data_bury_event_publish_pump_startup(ctx);
+    data_bury_event_flush_pending_if_connected(ctx);
     return 0;
 }
 
@@ -847,9 +894,51 @@ int data_bury_event_process_power_off(data_bury_manager_context_t *ctx,
 int data_bury_event_process_ota_start(data_bury_manager_context_t *ctx,
                                              const data_bury_trigger_args_t *args)
 {
-    uint8_t is_success = (uint8_t)args->arg1;
-    uint16_t update_err_code = (uint16_t)args->arg2;
-    data_bury_event_publish_firmware_update_start(ctx, is_success, update_err_code);
+    (void)args;
+    if (!ctx) {
+        return -1;
+    }
+    s_event_rt.ota_session_active = 1u;
+    s_event_rt.ota_start_timestamp_utc = platform_get_utc_time();
+    s_event_rt.ota_update_from_version = data_bury_event_get_firmware_version_packed();
+    LOG_BURY("ota bury start ts=%u from_ver=0x%04x",
+             (unsigned)s_event_rt.ota_start_timestamp_utc,
+             (unsigned)s_event_rt.ota_update_from_version);
+    return 0;
+}
+
+int data_bury_event_process_ota_success(data_bury_manager_context_t *ctx,
+                                               const data_bury_trigger_args_t *args)
+{
+    int ret;
+
+    (void)args;
+    if (!ctx) {
+        return -1;
+    }
+    ret = data_bury_event_cache_firmware_update(ctx, 1u, 0u);
+    if (ret != 0) {
+        LOGE("ota bury success cache fail ret=%d", ret);
+        return ret;
+    }
+    data_bury_event_ota_session_reset();
+    LOG_BURY("ota bury success cached");
+    return 0;
+}
+
+int data_bury_event_process_ota_fail(data_bury_manager_context_t *ctx,
+                                            const data_bury_trigger_args_t *args)
+{
+    uint16_t update_err_code = 0u;
+
+    if (!ctx) {
+        return -1;
+    }
+    if (args) {
+        update_err_code = (uint16_t)args->arg2;
+    }
+    data_bury_event_publish_firmware_update(ctx, 0u, update_err_code);
+    LOG_BURY("ota bury fail published err=0x%04x", (unsigned)update_err_code);
     return 0;
 }
 
