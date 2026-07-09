@@ -19,6 +19,8 @@ const static data_bury_event_process_handle_t data_bury_event_process_list[] = {
     { DATA_BURY_TRIGGER_EVT_POWER_ON, data_bury_event_process_power_on },
     { DATA_BURY_TRIGGER_EVT_POWER_OFF, data_bury_event_process_power_off },
     { DATA_BURY_TRIGGER_EVT_OTA_START, data_bury_event_process_ota_start },
+    { DATA_BURY_TRIGGER_EVT_OTA_SUCCESS, data_bury_event_process_ota_success },
+    { DATA_BURY_TRIGGER_EVT_OTA_FAIL, data_bury_event_process_ota_fail },
     { DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START, data_bury_event_process_bat_charge_start },
     { DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END, data_bury_event_process_bat_charge_end },
     { DATA_BURY_TRIGGER_EVT_WEAR_DETECTION, data_bury_event_process_wear_detection },
