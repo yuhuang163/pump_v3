@@ -46,6 +46,11 @@ void pump_home_custom_blink_state_update(pump_home_custom_ui_info_t *info, ui_pr
 #if !PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
         new_mode_blink = 1;
 #endif
+    } else if (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_BF_MODE &&
+        PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
+#if !PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
+        new_mode_blink = 1;
+#endif
     }
     if (proc->pump_status == BREAST_PUMP_PAUSE) {
         new_time_blink = 1;

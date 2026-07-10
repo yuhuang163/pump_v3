@@ -297,6 +297,33 @@ static void pump_home_time_s_update(pump_home_base_ui_info_t *info, uint8_t seco
     time->seconds = seconds;
 }
 
+static void pump_home_base_time_select_offset_realign(pump_home_base_ui_info_t *info)
+{
+    pump_home_base_time_t *time = &info->time;
+
+    if (time->digit_size == 0) {
+        time->force_realign = 1;
+        return;
+    }
+
+    int8_t y_offset = pump_home_time_y_offset_get(info->mode.new_index);
+    if (time->digit_size == PUMP_TIME_3SEG) {
+        y_offset += info->mode.select_clock_y_offset;
+    } else {
+        y_offset += info->mode.select_clock_2seg_y_offset;
+    }
+
+    const bool saved_force = info->force_update;
+    info->force_update = true;
+    pump_home_time_h_update(info, time->hours, time->digit_size, y_offset);
+    pump_home_time_m_update(info, time->minutes, time->digit_size, y_offset);
+    pump_home_time_s_update(info, time->seconds, time->digit_size, y_offset);
+    pump_home_time_colon_update(info, time->digit_size, y_offset);
+    pump_home_time_remain_update(info, info->mode.new_index);
+    info->force_update = saved_force;
+    time->y_offset = y_offset;
+}
+
 #if PUMP_HOME_BASE_TIME_BLINK_ENABLE
 static void pump_home_time_blink_apply(pump_home_base_ui_info_t *info, bool blink_visible)
 {
@@ -334,7 +361,7 @@ void pump_home_base_time_apply_select_offset(pump_home_base_ui_info_t *info)
         info->time.applied_clock_y_offset = info->mode.select_clock_y_offset;
         info->time.applied_clock_2seg_y_offset = info->mode.select_clock_2seg_y_offset;
         info->time.applied_remain_y_offset = info->mode.select_remain_y_offset;
-        info->time.force_realign = 1;
+        pump_home_base_time_select_offset_realign(info);
     }
 }
 

@@ -23,7 +23,7 @@
 #define PUMP_TIME_3SEG                               (60)  /// 三段计时 HH:MM:SS
 
 #define PUMP_TIME_3SEG_H_X                           (63)
-#define PUMP_TIME_3SEG_H_Y                           (140)
+#define PUMP_TIME_3SEG_H_Y                           (135)
 #define PUMP_TIME_3SEG_M_X                           (147)
 #define PUMP_TIME_3SEG_M_Y                           (PUMP_TIME_3SEG_H_Y)
 #define PUMP_TIME_3SEG_S_X                           (231)
@@ -57,7 +57,7 @@
 #define PUMP_TIME_REMAIN_DIGIT_WIDTH                 (24)
 
 #define PUMP_TIME_Y_OFFSET_OTHER                     (0)   /// 常规模式（当前坐标基准）
-#define PUMP_TIME_Y_OFFSET_REMAIN                    (20)  /// 有剩余时长模式
+#define PUMP_TIME_Y_OFFSET_REMAIN                    (24)  /// 有剩余时长模式
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -411,6 +411,63 @@ static void pump_home_time_s_update(pump_home_custom_ui_info_t *info, uint8_t se
     time->seconds = seconds;
 }
 
+static void pump_home_time_progress_realign_y(pump_home_custom_ui_info_t *info)
+{
+    pump_home_custom_time_t *time = &info->time;
+
+    if (!pump_home_time_is_rhythm_mode(info->mode.new_index)) {
+        return;
+    }
+
+    const lv_coord_t y = PUMP_TIME_PROGRESS_Y + info->mode.select_remain_y_offset;
+    if (time->progress_bg != NULL && lv_obj_is_valid(time->progress_bg) &&
+        !lv_obj_has_flag(time->progress_bg, LV_OBJ_FLAG_HIDDEN)) {
+        lv_obj_align(time->progress_bg, LV_ALIGN_TOP_LEFT, PUMP_TIME_PROGRESS_X, y);
+    }
+    if (time->progress_fill != NULL && lv_obj_is_valid(time->progress_fill) &&
+        !lv_obj_has_flag(time->progress_fill, LV_OBJ_FLAG_HIDDEN)) {
+        const lv_coord_t fill_width = lv_obj_get_width(time->progress_fill);
+        lv_obj_align(time->progress_fill, LV_ALIGN_TOP_LEFT, PUMP_TIME_PROGRESS_X, y);
+        if (time->progress_knob != NULL && lv_obj_is_valid(time->progress_knob) &&
+            !lv_obj_has_flag(time->progress_knob, LV_OBJ_FLAG_HIDDEN)) {
+            const lv_coord_t knob_x = PUMP_TIME_PROGRESS_X + fill_width -
+                PUMP_TIME_PROGRESS_KNOB_SIZE / 2;
+            const lv_coord_t knob_y = y +
+                (PUMP_TIME_PROGRESS_HEIGHT - PUMP_TIME_PROGRESS_KNOB_SIZE) / 2;
+            lv_obj_align(time->progress_knob, LV_ALIGN_TOP_LEFT, knob_x, knob_y);
+        }
+    }
+}
+
+static void pump_home_custom_time_select_offset_realign(pump_home_custom_ui_info_t *info)
+{
+    pump_home_custom_time_t *time = &info->time;
+
+    if (time->digit_size == 0) {
+        time->force_realign = 1;
+        return;
+    }
+
+    int8_t y_offset = pump_home_time_is_rhythm_mode(info->mode.new_index) ?
+        PUMP_TIME_Y_OFFSET_REMAIN : PUMP_TIME_Y_OFFSET_OTHER;
+    if (time->digit_size == PUMP_TIME_3SEG) {
+        y_offset += info->mode.select_clock_y_offset;
+    } else {
+        y_offset += info->mode.select_clock_2seg_y_offset;
+    }
+
+    const bool saved_force = info->force_update;
+    info->force_update = true;
+    pump_home_time_h_update(info, time->hours, time->digit_size, y_offset);
+    pump_home_time_m_update(info, time->minutes, time->digit_size, y_offset);
+    pump_home_time_s_update(info, time->seconds, time->digit_size, y_offset);
+    pump_home_time_colon_update(info, time->digit_size, y_offset);
+    pump_home_time_remain_update(info, info->mode.new_index);
+    info->force_update = saved_force;
+    time->y_offset = y_offset;
+    pump_home_time_progress_realign_y(info);
+}
+
 #if PUMP_HOME_CUSTOM_TIME_BLINK_ENABLE
 static void pump_home_time_blink_apply(pump_home_custom_ui_info_t *info, bool blink_visible)
 {
@@ -448,7 +505,7 @@ void pump_home_custom_time_apply_select_offset(pump_home_custom_ui_info_t *info)
         info->time.applied_clock_y_offset = info->mode.select_clock_y_offset;
         info->time.applied_clock_2seg_y_offset = info->mode.select_clock_2seg_y_offset;
         info->time.applied_remain_y_offset = info->mode.select_remain_y_offset;
-        info->time.force_realign = 1;
+        pump_home_custom_time_select_offset_realign(info);
     }
 }
 
