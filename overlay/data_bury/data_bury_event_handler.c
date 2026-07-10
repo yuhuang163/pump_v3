@@ -548,7 +548,7 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
     uint8_t *buf = NULL;
     data_bury_evt_pump_session_end_fixed_t *evt;
     data_bury_evt_program_duration_t *program_durations;
-    pump_result_info_t result = {0};
+    const pump_result_info_t *result_info = NULL;
     int mode = 0;
     uint16_t session_id = 0;
     uint8_t used_mode_count;
@@ -590,9 +590,12 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
         session_id = ctx->data_bury_get_current_pump_session_id();
     }
 
-    READ_PUMP_WORK_MODE(pump, mode);
-    const pump_result_info_t *result_info = NULL;
     READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
+    if (result_info != NULL) {
+        mode = (int)result_info->mode;
+    } else {
+        READ_PUMP_WORK_MODE(pump, mode);
+    }
     duration_sec = result_info ? (uint16_t)(result_info->current_mode_work_time / 1000u) : 0u;
     uint8_t bury_mode = (uint8_t)data_bury_convert_pump_mode((uint8_t)mode);
     uint32_t mode_or_program_id = (uint32_t)bury_mode;
@@ -633,7 +636,8 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
         }
     } else {
         program_durations[0].mode_or_program_id = mode_or_program_id;
-        program_durations[0].duration_sec = (uint16_t)(result.work_valid_time / 1000u);
+        program_durations[0].duration_sec = result_info
+            ? (uint16_t)(result_info->work_valid_time / 1000u) : 0u;
     }
 
     payload_len = DATA_BURY_EVT_PUMP_SESSION_END_PAYLOAD_LEN(used_mode_count);
