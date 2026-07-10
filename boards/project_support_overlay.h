@@ -183,7 +183,7 @@ extern "C" {
 #endif
 
 /// 支持力度调节闪烁
-#define IS_SUPPORT_PUMP_LEVEL_ADJUST_BLINK               (0)
+#define IS_SUPPORT_PUMP_LEVEL_ADJUST_BLINK               (1)
 
 #ifdef __cplusplus
 }
