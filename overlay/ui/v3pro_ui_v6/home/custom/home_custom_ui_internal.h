@@ -19,6 +19,46 @@ extern "C" {
 * DEFINES
 *****************************************************************************************
 */
+#if HOME_MODE_SELECT_TRANSITION_ENABLE
+
+#if HOME_MODE_SELECT_CAPSULE_ENABLE
+#define HOME_CUSTOM_MODE_SELECT_CAPSULE_MEMBERS \
+    lv_obj_t *title_capsule; \
+    lv_obj_t *capsule_title; \
+    lv_obj_t *capsule_icon; \
+    lv_obj_t *select_dots[3]; \
+    uint8_t select_dot_count;
+#else
+#define HOME_CUSTOM_MODE_SELECT_CAPSULE_MEMBERS
+#endif
+
+#if !HOME_MODE_SELECT_CAPSULE_ENABLE
+#define HOME_CUSTOM_MODE_SELECT_CAROUSEL_MEMBERS \
+    lv_obj_t *select_titles[3]; \
+    int16_t select_title_slide_offset; \
+    int8_t select_slide_dir;
+#else
+#define HOME_CUSTOM_MODE_SELECT_CAROUSEL_MEMBERS
+#endif
+
+#define HOME_CUSTOM_MODE_SELECT_COMMON_MEMBERS \
+    uint8_t display_type; \
+    uint8_t select_ui_active; \
+    uint8_t select_capsule_style; \
+    uint8_t custom_mode_active;
+
+#else
+
+#define HOME_CUSTOM_MODE_SELECT_CAPSULE_MEMBERS
+#define HOME_CUSTOM_MODE_SELECT_CAROUSEL_MEMBERS
+#define HOME_CUSTOM_MODE_SELECT_COMMON_MEMBERS
+
+#endif
+
+#define HOME_CUSTOM_MODE_SELECT_LABEL_OFFSET_MEMBERS \
+    int16_t select_label_y_offset; \
+    int16_t select_time_y_offset;
+
 typedef enum {
     HOME_CUSTOM_LEVEL_LEFT = 0,
     HOME_CUSTOM_LEVEL_RIGHT = 1,
@@ -72,19 +112,12 @@ typedef struct {
 typedef struct {
     lv_obj_t *title;
     lv_obj_t *icon;
-    lv_obj_t *title_capsule; /// 胶囊标题背景
-    lv_obj_t *capsule_title; /// 胶囊标题文字
-    lv_obj_t *capsule_icon; /// 胶囊内图标
-    lv_obj_t *select_dots[3]; /// 模式索引指示点
+    HOME_CUSTOM_MODE_SELECT_CAPSULE_MEMBERS
+    HOME_CUSTOM_MODE_SELECT_CAROUSEL_MEMBERS
     uint8_t index; /// 模式索引
     uint8_t new_index; /// 新模式索引
-    uint8_t display_type; /// home_pump_mode_display_type_e
-    uint8_t select_ui_active; /// 选择 UI 是否激活
-    uint8_t select_capsule_style; /// home_mode_capsule_style_e
-    uint8_t select_dot_count; /// 当前索引点数量
-    uint8_t custom_mode_active; /// 个性化模式是否激活
-    int16_t select_label_y_offset; /// 选择态 label Y 偏移
-    int16_t select_time_y_offset; /// 选择态时长 Y 偏移
+    HOME_CUSTOM_MODE_SELECT_COMMON_MEMBERS
+    HOME_CUSTOM_MODE_SELECT_LABEL_OFFSET_MEMBERS
     uint8_t mode_blink_state; /// 模式标题闪烁: 0: 不闪烁, 1: 闪烁.
     uint8_t icon_blink_state; /// 韵律图标闪烁: 0: 不闪烁, 1: 闪烁.
     uint32_t custom_mode_id; /// 个性化模式ID

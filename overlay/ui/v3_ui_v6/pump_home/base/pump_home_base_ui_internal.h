@@ -21,6 +21,51 @@ extern "C" {
 */
 #define HOME_TIME_COLON_COUNT                      (2)
 #define PUMP_HOME_TIME_DIGIT_COUNT                 (2)
+
+#if PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
+
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
+#define PUMP_HOME_BASE_MODE_SELECT_CAPSULE_MEMBERS \
+    lv_obj_t *title_capsule; \
+    lv_obj_t *capsule_title; \
+    lv_obj_t *select_dots[3]; \
+    uint8_t select_dot_count;
+#else
+#define PUMP_HOME_BASE_MODE_SELECT_CAPSULE_MEMBERS
+#endif
+
+#if !PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
+#define PUMP_HOME_BASE_MODE_SELECT_CAROUSEL_MEMBERS \
+    lv_obj_t *select_titles[3]; \
+    int16_t select_title_slide_offset; \
+    int8_t select_slide_dir;
+#else
+#define PUMP_HOME_BASE_MODE_SELECT_CAROUSEL_MEMBERS
+#endif
+
+#define PUMP_HOME_BASE_MODE_SELECT_COMMON_MEMBERS \
+    uint8_t display_type; \
+    uint8_t select_ui_active; \
+    uint8_t select_capsule_style; \
+    uint8_t custom_mode_active;
+
+#else
+
+#define PUMP_HOME_BASE_MODE_SELECT_CAPSULE_MEMBERS
+#define PUMP_HOME_BASE_MODE_SELECT_CAROUSEL_MEMBERS
+#define PUMP_HOME_BASE_MODE_SELECT_COMMON_MEMBERS
+
+#endif
+
+#define PUMP_HOME_BASE_MODE_SELECT_WAVE_OFFSET_MEMBER \
+    int16_t select_wave_y_offset;
+
+#define PUMP_HOME_BASE_MODE_SELECT_OFFSET_MEMBERS \
+    int16_t select_clock_y_offset; \
+    int16_t select_clock_2seg_y_offset; \
+    int16_t select_mode_y_offset; \
+    int16_t select_remain_y_offset;
+
 typedef struct {
     lv_obj_t *arc;
     lv_obj_t *indicator;
@@ -42,23 +87,15 @@ typedef struct {
 typedef struct {
     lv_obj_t *title;
     lv_obj_t *mode;
-    lv_obj_t *title_capsule;
-    lv_obj_t *capsule_title;
-    lv_obj_t *select_dots[3];
+    PUMP_HOME_BASE_MODE_SELECT_CAPSULE_MEMBERS
+    PUMP_HOME_BASE_MODE_SELECT_CAROUSEL_MEMBERS
     uint8_t index;
     uint8_t new_index;
     uint8_t mode_type;
     uint8_t new_mode_type;
-    uint8_t display_type;
-    uint8_t select_ui_active;
-    uint8_t select_capsule_style;
-    uint8_t select_dot_count;
-    uint8_t custom_mode_active;
-    int16_t select_wave_y_offset;
-    int16_t select_clock_y_offset;
-    int16_t select_clock_2seg_y_offset;
-    int16_t select_mode_y_offset;
-    int16_t select_remain_y_offset;
+    PUMP_HOME_BASE_MODE_SELECT_COMMON_MEMBERS
+    PUMP_HOME_BASE_MODE_SELECT_WAVE_OFFSET_MEMBER
+    PUMP_HOME_BASE_MODE_SELECT_OFFSET_MEMBERS
     uint16_t mode_name_x;
     uint16_t mode_name_y;
     uint8_t mode_blink_state; /// 模式闪烁状态: 0: 不闪烁, 1: 闪烁.

@@ -46,8 +46,22 @@
 #define PUMP_HOME_SELECT_MODE_Y_OFFSET_BF            (26)
 #define PUMP_HOME_SELECT_REMAIN_Y_OFFSET_BF          (26)
 
-#define PUMP_HOME_SELECT_ANIM_TIME_MS              (300)
-#define PUMP_HOME_SELECT_ENTER_Y_OFFSET            (8)
+#define PUMP_HOME_SELECT_CAROUSEL_CLOCK_Y_OFFSET_COMMON       (12)
+#define PUMP_HOME_SELECT_CAROUSEL_CLOCK_2SEG_Y_OFFSET_COMMON  (12)
+#define PUMP_HOME_SELECT_CAROUSEL_CLOCK_Y_OFFSET_BF           (18)
+#define PUMP_HOME_SELECT_CAROUSEL_CLOCK_2SEG_Y_OFFSET_BF      (18)
+#define PUMP_HOME_SELECT_CAROUSEL_MODE_Y_OFFSET_BF            (26)
+#define PUMP_HOME_SELECT_CAROUSEL_REMAIN_Y_OFFSET_BF          (26)
+
+#define PUMP_HOME_SELECT_ANIM_TIME_MS                (300)
+#define PUMP_HOME_SELECT_ENTER_Y_OFFSET              (8)
+
+#define PUMP_HOME_SELECT_TITLE_Y                     (82)
+#define PUMP_HOME_SELECT_TITLE_GAP                   (24)
+#define PUMP_HOME_SELECT_CAROUSEL_SIDE_COLOR         (0xE89AAB)
+#define PUMP_HOME_SELECT_SLOT_PREV                   0
+#define PUMP_HOME_SELECT_SLOT_CUR                    1
+#define PUMP_HOME_SELECT_SLOT_NEXT                   2
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -333,6 +347,8 @@ static void pump_home_mode_select_layout_target_get(const pump_home_custom_ui_in
     bool shift_down, int16_t *clock_offset, int16_t *clock_2seg_offset, int16_t *mode_offset,
     int16_t *remain_offset)
 {
+    uint8_t mode = info->mode.new_index;
+
     if (!shift_down) {
         *clock_offset = 0;
         *clock_2seg_offset = 0;
@@ -341,6 +357,7 @@ static void pump_home_mode_select_layout_target_get(const pump_home_custom_ui_in
         return;
     }
 
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
     if (info->mode.select_capsule_style == PUMP_HOME_CAPSULE_STYLE_BF) {
         *clock_offset = PUMP_HOME_SELECT_CLOCK_Y_OFFSET_BF;
         *clock_2seg_offset = PUMP_HOME_SELECT_CLOCK_2SEG_Y_OFFSET_BF;
@@ -353,7 +370,360 @@ static void pump_home_mode_select_layout_target_get(const pump_home_custom_ui_in
     *clock_2seg_offset = PUMP_HOME_SELECT_CLOCK_2SEG_Y_OFFSET_COMMON;
     *mode_offset = 0;
     *remain_offset = 0;
+#elif PUMP_HOME_MODE_SELECT_CAROUSEL_ENABLE
+    switch (mode) {
+        case BREAST_PUMP_STIMULATION_MODE:
+        case BREAST_PUMP_LACTATION_MODE:
+        case BREAST_PUMP_MIX_MODE:
+            *clock_offset = PUMP_HOME_SELECT_CAROUSEL_CLOCK_Y_OFFSET_COMMON;
+            *clock_2seg_offset = PUMP_HOME_SELECT_CAROUSEL_CLOCK_2SEG_Y_OFFSET_COMMON;
+            *mode_offset = 0;
+            *remain_offset = 0;
+            break;
+        case BREAST_PUMP_MILK_BOOST_MODE:
+        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+        case BREAST_PUMP_CUSTOM_MODE:
+            *clock_offset = PUMP_HOME_SELECT_CAROUSEL_CLOCK_Y_OFFSET_BF;
+            *clock_2seg_offset = PUMP_HOME_SELECT_CAROUSEL_CLOCK_2SEG_Y_OFFSET_BF;
+            *mode_offset = PUMP_HOME_SELECT_CAROUSEL_MODE_Y_OFFSET_BF;
+            *remain_offset = PUMP_HOME_SELECT_CAROUSEL_REMAIN_Y_OFFSET_BF;
+            break;
+        default:
+            *clock_offset = 0;
+            *clock_2seg_offset = 0;
+            *mode_offset = 0;
+            *remain_offset = 0;
+            break;
+    }
+#endif
 }
+
+#if !PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
+static uint8_t pump_home_mode_neighbor_next_get(const pump_home_custom_ui_info_t *info, uint8_t mode)
+{
+    const bool custom_active = info->mode.custom_mode_active != 0;
+
+    if (info->mode.select_capsule_style == PUMP_HOME_CAPSULE_STYLE_BF) {
+        if (!PUMP_IS_BREASTFEEDING_MODE(mode)) {
+            mode = BREAST_PUMP_EXPERT_MODE_DEFAULT;
+        }
+        if (mode == BREAST_PUMP_CUSTOM_MODE && !custom_active) {
+            return BREAST_PUMP_EXPERT_MODE_LOWER;
+        }
+        const uint8_t upper = custom_active ?
+            BREAST_PUMP_CUSTOM_MODE : BREAST_PUMP_PP_MILK_TRACK_MODE;
+        return (uint8_t)mode < upper ? (uint8_t)(mode + 1) : BREAST_PUMP_EXPERT_MODE_LOWER;
+    }
+
+    if (!PUMP_IS_COMMON_MODE(mode)) {
+        mode = BREAST_PUMP_NORMAL_MODE_DEFAULT;
+    }
+    return (uint8_t)mode < BREAST_PUMP_NORMAL_MODE_UPPER ?
+        (uint8_t)(mode + 1) : BREAST_PUMP_NORMAL_MODE_LOWER;
+}
+
+static uint8_t pump_home_mode_neighbor_prev_get(const pump_home_custom_ui_info_t *info, uint8_t mode)
+{
+    const bool custom_active = info->mode.custom_mode_active != 0;
+
+    if (info->mode.select_capsule_style == PUMP_HOME_CAPSULE_STYLE_BF) {
+        if (!PUMP_IS_BREASTFEEDING_MODE(mode)) {
+            mode = BREAST_PUMP_EXPERT_MODE_DEFAULT;
+        }
+        if (mode <= BREAST_PUMP_EXPERT_MODE_LOWER) {
+            return custom_active ?
+                BREAST_PUMP_CUSTOM_MODE : BREAST_PUMP_PP_MILK_TRACK_MODE;
+        }
+        return (uint8_t)(mode - 1);
+    }
+
+    if (!PUMP_IS_COMMON_MODE(mode)) {
+        mode = BREAST_PUMP_NORMAL_MODE_DEFAULT;
+    }
+    return (uint8_t)mode > BREAST_PUMP_NORMAL_MODE_LOWER ?
+        (uint8_t)(mode - 1) : BREAST_PUMP_NORMAL_MODE_UPPER;
+}
+
+static int8_t pump_home_mode_select_slide_dir_get(const pump_home_custom_ui_info_t *info)
+{
+    const uint8_t cur = info->mode.index;
+    const uint8_t next = info->mode.new_index;
+
+    if (next == pump_home_mode_neighbor_next_get(info, cur)) {
+        return 1;
+    }
+    if (next == pump_home_mode_neighbor_prev_get(info, cur)) {
+        return -1;
+    }
+    return 0;
+}
+
+static const char *pump_home_mode_select_name_get(pump_home_custom_ui_info_t *info, uint8_t mode)
+{
+    if (info->mode.select_capsule_style == PUMP_HOME_CAPSULE_STYLE_BF) {
+        return pump_home_mode_bf_name_get(info, mode);
+    }
+    return pump_home_mode_common_name_get(mode);
+}
+
+static void pump_home_mode_select_title_style_apply(lv_obj_t *label, bool active)
+{
+    if (label == NULL || !lv_obj_is_valid(label)) {
+        return;
+    }
+
+    lv_obj_set_style_text_color(label, lv_color_hex(active ?
+        PUMP_HOME_MODE_TITLE_COLOR : PUMP_HOME_SELECT_CAROUSEL_SIDE_COLOR), 0);
+    lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+}
+
+static lv_coord_t pump_home_mode_select_title_half_width_get(lv_obj_t *label)
+{
+    if (label == NULL || !lv_obj_is_valid(label)) {
+        return 0;
+    }
+
+    lv_obj_update_layout(label);
+    const lv_coord_t width = lv_obj_get_width(label);
+    return width > 0 ? (lv_coord_t)(width / 2) : 0;
+}
+
+static lv_coord_t pump_home_mode_select_carousel_step_get(pump_home_custom_ui_info_t *info, int8_t dir)
+{
+    lv_obj_t *prev = info->mode.select_titles[PUMP_HOME_SELECT_SLOT_PREV];
+    lv_obj_t *cur = info->mode.select_titles[PUMP_HOME_SELECT_SLOT_CUR];
+    lv_obj_t *next = info->mode.select_titles[PUMP_HOME_SELECT_SLOT_NEXT];
+
+    if (dir == 1) {
+        return pump_home_mode_select_title_half_width_get(prev) +
+            PUMP_HOME_SELECT_TITLE_GAP + pump_home_mode_select_title_half_width_get(cur);
+    }
+    if (dir == -1) {
+        return pump_home_mode_select_title_half_width_get(cur) +
+            PUMP_HOME_SELECT_TITLE_GAP + pump_home_mode_select_title_half_width_get(next);
+    }
+    return 0;
+}
+
+static void pump_home_mode_select_carousel_realign(pump_home_custom_ui_info_t *info)
+{
+    const lv_coord_t slide = info->mode.select_title_slide_offset;
+    const lv_coord_t title_y = PUMP_HOME_SELECT_TITLE_Y + info->mode.select_title_y_offset;
+    lv_obj_t *labels[3] = {
+        info->mode.select_titles[PUMP_HOME_SELECT_SLOT_PREV],
+        info->mode.select_titles[PUMP_HOME_SELECT_SLOT_CUR],
+        info->mode.select_titles[PUMP_HOME_SELECT_SLOT_NEXT],
+    };
+    lv_coord_t half_w[3];
+
+    for (uint8_t i = 0; i < 3; i++) {
+        half_w[i] = pump_home_mode_select_title_half_width_get(labels[i]);
+    }
+
+    const lv_coord_t center_x = lv_obj_get_width(info->root) / 2;
+    const lv_coord_t x_mid = center_x - slide;
+    lv_coord_t x_pos[3];
+
+    x_pos[PUMP_HOME_SELECT_SLOT_CUR] = x_mid;
+    x_pos[PUMP_HOME_SELECT_SLOT_PREV] = x_mid - half_w[PUMP_HOME_SELECT_SLOT_CUR] -
+        PUMP_HOME_SELECT_TITLE_GAP - half_w[PUMP_HOME_SELECT_SLOT_PREV];
+    x_pos[PUMP_HOME_SELECT_SLOT_NEXT] = x_mid + half_w[PUMP_HOME_SELECT_SLOT_CUR] +
+        PUMP_HOME_SELECT_TITLE_GAP + half_w[PUMP_HOME_SELECT_SLOT_NEXT];
+
+    for (uint8_t i = 0; i < 3; i++) {
+        if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
+            continue;
+        }
+        lv_obj_align(labels[i], LV_ALIGN_TOP_MID, x_pos[i] - center_x, title_y);
+    }
+}
+
+static void pump_home_mode_select_carousel_create(pump_home_custom_ui_info_t *info)
+{
+    for (uint8_t i = 0; i < 3; i++) {
+        if (info->mode.select_titles[i] != NULL && lv_obj_is_valid(info->mode.select_titles[i])) {
+            continue;
+        }
+        info->mode.select_titles[i] = lv_label_create(info->root);
+        EXCEPTION_CHECK_VOID(info->mode.select_titles[i]);
+        pump_home_mode_select_title_style_apply(info->mode.select_titles[i],
+            i == PUMP_HOME_SELECT_SLOT_CUR);
+        lv_obj_add_flag(info->mode.select_titles[i], LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void pump_home_mode_select_carousel_content_update_for_center(pump_home_custom_ui_info_t *info,
+    uint8_t center_mode)
+{
+    const uint8_t prev = pump_home_mode_neighbor_prev_get(info, center_mode);
+    const uint8_t next = pump_home_mode_neighbor_next_get(info, center_mode);
+    const uint8_t modes[3] = { prev, center_mode, next };
+
+    pump_home_mode_select_carousel_create(info);
+    for (uint8_t i = 0; i < 3; i++) {
+        lv_obj_t *label = info->mode.select_titles[i];
+        if (label == NULL) {
+            continue;
+        }
+        lv_label_set_text(label, pump_home_mode_select_name_get(info, modes[i]));
+        pump_home_mode_select_title_style_apply(label, i == PUMP_HOME_SELECT_SLOT_CUR);
+    }
+    pump_home_mode_select_carousel_realign(info);
+}
+
+static void pump_home_mode_select_carousel_content_update(pump_home_custom_ui_info_t *info)
+{
+    pump_home_mode_select_carousel_content_update_for_center(info, info->mode.new_index);
+}
+
+static void pump_home_mode_select_carousel_slide_ready_cb(lv_anim_t *anim)
+{
+    pump_home_custom_ui_info_t *info = (pump_home_custom_ui_info_t *)lv_anim_get_user_data(anim);
+    if (info == NULL) {
+        return;
+    }
+
+    info->mode.select_title_slide_offset = 0;
+    info->mode.select_slide_dir = 0;
+    pump_home_mode_select_carousel_content_update(info);
+}
+
+static void pump_home_mode_select_carousel_slide_exec(void *var, int32_t v);
+static void pump_home_mode_select_title_y_offset_anim_exec(void *var, int32_t v);
+
+static void pump_home_mode_select_carousel_slide_stop(pump_home_custom_ui_info_t *info)
+{
+    lv_anim_del(info, pump_home_mode_select_carousel_slide_exec);
+    lv_anim_del(info, pump_home_mode_select_title_y_offset_anim_exec);
+    info->mode.select_title_slide_offset = 0;
+    info->mode.select_title_y_offset = 0;
+    info->mode.select_slide_dir = 0;
+}
+
+static void pump_home_mode_select_carousel_visible_set(pump_home_custom_ui_info_t *info, bool visible)
+{
+    for (uint8_t i = 0; i < 3; i++) {
+        pump_home_mode_obj_visible_set(info->mode.select_titles[i], visible);
+    }
+}
+
+static void pump_home_mode_select_carousel_slide_exec(void *var, int32_t v)
+{
+    pump_home_custom_ui_info_t *info = (pump_home_custom_ui_info_t *)var;
+    info->mode.select_title_slide_offset = (int16_t)v;
+    pump_home_mode_select_carousel_realign(info);
+}
+
+static void pump_home_mode_select_carousel_slide(pump_home_custom_ui_info_t *info, bool anim)
+{
+    const int8_t dir = info->mode.select_slide_dir;
+    uint8_t old_center = info->mode.new_index;
+
+    pump_home_mode_select_carousel_slide_stop(info);
+    pump_home_mode_select_carousel_visible_set(info, true);
+
+    if (dir == 1) {
+        old_center = pump_home_mode_neighbor_prev_get(info, info->mode.new_index);
+    } else if (dir == -1) {
+        old_center = pump_home_mode_neighbor_next_get(info, info->mode.new_index);
+    }
+
+    if (!anim || info->force_update || dir == 0) {
+        pump_home_mode_select_carousel_content_update(info);
+        return;
+    }
+
+    pump_home_mode_select_carousel_content_update_for_center(info, old_center);
+    const lv_coord_t step = pump_home_mode_select_carousel_step_get(info, dir);
+    if (step == 0) {
+        pump_home_mode_select_carousel_content_update(info);
+        return;
+    }
+    const int32_t target = (int32_t)dir * step;
+
+    lv_anim_t slide_anim;
+    lv_anim_init(&slide_anim);
+    lv_anim_set_var(&slide_anim, info);
+    lv_anim_set_user_data(&slide_anim, info);
+    lv_anim_set_time(&slide_anim, PUMP_HOME_SELECT_ANIM_TIME_MS);
+    lv_anim_set_path_cb(&slide_anim, lv_anim_path_ease_in_out);
+    lv_anim_set_exec_cb(&slide_anim, pump_home_mode_select_carousel_slide_exec);
+    lv_anim_set_values(&slide_anim, 0, target);
+    lv_anim_set_ready_cb(&slide_anim, pump_home_mode_select_carousel_slide_ready_cb);
+    lv_anim_start(&slide_anim);
+}
+
+static void pump_home_mode_anim_exec_opa(void *var, int32_t v);
+static void pump_home_mode_obj_start_opa_anim(lv_obj_t *obj, lv_opa_t from, lv_opa_t to, bool show);
+static void pump_home_mode_select_title_y_offset_anim_exec(void *var, int32_t v);
+
+static void pump_home_mode_select_title_y_offset_anim_exec(void *var, int32_t v)
+{
+    pump_home_custom_ui_info_t *info = (pump_home_custom_ui_info_t *)var;
+    info->mode.select_title_y_offset = (int16_t)v;
+    pump_home_mode_select_carousel_realign(info);
+}
+
+static void pump_home_mode_select_carousel_enter(pump_home_custom_ui_info_t *info, bool anim)
+{
+    pump_home_mode_select_carousel_slide_stop(info);
+
+    const int16_t title_y_from = (int16_t)(PUMP_HOME_MODE_TITLE_Y - PUMP_HOME_SELECT_TITLE_Y);
+    if (!anim || info->force_update) {
+        info->mode.select_title_y_offset = 0;
+    } else {
+        info->mode.select_title_y_offset = title_y_from;
+    }
+
+    pump_home_mode_select_carousel_content_update(info);
+    pump_home_mode_select_carousel_visible_set(info, true);
+
+    if (!anim || info->force_update) {
+        for (uint8_t i = 0; i < 3; i++) {
+            if (info->mode.select_titles[i] != NULL && lv_obj_is_valid(info->mode.select_titles[i])) {
+                lv_obj_set_style_opa(info->mode.select_titles[i], LV_OPA_COVER, 0);
+            }
+        }
+        return;
+    }
+
+    for (uint8_t i = 0; i < 3; i++) {
+        if (info->mode.select_titles[i] == NULL || !lv_obj_is_valid(info->mode.select_titles[i])) {
+            continue;
+        }
+        lv_anim_del(info->mode.select_titles[i], pump_home_mode_anim_exec_opa);
+        lv_obj_set_style_opa(info->mode.select_titles[i], LV_OPA_TRANSP, 0);
+        pump_home_mode_obj_start_opa_anim(info->mode.select_titles[i], LV_OPA_TRANSP, LV_OPA_COVER, true);
+    }
+
+    lv_anim_t title_y_anim;
+    lv_anim_init(&title_y_anim);
+    lv_anim_set_var(&title_y_anim, info);
+    lv_anim_set_time(&title_y_anim, PUMP_HOME_SELECT_ANIM_TIME_MS);
+    lv_anim_set_path_cb(&title_y_anim, lv_anim_path_ease_in_out);
+    lv_anim_set_exec_cb(&title_y_anim, pump_home_mode_select_title_y_offset_anim_exec);
+    lv_anim_set_values(&title_y_anim, title_y_from, 0);
+    lv_anim_start(&title_y_anim);
+}
+
+static void pump_home_mode_select_carousel_exit(pump_home_custom_ui_info_t *info)
+{
+    pump_home_mode_select_carousel_slide_stop(info);
+    pump_home_mode_select_carousel_visible_set(info, false);
+}
+
+static void pump_home_mode_select_carousel_refresh(pump_home_custom_ui_info_t *info, bool mode_index_changed,
+    bool anim)
+{
+    if (mode_index_changed) {
+        pump_home_mode_select_carousel_slide(info, anim);
+        return;
+    }
+    pump_home_mode_select_carousel_content_update(info);
+    pump_home_mode_select_carousel_visible_set(info, true);
+}
+#endif
 
 static void pump_home_mode_anim_exec_opa(void *var, int32_t v)
 {
@@ -473,6 +843,7 @@ static void pump_home_mode_select_layout_shift(pump_home_custom_ui_info_t *info,
     }
 }
 
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
 static void pump_home_mode_capsule_create(pump_home_custom_ui_info_t *info)
 {
     bool capsule_newly_created = false;
@@ -635,6 +1006,7 @@ static void pump_home_mode_capsule_layout(pump_home_custom_ui_info_t *info, uint
     }
     pump_home_mode_capsule_common_layout(info, pump_home_mode_common_name_get(mode));
 }
+#endif
 
 static void pump_home_mode_default_title_restore(pump_home_custom_ui_info_t *info)
 {
@@ -689,6 +1061,7 @@ static void pump_home_mode_select_state_sync(pump_home_custom_ui_info_t *info,
     info->mode.select_capsule_style = pump_home_mode_select_capsule_style_get(display_type,
         info->mode.new_index);
     info->mode.custom_mode_active = pump_home_mode_custom_active_get(info) ? 1 : 0;
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
     if (info->mode.select_capsule_style == PUMP_HOME_CAPSULE_STYLE_BF) {
         info->mode.select_dot_count = pump_home_mode_bf_dot_count_get(info->mode.custom_mode_active != 0);
     } else if (info->mode.select_capsule_style == PUMP_HOME_CAPSULE_STYLE_COMMON) {
@@ -696,6 +1069,7 @@ static void pump_home_mode_select_state_sync(pump_home_custom_ui_info_t *info,
     } else {
         info->mode.select_dot_count = 0;
     }
+#endif
 }
 
 static void pump_home_mode_select_default_hide(pump_home_custom_ui_info_t *info, bool anim)
@@ -710,6 +1084,7 @@ static void pump_home_mode_select_default_hide(pump_home_custom_ui_info_t *info,
     pump_home_mode_obj_start_opa_anim(info->mode.title, LV_OPA_COVER, LV_OPA_TRANSP, false);
 }
 
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
 static void pump_home_mode_select_group_visible_set(pump_home_custom_ui_info_t *info, bool visible,
     lv_opa_t opa)
 {
@@ -718,9 +1093,30 @@ static void pump_home_mode_select_group_visible_set(pump_home_custom_ui_info_t *
         lv_obj_set_style_opa(info->mode.title_capsule, opa, 0);
     }
 }
+#endif
+
+#if PUMP_HOME_MODE_SELECT_CAROUSEL_ENABLE
+static void pump_home_mode_select_carousel_default_cut(pump_home_custom_ui_info_t *info)
+{
+    if (info->mode.title != NULL && lv_obj_is_valid(info->mode.title)) {
+        lv_anim_del(info->mode.title, NULL);
+        lv_obj_set_style_opa(info->mode.title, LV_OPA_COVER, 0);
+        pump_home_mode_obj_visible_set(info->mode.title, false);
+    }
+}
+#endif
+
+static void pump_home_mode_select_time_refresh(pump_home_custom_ui_info_t *info)
+{
+    info->time.force_realign = 1;
+    info->time.applied_clock_y_offset = INT16_MAX;
+    info->time.applied_clock_2seg_y_offset = INT16_MAX;
+    info->time.applied_remain_y_offset = INT16_MAX;
+}
 
 static void pump_home_mode_select_enter(pump_home_custom_ui_info_t *info, bool anim)
 {
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
     lv_coord_t capsule_y = pump_home_mode_select_capsule_y_get(info);
     uint8_t dot_idx = pump_home_mode_select_dot_index_get(info, info->mode.new_index);
 
@@ -755,16 +1151,24 @@ static void pump_home_mode_select_enter(pump_home_custom_ui_info_t *info, bool a
 
         pump_home_mode_obj_start_opa_anim(info->mode.title_capsule, LV_OPA_TRANSP, LV_OPA_COVER, true);
     }
+#else
+    pump_home_mode_select_carousel_default_cut(info);
+    pump_home_mode_select_carousel_enter(info, anim);
+    pump_home_mode_select_layout_shift(info, true, anim);
+    pump_home_mode_select_time_refresh(info);
+#endif
 }
 
 static void pump_home_mode_select_exit(pump_home_custom_ui_info_t *info, bool anim)
 {
     pump_home_mode_select_layout_shift(info, false, anim);
 
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
     if (!anim || info->force_update) {
         pump_home_mode_select_group_visible_set(info, false, LV_OPA_TRANSP);
         pump_home_mode_default_title_restore(info);
         pump_home_custom_select_offset_apply(info);
+        pump_home_mode_select_time_refresh(info);
         return;
     }
 
@@ -777,10 +1181,30 @@ static void pump_home_mode_select_exit(pump_home_custom_ui_info_t *info, bool an
         pump_home_mode_obj_start_opa_anim(info->mode.title_capsule, LV_OPA_COVER, LV_OPA_TRANSP, false);
     }
     pump_home_custom_select_offset_apply(info);
+    pump_home_mode_select_time_refresh(info);
+#else
+    pump_home_mode_select_carousel_exit(info);
+
+    if (!anim || info->force_update) {
+        pump_home_mode_default_title_restore(info);
+        pump_home_custom_select_offset_apply(info);
+        pump_home_mode_select_time_refresh(info);
+        return;
+    }
+
+    pump_home_mode_default_title_restore(info);
+    if (info->mode.title != NULL && lv_obj_is_valid(info->mode.title)) {
+        lv_obj_clear_flag(info->mode.title, LV_OBJ_FLAG_HIDDEN);
+        pump_home_mode_obj_start_opa_anim(info->mode.title, LV_OPA_TRANSP, LV_OPA_COVER, true);
+    }
+    pump_home_custom_select_offset_apply(info);
+    pump_home_mode_select_time_refresh(info);
+#endif
 }
 
-static void pump_home_mode_select_refresh(pump_home_custom_ui_info_t *info)
+static void pump_home_mode_select_refresh(pump_home_custom_ui_info_t *info, bool mode_index_changed, bool anim)
 {
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
     uint8_t dot_idx = pump_home_mode_select_dot_index_get(info, info->mode.new_index);
 
     pump_home_mode_capsule_layout(info, info->mode.new_index);
@@ -791,6 +1215,10 @@ static void pump_home_mode_select_refresh(pump_home_custom_ui_info_t *info)
         lv_obj_align(info->mode.title_capsule, LV_ALIGN_TOP_MID, 0,
             pump_home_mode_select_capsule_y_get(info));
     }
+#else
+    pump_home_mode_obj_visible_set(info->mode.title, false);
+    pump_home_mode_select_carousel_refresh(info, mode_index_changed, anim);
+#endif
 }
 
 static void pump_home_mode_select_ui_apply(pump_home_custom_ui_info_t *info,
@@ -800,7 +1228,9 @@ static void pump_home_mode_select_ui_apply(pump_home_custom_ui_info_t *info,
     const bool prev_select_ui = info->mode.select_ui_active != 0;
     const bool anim = !info->force_update;
     const uint8_t prev_style = info->mode.select_capsule_style;
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
     const uint8_t prev_dot_count = info->mode.select_dot_count;
+#endif
     const bool prev_custom_active = info->mode.custom_mode_active;
 
     pump_home_mode_select_state_sync(info, display_type);
@@ -811,13 +1241,20 @@ static void pump_home_mode_select_ui_apply(pump_home_custom_ui_info_t *info,
         pump_home_mode_select_exit(info, anim);
     } else if (select_ui) {
         const bool style_changed = prev_style != info->mode.select_capsule_style;
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
         const bool dot_count_changed = prev_dot_count != info->mode.select_dot_count;
+#else
+        const bool dot_count_changed = false;
+#endif
         const bool custom_changed = prev_custom_active != info->mode.custom_mode_active;
 
         if (style_changed || dot_count_changed || custom_changed || mode_index_changed) {
-            pump_home_mode_select_refresh(info);
+            pump_home_mode_select_refresh(info, mode_index_changed, anim);
             if (style_changed || mode_index_changed) {
                 pump_home_mode_select_layout_shift(info, true, anim);
+                pump_home_mode_select_time_refresh(info);
+            } else if (dot_count_changed || custom_changed) {
+                pump_home_mode_select_time_refresh(info);
             }
         }
     } else if (!select_ui && (prev_select_ui || info->force_update)) {
@@ -825,7 +1262,11 @@ static void pump_home_mode_select_ui_apply(pump_home_custom_ui_info_t *info,
             pump_home_mode_obj_visible_set(info->mode.title, true);
             lv_obj_set_style_opa(info->mode.title, LV_OPA_COVER, 0);
         }
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
         pump_home_mode_select_group_visible_set(info, false, LV_OPA_TRANSP);
+#else
+        pump_home_mode_select_carousel_exit(info);
+#endif
     }
 
     info->mode.select_ui_active = select_ui ? 1 : 0;
@@ -862,9 +1303,18 @@ void pump_home_custom_mode_ui_remove(pump_home_custom_ui_info_t *info)
     if (info->mode.title != NULL && lv_obj_is_valid(info->mode.title)) {
         lv_anim_del(info->mode.title, NULL);
     }
+    if (info->mode.mode != NULL && lv_obj_is_valid(info->mode.mode)) {
+        lv_anim_del(info->mode.mode, NULL);
+    }
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
     if (info->mode.title_capsule != NULL && lv_obj_is_valid(info->mode.title_capsule)) {
         lv_anim_del(info->mode.title_capsule, NULL);
     }
+#else
+    info->mode.select_title_slide_offset = 0;
+    info->mode.select_title_y_offset = 0;
+    info->mode.select_slide_dir = 0;
+#endif
 #endif
 }
 
@@ -897,7 +1347,16 @@ void pump_home_custom_mode_ui_update(pump_home_custom_ui_info_t *info, bool blin
     }
 
     if (mode_index_changed) {
+#if PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE && !PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
+        if (info->mode.select_ui_active) {
+            info->mode.select_slide_dir = pump_home_mode_select_slide_dir_get(info);
+        } else {
+            info->mode.select_slide_dir = 0;
+        }
+#endif
+#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
         pump_home_mode_capsule_create(info);
+#endif
         pump_home_mode_apply_index_change(info);
     } else if (mode_type_changed) {
         pump_home_mode_apply_type_change(info);
