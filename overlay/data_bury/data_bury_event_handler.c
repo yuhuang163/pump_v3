@@ -261,10 +261,19 @@ static int8_t data_bury_event_sample_ble_rssi(data_bury_manager_context_t *ctx)
 static uint8_t data_bury_event_hci_to_app_disconnect_reason(uint8_t hci_reason)
 {
     switch (hci_reason) {
+    /* USER：主动/正常结束 */
     case 0x00:
     case 0x13: /* Remote User Terminated Connection */
+    case 0x14: /* Remote Dev Terminated — Low Resources */
+    case 0x15: /* Remote Dev Terminated — Power Off */
+    case 0x16: /* Local Host Terminated */
         return DATA_BURY_BT_DISCONNECT_REASON_USER;
+    /* TIMEOUT：链路/监督/加密异常 */
     case 0x08: /* Connection Timeout */
+    case 0x10: /* Connection Accept Timeout */
+    case 0x22: /* LMP Response Timeout */
+    case 0x3C: /* Advertising Timeout */
+    case 0x3D: /* Connection Terminated due to MIC Failure */
         return DATA_BURY_BT_DISCONNECT_REASON_TIMEOUT;
     default:
         return DATA_BURY_BT_DISCONNECT_REASON_SKIP;
@@ -323,7 +332,7 @@ static int data_bury_event_build_bt_session_end_evt(data_bury_manager_context_t 
         return 0;
     }
     if (!connect_ok && app_reason == DATA_BURY_BT_DISCONNECT_REASON_SKIP) {
-        app_reason = DATA_BURY_BT_DISCONNECT_REASON_TIMEOUT;
+        app_reason = DATA_BURY_BT_DISCONNECT_REASON_SKIP;
     }
 
     memset(evt, 0, sizeof(*evt));
@@ -331,7 +340,7 @@ static int data_bury_event_build_bt_session_end_evt(data_bury_manager_context_t 
     evt->use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     connect_ts = connect_ok ? s_event_rt.bt_connect_timestamp_utc : platform_get_utc_time();
     data_bury_evt_put_u32_le(evt, DATA_BURY_EVT_COMMON_EVT_TIMESTAMP_OFF, connect_ts);
-    evt->connect_result =  (app_reason == DATA_BURY_BT_DISCONNECT_REASON_TIMEOUT) ? DATA_BURY_BT_CONNECT_RESULT_FAIL
+    evt->connect_result =  (app_reason == DATA_BURY_BT_DISCONNECT_REASON_SKIP) ? DATA_BURY_BT_CONNECT_RESULT_FAIL
                                            : DATA_BURY_BT_CONNECT_RESULT_SUCCESS;
     evt->connection_setup_duration = connect_ok ? s_event_rt.bt_connection_setup_duration : 0u;
     evt->bt_signal_strength_rssi = connect_ok ? s_event_rt.bt_signal_strength_rssi
