@@ -11,6 +11,7 @@ extern "C" {
 /// LVGL 字体声明 - Aeonik soft 22px
 /// 包含字符: 0-9, A-Z, a-z, ' ' ',' '.' '!'
 extern const lv_font_t lv_font_aeonik_soft_22_medium;
+extern const lv_font_t lv_font_aeonik_soft_22_semibold;
 
 #ifdef __cplusplus
 }
