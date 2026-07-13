@@ -19,22 +19,22 @@ extern "C" {
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_ROOT_GUIDE_COMP_BG              (0)
+#define GUIDE_PAGE_INDEX_INVALID                   (0xFF)
+
+#define IS_SUPPORT_GUIDE_LABEL_TEXT_CMP            (0) /// 支持label文本对比
+#if IS_SUPPORT_GUIDE_LABEL_TEXT_CMP
+#define GUIDE_LABEL_CARD_TEXT_COLOR                (0x00FF00)
+#else
+#define GUIDE_LABEL_CARD_TEXT_COLOR                (0xA0183B)
+#endif
+
 typedef enum {
     GUIDE_BASE_LEVEL_DISPLAY_DEFAULT = 0,
     GUIDE_BASE_LEVEL_DISPLAY_LEFT_ADJUST,
     GUIDE_BASE_LEVEL_DISPLAY_RIGHT_ADJUST,
     GUIDE_BASE_LEVEL_DISPLAY_BOTH_ADJUST,
 } guide_base_level_display_type_e;
-
-typedef enum {
-    GUIDE_BASE_TEXT_DOUBLE_ADJUST = GUIDE_PAGE_PUMP_LEVEL_DOUBLE_ADJUST,
-    GUIDE_BASE_TEXT_SINGLE_SELECT = GUIDE_PAGE_PUMP_LEVEL_SINGLE_SELECT,
-    GUIDE_BASE_TEXT_LEFT_ADJUST = GUIDE_PAGE_PUMP_LEVEL_LEFT_ADJUST,
-    GUIDE_BASE_TEXT_RIGHT_ADJUST = GUIDE_PAGE_PUMP_LEVEL_RIGHT_ADJUST,
-    GUIDE_BASE_TEXT_MODE_SELECT = GUIDE_PAGE_PUMP_MODE_SELECT,
-    GUIDE_BASE_TEXT_MODE_UNSELECT = GUIDE_PAGE_PUMP_MODE_UNSELECT,
-    GUIDE_BASE_TEXT_MAX = GUIDE_PAGE_MAX,
-} guide_base_text_id_e;
 
 typedef struct {
     lv_obj_t *arc;
@@ -61,22 +61,115 @@ typedef struct {
     lv_obj_t *exit_text;
     lv_obj_t *return_icon;
     lv_obj_t *button[2];
+    lv_obj_t *icon;
     uint8_t page_index;
     uint8_t force_update;
     uint8_t text_id;
     uint16_t button_img_id[2];
+    uint16_t icon_img_id;
 } guide_base_label_info_t;
 
 typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *title;
+    lv_obj_t *hint;
+    lv_obj_t *start_icon;
+} guide_base_intro_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *title;
+    lv_obj_t *hint;
+    lv_obj_t *icon;
+} guide_base_key_guide_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *title;
+    lv_obj_t *hint;
+    lv_obj_t *icon;
+} guide_base_knob_guide_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *title;
+    lv_obj_t *desc;
+    lv_obj_t *hint;
+    lv_obj_t *start_icon;
+} guide_base_function_home_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *step;
+    lv_obj_t *title;
+    lv_obj_t *card;
+    lv_obj_t *text;
+    lv_obj_t *button_icon;
+    uint8_t page_index;
+} guide_base_level_guide_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *wave;
+    lv_obj_t *select_titles[3];
+    uint8_t shown_mode_index;
+    uint16_t shown_wave_res_id;
+    uint16_t shown_label_res_id;
+} guide_base_mode_select_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *wave;
+    lv_obj_t *time;
+    lv_obj_t *select_titles[3];
+    uint8_t shown_mode_index;
+    uint16_t shown_wave_res_id;
+    uint16_t shown_label_res_id;
+    char shown_time_text[16];
+} guide_base_rhythm_select_info_t;
+
+typedef struct {
+    lv_obj_t *frame;
+    lv_obj_t *text;
+    res_img_info_t frame_info;
+    uint16_t shown_frame_res_id;
+} guide_base_animation_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *icon;
+    lv_obj_t *title;
+} guide_base_finish_info_t;
+
+typedef struct {
     lv_obj_t *root;
-    lv_obj_t *background;
+    lv_obj_t *comp_bg;
+    lv_obj_t *page;
+    guide_base_animation_info_t animation;
+    guide_base_intro_info_t intro;
+    guide_base_key_guide_info_t key_guide;
+    guide_base_knob_guide_info_t knob_guide;
+    guide_base_function_home_info_t function_home;
+    guide_base_level_guide_info_t level_guide;
+    guide_base_mode_select_info_t mode_select;
+    guide_base_rhythm_select_info_t rhythm_select;
+    guide_base_finish_info_t finish;
     guide_base_level_info_t level;
     guide_base_label_info_t label;
     ui_manager_context_t *ui;
     uint8_t force_update;
     uint8_t page_index;
+    uint8_t shown_page_index;
     guide_base_level_display_type_e level_display_type;
 } guide_base_ui_info_t;
+
+static inline lv_obj_t *guide_page_parent_get(const guide_base_ui_info_t *info)
+{
+    if (info != NULL && info->page != NULL && lv_obj_is_valid(info->page)) {
+        return info->page;
+    }
+    return info != NULL ? info->root : NULL;
+}
 
 /*
 * GLOBAL FUNCTION DECLARATIONS
@@ -86,11 +179,59 @@ guide_base_ui_info_t *guide_base_info_get(void);
 
 void guide_base_blink_state_update(guide_base_ui_info_t *info, uint8_t page_index);
 
+void guide_pump_animation_ui_remove(guide_base_ui_info_t *info);
+void guide_pump_animation_ui_build(guide_base_ui_info_t *info);
+void guide_pump_animation_ui_update(guide_base_ui_info_t *info, uint16_t frame_index);
+
+void guide_intro_ui_remove(guide_base_ui_info_t *info);
+void guide_intro_ui_build(guide_base_ui_info_t *info);
+
+void guide_key_guide_ui_remove(guide_base_ui_info_t *info);
+void guide_key_guide_ui_build(guide_base_ui_info_t *info);
+
+void guide_knob_guide_ui_remove(guide_base_ui_info_t *info);
+void guide_knob_guide_ui_build(guide_base_ui_info_t *info);
+
+void guide_function_home_ui_remove(guide_base_ui_info_t *info);
+void guide_function_home_ui_build(guide_base_ui_info_t *info);
+
+void guide_label_step_header_create(guide_base_ui_info_t *info, lv_obj_t **step, lv_obj_t **title,
+    const char *step_text, const char *title_text);
+void guide_label_level_header_create(guide_base_ui_info_t *info, lv_obj_t **step, lv_obj_t **title);
+void guide_label_instruction_card_create(guide_base_ui_info_t *info, lv_obj_t **card,
+    uint16_t res_id, int16_t x, int16_t y);
+void guide_label_instruction_text_create(guide_base_ui_info_t *info, lv_obj_t **text,
+    const char *content, int16_t y, uint8_t line_space);
+void guide_label_inline_icon_create(guide_base_ui_info_t *info, lv_obj_t **icon,
+    uint16_t res_id, int16_t x, int16_t y);
+
+void guide_level_guide_ui_remove(guide_base_ui_info_t *info);
+void guide_level_guide_ui_build(guide_base_ui_info_t *info, uint8_t page_index);
+void guide_mode_select_guide_ui_build(guide_base_ui_info_t *info);
+void guide_rhythm_select_guide_ui_build(guide_base_ui_info_t *info);
+void guide_pump_start_guide_ui_build(guide_base_ui_info_t *info);
+void guide_pump_stop_guide_ui_build(guide_base_ui_info_t *info);
+
+void guide_mode_select_ui_remove(guide_base_ui_info_t *info);
+void guide_mode_select_ui_build(guide_base_ui_info_t *info);
+void guide_mode_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
+
+void guide_rhythm_select_ui_remove(guide_base_ui_info_t *info);
+void guide_rhythm_select_ui_build(guide_base_ui_info_t *info);
+void guide_rhythm_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
+
 void guide_pump_level_ui_remove(guide_base_ui_info_t *info);
+void guide_pump_level_ui_build(guide_base_ui_info_t *info);
 void guide_pump_level_ui_update(guide_base_ui_info_t *info, bool blink_visible);
 
 void guide_pump_label_ui_remove(guide_base_ui_info_t *info);
-void guide_pump_label_ui_update(guide_base_ui_info_t *info, uint8_t page_index);
+void guide_pump_label_ui_build(guide_base_ui_info_t *info, uint8_t page_index);
+
+void guide_finish_ui_remove(guide_base_ui_info_t *info);
+void guide_finish_ui_build(guide_base_ui_info_t *info);
+
+void guide_page_ui_remove(guide_base_ui_info_t *info);
+void guide_page_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc, uint16_t frame_index);
 
 void guide_base_ui_prepare(ui_manager_context_t *thiz);
 void guide_base_ui_remove(ui_manager_context_t *thiz);

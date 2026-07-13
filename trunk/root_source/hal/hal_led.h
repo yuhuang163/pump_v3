@@ -34,6 +34,9 @@ typedef enum {
     PUMP_LED_INDEX_MAX,
     PUMP_LED_ALL_ID = 0x10,
     NIGHT_LIGHT_LED = 0x11,
+
+    
+    PUMP_CANCEL_BL = PUMP_FREQ_SET_BL,          /// 取消背光灯
 } pump_led_index_e;
 
 /**

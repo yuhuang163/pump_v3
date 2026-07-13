@@ -15,7 +15,7 @@
 #define PAGE_STATIC_NAME                            guide
 #define PAGE_NAME_STR                               "guide"
 #define GUIDE_UI_KEY_CODE                           ALL_KEY_CODE_NO_COMBINE
-#define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK)
+#define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK | KEY_EVENT_LONG_3S)
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -50,7 +50,7 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     } else if (keycode == KEY_CODE_KNOB_RIGHT) {
         guide_knob_event_handler(proc, false);
     } else {
-        guide_key_event_handler(proc, keycode);
+        guide_key_event_handler(proc, keycode, keytype);
     }
     return 0;
 }
@@ -85,12 +85,11 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, 0);
-            proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
-        }
-        proc->page_index = GUIDE_PAGE_PUMP_LEVEL_DOUBLE_ADJUST;
+        proc->page_index = GUIDE_PAGE_WELCOME_ANIM;
+        proc->page_enter_time = get_timestamp();
+        guide_led_backlight_update(proc);
         proc->mode_selected = 0;
+        proc->ui_mode_index = BREAST_PUMP_STIMULATION_MODE;
         proc->last_adjust_time = get_timestamp();
         proc->setting.level[0] = BREAST_PUMP_LEVEL_1;
         proc->setting.level[1] = BREAST_PUMP_LEVEL_1;

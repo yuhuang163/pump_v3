@@ -116,6 +116,15 @@ int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_contex
     return 0;
 }
 
+void ble_ui_hide(void)
+{
+    if (ble_info == NULL || ble_info->ble_img == NULL ||
+        !lv_obj_is_valid(ble_info->ble_img)) {
+        return;
+    }
+    ble_ui_icon_visible_set(ble_info->ble_img, false);
+}
+
 void ble_ui_deinit(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
