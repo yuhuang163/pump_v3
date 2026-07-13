@@ -15,7 +15,7 @@
 */
 #define GUIDE_LEVEL_STEP_Y                          (54)
 #define GUIDE_LEVEL_TITLE_Y                         (86)
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
 #define GUIDE_LEVEL_STEP_COLOR                      (0x00FF00)
 #define GUIDE_LEVEL_TITLE_COLOR                     (0x00FF00)
 #else
@@ -24,7 +24,7 @@
 #endif
 
 #define GUIDE_LEVEL_WIDE_LABEL_X                    (49)
-#if IS_SUPPORT_GUIDE_LABEL_TEXT_CMP
+#if IS_SUPPORT_BASE_GUIDE_LABEL_TEXT_CMP
 #define GUIDE_LEVEL_WIDE_LABEL_Y                    (360)
 #else
 #define GUIDE_LEVEL_WIDE_LABEL_Y                    (125)
@@ -32,7 +32,7 @@
 #define GUIDE_LEVEL_WIDE_LABEL_TEXT_Y               (177)
 
 #define GUIDE_LEVEL_NARROW_LABEL_X                  (36)
-#if IS_SUPPORT_GUIDE_LABEL_TEXT_CMP
+#if IS_SUPPORT_BASE_GUIDE_LABEL_TEXT_CMP
 #define GUIDE_LEVEL_NARROW_LABEL_Y                  (360)
 #else
 #define GUIDE_LEVEL_NARROW_LABEL_Y                  (124)
@@ -188,7 +188,7 @@ void guide_label_instruction_text_create(guide_base_ui_info_t *info, lv_obj_t **
 
     *text = lv_label_create(guide_page_parent_get(info));
     EXCEPTION_CHECK_VOID(*text);
-    lv_obj_set_style_text_color(*text, lv_color_hex(GUIDE_LABEL_CARD_TEXT_COLOR), 0);
+    lv_obj_set_style_text_color(*text, lv_color_hex(GUIDE_BASE_LABEL_CARD_TEXT_COLOR), 0);
     lv_obj_set_style_text_font(*text, &lv_font_aeonik_soft_18_regular, 0);
     lv_obj_set_style_text_align(*text, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(*text, content);
@@ -225,7 +225,7 @@ void guide_level_guide_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
     EXCEPTION_CHECK_VOID(info && info->ui && cfg);
 
     info->level_guide.page_index = page_index;
-#if (IS_SUPPORT_ROOT_GUIDE_COMP_BG == 0)
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
     guide_level_guide_bg_create(info);
 #endif
     guide_label_level_header_create(info, &info->level_guide.step, &info->level_guide.title);
@@ -245,7 +245,7 @@ void guide_mode_select_guide_ui_build(guide_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info && info->ui);
 
     info->level_guide.page_index = GUIDE_PAGE_MODE_SELECT_GUIDE;
-#if (IS_SUPPORT_ROOT_GUIDE_COMP_BG == 0)
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
     guide_level_guide_bg_create(info);
 #endif
     guide_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
@@ -264,7 +264,7 @@ void guide_rhythm_select_guide_ui_build(guide_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info && info->ui);
 
     info->level_guide.page_index = GUIDE_PAGE_RHYTHM_SELECT_GUIDE;
-#if (IS_SUPPORT_ROOT_GUIDE_COMP_BG == 0)
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
     guide_level_guide_bg_create(info);
 #endif
     guide_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
@@ -283,7 +283,7 @@ void guide_pump_start_guide_ui_build(guide_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info && info->ui);
 
     info->level_guide.page_index = GUIDE_PAGE_PUMP_START_GUIDE;
-#if (IS_SUPPORT_ROOT_GUIDE_COMP_BG == 0)
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
     guide_level_guide_bg_create(info);
 #endif
     guide_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
@@ -302,7 +302,7 @@ void guide_pump_stop_guide_ui_build(guide_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info && info->ui);
 
     info->level_guide.page_index = GUIDE_PAGE_PUMP_STOP_GUIDE;
-#if (IS_SUPPORT_ROOT_GUIDE_COMP_BG == 0)
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
     guide_level_guide_bg_create(info);
 #endif
     guide_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,

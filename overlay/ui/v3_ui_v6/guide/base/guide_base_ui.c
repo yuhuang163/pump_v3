@@ -14,7 +14,7 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t guide_bg_data[] = {
     // #include "comparison_png2txt/guide_base_p11_360x360.txt"
     // #include "comparison_png2txt/guide_base_p12_360x360.txt"
@@ -87,7 +87,7 @@ static void guide_base_root_init(void)
     lv_obj_clear_flag(guide_info->root, LV_OBJ_FLAG_SCROLLABLE);
 }
 
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
 static void guide_root_comp_bg_update(ui_manager_context_t *thiz)
 {
     static uint32_t start_time = 0;
@@ -138,9 +138,9 @@ void guide_base_ui_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     guide_base_root_init();
-    ble_ui_init(thiz);
     guide_info->ui = thiz;
     guide_info->force_update = true;
+    guide_info->popup_ui_index = ID_POPUP_UI_NONE;
     guide_info->shown_page_index = GUIDE_PAGE_INDEX_INVALID;
     guide_info->page_index = GUIDE_PAGE_MAX;
     guide_info->label.text_id = GUIDE_PAGE_MAX;
@@ -150,8 +150,8 @@ void guide_base_ui_prepare(ui_manager_context_t *thiz)
 void guide_base_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && guide_info && guide_info->root);
-    ble_ui_deinit(thiz);
     guide_page_ui_remove(guide_info);
+    ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(guide_info->root);
     u_free(guide_info);
     guide_info = NULL;
@@ -161,26 +161,18 @@ int guide_base_ui_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && guide_info && guide_info->root);
     ui_proc_guide_t *proc = (ui_proc_guide_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc && proc->ble);
+    EXCEPTION_CHECK_INT(proc);
 
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
     guide_root_comp_bg_update(thiz);
 #endif
     // proc->page_index = GUIDE_PAGE_FINISH;
     guide_info->level.left.new_value = proc->setting.level[0];
     guide_info->level.right.new_value = proc->setting.level[1];
     guide_page_ui_update(guide_info, proc, thiz->priv.play_info.played_count);
-    if (GUIDE_PAGE_SHOW_BLE(proc->page_index)) {
-        const ble_ui_blink_sync_t ble_sync = {
-            .sync_enable = (guide_info->level.left_blink_state != 0 ||
-                guide_info->level.right_blink_state != 0) ? 1 : 0,
-            .blink_time = 0,
-        };
-        ble_ui_update(thiz, guide_info->root, proc->ble,
-            BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, &ble_sync);
-    } else {
-        ble_ui_hide();
-    }
+    ui_popup_update(thiz, proc->popup_ui_type,
+        guide_info->root, &guide_info->popup_ui_index);
+    guide_info->force_update = false;
 
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

@@ -11,7 +11,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
 #define GUIDE_FUNCTION_HOME_TITLE_COLOR            (0x00FF00)
 #define GUIDE_FUNCTION_HOME_DESC_COLOR             (0x00FF00)
 #define GUIDE_FUNCTION_HOME_HINT_COLOR             (0x00FF00)
@@ -97,7 +97,7 @@ void guide_function_home_ui_remove(guide_base_ui_info_t *info)
 void guide_function_home_ui_build(guide_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info && info->ui);
-#if (IS_SUPPORT_ROOT_GUIDE_COMP_BG == 0)
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
     guide_function_home_bg_create(info);
 #endif
     guide_function_home_title_create(info);

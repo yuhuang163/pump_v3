@@ -8,34 +8,22 @@
 * DEFINES
 *****************************************************************************************
 */
-#define FINISH_MANUAL_TITLE_Y                                   (91)
-#define FINISH_MANUAL_CONTINUE_BUTTON_X                         (91)
-#define FINISH_MANUAL_CONTINUE_BUTTON_Y                         (166)
-#define FINISH_MANUAL_CONTINUE_TEXT_X                           (72)
-#define FINISH_MANUAL_CONTINUE_TEXT_Y                           (248)
-#define FINISH_MANUAL_RETURN_BUTTON_X                           (204)
-#define FINISH_MANUAL_RETURN_BUTTON_Y                           (FINISH_MANUAL_CONTINUE_BUTTON_Y)
-// #define FINISH_MANUAL_RETURN_TEXT_X                             (190 + 23)
-#define FINISH_MANUAL_RETURN_TEXT_X                             (206)
-#define FINISH_MANUAL_RETURN_TEXT_Y                             (FINISH_MANUAL_CONTINUE_TEXT_Y)
+#define FINISH_MANUAL_TITLE_Y                                   (108)
+#define FINISH_MANUAL_RETURN_BUTTON_Y                           (192)
 #define FINISH_MANUAL_TITLE_COLOR                               (0xFFFFFF)
-#define FINISH_MANUAL_TEXT_COLOR                                (0xD0D0D0)
+#define FINISH_MANUAL_TEXT_COLOR                                (0xA9A7A6)
 
-#define FINISH_TIMEOUT_TITLE_Y                                  (91)
-#define FINISH_TIMEOUT_CONTINUE_BUTTON_X                        (91)
-#define FINISH_TIMEOUT_CONTINUE_BUTTON_Y                        (194)
-#define FINISH_TIMEOUT_CONTINUE_TEXT_X                          (77)
-#define FINISH_TIMEOUT_CONTINUE_TEXT_Y                          (275)
-#define FINISH_TIMEOUT_RETURN_BUTTON_X                          (204)
-#define FINISH_TIMEOUT_RETURN_BUTTON_Y                          (FINISH_TIMEOUT_CONTINUE_BUTTON_Y)
-// #define FINISH_TIMEOUT_RETURN_TEXT_X                            (190 + 25)
-#define FINISH_TIMEOUT_RETURN_TEXT_X                            (208)
-#define FINISH_TIMEOUT_RETURN_TEXT_Y                            (FINISH_TIMEOUT_CONTINUE_TEXT_Y)
+#define WILL_FINISH_TIP_TITLE_Y                                 (108)
+#define WILL_FINISH_TIP_CONTINUE_BUTTON_Y                       (192)
+#define WILL_FINISH_TIP_TITLE_COLOR                             (0xFFFFFF)
+#define WILL_FINISH_TIP_TEXT_COLOR                              (0xA9A7A6)
+
+#define FINISH_TIMEOUT_TITLE_Y                                  (150)
 #define FINISH_TIMEOUT_TITLE_COLOR                              (0xFFFFFF)
-#define FINISH_TIMEOUT_TEXT_COLOR                               (0xD0D0D0)
+#define FINISH_TIMEOUT_TEXT_COLOR                               (0xA9A7A6)
 
 #define FINISH_CHARGE_ERROR_ICON_Y                              (110)
-#define FINISH_CHARGE_ERROR_TITLE_Y                             (192)
+#define FINISH_CHARGE_ERROR_TITLE_Y                             (150)
 #define FINISH_CHARGE_ERROR_TITLE_COLOR                         (0xFFFFFF)
 #define FINISH_CHARGE_ERROR_TEXT_COLOR                          (0xA9A7A6)
 
@@ -54,28 +42,31 @@
 *****************************************************************************************
 */
 const static ui_popup_text_info_t pump_finish_manual_infos[UI_POPUP_TEXT_COUNT] = {
-    {"Finish pumping", 0, FINISH_MANUAL_TITLE_Y, 
-        &lv_font_aeonik_soft_26_semibold, LV_OPA_100, FINISH_MANUAL_TITLE_COLOR, 4},
-    {"Continue", FINISH_MANUAL_CONTINUE_TEXT_X, FINISH_MANUAL_CONTINUE_TEXT_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_MANUAL_TEXT_COLOR, 4},
-    {"Finish", FINISH_MANUAL_RETURN_TEXT_X, FINISH_MANUAL_RETURN_TEXT_Y, 
+    {"Finish pumping?", 0, FINISH_MANUAL_TITLE_Y, 
+        &lv_font_aeonik_soft_28_medium, LV_OPA_100, FINISH_MANUAL_TITLE_COLOR, 4},
+    {"Press & hold 3s", 0, FINISH_MANUAL_TITLE_Y + 38, 
         &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_MANUAL_TEXT_COLOR, 4},
 };
 
+const static ui_popup_text_info_t pump_will_finish_infos[UI_POPUP_TEXT_COUNT] = {
+    {"Program ending soon", 0, WILL_FINISH_TIP_TITLE_Y, 
+        &lv_font_aeonik_soft_28_medium, LV_OPA_100, WILL_FINISH_TIP_TITLE_COLOR, 10},
+    {"Continue pumping?", 0, WILL_FINISH_TIP_TITLE_Y + 38, 
+        &lv_font_aeonik_soft_24_medium, LV_OPA_100, WILL_FINISH_TIP_TEXT_COLOR, 4},
+};
+
 const static ui_popup_text_info_t pump_finish_timeout_infos[UI_POPUP_TEXT_COUNT] = {
-    {"Session ending soon\nContinue pumping", 0, FINISH_TIMEOUT_TITLE_Y, 
-        &lv_font_aeonik_soft_26_semibold, LV_OPA_100, FINISH_TIMEOUT_TITLE_COLOR, 10},
-    {"Continue", FINISH_TIMEOUT_CONTINUE_TEXT_X, FINISH_TIMEOUT_CONTINUE_TEXT_Y, 
-        &lv_font_aeonik_soft_22_medium, LV_OPA_100, FINISH_TIMEOUT_TEXT_COLOR, 4},
-    {"Finish", FINISH_TIMEOUT_RETURN_TEXT_X, FINISH_TIMEOUT_RETURN_TEXT_Y, 
-        &lv_font_aeonik_soft_22_medium, LV_OPA_100, FINISH_TIMEOUT_TEXT_COLOR, 4},
+    {"Pumping Timeout", 0, FINISH_TIMEOUT_TITLE_Y, 
+        &lv_font_aeonik_soft_28_medium, LV_OPA_100, FINISH_TIMEOUT_TITLE_COLOR, 4},
+    {"Auto-stoping...", 0, FINISH_TIMEOUT_TITLE_Y + 38, 
+        &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_TIMEOUT_TEXT_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_finish_charge_error_infos[UI_POPUP_TEXT_COUNT] = {
     {"Incompatible adapter", 0, FINISH_CHARGE_ERROR_TITLE_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TITLE_COLOR, 4},
-    {"Stopping pump...", 0, FINISH_CHARGE_ERROR_TITLE_Y + 36, 
-        &lv_font_aeonik_soft_20_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_28_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TITLE_COLOR, 4},
+    {"Auto-stoping...", 0, FINISH_CHARGE_ERROR_TITLE_Y + 38, 
+        &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TEXT_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_finish_low_power_infos[UI_POPUP_TEXT_COUNT] = {
@@ -100,21 +91,24 @@ static void ui_popup_pump_finish_manual_update(ui_manager_context_t *thiz)
 {
     ui_popup_mask_layer_update(thiz);
     ui_popup_text_update(thiz, pump_finish_manual_infos);
-    ui_popup_icon_update(thiz, 0, BASE_RES_ID_START_BUTTON_ICON,
-        FINISH_MANUAL_CONTINUE_BUTTON_X, FINISH_MANUAL_CONTINUE_BUTTON_Y);
-    ui_popup_icon_update(thiz, 1, BASE_RES_ID_RETURN_BUTTON_ICON,
-        FINISH_MANUAL_RETURN_BUTTON_X, FINISH_MANUAL_RETURN_BUTTON_Y);
+    ui_popup_icon_update(thiz, 0, BASE_RES_ID_RETURN_BUTTON_ICON, 0, FINISH_MANUAL_RETURN_BUTTON_Y);
     ui_popup_display_complete(thiz, ID_POPUP_UI_PUMP_FINISH_MANUAL);
+}
+
+static void ui_popup_pump_will_finish_update(ui_manager_context_t *thiz)
+{
+    ui_popup_mask_layer_update(thiz);
+    ui_popup_text_update(thiz, pump_will_finish_infos);
+    ui_popup_icon_update(thiz, 0, BASE_RES_ID_START_BUTTON_ICON, 0, WILL_FINISH_TIP_CONTINUE_BUTTON_Y);
+    ui_popup_arc_update(thiz);
+    ui_popup_display_complete(thiz, ID_POPUP_UI_PUMP_WILL_FINISH_TIP);
 }
 
 static void ui_popup_pump_finish_timeout_update(ui_manager_context_t *thiz)
 {
     ui_popup_mask_layer_update(thiz);
     ui_popup_text_update(thiz, pump_finish_timeout_infos);
-    ui_popup_icon_update(thiz, 0, BASE_RES_ID_START_BUTTON_ICON,
-        FINISH_TIMEOUT_CONTINUE_BUTTON_X, FINISH_TIMEOUT_CONTINUE_BUTTON_Y);
-    ui_popup_icon_update(thiz, 1, BASE_RES_ID_RETURN_BUTTON_ICON,
-        FINISH_TIMEOUT_RETURN_BUTTON_X, FINISH_TIMEOUT_RETURN_BUTTON_Y);
+    ui_popup_arc_update(thiz);
     ui_popup_display_complete(thiz, ID_POPUP_UI_PUMP_FINISH_TIMEOUT);
 }
 
@@ -122,7 +116,7 @@ static void ui_popup_pump_finish_charge_error_update(ui_manager_context_t *thiz,
     popup_ui_id_e popup_type)
 {
     ui_popup_mask_layer_update(thiz);
-    ui_popup_single_icon_update(thiz, BASE_RES_ID_BAN_ICON, FINISH_CHARGE_ERROR_ICON_Y);
+    // ui_popup_single_icon_update(thiz, BASE_RES_ID_BAN_ICON, FINISH_CHARGE_ERROR_ICON_Y);
     ui_popup_text_update(thiz, pump_finish_charge_error_infos);
     ui_popup_arc_update(thiz);
     ui_popup_display_complete(thiz, popup_type);
@@ -147,7 +141,7 @@ void ui_popup_pump_finish_ui_update(ui_manager_context_t *thiz, popup_ui_id_e po
             ui_popup_pump_finish_manual_update(thiz);
             break;
         case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
-            ui_popup_pump_finish_timeout_update(thiz);
+            ui_popup_pump_will_finish_update(thiz);
             break;
         case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
             ui_popup_pump_finish_timeout_update(thiz);

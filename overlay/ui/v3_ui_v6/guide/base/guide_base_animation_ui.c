@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "src/misc/lv_area.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
@@ -13,18 +14,32 @@
 * DEFINES
 *****************************************************************************************
 */
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
 #define GUIDE_ANIM_TEXT_COLOR                      (0x00FF00)
 #else
 #define GUIDE_ANIM_TEXT_COLOR                      (0xBD4060)
 #endif
 #define GUIDE_ANIM_TEXT_Y                          (243)
 #define GUIDE_ANIM_FRAME_RES_INVALID               (0xFFFF)
+#define GUIDE_ANIM_FRAME_Y                         (32)
 
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void guide_animation_bg_create(guide_base_ui_info_t *info)
+{
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
+    info->animation.bg = lv_image_create(guide_page_parent_get(info));
+    EXCEPTION_CHECK_VOID(info->animation.bg);
+    ui_img_png_theme_set_src(info->ui, info->animation.bg, BASE_RES_ID_GUIDE_ANIM_BG,
+        RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888);
+    lv_obj_align(info->animation.bg, LV_ALIGN_CENTER, 0, 0);
+#else
+    (void)info;
+#endif
+}
+
 static void guide_animation_frame_show(guide_base_ui_info_t *info, uint16_t frame_index)
 {
     if (frame_index >= BASE_GUIDE_ANIM_NUM) {
@@ -39,7 +54,7 @@ static void guide_animation_frame_show(guide_base_ui_info_t *info, uint16_t fram
     if (info->animation.frame == NULL || !lv_obj_is_valid(info->animation.frame)) {
         info->animation.frame = lv_image_create(guide_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->animation.frame);
-        lv_obj_align(info->animation.frame, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_align(info->animation.frame, LV_ALIGN_TOP_MID, 0, GUIDE_ANIM_FRAME_Y);
     }
 
     if (info->animation.frame_info.data != NULL) {
@@ -52,7 +67,7 @@ static void guide_animation_frame_show(guide_base_ui_info_t *info, uint16_t fram
 
     lv_fs_path_ex_t img_path;
     lv_fs_make_path_from_buffer(&img_path, LV_FS_MEMFS_LETTER,
-        info->animation.frame_info.data, info->animation.frame_info.size, "jpg");
+        info->animation.frame_info.data, info->animation.frame_info.size, "baj");
     lv_image_set_src(info->animation.frame, (const void *)&img_path);
     info->animation.shown_frame_res_id = frame_id;
 }
@@ -77,6 +92,9 @@ static void guide_animation_text_create(guide_base_ui_info_t *info)
 void guide_pump_animation_ui_remove(guide_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info && info->ui);
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
+    ui_img_png_release_decoded_buf(info->animation.bg);
+#endif
     if (info->animation.frame_info.data != NULL) {
         ui_img_resource_deinit(info->ui, &info->animation.frame_info);
     }
@@ -86,6 +104,7 @@ void guide_pump_animation_ui_remove(guide_base_ui_info_t *info)
 void guide_pump_animation_ui_build(guide_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info && info->ui);
+    guide_animation_bg_create(info);
     guide_animation_frame_show(info, 0);
     guide_animation_text_create(info);
 }

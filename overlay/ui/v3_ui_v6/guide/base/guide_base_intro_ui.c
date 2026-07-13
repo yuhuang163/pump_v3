@@ -11,15 +11,15 @@
 * DEFINES
 *****************************************************************************************
 */
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
 #define GUIDE_INTRO_TEXT_COLOR                     (0x00FF00)
 #else
 #define GUIDE_INTRO_TEXT_COLOR                     (0xBD4060)
 #endif
 #define GUIDE_INTRO_TITLE_Y                        (204)
-#define GUIDE_INTRO_HINT_Y                         (302)
+#define GUIDE_INTRO_HINT_Y                         (252)
 #define GUIDE_INTRO_START_ICON_X                   (157)
-#define GUIDE_INTRO_START_ICON_Y                   (296)
+#define GUIDE_INTRO_START_ICON_Y                   (246)
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -80,7 +80,7 @@ void guide_intro_ui_remove(guide_base_ui_info_t *info)
 void guide_intro_ui_build(guide_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info && info->ui);
-#if (IS_SUPPORT_ROOT_GUIDE_COMP_BG == 0)
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
     guide_intro_bg_create(info);
 #endif
     guide_intro_title_create(info);

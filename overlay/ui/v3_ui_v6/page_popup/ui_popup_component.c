@@ -357,6 +357,7 @@ const static ui_popup_name_info_t ui_popup_name_infos[] = {
     { ID_POPUP_UI_OP_FAILED, "operation failed" },
     { ID_POPUP_UI_AIRPLANE_MODE_PROMPT, "airplane mode prompt" },
     { ID_POPUP_UI_FACTORY_RESET_CONFIRM, "factory reset confirm" },
+    { ID_POPUP_UI_GUIDE_EXIT_CONFIRM, "guide exit confirm" },
     { ID_POPUP_UI_THEME_RESELECT, "theme reselect" },
 };
 
@@ -377,7 +378,8 @@ uint16_t ui_popup_target_time_get(popup_ui_id_e type)
     uint16_t time = 3000;
     if (type == ID_POPUP_UI_AIRPLANE_MODE_PROMPT) {
         time = 5000;
-    } else if (type == ID_POPUP_UI_FACTORY_RESET_CONFIRM) {
+    } else if (type == ID_POPUP_UI_FACTORY_RESET_CONFIRM ||
+        type == ID_POPUP_UI_GUIDE_EXIT_CONFIRM) {
         time = 3000;
     } else if (type == ID_POPUP_UI_PUMP_FINISH_MANUAL || type == ID_POPUP_UI_THEME_RESELECT) {
         time = 3000;

@@ -12,21 +12,20 @@ extern "C" {
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
-#include "ble_ui.h" // IWYU pragma: keep
 #include "window_screen_guide.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_ROOT_GUIDE_COMP_BG              (0)
-#define GUIDE_PAGE_INDEX_INVALID                   (0xFF)
+#define IS_SUPPORT_BASE_GUIDE_COMP_BG                   (0)
+#define GUIDE_PAGE_INDEX_INVALID                        (0xFF)
 
-#define IS_SUPPORT_GUIDE_LABEL_TEXT_CMP            (0) /// 支持label文本对比
-#if IS_SUPPORT_GUIDE_LABEL_TEXT_CMP
-#define GUIDE_LABEL_CARD_TEXT_COLOR                (0x00FF00)
+#define IS_SUPPORT_BASE_GUIDE_LABEL_TEXT_CMP            (0) /// 支持label文本对比
+#if IS_SUPPORT_BASE_GUIDE_LABEL_TEXT_CMP
+#define GUIDE_BASE_LABEL_CARD_TEXT_COLOR                (0x00FF00)
 #else
-#define GUIDE_LABEL_CARD_TEXT_COLOR                (0xA0183B)
+#define GUIDE_BASE_LABEL_CARD_TEXT_COLOR                (0xA0183B)
 #endif
 
 typedef enum {
@@ -129,6 +128,7 @@ typedef struct {
 } guide_base_rhythm_select_info_t;
 
 typedef struct {
+    lv_obj_t *bg;
     lv_obj_t *frame;
     lv_obj_t *text;
     res_img_info_t frame_info;
@@ -160,6 +160,7 @@ typedef struct {
     uint8_t force_update;
     uint8_t page_index;
     uint8_t shown_page_index;
+    uint8_t popup_ui_index;
     guide_base_level_display_type_e level_display_type;
 } guide_base_ui_info_t;
 
