@@ -51,6 +51,17 @@
       "x_offset": 0,
       "y_offset": 0,
       "note": "file_index = resource_id - 1300"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_GUIDE_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_GUIDE_ANIM_END",
+      "description": "引导动画",
+      "file_template": "animation/guide/jpg/YD_{file_index:05d}_368x368_q95_422.jpg",
+      "start_file_index": 0,
+      "id_to_file_offset": -1400,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1400"
     }
   ],
   "resources": [
@@ -226,6 +237,69 @@
       "resource_id": "BASE_RES_ID_THEME_UNSELECT_ICON",
       "description": "主题未选择引导图标",
       "file": "baj/icon_theme_unselect_28x28_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_BUTTON_ICON",
+      "description": "引导按钮图标",
+      "file": "baj/icon_guide_button_266x206_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_KNOB_ICON",
+      "description": "引导旋钮图标",
+      "file": "baj/icon_guide_knob_240x223_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_LEFT_BUTTON_ICON",
+      "description": "引导-左按钮图片",
+      "file": "baj/icon_guide_left_button_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_RIGHT_BUTTON_ICON",
+      "description": "引导-右按钮图片",
+      "file": "baj/icon_guide_right_button_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_START_BUTTON_ICON",
+      "description": "引导-开始按钮图标",
+      "file": "baj/icon_guide_start_button_28x28_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_START_BUTTON_MIN_ICON",
+      "description": "引导-开始按钮小图标",
+      "file": "baj/icon_guide_start_button_min_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_RETURN_BUTTON_ICON",
+      "description": "引导-返回按钮图标",
+      "file": "baj/icon_guide_return_button_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_BG",
+      "description": "引导背景",
+      "file": "png/bg_guide_ui.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_GUIDE_ANIM_BG",
+      "description": "引导动画背景",
+      "file": "png/bg_guide_anim_ui.png",
       "x_offset": 0,
       "y_offset": 0
     },

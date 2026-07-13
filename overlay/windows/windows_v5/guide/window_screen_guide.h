@@ -21,16 +21,40 @@ extern "C" {
 #endif
 
 /// 主界面动画展示时间
-#define GUIDE_ANIMATION_DISPLAY_TIME         (2000) /// 2s
-#define GUIDE_BLINK_PERIOD                   (500)
+#define GUIDE_ANIMATION_DISPLAY_TIME            (2000) /// 2s
+#define GUIDE_BLINK_PERIOD                      (500)
+/// 双边力度调节静止超时
+#define GUIDE_LEVEL_BOTH_IDLE_TIMEOUT_MS        (5000) /// 5s
+/// 旋转旋钮后无操作超时
+#define GUIDE_LEVEL_KNOB_IDLE_TIMEOUT_MS        (3000) /// 3s
+/// 模式选择页无操作静默超时
+#define GUIDE_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
+/// 模式选择页切换模式后误操作超时
+#define GUIDE_MODE_SELECT_MISOP_TIMEOUT_MS      (3000) /// 3s
+/// 韵律选择页无操作静默超时
+#define GUIDE_RHYTHM_SELECT_IDLE_TIMEOUT_MS     (5000) /// 5s
+/// 韵律选择页切换韵律后误操作超时
+#define GUIDE_RHYTHM_SELECT_MISOP_TIMEOUT_MS    (3000) /// 3s
 /// 单边力度调节静止超时
-#define GUIDE_LEVEL_ADJUST_IDLE_TIMEOUT_MS    (3000) /// 3s
+#define GUIDE_LEVEL_ADJUST_IDLE_TIMEOUT_MS      (3000) /// 3s
 /// 力度调节后，展示页面停留时间
-#define GUIDE_LEVEL_ADJUST_IDLE_SHOW_TIME_MS  (200) /// 200ms
+#define GUIDE_GUIDE_STEP_ADVANCE_TIME_MS      (3000) /// 纯引导页自动翻页时间
+#define GUIDE_FINISH_IDLE_TIMEOUT_MS          (3000) /// 引导结束页无操作超时
+#define GUIDE_PUMP_STOP_RETURN_LONG_PRESS_MS  (3000) /// 泵奶结束引导长按返回跳转时间
 #define GUIDE_DEFAULT_LEFT_LEVEL              (12)
 #define GUIDE_DEFAULT_RIGHT_LEVEL             (6)
 #define GUIDE_LEVEL_MIN                       (0)
 #define GUIDE_LEVEL_MAX                       (15)
+
+/// 引导页模式/韵律切换是否同步到 breast_pump_manager
+#ifndef IS_SUPPORT_GUIDE_PUMP_MODE_SYNC
+#define IS_SUPPORT_GUIDE_PUMP_MODE_SYNC       (0)
+#endif
+
+/// 引导页力度调节是否同步到 breast_pump_manager
+#ifndef IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC
+#define IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC      (0)
+#endif
 
 /// 主界面UI动作枚举
 typedef enum {
@@ -45,12 +69,24 @@ typedef enum {
 } guide_ui_type_e;
 
 typedef enum {
-    GUIDE_PAGE_PUMP_LEVEL_DOUBLE_ADJUST = 0, /// 引导泵奶力度双边调节
-    GUIDE_PAGE_PUMP_LEVEL_SINGLE_SELECT = 1, /// 引导泵奶力度单边选择
-    GUIDE_PAGE_PUMP_LEVEL_LEFT_ADJUST = 2, /// 引导泵奶力度左调节
-    GUIDE_PAGE_PUMP_LEVEL_RIGHT_ADJUST = 3, /// 引导泵奶力度右调节
-    GUIDE_PAGE_PUMP_MODE_SELECT = 4, /// 引导泵奶模式选择
-    GUIDE_PAGE_PUMP_MODE_UNSELECT = 5, /// 引导泵奶未选择模式
+    GUIDE_PAGE_WELCOME_ANIM = 0,        /// 1. 引导动画
+    GUIDE_PAGE_INTRO = 1,               /// 2. 引导简介
+    GUIDE_PAGE_KEY_GUIDE = 2,           /// 3. 按键引导
+    GUIDE_PAGE_KNOB_GUIDE = 3,          /// 4. 旋钮引导
+    GUIDE_PAGE_FUNCTION_HOME = 4,       /// 5. 功能引导首页
+    GUIDE_PAGE_LEVEL_BOTH_GUIDE = 5,    /// 6. 双边力度调节引导
+    GUIDE_PAGE_LEVEL_BOTH = 6,          /// 7. 双边力度调节
+    GUIDE_PAGE_LEVEL_LEFT_GUIDE = 7,    /// 8. 左边力度调节引导
+    GUIDE_PAGE_LEVEL_LEFT = 8,          /// 9. 左边力度调节
+    GUIDE_PAGE_LEVEL_RIGHT_GUIDE = 9,   /// 10. 右边力度调节引导
+    GUIDE_PAGE_LEVEL_RIGHT = 10,        /// 11. 右边力度调节
+    GUIDE_PAGE_MODE_SELECT_GUIDE = 11,  /// 12. 模式选择引导
+    GUIDE_PAGE_MODE_SELECT = 12,        /// 13. 模式选择
+    GUIDE_PAGE_RHYTHM_SELECT_GUIDE = 13,/// 14. 韵律选择引导
+    GUIDE_PAGE_RHYTHM_SELECT = 14,      /// 15. 韵律选择
+    GUIDE_PAGE_PUMP_START_GUIDE = 15,   /// 16. 泵奶开始引导
+    GUIDE_PAGE_PUMP_STOP_GUIDE = 16,    /// 17. 泵奶结束引导
+    GUIDE_PAGE_FINISH = 17,             /// 18. 引导结束
     GUIDE_PAGE_MAX,
 } guide_page_index_t;
 
@@ -60,6 +96,33 @@ typedef enum {
     GUIDE_MODE_SELECT_BREASTFEEDING = 2, /// 选择哺乳
     GUIDE_MODE_SELECT_MAX,
 } guide_mode_select_e;
+
+#define GUIDE_PAGE_IS_WELCOME_ANIM(page)        ((page) == GUIDE_PAGE_WELCOME_ANIM)
+#define GUIDE_PAGE_IS_LEVEL_INTERACTIVE(page)   \
+    ((page) == GUIDE_PAGE_LEVEL_BOTH || (page) == GUIDE_PAGE_LEVEL_LEFT || \
+     (page) == GUIDE_PAGE_LEVEL_RIGHT)
+#define GUIDE_PAGE_IS_MODE_INTERACTIVE(page)    ((page) == GUIDE_PAGE_MODE_SELECT)
+#define GUIDE_PAGE_IS_RHYTHM_INTERACTIVE(page)  ((page) == GUIDE_PAGE_RHYTHM_SELECT)
+#define GUIDE_PAGE_IS_LEVEL_SIDE(page)        \
+    ((page) == GUIDE_PAGE_LEVEL_LEFT || (page) == GUIDE_PAGE_LEVEL_RIGHT)
+#define GUIDE_PAGE_IS_GUIDE_STEP(page)        \
+    ((page) == GUIDE_PAGE_INTRO || (page) == GUIDE_PAGE_KEY_GUIDE || \
+     (page) == GUIDE_PAGE_KNOB_GUIDE || (page) == GUIDE_PAGE_LEVEL_BOTH_GUIDE || \
+     (page) == GUIDE_PAGE_LEVEL_LEFT_GUIDE || (page) == GUIDE_PAGE_LEVEL_RIGHT_GUIDE || \
+     (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || \
+     (page) == GUIDE_PAGE_PUMP_START_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
+#define GUIDE_PAGE_SHOW_BLE(page)               \
+    ((page) == GUIDE_PAGE_MODE_SELECT || (page) == GUIDE_PAGE_RHYTHM_SELECT)
+#define GUIDE_PAGE_SHOW_LEVEL(page)             \
+    (((page) >= GUIDE_PAGE_LEVEL_BOTH_GUIDE && (page) <= GUIDE_PAGE_LEVEL_RIGHT) || \
+     (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_MODE_SELECT || \
+     (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT || \
+     (page) == GUIDE_PAGE_PUMP_START_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
+#define GUIDE_PAGE_IS_LED_BLINK(page)           \
+    ((page) == GUIDE_PAGE_INTRO || (page) == GUIDE_PAGE_FUNCTION_HOME || \
+     (page) == GUIDE_PAGE_LEVEL_LEFT_GUIDE || (page) == GUIDE_PAGE_LEVEL_RIGHT_GUIDE || \
+     (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || \
+     (page) == GUIDE_PAGE_PUMP_START_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
 
 /// 主界面UI结构体
 typedef struct {
@@ -80,8 +143,13 @@ typedef struct {
     uint16_t popup_ui_type; /// 当前弹窗类型. guide_operation_type_e
     pump_setting_t setting; /// 泵奶设置信息.
     uint8_t mode_selected; /// 是否已选择吸乳方案
+    uint8_t ui_mode_index; /// 当前模式索引 breast_pump_mode_e
     uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
+    uint8_t level_knob_touched; /// 力度页是否已旋转过旋钮.
+    uint8_t mode_select_touched; /// 模式选择页是否已切换过模式.
+    uint8_t rhythm_select_touched; /// 韵律选择页是否已切换过韵律.
     uint32_t last_adjust_time; /// 上次力度调节时间
+    uint32_t page_enter_time; /// 当前页面进入时间
 } ui_proc_guide_t;
 
 /*
@@ -90,12 +158,17 @@ typedef struct {
 */
 void start_guide_ui_animation(ui_proc_guide_t *proc);
 void stop_guide_ui_animation(ui_proc_guide_t *proc);
+void guide_led_backlight_update(ui_proc_guide_t *proc);
+void guide_led_backlight_blink_tick(ui_proc_guide_t *proc);
+void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page);
+int guide_pump_mode_adjust_handler(ui_proc_guide_t *proc, bool is_bf_mode);
+void guide_pump_level_page_enter_reset(ui_proc_guide_t *proc);
+int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase);
+void guide_pump_level_idle_timeout_handler(ui_proc_guide_t *proc);
 void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left);
-void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode);
+void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t keytype);
 #ifdef __cplusplus
 }
 #endif
 
 #endif 
-
-
