@@ -39,16 +39,19 @@ typedef enum {
     BASE_RES_ID_GUIDE_LABLE, /// 引导标签
 
     /* 引导组 [150..200] */
-    BASE_RES_ID_GUIDE_PAGE1_IMG = 150, /// 引导-页1图片
-    BASE_RES_ID_GUIDE_PAGE2_IMG, /// 引导-页2图片
-    BASE_RES_ID_GUIDE_PAGE3_IMG, /// 引导-页3图片
-    BASE_RES_ID_GUIDE_PAGE4_IMG, /// 引导-页4图片
-    BASE_RES_ID_GUIDE_PAGE5_IMG, /// 引导-页5图片
-    BASE_RES_ID_GUIDE_PAGE6_IMG, /// 引导-页6图片
-    BASE_RES_ID_SYS_THEME_IMG, /// 系统主题引导背景
+    BASE_RES_ID_SYS_THEME_IMG = 150, /// 系统主题引导背景
     BASE_RES_ID_IP_THEME_IMG, /// IP主题引导背景
     BASE_RES_ID_THEME_SELECT_ICON, /// 主题选择引导图标
     BASE_RES_ID_THEME_UNSELECT_ICON, /// 主题未选择引导图标
+    BASE_RES_ID_GUIDE_BUTTON_ICON, /// 引导按钮图标
+    BASE_RES_ID_GUIDE_KNOB_ICON, /// 引导旋钮图标
+    BASE_RES_ID_GUIDE_LEFT_BUTTON_ICON, /// 引导-左按钮图片
+    BASE_RES_ID_GUIDE_RIGHT_BUTTON_ICON, /// 引导-右按钮图片
+    BASE_RES_ID_GUIDE_START_BUTTON_ICON, /// 引导-开始按钮图标
+    BASE_RES_ID_GUIDE_START_BUTTON_MIN_ICON, /// 引导-开始按钮小图标
+    BASE_RES_ID_GUIDE_RETURN_BUTTON_ICON, /// 引导-返回按钮图标
+    BASE_RES_ID_GUIDE_BG, /// 引导背景
+    BASE_RES_ID_GUIDE_ANIM_BG, /// 引导动画背景
 
     /* 模式相关组 [200..300]（大图 + 小图标） */
     BASE_RES_ID_HOME_IDLE_ICON = 200, /// 空闲界面图标
@@ -79,6 +82,8 @@ typedef enum {
     BASE_RES_ID_MIXED_SUCTION_ANIM_END = 1259, /// 混合吸吮动画-结束 
     BASE_RES_ID_RELAX_SUCTION_ANIM_START = 1300, /// 放松吸吮动画-开始
     BASE_RES_ID_RELAX_SUCTION_ANIM_END = 1359, /// 放松吸吮动画-结束 
+    BASE_RES_ID_GUIDE_ANIM_START = 1400, /// 引导动画-开始
+    BASE_RES_ID_GUIDE_ANIM_END = 1479, /// 引导动画-结束 
 
     BASE_RES_ID_TYPE_MAX
 } base_res_id_type_e;
@@ -95,6 +100,9 @@ typedef enum {
 /// 放松吸吮动画帧数
 #define BASE_RELAX_SUCTION_ANIM_NUM \
     (BASE_RES_ID_RELAX_SUCTION_ANIM_END - BASE_RES_ID_RELAX_SUCTION_ANIM_START + 1)
+/// 引导动画帧数
+#define BASE_GUIDE_ANIM_NUM \
+    (BASE_RES_ID_GUIDE_ANIM_END - BASE_RES_ID_GUIDE_ANIM_START + 1)
 
 #ifdef __cplusplus
 }
