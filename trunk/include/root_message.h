@@ -33,7 +33,7 @@ typedef enum {
 /// 弹出框ID枚举.
 typedef enum {
     ID_POPUP_UI_NONE = 0,
-    ID_POPUP_UI_OP_SUCCESS = 100,
+    ID_POPUP_UI_OP_SUCCESS,
     ID_POPUP_UI_OP_SUCCESS_PRESET,
     ID_POPUP_UI_OP_FAILED ,
     ID_POPUP_UI_THEME_RESELECT,/// 主题重新选择
@@ -63,6 +63,7 @@ typedef enum {
     ID_POPUP_UI_AIR_PRESSURE_ERROR, /// 气压传感器异常
     ID_POPUP_UI_AIR_PRESSURE_OVER_UPPER_LIMIT, /// 气压（负压）超出上限
     ID_POPUP_UI_AIR_PRESSURE_GENERATE_FAILED, /// 气压（负压）生成失败
+    ID_POPUP_UI_GUIDE_EXIT_CONFIRM, /// 引导退出确认
 } popup_ui_id_e;
 
 /// 窗口屏幕进入参数描述,记录进入新窗口屏幕需要的参数.
