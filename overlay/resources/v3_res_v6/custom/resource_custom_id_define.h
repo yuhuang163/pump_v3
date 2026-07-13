@@ -43,8 +43,8 @@ typedef enum {
     CUSTOM_RES_ID_IP_THEME_IMG, /// IP主题引导背景
     CUSTOM_RES_ID_THEME_SELECT_ICON, /// 主题选择引导图标
     CUSTOM_RES_ID_THEME_UNSELECT_ICON, /// 主题未选择引导图标
-    CUSTOM_RES_ID_GUIDE_BUTTON_ICON, /// 引导按钮图标
-    CUSTOM_RES_ID_GUIDE_KNOB_ICON, /// 引导旋钮图标
+    CUSTOM_RES_ID_GUIDE_BUTTON_BG, /// 引导按钮背景
+    CUSTOM_RES_ID_GUIDE_KNOB_BG, /// 引导旋钮背景
     CUSTOM_RES_ID_GUIDE_LEFT_BUTTON_ICON, /// 引导-左按钮图片
     CUSTOM_RES_ID_GUIDE_RIGHT_BUTTON_ICON, /// 引导-右按钮图片
     CUSTOM_RES_ID_GUIDE_START_BUTTON_ICON, /// 引导-开始按钮图标
@@ -79,7 +79,7 @@ typedef enum {
     CUSTOM_RES_ID_HD_ANIM_IP_START = 11500, /// 首页默认动画-开始
     CUSTOM_RES_ID_HD_ANIM_IP_END = 11619, /// 首页默认动画-结束
     CUSTOM_RES_ID_GUIDE_IP_START = 11700, /// 引导IP图标-开始
-    CUSTOM_RES_ID_GUIDE_IP_END = 11779, /// 引导IP图标-结束
+    CUSTOM_RES_ID_GUIDE_IP_END = 11795, /// 引导IP图标-结束
 
     CUSTOM_RES_ID_TYPE_MAX
 } custom_res_id_type_e;

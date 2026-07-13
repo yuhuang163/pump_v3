@@ -56,7 +56,7 @@
       "start_resource_id": "BASE_RES_ID_GUIDE_ANIM_START",
       "end_resource_id": "BASE_RES_ID_GUIDE_ANIM_END",
       "description": "引导动画",
-      "file_template": "animation/guide/jpg/YD_{file_index:05d}_368x368_q95_422.jpg",
+      "file_template": "animation/guide/baj/IPXSYD_{file_index:05d}_190x190_a8_q99_422.baj",
       "start_file_index": 0,
       "id_to_file_offset": -1400,
       "x_offset": 0,
@@ -241,16 +241,16 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_GUIDE_BUTTON_ICON",
-      "description": "引导按钮图标",
-      "file": "baj/icon_guide_button_266x206_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_GUIDE_BUTTON_BG",
+      "description": "引导按钮背景",
+      "file": "png/bg_guide_button.png",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_GUIDE_KNOB_ICON",
-      "description": "引导旋钮图标",
-      "file": "baj/icon_guide_knob_240x223_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_GUIDE_KNOB_BG",
+      "description": "引导旋钮背景",
+      "file": "png/bg_guide_knob.png",
       "x_offset": 0,
       "y_offset": 0
     },
