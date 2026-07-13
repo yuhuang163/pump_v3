@@ -66,6 +66,7 @@ static void update_work_valid_time(breast_pump_manager_context_t *ctx, pump_resu
 
 
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
+#if 0
 static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_result_info_t *result_info)
 {
     int pump_time = 0;
@@ -118,6 +119,58 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     int pump_time = 0;
     breast_pump_info_t *m_info = &ctx->priv.m_info;
     breast_pump_result_t *m_result = &ctx->priv.m_result;
+    uint8_t new_mode_type = PUMP_IS_COMMON_MODE(m_info->mode) ? 
+        BREAST_PUMP_MODE_TYPE_COMMON : BREAST_PUMP_MODE_TYPE_BREASTFEEDING;
+    uint8_t current_mode_type = PUMP_IS_COMMON_MODE(result_info->mode) ? 
+        BREAST_PUMP_MODE_TYPE_COMMON : BREAST_PUMP_MODE_TYPE_BREASTFEEDING;
+    ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, m_info->mode, 0, &pump_time);
+    result_info->setting_time = pump_time * 1000;
+    if (result_info->setting_time > SETTING_PUMP_TIME_MAX) {
+        result_info->setting_time = SETTING_PUMP_TIME_MAX;
+    }
+
+    result_info->target_valid_time = result_info->setting_time; 
+    m_result->total_valid_time = result_info->target_valid_time;
+    if (new_mode_type == BREAST_PUMP_MODE_TYPE_BREASTFEEDING) {
+        result_info->work_valid_time = 0;
+    } 
+
+    if (new_mode_type == BREAST_PUMP_MODE_TYPE_COMMON) {
+        m_info->common_mode = m_info->mode;
+        ctx->priv.st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE,
+            BREAST_PUMP_MODE_TYPE_COMMON, m_info->mode, NULL);
+    } else {
+        m_info->breastfeeding_mode = m_info->mode;
+        ctx->priv.st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE,
+            BREAST_PUMP_MODE_TYPE_BREASTFEEDING, m_info->mode, NULL);
+    }
+    /// 更新历史运行时间
+    result_info->hostory_work_time += result_info->current_mode_work_time;
+    /// 清除模式更新标志
+    ctx->priv.st->put_store_ram_val(STORE_ID_MODE_NEW_STEP_INFO_FLAG, m_info->mode, false, NULL);
+    if (result_info->work_valid_time < PUMP_RUNNING_TIP_TIME_MS) {
+        m_info->running_tip_onoff = true;
+    }
+    LOG_PMP("mode update:%d/%d; common:%d expert:%d; auto pause:%d time:%d/%d/%d", 
+        result_info->mode, m_info->mode, m_info->common_mode, 
+        m_info->breastfeeding_mode, m_info->running_tip_onoff,
+        PUMP_TIME_TO_SECOND(result_info->current_mode_work_time), 
+        PUMP_TIME_TO_SECOND(result_info->hostory_work_time),
+        PUMP_TIME_TO_SECOND(result_info->target_valid_time));
+    /// todo:更新数据到缓存    
+    result_info->current_mode_work_time = 0;
+    result_info->mode = m_info->mode;
+    result_info->start_time = get_timestamp();
+    memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
+}
+#endif
+
+#else
+static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_result_info_t *result_info)
+{
+    int pump_time = 0;
+    breast_pump_info_t *m_info = &ctx->priv.m_info;
+    breast_pump_result_t *m_result = &ctx->priv.m_result;
     ctx->priv.st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, m_info->mode, 0, &pump_time);
     result_info->setting_time = pump_time * 1000;
     if (result_info->setting_time > SETTING_PUMP_TIME_MAX) {
@@ -156,6 +209,7 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     memcpy(result_info->setting, ctx->priv.setting, sizeof(pump_setting_t) * ROOT_BREAST_PUMP_STEP_MAX);
 }
 #endif
+
 const static char *get_pump_process_result_name(int result)
 {
     switch (result) {

@@ -14,27 +14,22 @@
 *****************************************************************************************
 */
 #define GUIDE_RHYTHM_SELECT_TITLE_COLOR                 (0xBD4060)
-#define GUIDE_RHYTHM_SELECT_CAROUSEL_SIDE_COLOR           (0xE89AAB)
-#define GUIDE_RHYTHM_SELECT_TIME_COLOR                    (0xD36682)
-#define GUIDE_RHYTHM_SELECT_WAVE_BASE_Y                   (110)
-#define GUIDE_RHYTHM_SELECT_WAVE_OFFSET                   (22)
-#define GUIDE_RHYTHM_SELECT_WAVE_Y                        (GUIDE_RHYTHM_SELECT_WAVE_BASE_Y + \
-                                                            GUIDE_RHYTHM_SELECT_WAVE_OFFSET)
-#define GUIDE_RHYTHM_SELECT_TITLE_Y                       (82)
-#define GUIDE_RHYTHM_SELECT_TITLE_GAP                     (24)
+#define GUIDE_RHYTHM_SELECT_CAROUSEL_SIDE_COLOR         (0xE89AAB)
+#define GUIDE_RHYTHM_SELECT_TIME_COLOR                  (0xD36682)
+#define GUIDE_RHYTHM_SELECT_WAVE_Y                      (132)
+#define GUIDE_RHYTHM_SELECT_TITLE_Y                     (82)
+#define GUIDE_RHYTHM_SELECT_TITLE_GAP                   (24)
 
-#define GUIDE_RHYTHM_SELECT_LABEL_X                       (49)
-#define GUIDE_RHYTHM_SELECT_LABEL_BASE_Y                  (163)
-#define GUIDE_RHYTHM_SELECT_TEXT_BASE_Y                   (215)
-#define GUIDE_RHYTHM_SELECT_TIME_BASE_Y                   (152)
-#define GUIDE_RHYTHM_SELECT_LABEL_Y_OFFSET                (7)
-#define GUIDE_RHYTHM_SELECT_TIME_Y_OFFSET                 (18)
-#define GUIDE_RHYTHM_SELECT_LABEL_Y                       (GUIDE_RHYTHM_SELECT_LABEL_BASE_Y + \
-                                                            GUIDE_RHYTHM_SELECT_LABEL_Y_OFFSET)
-#define GUIDE_RHYTHM_SELECT_TEXT_Y                        (GUIDE_RHYTHM_SELECT_TEXT_BASE_Y + \
-                                                            GUIDE_RHYTHM_SELECT_LABEL_Y_OFFSET)
-#define GUIDE_RHYTHM_SELECT_TIME_Y                        (GUIDE_RHYTHM_SELECT_TIME_BASE_Y + \
-                                                            GUIDE_RHYTHM_SELECT_TIME_Y_OFFSET)
+#define GUIDE_RHYTHM_SELECT_LABEL_X                     (49)
+
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_LABEL_Y          (170)
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TEXT_Y           (222)
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TIME_Y           (170)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_LABEL_Y       (170)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TEXT_Y        (222)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TIME_Y        (170)
+
+#define GUIDE_RHYTHM_SELECT_DESC_LINE_SPACE             (4)
 
 #define GUIDE_RHYTHM_SELECT_SLOT_PREV                     (0)
 #define GUIDE_RHYTHM_SELECT_SLOT_CUR                      (1)
@@ -44,6 +39,9 @@ typedef struct {
     const char *name;
     uint16_t wave_res_id;
     uint16_t label_res_id;
+    int16_t label_y;
+    int16_t text_y;
+    int16_t time_y;
     uint8_t line_space;
     const char *desc_text;
     const char *time_text;
@@ -58,7 +56,10 @@ static const guide_rhythm_select_content_cfg_t guide_rhythm_select_content_cfgs[
         "Milk Boost",
         BASE_RES_ID_MILK_BOOST_WAVE,
         BASE_RES_ID_HOME_WIDTH_LABLE,
-        4,
+        GUIDE_RHYTHM_SELECT_MILK_BOOST_LABEL_Y,
+        GUIDE_RHYTHM_SELECT_MILK_BOOST_TEXT_Y,
+        GUIDE_RHYTHM_SELECT_MILK_BOOST_TIME_Y,
+        GUIDE_RHYTHM_SELECT_DESC_LINE_SPACE,
         "Suitable for daily use\nafter successful\nlactation",
         "≈20 min",
     },
@@ -66,9 +67,12 @@ static const guide_rhythm_select_content_cfg_t guide_rhythm_select_content_cfgs[
         "Power Pumping",
         BASE_RES_ID_POWER_PUMPING_WAVE,
         BASE_RES_ID_HOME_WIDTH_LABLE,
-        4,
+        GUIDE_RHYTHM_SELECT_POWER_PUMPING_LABEL_Y,
+        GUIDE_RHYTHM_SELECT_POWER_PUMPING_TEXT_Y,
+        GUIDE_RHYTHM_SELECT_POWER_PUMPING_TIME_Y,
+        GUIDE_RHYTHM_SELECT_DESC_LINE_SPACE,
         "Increase milk supply\nno more than\nonce a day",
-        "≈60 min",
+        "≈45 min",
     },
 };
 
@@ -229,7 +233,8 @@ static void guide_rhythm_select_wave_update(guide_base_ui_info_t *info, uint8_t 
     lv_obj_align(info->rhythm_select.wave, LV_ALIGN_TOP_MID, 0, GUIDE_RHYTHM_SELECT_WAVE_Y);
 }
 
-static void guide_rhythm_select_label_card_update(guide_base_ui_info_t *info, uint16_t res_id)
+static void guide_rhythm_select_label_card_update(guide_base_ui_info_t *info, uint16_t res_id,
+    int16_t y)
 {
     if (info->label.label == NULL || !lv_obj_is_valid(info->label.label)) {
         info->label.label = lv_image_create(guide_page_parent_get(info));
@@ -241,27 +246,27 @@ static void guide_rhythm_select_label_card_update(guide_base_ui_info_t *info, ui
         ui_img_baj_theme_set_src(info->ui, info->label.label, res_id,
             RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
     }
-    lv_obj_align(info->label.label, LV_ALIGN_TOP_LEFT, GUIDE_RHYTHM_SELECT_LABEL_X,
-        GUIDE_RHYTHM_SELECT_LABEL_Y);
+    lv_obj_align(info->label.label, LV_ALIGN_TOP_LEFT, GUIDE_RHYTHM_SELECT_LABEL_X, y);
 }
 
 static void guide_rhythm_select_desc_text_update(guide_base_ui_info_t *info, const char *content,
-    uint8_t line_space)
+    int16_t y, uint8_t line_space)
 {
     if (info->label.text == NULL || !lv_obj_is_valid(info->label.text)) {
         info->label.text = lv_label_create(guide_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->label.text);
-        lv_obj_set_style_text_color(info->label.text, lv_color_hex(GUIDE_LABEL_CARD_TEXT_COLOR), 0);
+        lv_obj_set_style_text_color(info->label.text, lv_color_hex(GUIDE_BASE_LABEL_CARD_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(info->label.text, &lv_font_aeonik_soft_18_regular, 0);
         lv_obj_set_style_text_align(info->label.text, LV_TEXT_ALIGN_CENTER, 0);
     }
 
     lv_label_set_text(info->label.text, content);
     lv_obj_set_style_text_line_space(info->label.text, line_space, 0);
-    lv_obj_align(info->label.text, LV_ALIGN_TOP_MID, 0, GUIDE_RHYTHM_SELECT_TEXT_Y);
+    lv_obj_align(info->label.text, LV_ALIGN_TOP_MID, 0, y);
 }
 
-static void guide_rhythm_select_time_update(guide_base_ui_info_t *info, const char *time_text)
+static void guide_rhythm_select_time_update(guide_base_ui_info_t *info, const char *time_text,
+    int16_t y)
 {
     if (info->rhythm_select.time == NULL || !lv_obj_is_valid(info->rhythm_select.time)) {
         info->rhythm_select.time = lv_label_create(guide_page_parent_get(info));
@@ -282,15 +287,15 @@ static void guide_rhythm_select_time_update(guide_base_ui_info_t *info, const ch
             sizeof(info->rhythm_select.shown_time_text) - 1);
         info->rhythm_select.shown_time_text[sizeof(info->rhythm_select.shown_time_text) - 1] = '\0';
     }
-    lv_obj_align(info->rhythm_select.time, LV_ALIGN_TOP_MID, 0, GUIDE_RHYTHM_SELECT_TIME_Y);
+    lv_obj_align(info->rhythm_select.time, LV_ALIGN_TOP_MID, 0, y);
 }
 
 static void guide_rhythm_select_label_update(guide_base_ui_info_t *info, uint8_t mode)
 {
     const guide_rhythm_select_content_cfg_t *cfg = guide_rhythm_select_content_get(mode);
 
-    guide_rhythm_select_label_card_update(info, cfg->label_res_id);
-    guide_rhythm_select_desc_text_update(info, cfg->desc_text, cfg->line_space);
+    guide_rhythm_select_label_card_update(info, cfg->label_res_id, cfg->label_y);
+    guide_rhythm_select_desc_text_update(info, cfg->desc_text, cfg->text_y, cfg->line_space);
     info->rhythm_select.shown_label_res_id = cfg->label_res_id;
 }
 
@@ -317,7 +322,7 @@ void guide_rhythm_select_ui_build(guide_base_ui_info_t *info)
 
     info->rhythm_select.shown_mode_index = 0xFF;
     info->rhythm_select.shown_time_text[0] = '\0';
-#if (IS_SUPPORT_ROOT_GUIDE_COMP_BG == 0)
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
     guide_rhythm_select_bg_create(info);
 #endif
     guide_rhythm_select_carousel_ensure(info);
@@ -338,7 +343,7 @@ void guide_rhythm_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *
     cfg = guide_rhythm_select_content_get(center_mode);
     guide_rhythm_select_carousel_update(info, center_mode);
     guide_rhythm_select_wave_update(info, center_mode);
-    guide_rhythm_select_time_update(info, cfg->time_text);
+    guide_rhythm_select_time_update(info, cfg->time_text, cfg->time_y);
     guide_rhythm_select_label_update(info, center_mode);
     info->rhythm_select.shown_mode_index = center_mode;
 }

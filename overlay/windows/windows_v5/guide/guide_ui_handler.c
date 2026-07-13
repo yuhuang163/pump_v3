@@ -26,16 +26,6 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
     proc->wm->set_window_guidance_deployed_flag(true);
     multi_func_msg_data_t msg = {0};
     LOG_WM("goto home window.");
-    if (proc->mode_selected != GUIDE_MODE_SELECT_NONE) {
-        if (proc->pump) {
-            WRITE_PUMP_WORK_MODE(proc->pump, proc->mode_selected == GUIDE_MODE_SELECT_BREASTFEEDING ?
-                BREAST_PUMP_MILK_BOOST_MODE : BREAST_PUMP_STIMULATION_MODE, true, false);
-        }
-        msg.union_body.extra.arg1 = proc->mode_selected == GUIDE_MODE_SELECT_BREASTFEEDING ?
-            HOME_SUB_UI_TYPE_PUMP_RHYTHM_ADJUST : HOME_SUB_UI_TYPE_PUMP_MODE_ADJUST;
-    } else {
-        msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_MODE_UNSELECT;
-    }
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
@@ -43,6 +33,27 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
 static void guide_exit_to_home(ui_proc_guide_t *proc)
 {
     POST_WM_TASK_HANDLER_NO_DELAY(guide_display_completed_cb, proc, GUIDE_DISPLAY_TASK_NAME);
+}
+
+static void guide_exit_settings_reset(ui_proc_guide_t *proc)
+{
+    proc->setting.level[0] = BREAST_PUMP_LEVEL_1;
+    proc->setting.level[1] = BREAST_PUMP_LEVEL_1;
+    proc->setting.speed = BREAST_PUMP_SPEED_MID;
+    if (proc->pump) {
+        WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
+    }
+    proc->mode_selected = GUIDE_MODE_SELECT_BREASTFEEDING;
+}
+
+static void guide_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
+{
+    ui_proc_guide_t *proc = (ui_proc_guide_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
+    if (proc->popup_ui_type == ID_POPUP_UI_GUIDE_EXIT_CONFIRM) {
+        proc->popup_ui_type = ID_POPUP_UI_NONE;
+    }
+    (void)popup_ui_index;
 }
 
 static void guide_blink_state_sync(ui_proc_guide_t *proc)
@@ -192,6 +203,7 @@ static void guide_animation_progress_cb(void *user_data, int index, ui_ani_progr
             guide_ui_after_policy(ui, index);
             break;
         case ANI_POPUP_DISPLAY_FINISH:
+            guide_popup_ui_finish_policy(ui, index);
             break;
         default:
             break;
@@ -285,14 +297,21 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
             }
             return;
         }
-        proc->setting.level[0] = BREAST_PUMP_LEVEL_1;
-        proc->setting.level[1] = BREAST_PUMP_LEVEL_1;
-        proc->setting.speed = BREAST_PUMP_SPEED_MID;
-        if (proc->pump) {
-            WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
+
+        if (proc->popup_ui_type == ID_POPUP_UI_GUIDE_EXIT_CONFIRM) {
+            if (keytype == KEY_EVENT_LONG_3S) {
+                proc->popup_ui_type = ID_POPUP_UI_NONE;
+                guide_exit_settings_reset(proc);
+                guide_exit_to_home(proc);
+            } else if (keytype == KEY_EVENT_CLICK) {
+                proc->popup_ui_type = ID_POPUP_UI_NONE;
+            }
+            return;
         }
-        proc->mode_selected = GUIDE_MODE_SELECT_BREASTFEEDING;
-        guide_exit_to_home(proc);
+
+        if (keytype == KEY_EVENT_LONG_3S) {
+            proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_CONFIRM;
+        }
         return;
     }
 

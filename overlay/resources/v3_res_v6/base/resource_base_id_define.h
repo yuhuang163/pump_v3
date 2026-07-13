@@ -43,8 +43,8 @@ typedef enum {
     BASE_RES_ID_IP_THEME_IMG, /// IP主题引导背景
     BASE_RES_ID_THEME_SELECT_ICON, /// 主题选择引导图标
     BASE_RES_ID_THEME_UNSELECT_ICON, /// 主题未选择引导图标
-    BASE_RES_ID_GUIDE_BUTTON_ICON, /// 引导按钮图标
-    BASE_RES_ID_GUIDE_KNOB_ICON, /// 引导旋钮图标
+    BASE_RES_ID_GUIDE_BUTTON_BG, /// 引导按钮背景
+    BASE_RES_ID_GUIDE_KNOB_BG, /// 引导旋钮背景
     BASE_RES_ID_GUIDE_LEFT_BUTTON_ICON, /// 引导-左按钮图片
     BASE_RES_ID_GUIDE_RIGHT_BUTTON_ICON, /// 引导-右按钮图片
     BASE_RES_ID_GUIDE_START_BUTTON_ICON, /// 引导-开始按钮图标
@@ -83,7 +83,7 @@ typedef enum {
     BASE_RES_ID_RELAX_SUCTION_ANIM_START = 1300, /// 放松吸吮动画-开始
     BASE_RES_ID_RELAX_SUCTION_ANIM_END = 1359, /// 放松吸吮动画-结束 
     BASE_RES_ID_GUIDE_ANIM_START = 1400, /// 引导动画-开始
-    BASE_RES_ID_GUIDE_ANIM_END = 1479, /// 引导动画-结束 
+    BASE_RES_ID_GUIDE_ANIM_END = 1495, /// 引导动画-结束 
 
     BASE_RES_ID_TYPE_MAX
 } base_res_id_type_e;

@@ -162,7 +162,7 @@ static void guide_page_switch(guide_base_ui_info_t *info, uint8_t page_index)
     info->shown_page_index = page_index;
     info->force_update = true;
     guide_page_build(info, page_index);
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
     if (info->comp_bg != NULL && lv_obj_is_valid(info->comp_bg)) {
         lv_obj_move_background(info->comp_bg);
     }

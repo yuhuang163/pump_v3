@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "breast_pump_manager_api.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
@@ -16,27 +15,19 @@
 */
 #define GUIDE_MODE_SELECT_TITLE_COLOR                   (0xBD4060)
 #define GUIDE_MODE_SELECT_CAROUSEL_SIDE_COLOR           (0xE89AAB)
-#define GUIDE_MODE_SELECT_WAVE_BASE_Y                   (110)
-#define GUIDE_MODE_SELECT_WAVE_OFFSET                   (26)
-#define GUIDE_MODE_SELECT_WAVE_Y                        (GUIDE_MODE_SELECT_WAVE_BASE_Y + GUIDE_MODE_SELECT_WAVE_OFFSET)
+#define GUIDE_MODE_SELECT_WAVE_Y                        (136)
 #define GUIDE_MODE_SELECT_TITLE_Y                       (82)
 #define GUIDE_MODE_SELECT_TITLE_GAP                     (24)
 
 #define GUIDE_MODE_SELECT_LABEL_X                       (49)
-#define GUIDE_MODE_SELECT_STIMULATION_LABEL_BASE_Y      (155)
-#define GUIDE_MODE_SELECT_STIMULATION_TEXT_BASE_Y       (207)
-#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_BASE_Y       (141)
-#define GUIDE_MODE_SELECT_EXPRESSION_TEXT_BASE_Y        (193)
-#define GUIDE_MODE_SELECT_STIMULATION_LABEL_Y_OFFSET    (10)
-#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y_OFFSET     (26)
-#define GUIDE_MODE_SELECT_STIMULATION_LABEL_Y           (GUIDE_MODE_SELECT_STIMULATION_LABEL_BASE_Y + \
-                                                            GUIDE_MODE_SELECT_STIMULATION_LABEL_Y_OFFSET)
-#define GUIDE_MODE_SELECT_STIMULATION_TEXT_Y            (GUIDE_MODE_SELECT_STIMULATION_TEXT_BASE_Y + \
-                                                            GUIDE_MODE_SELECT_STIMULATION_LABEL_Y_OFFSET)
-#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y            (GUIDE_MODE_SELECT_EXPRESSION_LABEL_BASE_Y + \
-                                                            GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y_OFFSET)
-#define GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y             (GUIDE_MODE_SELECT_EXPRESSION_TEXT_BASE_Y + \
-                                                            GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y_OFFSET)
+#define GUIDE_MODE_SELECT_STIMULATION_LABEL_Y           (165)
+#define GUIDE_MODE_SELECT_STIMULATION_TEXT_Y            (217)
+#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y            (167)
+#define GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y             (219)
+#define GUIDE_MODE_SELECT_MIXED_LABEL_Y                 (167)
+#define GUIDE_MODE_SELECT_MIXED_TEXT_Y                  (219)
+
+#define GUIDE_MODE_SELECT_DESC_LINE_SPACE               (4)
 
 #define GUIDE_MODE_SELECT_SLOT_PREV                     (0)
 #define GUIDE_MODE_SELECT_SLOT_CUR                      (1)
@@ -63,7 +54,7 @@ static const guide_mode_select_content_cfg_t guide_mode_select_content_cfgs[] = 
         BASE_RES_ID_HOME_NARROW_LABLE,
         GUIDE_MODE_SELECT_STIMULATION_LABEL_Y,
         GUIDE_MODE_SELECT_STIMULATION_TEXT_Y,
-        4,
+        GUIDE_MODE_SELECT_DESC_LINE_SPACE,
         "Fast, gentle suction to\ntrigger let-down",
     },
     [BREAST_PUMP_LACTATION_MODE] = {
@@ -72,16 +63,16 @@ static const guide_mode_select_content_cfg_t guide_mode_select_content_cfgs[] = 
         BASE_RES_ID_HOME_WIDTH_LABLE,
         GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y,
         GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y,
-        4,
+        GUIDE_MODE_SELECT_DESC_LINE_SPACE,
         "Slow, deep suction\nfor efficient milk\nexpression",
     },
     [BREAST_PUMP_MIX_MODE] = {
         "Mixed",
         BASE_RES_ID_MIX_WAVE,
         BASE_RES_ID_HOME_WIDTH_LABLE,
-        GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y,
-        GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y,
-        4,
+        GUIDE_MODE_SELECT_MIXED_LABEL_Y,
+        GUIDE_MODE_SELECT_MIXED_TEXT_Y,
+        GUIDE_MODE_SELECT_DESC_LINE_SPACE,
         "Efficiently promote\nlet-down and better\nemptying",
     },
 };
@@ -265,7 +256,7 @@ static void guide_mode_select_desc_text_update(guide_base_ui_info_t *info, const
     if (info->label.text == NULL || !lv_obj_is_valid(info->label.text)) {
         info->label.text = lv_label_create(guide_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->label.text);
-        lv_obj_set_style_text_color(info->label.text, lv_color_hex(GUIDE_LABEL_CARD_TEXT_COLOR), 0);
+        lv_obj_set_style_text_color(info->label.text, lv_color_hex(GUIDE_BASE_LABEL_CARD_TEXT_COLOR), 0);
         lv_obj_set_style_text_font(info->label.text, &lv_font_aeonik_soft_18_regular, 0);
         lv_obj_set_style_text_align(info->label.text, LV_TEXT_ALIGN_CENTER, 0);
     }
@@ -305,7 +296,7 @@ void guide_mode_select_ui_build(guide_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info && info->ui);
 
     info->mode_select.shown_mode_index = 0xFF;
-#if (IS_SUPPORT_ROOT_GUIDE_COMP_BG == 0)
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
     guide_mode_select_bg_create(info);
 #endif
     guide_mode_select_carousel_ensure(info);
