@@ -119,10 +119,10 @@ static void guide_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup
     guide_exit_to_home(proc);
 }
 
-static void guide_blink_state_sync(ui_proc_guide_t *proc)
+static void guide_blink_state_restart(ui_proc_guide_t *proc)
 {
-    proc->state_blink_visible =
-        ((get_timestamp() / GUIDE_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
+    proc->blink_start_time = get_timestamp();
+    proc->state_blink_visible = 1;
 }
 
 void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page)
@@ -154,14 +154,14 @@ void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page)
         proc->rhythm_select_touched = 0;
         proc->last_adjust_time = get_timestamp();
     }
-    guide_blink_state_sync(proc);
+    guide_blink_state_restart(proc);
     guide_led_backlight_update(proc);
 }
 
 static bool guide_ui_blink_update(ui_proc_guide_t *proc)
 {
     const uint8_t blink_visible =
-        ((get_timestamp() / GUIDE_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
+        ((get_timestamp_ms(proc->blink_start_time) / GUIDE_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
     if (proc->state_blink_visible == blink_visible) {
         return false;
     }

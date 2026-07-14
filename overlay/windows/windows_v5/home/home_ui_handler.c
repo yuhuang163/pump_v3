@@ -28,7 +28,7 @@
 static bool home_ui_blink_update(ui_proc_home_t *proc)
 {
     const uint8_t blink_visible =
-        ((get_timestamp() / HOME_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
+        ((get_timestamp_ms(proc->blink_start_time) / HOME_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
     if (proc->state_blink_visible == blink_visible) {
         return false;
     }
@@ -145,7 +145,11 @@ void start_home_ui_animation(ui_proc_home_t *proc)
     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
         proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
     }
-    
+    if (proc->blink_start_time == 0) {
+        proc->blink_start_time = get_timestamp();
+        proc->state_blink_visible = 1;
+    }
+
     ui_play_info_t play_info = {
         .tag = "home_default_screen",
         .fps = HOME_ANIMATION_FREQ,

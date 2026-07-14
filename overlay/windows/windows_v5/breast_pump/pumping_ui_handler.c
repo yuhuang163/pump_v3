@@ -27,7 +27,7 @@
 static bool pump_ui_blink_update(ui_proc_pump_t *proc)
 {
     const uint8_t blink_visible =
-        ((get_timestamp() / PUMP_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
+        ((get_timestamp_ms(proc->blink_start_time) / PUMP_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
     if (proc->state_blink_visible == blink_visible) {
         return false;
     }
@@ -105,12 +105,10 @@ static void pumping_ui_led_update(ui_proc_pump_t *proc)
     const bool is_finish_tip_popup = (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP);
 
     if (is_finish_tip_popup) {
-#if IS_SUPPORT_PUMP_FINISH_TIP_LED_BLINK
-        const uint8_t tip_led_level = blink_visible ? LED_LEVEL_MAX : 0;
-#else
-        const uint8_t tip_led_level = LED_LEVEL_MAX;
-#endif
-        if (proc->pump_light_status != PUMP_LIGHT_STATUS_FINISH_TIP) {
+        const bool entering_finish_tip = proc->pump_light_status != PUMP_LIGHT_STATUS_FINISH_TIP;
+        if (entering_finish_tip) {
+            proc->blink_start_time = get_timestamp();
+            proc->state_blink_visible = 1;
             proc->pump_light_status = PUMP_LIGHT_STATUS_FINISH_TIP;
             proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, 0);
             proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, 0);
@@ -118,13 +116,16 @@ static void pumping_ui_led_update(ui_proc_pump_t *proc)
             #if IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
             proc->led->set_led_level(PUMP_BREASTFEEDING_BL, 0);
             #endif
+        }
+#if IS_SUPPORT_PUMP_FINISH_TIP_LED_BLINK
+        const uint8_t tip_led_level = proc->state_blink_visible ? LED_LEVEL_MAX : 0;
+#else
+        const uint8_t tip_led_level = LED_LEVEL_MAX;
+#endif
+        if (entering_finish_tip || proc->finish_tip_blink_visible != proc->state_blink_visible) {
             proc->led->set_led_level(PUMP_START_BL, tip_led_level);
             proc->led->set_led_level(PUMP_FREQ_SET_BL, tip_led_level);
-            proc->finish_tip_blink_visible = blink_visible;
-        } else if (proc->finish_tip_blink_visible != blink_visible) {
-            proc->led->set_led_level(PUMP_START_BL, tip_led_level);
-            proc->led->set_led_level(PUMP_FREQ_SET_BL, tip_led_level);
-            proc->finish_tip_blink_visible = blink_visible;
+            proc->finish_tip_blink_visible = proc->state_blink_visible;
         }
         return;
     }
@@ -132,6 +133,8 @@ static void pumping_ui_led_update(ui_proc_pump_t *proc)
     if (proc->pump_status == BREAST_PUMP_PAUSE) {
         const bool entering_pause = proc->pump_light_status != PUMP_LIGHT_STATUS_PAUSE;
         if (entering_pause) {
+            proc->blink_start_time = get_timestamp();
+            proc->state_blink_visible = 1;
             proc->pump_light_status = PUMP_LIGHT_STATUS_PAUSE;
             proc->led->set_led_level(PUMP_MODE_BL, LED_LEVEL_MAX);
             proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
@@ -141,9 +144,9 @@ static void pumping_ui_led_update(ui_proc_pump_t *proc)
             proc->led->set_led_level(PUMP_BREASTFEEDING_BL, LED_LEVEL_MAX);
             #endif
         }
-        if (entering_pause || proc->pump_pause_blink_state != blink_visible) {
-            proc->led->set_led_level(PUMP_START_BL, blink_visible ? LED_LEVEL_MAX : 0);
-            proc->pump_pause_blink_state = blink_visible;
+        if (entering_pause || proc->pump_pause_blink_state != proc->state_blink_visible) {
+            proc->led->set_led_level(PUMP_START_BL, proc->state_blink_visible ? LED_LEVEL_MAX : 0);
+            proc->pump_pause_blink_state = proc->state_blink_visible;
         }
         return;
     }
@@ -257,6 +260,10 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
         .display_remove_cb = pumping_ui_display_remove,
         .user_data = proc,
     };
+    if (proc->blink_start_time == 0) {
+        proc->blink_start_time = get_timestamp();
+        proc->state_blink_visible = 1;
+    }
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_HOME;
 }

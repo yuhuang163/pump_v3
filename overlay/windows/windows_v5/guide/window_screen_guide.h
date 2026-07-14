@@ -154,6 +154,7 @@ typedef struct {
     uint8_t exit_ignore_click; /// 退出倒计时松手后忽略紧随的 CLICK
     uint32_t last_adjust_time; /// 上次力度调节时间
     uint32_t page_enter_time; /// 当前页面进入时间
+    uint32_t blink_start_time; /// 闪烁起始时间
 } ui_proc_guide_t;
 
 /*
