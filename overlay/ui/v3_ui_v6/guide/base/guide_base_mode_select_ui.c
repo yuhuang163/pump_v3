@@ -16,7 +16,8 @@
 #define GUIDE_MODE_SELECT_TITLE_COLOR                   (0xBD4060)
 #define GUIDE_MODE_SELECT_CAROUSEL_SIDE_COLOR           (0xE89AAB)
 #define GUIDE_MODE_SELECT_WAVE_Y                        (136)
-#define GUIDE_MODE_SELECT_TITLE_Y                       (82)
+#define GUIDE_MODE_SELECT_TITLE_ACTIVE_Y                (82)
+#define GUIDE_MODE_SELECT_TITLE_INACTIVE_Y              (84)
 #define GUIDE_MODE_SELECT_TITLE_GAP                     (24)
 
 #define GUIDE_MODE_SELECT_LABEL_X                       (49)
@@ -135,8 +136,12 @@ static void guide_mode_select_title_style_apply(lv_obj_t *label, bool active)
 
     lv_obj_set_style_text_color(label, lv_color_hex(active ?
         GUIDE_MODE_SELECT_TITLE_COLOR : GUIDE_MODE_SELECT_CAROUSEL_SIDE_COLOR), 0);
-    lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    if (active) {
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
+    } else {
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_22_semibold, 0);
+    }
 }
 
 static lv_coord_t guide_mode_select_title_half_width_get(lv_obj_t *label)
@@ -176,7 +181,9 @@ static void guide_mode_select_carousel_realign(guide_base_ui_info_t *info)
         if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
             continue;
         }
-        lv_obj_align(labels[i], LV_ALIGN_TOP_MID, x_pos[i] - center_x, GUIDE_MODE_SELECT_TITLE_Y);
+        const lv_coord_t title_y = (i == GUIDE_MODE_SELECT_SLOT_CUR) ?
+            GUIDE_MODE_SELECT_TITLE_ACTIVE_Y : GUIDE_MODE_SELECT_TITLE_INACTIVE_Y;
+        lv_obj_align(labels[i], LV_ALIGN_TOP_MID, x_pos[i] - center_x, title_y);
     }
 }
 
