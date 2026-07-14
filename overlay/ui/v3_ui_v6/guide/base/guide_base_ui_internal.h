@@ -142,9 +142,15 @@ typedef struct {
 } guide_base_finish_info_t;
 
 typedef struct {
+    lv_obj_t *layer;
+    lv_obj_t *bg;
+} guide_base_level_theme_t;
+
+typedef struct {
     lv_obj_t *root;
     lv_obj_t *comp_bg;
     lv_obj_t *page;
+    guide_base_level_theme_t level_theme;
     guide_base_animation_info_t animation;
     guide_base_intro_info_t intro;
     guide_base_key_guide_info_t key_guide;
@@ -177,6 +183,12 @@ static inline lv_obj_t *guide_page_parent_get(const guide_base_ui_info_t *info)
 *****************************************************************************************
 */
 guide_base_ui_info_t *guide_base_info_get(void);
+
+bool guide_base_level_theme_page_is(uint8_t page_index);
+bool guide_base_level_theme_is_active(const guide_base_ui_info_t *info);
+void guide_base_level_theme_ensure(guide_base_ui_info_t *info);
+void guide_base_level_theme_remove(guide_base_ui_info_t *info);
+lv_obj_t *guide_base_level_theme_parent_get(const guide_base_ui_info_t *info);
 
 void guide_base_blink_state_update(guide_base_ui_info_t *info, uint8_t page_index);
 

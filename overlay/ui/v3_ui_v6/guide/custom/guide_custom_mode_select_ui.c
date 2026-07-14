@@ -268,7 +268,9 @@ void guide_custom_mode_select_ui_build(guide_custom_ui_info_t *info)
 
     info->mode_select.shown_mode_index = 0xFF;
 #if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
-    guide_mode_select_bg_create(info);
+    if (!guide_custom_level_theme_is_active(info)) {
+        guide_mode_select_bg_create(info);
+    }
 #endif
     guide_mode_select_carousel_ensure(info);
 }

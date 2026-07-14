@@ -226,7 +226,9 @@ void guide_custom_level_guide_ui_build(guide_custom_ui_info_t *info, uint8_t pag
 
     info->level_guide.page_index = page_index;
 #if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
-    guide_level_guide_bg_create(info);
+    if (!guide_custom_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
 #endif
     guide_custom_label_level_header_create(info, &info->level_guide.step, &info->level_guide.title);
     guide_custom_label_instruction_card_create(info, &info->level_guide.card, cfg->label_res_id,
@@ -246,7 +248,9 @@ void guide_custom_mode_select_guide_ui_build(guide_custom_ui_info_t *info)
 
     info->level_guide.page_index = GUIDE_PAGE_MODE_SELECT_GUIDE;
 #if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
-    guide_level_guide_bg_create(info);
+    if (!guide_custom_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
 #endif
     guide_custom_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
         "Step 2", "Choose pumping way");
@@ -265,7 +269,9 @@ void guide_custom_rhythm_select_guide_ui_build(guide_custom_ui_info_t *info)
 
     info->level_guide.page_index = GUIDE_PAGE_RHYTHM_SELECT_GUIDE;
 #if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
-    guide_level_guide_bg_create(info);
+    if (!guide_custom_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
 #endif
     guide_custom_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
         "Step 2", "Choose pumping way");
@@ -284,7 +290,9 @@ void guide_custom_pump_start_guide_ui_build(guide_custom_ui_info_t *info)
 
     info->level_guide.page_index = GUIDE_PAGE_PUMP_START_GUIDE;
 #if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
-    guide_level_guide_bg_create(info);
+    if (!guide_custom_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
 #endif
     guide_custom_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
         "Step 3", "Start / Stop pumping");
@@ -303,7 +311,9 @@ void guide_custom_pump_stop_guide_ui_build(guide_custom_ui_info_t *info)
 
     info->level_guide.page_index = GUIDE_PAGE_PUMP_STOP_GUIDE;
 #if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
-    guide_level_guide_bg_create(info);
+    if (!guide_custom_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
 #endif
     guide_custom_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
         "Step 3", "Start / Stop pumping");

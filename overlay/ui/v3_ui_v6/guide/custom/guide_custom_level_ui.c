@@ -219,7 +219,7 @@ static void guide_left_level_progress_update(guide_custom_ui_info_t *info, uint8
     guide_custom_level_t *level = &info->level.left;
 
     if (level->progress_bg == NULL || !lv_obj_is_valid(level->progress_bg)) {
-        level->progress_bg = lv_image_create(guide_custom_page_parent_get(info));
+        level->progress_bg = lv_image_create(guide_custom_level_theme_parent_get(info));
         EXCEPTION_CHECK_VOID(level->progress_bg);
         ui_img_baj_theme_set_src(info->ui, level->progress_bg, CUSTOM_RES_ID_PUMP_LEVEL_BG,
             RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
@@ -242,7 +242,7 @@ static void guide_left_level_arc_update(guide_custom_ui_info_t *info, uint16_t e
     guide_custom_level_t *level = &info->level.left;
 
     if (level->arc == NULL || !lv_obj_is_valid(level->arc)) {
-        level->arc = lv_arc_create(guide_custom_page_parent_get(info));
+        level->arc = lv_arc_create(guide_custom_level_theme_parent_get(info));
         EXCEPTION_CHECK_VOID(level->arc);
         lv_arc_set_bg_angles(level->arc, PUMP_LEFT_ARC_START_ANGLE, PUMP_LEFT_ARC_END_ANGLE);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_MAIN);
@@ -278,7 +278,7 @@ static void guide_right_level_progress_update(guide_custom_ui_info_t *info, uint
     guide_custom_level_t *level = &info->level.right;
 
     if (level->progress_bg == NULL || !lv_obj_is_valid(level->progress_bg)) {
-        level->progress_bg = lv_image_create(guide_custom_page_parent_get(info));
+        level->progress_bg = lv_image_create(guide_custom_level_theme_parent_get(info));
         EXCEPTION_CHECK_VOID(level->progress_bg);
         ui_img_baj_theme_set_src(info->ui, level->progress_bg, CUSTOM_RES_ID_PUMP_LEVEL_BG,
             RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
@@ -301,7 +301,7 @@ static void guide_right_level_arc_update(guide_custom_ui_info_t *info, uint16_t 
     guide_custom_level_t *level = &info->level.right;
 
     if (level->arc == NULL || !lv_obj_is_valid(level->arc)) {
-        level->arc = lv_arc_create(guide_custom_page_parent_get(info));
+        level->arc = lv_arc_create(guide_custom_level_theme_parent_get(info));
         EXCEPTION_CHECK_VOID(level->arc);
         lv_arc_set_bg_angles(level->arc, PUMP_RIGHT_ARC_START_ANGLE, PUMP_RIGHT_ARC_END_ANGLE);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_MAIN);
@@ -393,7 +393,7 @@ static void guide_right_level_update(guide_custom_ui_info_t *info, bool blink_vi
 static void guide_level_separator_update(guide_custom_ui_info_t *info)
 {
     if (info->level.separator == NULL || !lv_obj_is_valid(info->level.separator)) {
-        info->level.separator = lv_image_create(guide_custom_page_parent_get(info));
+        info->level.separator = lv_image_create(guide_custom_level_theme_parent_get(info));
         EXCEPTION_CHECK_VOID(info->level.separator);
         lv_obj_align(info->level.separator, LV_ALIGN_BOTTOM_MID, 2, -16);
         ui_img_baj_theme_set_src(info->ui, info->level.separator, CUSTOM_RES_ID_PUMP_LEVEL_SEPARATOR,

@@ -18,6 +18,23 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void guide_page_content_reset(guide_base_ui_info_t *info)
+{
+    guide_level_guide_ui_remove(info);
+    guide_mode_select_ui_remove(info);
+    guide_rhythm_select_ui_remove(info);
+    guide_pump_label_ui_remove(info);
+    if (info->page != NULL && lv_obj_is_valid(info->page)) {
+        LVGL_OBJ_DELETE(info->page);
+    }
+    info->page = NULL;
+    memset(&info->level_guide, 0, sizeof(info->level_guide));
+    memset(&info->mode_select, 0, sizeof(info->mode_select));
+    memset(&info->rhythm_select, 0, sizeof(info->rhythm_select));
+    memset(&info->label, 0, sizeof(info->label));
+    info->label.text_id = GUIDE_PAGE_MAX;
+}
+
 static void guide_page_container_reset(guide_base_ui_info_t *info)
 {
     guide_pump_animation_ui_remove(info);
@@ -25,29 +42,16 @@ static void guide_page_container_reset(guide_base_ui_info_t *info)
     guide_key_guide_ui_remove(info);
     guide_knob_guide_ui_remove(info);
     guide_function_home_ui_remove(info);
-    guide_level_guide_ui_remove(info);
-    guide_mode_select_ui_remove(info);
-    guide_rhythm_select_ui_remove(info);
     guide_finish_ui_remove(info);
-    guide_pump_level_ui_remove(info);
-    guide_pump_label_ui_remove(info);
-    if (info->page != NULL && lv_obj_is_valid(info->page)) {
-        LVGL_OBJ_DELETE(info->page);
-    }
-    info->page = NULL;
+    guide_base_level_theme_remove(info);
+    guide_page_content_reset(info);
     memset(&info->animation, 0, sizeof(info->animation));
     memset(&info->intro, 0, sizeof(info->intro));
     memset(&info->key_guide, 0, sizeof(info->key_guide));
     memset(&info->knob_guide, 0, sizeof(info->knob_guide));
     memset(&info->function_home, 0, sizeof(info->function_home));
-    memset(&info->level_guide, 0, sizeof(info->level_guide));
-    memset(&info->mode_select, 0, sizeof(info->mode_select));
-    memset(&info->rhythm_select, 0, sizeof(info->rhythm_select));
     memset(&info->finish, 0, sizeof(info->finish));
-    memset(&info->level, 0, sizeof(info->level));
-    memset(&info->label, 0, sizeof(info->label));
     info->animation.shown_frame_res_id = BASE_RES_ID_GUIDE_ANIM_START - 1;
-    info->label.text_id = GUIDE_PAGE_MAX;
 }
 
 static void guide_page_container_create(guide_base_ui_info_t *info)
@@ -85,7 +89,16 @@ static void guide_page_icon_create(guide_base_ui_info_t *info, uint16_t res_id, 
     lv_obj_align(icon, LV_ALIGN_TOP_LEFT, x, y);
 }
 
-static void guide_page_build(guide_base_ui_info_t *info, uint8_t page_index)
+static void guide_page_level_theme_finish_build(guide_base_ui_info_t *info, uint8_t page_index,
+    bool reuse_level_ui)
+{
+    guide_base_blink_state_update(info, page_index);
+    if (!reuse_level_ui) {
+        guide_pump_level_ui_build(info);
+    }
+}
+
+static void guide_page_build(guide_base_ui_info_t *info, uint8_t page_index, bool reuse_level_ui)
 {
     guide_page_container_create(info);
 
@@ -112,38 +125,31 @@ static void guide_page_build(guide_base_ui_info_t *info, uint8_t page_index)
         case GUIDE_PAGE_LEVEL_RIGHT_GUIDE:
         case GUIDE_PAGE_LEVEL_RIGHT:
             guide_level_guide_ui_build(info, page_index);
-            guide_base_blink_state_update(info, page_index);
-            guide_pump_level_ui_build(info);
+            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_MODE_SELECT_GUIDE:
             guide_mode_select_guide_ui_build(info);
-            guide_base_blink_state_update(info, page_index);
-            guide_pump_level_ui_build(info);
+            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_MODE_SELECT:
             guide_mode_select_ui_build(info);
-            guide_base_blink_state_update(info, page_index);
-            guide_pump_level_ui_build(info);
+            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_RHYTHM_SELECT_GUIDE:
             guide_rhythm_select_guide_ui_build(info);
-            guide_base_blink_state_update(info, page_index);
-            guide_pump_level_ui_build(info);
+            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_RHYTHM_SELECT:
             guide_rhythm_select_ui_build(info);
-            guide_base_blink_state_update(info, page_index);
-            guide_pump_level_ui_build(info);
+            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_PUMP_START_GUIDE:
             guide_pump_start_guide_ui_build(info);
-            guide_base_blink_state_update(info, page_index);
-            guide_pump_level_ui_build(info);
+            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_PUMP_STOP_GUIDE:
             guide_pump_stop_guide_ui_build(info);
-            guide_base_blink_state_update(info, page_index);
-            guide_pump_level_ui_build(info);
+            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_FINISH:
             guide_finish_ui_build(info);
@@ -157,11 +163,25 @@ static void guide_page_build(guide_base_ui_info_t *info, uint8_t page_index)
 
 static void guide_page_switch(guide_base_ui_info_t *info, uint8_t page_index)
 {
-    guide_page_container_reset(info);
+    const bool new_is_theme = guide_base_level_theme_page_is(page_index);
+    const bool old_is_theme = guide_base_level_theme_page_is(info->shown_page_index);
+    const bool reuse_level_ui = new_is_theme && old_is_theme;
+
+    if (reuse_level_ui) {
+        guide_page_content_reset(info);
+    } else {
+        guide_page_container_reset(info);
+    }
+
     info->page_index = page_index;
     info->shown_page_index = page_index;
     info->force_update = true;
-    guide_page_build(info, page_index);
+
+    if (new_is_theme) {
+        guide_base_level_theme_ensure(info);
+    }
+
+    guide_page_build(info, page_index, reuse_level_ui);
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
     if (info->comp_bg != NULL && lv_obj_is_valid(info->comp_bg)) {
         lv_obj_move_background(info->comp_bg);
