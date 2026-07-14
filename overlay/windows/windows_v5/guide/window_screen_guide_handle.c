@@ -15,7 +15,7 @@
 #define PAGE_STATIC_NAME                            guide
 #define PAGE_NAME_STR                               "guide"
 #define GUIDE_UI_KEY_CODE                           ALL_KEY_CODE_NO_COMBINE
-#define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK | KEY_EVENT_LONG_3S)
+#define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP)
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -42,6 +42,18 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_GUIDE, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
+    if (keytype == KEY_EVENT_DOWN && keycode == KEY_CODE_CANCEL) {
+        guide_cancel_key_down_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_CANCEL) {
+        guide_cancel_key_up_handler(proc);
+        return 0;
+    }
+    if (keytype != KEY_EVENT_CLICK) {
         return 0;
     }
 

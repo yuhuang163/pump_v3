@@ -22,18 +22,18 @@
 
 #define GUIDE_RHYTHM_SELECT_LABEL_X                     (49)
 
-#define GUIDE_RHYTHM_SELECT_MILK_BOOST_LABEL_Y          (170)
-#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TEXT_Y           (222)
-#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TIME_Y           (170)
-#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_LABEL_Y       (170)
-#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TEXT_Y        (222)
-#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TIME_Y        (170)
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_LABEL_Y          (170 - 9)
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TEXT_Y           (222 - 9)
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TIME_Y           (116)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_LABEL_Y       (170 - 9)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TEXT_Y        (222 - 9)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TIME_Y        (116)
 
 #define GUIDE_RHYTHM_SELECT_DESC_LINE_SPACE             (4)
 
-#define GUIDE_RHYTHM_SELECT_SLOT_PREV                     (0)
-#define GUIDE_RHYTHM_SELECT_SLOT_CUR                      (1)
-#define GUIDE_RHYTHM_SELECT_SLOT_NEXT                     (2)
+#define GUIDE_RHYTHM_SELECT_SLOT_PREV                   (0)
+#define GUIDE_RHYTHM_SELECT_SLOT_CUR                    (1)
+#define GUIDE_RHYTHM_SELECT_SLOT_NEXT                   (2)
 
 typedef struct {
     const char *name;
@@ -44,7 +44,6 @@ typedef struct {
     int16_t time_y;
     uint8_t line_space;
     const char *desc_text;
-    const char *time_text;
 } guide_rhythm_select_content_cfg_t;
 
 /*
@@ -61,7 +60,6 @@ static const guide_rhythm_select_content_cfg_t guide_rhythm_select_content_cfgs[
         GUIDE_RHYTHM_SELECT_MILK_BOOST_TIME_Y,
         GUIDE_RHYTHM_SELECT_DESC_LINE_SPACE,
         "Suitable for daily use\nafter successful\nlactation",
-        "≈20 min",
     },
     [BREAST_PUMP_PP_MILK_TRACK_MODE] = {
         "Power Pumping",
@@ -72,7 +70,6 @@ static const guide_rhythm_select_content_cfg_t guide_rhythm_select_content_cfgs[
         GUIDE_RHYTHM_SELECT_POWER_PUMPING_TIME_Y,
         GUIDE_RHYTHM_SELECT_DESC_LINE_SPACE,
         "Increase milk supply\nno more than\nonce a day",
-        "≈45 min",
     },
 };
 
@@ -335,6 +332,9 @@ void guide_rhythm_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *
 {
     uint8_t center_mode;
     const guide_rhythm_select_content_cfg_t *cfg;
+    int pump_time = 0;
+    char time_text[16] = {0};
+    storage_manager_context_t *st;
 
     EXCEPTION_CHECK_VOID(info && proc);
     center_mode = guide_rhythm_select_normalize(proc->ui_mode_index);
@@ -343,9 +343,15 @@ void guide_rhythm_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *
     }
 
     cfg = guide_rhythm_select_content_get(center_mode);
+    st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (st) {
+        st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, center_mode, 0, &pump_time);
+    }
+    snprintf(time_text, sizeof(time_text), "≈%d min", pump_time / 60);
+
     guide_rhythm_select_carousel_update(info, center_mode);
     guide_rhythm_select_wave_update(info, center_mode);
-    guide_rhythm_select_time_update(info, cfg->time_text, cfg->time_y);
+    guide_rhythm_select_time_update(info, time_text, cfg->time_y);
     guide_rhythm_select_label_update(info, center_mode);
     info->rhythm_select.shown_mode_index = center_mode;
 }

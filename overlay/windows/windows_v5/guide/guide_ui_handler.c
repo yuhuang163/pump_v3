@@ -46,14 +46,74 @@ static void guide_exit_settings_reset(ui_proc_guide_t *proc)
     proc->mode_selected = GUIDE_MODE_SELECT_BREASTFEEDING;
 }
 
+static bool guide_exit_countdown_allowed(ui_proc_guide_t *proc)
+{
+    return !GUIDE_PAGE_IS_WELCOME_ANIM(proc->page_index) &&
+        proc->page_index != GUIDE_PAGE_FINISH;
+}
+
+void guide_exit_countdown_popup_dismiss(ui_proc_guide_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->popup_ui_type != ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN) {
+        return;
+    }
+    LOG_WM("dismiss guide exit countdown popup, page:%d.", proc->page_index);
+    proc->exit_holding = 0;
+    proc->popup_ui_type = ID_POPUP_UI_NONE;
+}
+
+void guide_cancel_key_down_handler(ui_proc_guide_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->popup_ui_type == ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN) {
+        return;
+    }
+    if (!guide_exit_countdown_allowed(proc)) {
+        return;
+    }
+
+    LOG_WM("guide exit countdown show on cancel key down, page:%d.", proc->page_index);
+    proc->exit_holding = 1;
+    proc->exit_ignore_click = 0;
+    proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN;
+}
+
+void guide_cancel_key_up_handler(ui_proc_guide_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->popup_ui_type != ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN) {
+        return;
+    }
+    if (!proc->exit_holding) {
+        return;
+    }
+    LOG_WM("guide exit hold release before complete, dismiss popup.");
+    guide_exit_countdown_popup_dismiss(proc);
+    proc->exit_ignore_click = 1;
+}
+
 static void guide_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
 {
     ui_proc_guide_t *proc = (ui_proc_guide_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
-    if (proc->popup_ui_type == ID_POPUP_UI_GUIDE_EXIT_CONFIRM) {
-        proc->popup_ui_type = ID_POPUP_UI_NONE;
+    if (popup_ui_index != ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN ||
+        proc->popup_ui_type != ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN) {
+        return;
     }
-    (void)popup_ui_index;
+
+    LOG_WM("===> guide exit countdown complete, page:%d.", proc->page_index);
+    proc->popup_ui_type = ID_POPUP_UI_NONE;
+    proc->exit_holding = 0;
+    proc->exit_ignore_click = 1;
+
+    if (proc->page_index == GUIDE_PAGE_PUMP_STOP_GUIDE) {
+        guide_page_advance(proc, GUIDE_PAGE_FINISH);
+        return;
+    }
+
+    guide_exit_settings_reset(proc);
+    guide_exit_to_home(proc);
 }
 
 static void guide_blink_state_sync(ui_proc_guide_t *proc)
@@ -276,7 +336,19 @@ void stop_guide_ui_animation(ui_proc_guide_t *proc)
 void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t keytype)
 {
     EXCEPTION_CHECK_VOID(proc);
+    (void)keytype;
     if (GUIDE_PAGE_IS_WELCOME_ANIM(proc->page_index)) {
+        return;
+    }
+
+    if (keycode == KEY_CODE_CANCEL && proc->exit_ignore_click) {
+        proc->exit_ignore_click = 0;
+        LOG_WM("ignore cancel click after guide exit countdown release.");
+        return;
+    }
+
+    if (proc->popup_ui_type == ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN) {
+        guide_exit_countdown_popup_dismiss(proc);
         return;
     }
 
@@ -285,33 +357,13 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
         return;
     }
 
-    if (proc->page_index == GUIDE_PAGE_KEY_GUIDE) {
-        guide_page_advance(proc, GUIDE_PAGE_KNOB_GUIDE);
+    if (keycode == KEY_CODE_CANCEL) {
+        /// 退出倒计时由 DOWN/UP 处理，短按 CLICK 忽略
         return;
     }
 
-    if (keycode == KEY_CODE_CANCEL) {
-        if (proc->page_index == GUIDE_PAGE_PUMP_STOP_GUIDE) {
-            if (keytype == KEY_EVENT_LONG_3S) {
-                guide_page_advance(proc, GUIDE_PAGE_FINISH);
-            }
-            return;
-        }
-
-        if (proc->popup_ui_type == ID_POPUP_UI_GUIDE_EXIT_CONFIRM) {
-            if (keytype == KEY_EVENT_LONG_3S) {
-                proc->popup_ui_type = ID_POPUP_UI_NONE;
-                guide_exit_settings_reset(proc);
-                guide_exit_to_home(proc);
-            } else if (keytype == KEY_EVENT_CLICK) {
-                proc->popup_ui_type = ID_POPUP_UI_NONE;
-            }
-            return;
-        }
-
-        if (keytype == KEY_EVENT_LONG_3S) {
-            proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_CONFIRM;
-        }
+    if (proc->page_index == GUIDE_PAGE_KEY_GUIDE) {
+        guide_page_advance(proc, GUIDE_PAGE_KNOB_GUIDE);
         return;
     }
 
@@ -383,6 +435,11 @@ void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left)
     EXCEPTION_CHECK_VOID(proc);
     if (GUIDE_PAGE_IS_WELCOME_ANIM(proc->page_index) ||
         proc->page_index == GUIDE_PAGE_INTRO) {
+        return;
+    }
+
+    if (proc->popup_ui_type == ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN) {
+        guide_exit_countdown_popup_dismiss(proc);
         return;
     }
 

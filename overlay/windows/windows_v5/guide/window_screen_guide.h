@@ -119,9 +119,11 @@ typedef enum {
      (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT || \
      (page) == GUIDE_PAGE_PUMP_START_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
 #define GUIDE_PAGE_IS_LED_BLINK(page)           \
-    ((page) == GUIDE_PAGE_INTRO || (page) == GUIDE_PAGE_FUNCTION_HOME || \
+    ((page) == GUIDE_PAGE_INTRO || (page) == GUIDE_PAGE_KEY_GUIDE || \
+     (page) == GUIDE_PAGE_FUNCTION_HOME || \
      (page) == GUIDE_PAGE_LEVEL_LEFT_GUIDE || (page) == GUIDE_PAGE_LEVEL_RIGHT_GUIDE || \
-     (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || \
+     (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_MODE_SELECT || \
+     (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT || \
      (page) == GUIDE_PAGE_PUMP_START_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
 
 /// 主界面UI结构体
@@ -148,6 +150,8 @@ typedef struct {
     uint8_t level_knob_touched; /// 力度页是否已旋转过旋钮.
     uint8_t mode_select_touched; /// 模式选择页是否已切换过模式.
     uint8_t rhythm_select_touched; /// 韵律选择页是否已切换过韵律.
+    uint8_t exit_holding; /// 退出倒计时弹窗是否处于长按中
+    uint8_t exit_ignore_click; /// 退出倒计时松手后忽略紧随的 CLICK
     uint32_t last_adjust_time; /// 上次力度调节时间
     uint32_t page_enter_time; /// 当前页面进入时间
 } ui_proc_guide_t;
@@ -167,6 +171,9 @@ int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase);
 void guide_pump_level_idle_timeout_handler(ui_proc_guide_t *proc);
 void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left);
 void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t keytype);
+void guide_exit_countdown_popup_dismiss(ui_proc_guide_t *proc);
+void guide_cancel_key_down_handler(ui_proc_guide_t *proc);
+void guide_cancel_key_up_handler(ui_proc_guide_t *proc);
 #ifdef __cplusplus
 }
 #endif
