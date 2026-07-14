@@ -36,9 +36,10 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/home_ip7_360x360.txt"
     // #include "comparison_png2txt/home_idle2_360x360.txt"
     // #include "comparison_png2txt/pump_finish_timeout_p11_360x360.txt"
-    #include "comparison_png2txt/pump_will_finish_p12_360x360.txt"
+    // #include "comparison_png2txt/pump_will_finish_p12_360x360.txt"
     // #include "comparison_png2txt/pump_finish_timeout_p13_360x360.txt"
     // #include "comparison_png2txt/pump_finish_charge_erro_p11_360x360.txt"
+    #include "comparison_png2txt/guide_exit_popup_p1_360x360.txt"
 };
 #endif
 
@@ -225,7 +226,8 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     } 
     home_root_bg_update(thiz);
     #if IS_SUPPORT_HOME_UI_TEST
-    proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_CONFIRM;
+    // proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_CONFIRM;
+    proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN;
     // proc->popup_ui_type = ID_POPUP_UI_PUMP_FINISH_TIMEOUT;
     // proc->popup_ui_type = ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR;
     #else
