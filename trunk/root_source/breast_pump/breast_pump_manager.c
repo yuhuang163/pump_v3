@@ -892,7 +892,7 @@ static int on_post_breast_pump_init(void *ptr)
             store_value = BREAST_PUMP_PUMP_MODE_DEFAULT;   
         } else {
             if (PUMP_IS_COMMON_MODE(store_value)) {
-                store_value = BREAST_PUMP_PUMP_MODE_DEFAULT;
+                store_value = BREAST_PUMP_STIMULATION_MODE;
             }
         }
         m_info->mode = store_value;

@@ -192,7 +192,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             proc->pm->acquire_wakelock("power_off_screen", -1); /// 永久持有锁.
         }
        ///1S后停止ble
-        POST_WM_TASK_HANDLER_DELAYED_ARG1(power_off_ble_teardown_cb, 1000, proc, POWER_OFF_BLE_TEARDOWN_TASK_NAME);
+        POST_WM_TASK_HANDLER_DELAYED_ARG1(power_off_ble_teardown_cb, 2000, proc, POWER_OFF_BLE_TEARDOWN_TASK_NAME);
  #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING       
         if (proc->extra.arg1 == 0) {
             if (proc->battery) {

@@ -656,6 +656,25 @@ static bool is_pm_idle(void)
     return (thiz->priv.pm_state == ID_SYS_PM_IDLE);
 }
 
+static void power_off_wait_pump_finish(void)
+{
+    breast_pump_manager_context_t *pump_ctx =
+        (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+
+    if (!pump_ctx) {
+        return;
+    }
+    for (int i = 0; i < 50; i++) {
+        int work_status = 0;
+        READ_PUMP_WORK_STATUS(pump_ctx, work_status);
+        if (work_status == BREAST_PUMP_FINISH || work_status == BREAST_PUMP_RESET
+            || work_status == BREAST_PUMP_IDLE) {
+            break;
+        }
+        msleep(10);
+    }
+}
+
 static int system_power_control(bool state)
 {
     if (state) {
@@ -673,9 +692,16 @@ static int system_power_control(bool state)
         msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
         msg.union_body.extra.arg1 = 1;
         wm->dispatch_new_window_args(wm, &msg);
+        power_off_wait_pump_finish();
+        servers_manager_context_t *srv =
+            (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+        if (srv && srv->hook && srv->hook->on_power_off_status_report_route) {
+            srv->hook->on_power_off_status_report_route(srv);
+            msleep(50); /// 留出发送 NOTIFY_STATUS 的 BLE 窗口
+        }
         if (st->hook && st->hook->on_power_off_force_save_route) {
             st->hook->on_power_off_force_save_route(st);
-            msleep(100); /// 等待100ms，确保数据写入完成
+            msleep(200); /// 等待数据落盘后再 flash_protect
         }
         st->flash_protect(true); /// 禁止flash读写操作.
     } else {
