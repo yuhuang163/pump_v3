@@ -135,13 +135,13 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         home_cancel_key_event_handler(proc);
         return 0;
     }
-    
-#if 1
-    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
-        LOG_WM("pump result, ignore key event.");
+
+    /* 泵奶完成页仅限制 start，其它按键正常响应 */
+    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT &&
+        keycode == KEY_CODE_START) {
+        LOG_WM("pump result, ignore start key.");
         return 0;
     }
-#endif
 
     switch (keycode) {
         case KEY_CODE_MODE:
@@ -156,11 +156,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             home_power_key_event_cb(proc);
             break;
         case KEY_CODE_START:
-            if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
-                LOG_WM("pump result, ignore key event.");
-            } else {
-                home_start_key_event_handler(proc);
-            }
+            home_start_key_event_handler(proc);
             break;
         case KEY_CODE_KNOB_LEFT:
             home_knob_left_event_cb(proc);
