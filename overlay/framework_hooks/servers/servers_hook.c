@@ -26,6 +26,7 @@ typedef struct {
 *****************************************************************************************
 */
 static servers_system_info_t *servers_sys_info = NULL;
+static uint8_t s_power_off_sync_d0_done = 0;
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -109,6 +110,30 @@ static void on_pump_status_report(servers_manager_context_t *ctx, int state)
     };
     LOG_SRV("on_pump_status_report: %d", state);
     app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_STATUS, &args);
+}
+
+static int on_power_off_status_report_route(servers_manager_context_t *ctx)
+{
+    breast_pump_manager_context_t *pump_ctx = NULL;
+    int work_status = 0;
+
+    EXCEPTION_CHECK_INT(ctx);
+    if (s_power_off_sync_d0_done) {
+        return 0;
+    }
+    pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    EXCEPTION_CHECK_INT(pump_ctx);
+    READ_PUMP_WORK_STATUS(pump_ctx, work_status);
+    if (work_status != BREAST_PUMP_FINISH && work_status != BREAST_PUMP_RESET) {
+        return 0;
+    }
+    LOG_SRV("power off sync D0 report, work_status=%d", work_status);
+    on_pump_status_report(ctx, OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET);
+    s_power_off_sync_d0_done = 1;
+    if (servers_sys_info) {
+        servers_sys_info->pump.status = (uint8_t)work_status;
+    }
+    return 0;
 }
 
 static void on_pump_custom_mode_report(servers_manager_context_t *ctx)
@@ -267,11 +292,19 @@ static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *resu
         LOG_SRV("on_breast_pump_result_cb: %d", result->status);
         if (result->status == BREAST_PUMP_FINISH) {
             LOG_SRV("FINISH");
-            ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_SYSTEM_STATUS_RESET);
+            if (!s_power_off_sync_d0_done) {
+                ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_SYSTEM_STATUS_RESET);
+            } else {
+                LOG_SRV("skip async D0 after power off sync");
+            }
         }
         else if (result->status == BREAST_PUMP_RESET) {
             LOG_SRV("RESET");
-            ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_SYSTEM_STATUS_RESET);
+            if (!s_power_off_sync_d0_done) {
+                ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_SYSTEM_STATUS_RESET);
+            } else {
+                LOG_SRV("skip async D0 after power off sync");
+            }
             /// 重置pump状态到IDLE
             breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
             EXCEPTION_CHECK_VOID(pump_ctx);
@@ -430,4 +463,5 @@ void register_servers_manager_hook(servers_manager_context_t *ctx)
     ctx->hook->app_server_data_publish = app_server_data_publish;
     ctx->hook->data_bury_server_data_publish = data_bury_server_data_publish;
     ctx->hook->servers_work_thread_route = servers_work_thread_route;
+    ctx->hook->on_power_off_status_report_route = on_power_off_status_report_route;
 }

@@ -93,6 +93,8 @@ typedef struct servers_manager_context {
          /// 广播路由
         int (*on_servers_manager_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data);
         int (*servers_work_thread_route)(struct servers_manager_context *ctx, servers_publish_data_id_e msg_id);
+        /// 关机前在 flash_protect 之前同步上报 D0（SYSTEM_STATUS_RESET）
+        int (*on_power_off_status_report_route)(struct servers_manager_context *ctx);
     } *hook;
 } servers_manager_context_t;
 

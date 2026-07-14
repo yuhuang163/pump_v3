@@ -1404,11 +1404,10 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
         app_pump_custom_mode_start_handler();
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_USER_DEFINE, 4, cab);
     } else if (wm->is_current_window(wm, ID_WINDOW_DUMMY) || wm->is_current_window(wm, ID_WINDOW_HOME)) {
-        LOG_SRV("charge or dummy or home mode, dispatch pump window.");
-        //multi_func_msg_data_t msg = {0};
-        //msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-        //wm->dispatch_new_window_args(wm, &msg);
-        POST_TASK_HANDLER_DELAYED_ARG1(app_pump_user_define_delay_task_handler, PUMP_CTRL_TASK_DELAY_TIME, NULL,
+        /// HOME/IDLE 下 APP 常紧跟 CTRL_DEV 切窗起泵；若仍延时 500ms，等泵已跑起来再
+        /// PAUSE+START，会掐断首圈。延时改为 0：此时尚未 working，handler 直接 no-op。
+        LOG_SRV("home or dummy, custom params saved (no delayed restart)");
+        POST_TASK_HANDLER_DELAYED_ARG1(app_pump_user_define_delay_task_handler, 0, NULL,
              "app_pump_user_define_delay_task");
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_USER_DEFINE, 4, cab);
     } else {
@@ -1842,8 +1841,10 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
         return;
     }
     
-    if (left_speed < 1 || left_speed > 3 || right_speed < 1 || right_speed > 3) {
-        LOG_SRV("Invalid pump speed: left=%d, right=%d (valid: 1-3)", left_speed, right_speed);
+    if (left_speed < 1 || left_speed > BREAST_PUMP_SPEED_MAX ||
+        right_speed < 1 || right_speed > BREAST_PUMP_SPEED_MAX) {
+        LOG_SRV("Invalid pump speed: left=%d, right=%d (valid: 1-%d)",
+                left_speed, right_speed, BREAST_PUMP_SPEED_MAX);
         uint8_t nack_data = 0x00; // 错误状态
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
         return;
