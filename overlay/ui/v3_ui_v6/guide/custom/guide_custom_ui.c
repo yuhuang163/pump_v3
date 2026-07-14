@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "guide_custom_ui_internal.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
 #include "window_screen_guide.h" // IWYU pragma: keep
 
 /*
@@ -78,6 +79,84 @@ static void guide_custom_root_init(void)
     lv_obj_align(guide_info->root, LV_ALIGN_CENTER, 0, 0);
     lv_obj_clear_flag(guide_info->root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(guide_info->root, LV_OBJ_FLAG_SCROLLABLE);
+}
+
+bool guide_custom_level_theme_page_is(uint8_t page_index)
+{
+    return GUIDE_PAGE_SHOW_LEVEL(page_index);
+}
+
+bool guide_custom_level_theme_is_active(const guide_custom_ui_info_t *info)
+{
+    return info != NULL && info->level_theme.layer != NULL &&
+        lv_obj_is_valid(info->level_theme.layer);
+}
+
+static void guide_custom_level_theme_bg_create(guide_custom_ui_info_t *info)
+{
+    if (info->level_theme.bg != NULL && lv_obj_is_valid(info->level_theme.bg)) {
+        return;
+    }
+
+    info->level_theme.bg = lv_image_create(info->level_theme.layer);
+    EXCEPTION_CHECK_VOID(info->level_theme.bg);
+#if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+    lv_image_set_src(info->level_theme.bg, background_snapshot);
+#else
+    ui_img_png_theme_set_src(info->ui, info->level_theme.bg, CUSTOM_RES_ID_COMMON_BG,
+        RES_THEME_TYPE_CUSTOM, UI_IMG_PNG_DECODE_RGBA8888);
+#endif
+    lv_obj_align(info->level_theme.bg, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_move_background(info->level_theme.bg);
+}
+
+void guide_custom_level_theme_ensure(guide_custom_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+
+    if (guide_custom_level_theme_is_active(info)) {
+        return;
+    }
+
+    info->level_theme.layer = lv_obj_create(info->root);
+    EXCEPTION_CHECK_VOID(info->level_theme.layer);
+    lv_obj_set_size(info->level_theme.layer, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_opa(info->level_theme.layer, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(info->level_theme.layer, 0, 0);
+    lv_obj_set_style_pad_all(info->level_theme.layer, 0, 0);
+    lv_obj_clear_flag(info->level_theme.layer, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(info->level_theme.layer, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_align(info->level_theme.layer, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_move_background(info->level_theme.layer);
+
+    guide_custom_level_theme_bg_create(info);
+}
+
+void guide_custom_level_theme_remove(guide_custom_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+
+    if (!guide_custom_level_theme_is_active(info)) {
+        return;
+    }
+
+    guide_custom_pump_level_ui_remove(info);
+#if !LV_USE_SNAPSHOT
+    ui_img_png_release_decoded_buf(info->level_theme.bg);
+#endif
+    LVGL_OBJ_DELETE(info->level_theme.layer);
+    memset(&info->level_theme, 0, sizeof(info->level_theme));
+    memset(&info->level, 0, sizeof(info->level));
+}
+
+lv_obj_t *guide_custom_level_theme_parent_get(const guide_custom_ui_info_t *info)
+{
+    if (guide_custom_level_theme_is_active(info)) {
+        return info->level_theme.layer;
+    }
+    return guide_custom_page_parent_get(info);
 }
 
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG

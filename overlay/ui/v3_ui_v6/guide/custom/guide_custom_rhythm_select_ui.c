@@ -297,7 +297,9 @@ void guide_custom_rhythm_select_ui_build(guide_custom_ui_info_t *info)
     info->rhythm_select.shown_mode_index = 0xFF;
     info->rhythm_select.shown_time_text[0] = '\0';
 #if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
-    guide_rhythm_select_bg_create(info);
+    if (!guide_custom_level_theme_is_active(info)) {
+        guide_rhythm_select_bg_create(info);
+    }
 #endif
     guide_rhythm_select_carousel_ensure(info);
 }

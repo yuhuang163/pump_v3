@@ -148,9 +148,15 @@ typedef struct {
 } guide_custom_ip_info_t;
 
 typedef struct {
+    lv_obj_t *layer;
+    lv_obj_t *bg;
+} guide_custom_level_theme_t;
+
+typedef struct {
     lv_obj_t *root;
     lv_obj_t *comp_bg;
     lv_obj_t *page;
+    guide_custom_level_theme_t level_theme;
     guide_custom_ip_info_t ip;
     guide_custom_animation_info_t animation;
     guide_custom_intro_info_t intro;
@@ -184,6 +190,12 @@ static inline lv_obj_t *guide_custom_page_parent_get(const guide_custom_ui_info_
 *****************************************************************************************
 */
 guide_custom_ui_info_t *guide_custom_info_get(void);
+
+bool guide_custom_level_theme_page_is(uint8_t page_index);
+bool guide_custom_level_theme_is_active(const guide_custom_ui_info_t *info);
+void guide_custom_level_theme_ensure(guide_custom_ui_info_t *info);
+void guide_custom_level_theme_remove(guide_custom_ui_info_t *info);
+lv_obj_t *guide_custom_level_theme_parent_get(const guide_custom_ui_info_t *info);
 
 void guide_custom_blink_state_update(guide_custom_ui_info_t *info, uint8_t page_index);
 
