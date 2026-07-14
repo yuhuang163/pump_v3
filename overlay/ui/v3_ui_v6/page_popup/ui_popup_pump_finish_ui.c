@@ -8,9 +8,10 @@
 * DEFINES
 *****************************************************************************************
 */
-#define FINISH_MANUAL_TITLE_Y                                   (108)
-#define FINISH_MANUAL_RETURN_BUTTON_Y                           (192)
-#define FINISH_MANUAL_TITLE_COLOR                               (0xFFFFFF)
+#define FINISH_MANUAL_TITLE_Y                                   (112)
+// #define FINISH_MANUAL_RETURN_BUTTON_Y                           (192)
+#define FINISH_MANUAL_NUM_Y                                     (170)
+#define FINISH_MANUAL_TITLE_COLOR                               (0xA9A7A6)
 #define FINISH_MANUAL_TEXT_COLOR                                (0xA9A7A6)
 
 #define WILL_FINISH_TIP_TITLE_Y                                 (108)
@@ -42,10 +43,10 @@
 *****************************************************************************************
 */
 const static ui_popup_text_info_t pump_finish_manual_infos[UI_POPUP_TEXT_COUNT] = {
-    {"Finish pumping?", 0, FINISH_MANUAL_TITLE_Y, 
+    {"Finish pumping", 0, FINISH_MANUAL_TITLE_Y, 
         &lv_font_aeonik_soft_28_medium, LV_OPA_100, FINISH_MANUAL_TITLE_COLOR, 4},
-    {"Press & hold 3s", 0, FINISH_MANUAL_TITLE_Y + 38, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_MANUAL_TEXT_COLOR, 4},
+    // {"Press & hold 3s", 0, FINISH_MANUAL_TITLE_Y + 38, 
+    //     &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_MANUAL_TEXT_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_will_finish_infos[UI_POPUP_TEXT_COUNT] = {
@@ -91,7 +92,8 @@ static void ui_popup_pump_finish_manual_update(ui_manager_context_t *thiz)
 {
     ui_popup_mask_layer_update(thiz);
     ui_popup_text_update(thiz, pump_finish_manual_infos);
-    ui_popup_icon_update(thiz, 0, BASE_RES_ID_RETURN_BUTTON_ICON, 0, FINISH_MANUAL_RETURN_BUTTON_Y);
+    ui_popup_num_update(thiz, FINISH_MANUAL_NUM_Y);
+    ui_popup_arc_update(thiz);
     ui_popup_display_complete(thiz, ID_POPUP_UI_PUMP_FINISH_MANUAL);
 }
 
@@ -116,7 +118,6 @@ static void ui_popup_pump_finish_charge_error_update(ui_manager_context_t *thiz,
     popup_ui_id_e popup_type)
 {
     ui_popup_mask_layer_update(thiz);
-    // ui_popup_single_icon_update(thiz, BASE_RES_ID_BAN_ICON, FINISH_CHARGE_ERROR_ICON_Y);
     ui_popup_text_update(thiz, pump_finish_charge_error_infos);
     ui_popup_arc_update(thiz);
     ui_popup_display_complete(thiz, popup_type);

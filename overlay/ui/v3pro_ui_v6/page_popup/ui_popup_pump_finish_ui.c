@@ -104,6 +104,7 @@ static void ui_popup_pump_finish_manual_update(ui_manager_context_t *thiz)
         FINISH_MANUAL_CONTINUE_BUTTON_X, FINISH_MANUAL_CONTINUE_BUTTON_Y);
     ui_popup_icon_update(thiz, 1, BASE_RES_ID_RETURN_BUTTON_ICON,
         FINISH_MANUAL_RETURN_BUTTON_X, FINISH_MANUAL_RETURN_BUTTON_Y);
+    ui_popup_arc_update(thiz);
     ui_popup_display_complete(thiz, ID_POPUP_UI_PUMP_FINISH_MANUAL);
 }
 
