@@ -15,6 +15,7 @@
 */
 #define HYN_TOUCH_KEY_DEBUG            (0) /// 触摸按键调试开关
 #define HYN_KEY_IDLE_COUNT             (3)
+#define HYN_ABNORMAL_MAX_COUNT         20
 
 #if HYN_TOUCH_USE_POLL
 #define HYN_POLL_PERIOD_MS             (20)  /// 轮询周期，IRQ 不触发时靠轮询保证触摸有响应
@@ -83,12 +84,26 @@ static int hyn_i2c_write(uint8_t reg_addr, const uint8_t *buf, uint16_t len)
 
 static int hyn_i2c_write_with_retry(uint8_t reg_addr, const uint8_t *buf, uint16_t len, uint8_t retry_count)
 {
+    if (!s_touch_is_ready) {
+        LOGE("HYN touch is not ready");
+        return BSP_NOT_READY;
+    }
+
     for (uint8_t i = 0; i < retry_count; i++) {
         if (hyn_i2c_write(reg_addr, buf, len) == BSP_OK) {
+            s_touch_abnormal_count = 0;
             return BSP_OK;
         }
         msleep(10);
     }
+
+    s_touch_abnormal_count++;
+    if (s_touch_abnormal_count > HYN_ABNORMAL_MAX_COUNT) {
+        s_touch_is_ready = false;
+    } else {
+        LOG_PBUS("HYN touch i2c write abnormal count: %d", s_touch_abnormal_count);
+    }
+
     return BSP_ERROR;
 }
 
@@ -106,12 +121,26 @@ static int hyn_i2c_read(uint8_t reg_addr, uint8_t *buf, uint16_t len)
 
 static int hyn_i2c_read_with_retry(uint8_t reg_addr, uint8_t *buf, uint16_t len, uint8_t retry_count)
 {
+    if (!s_touch_is_ready) {
+        LOGE("HYN touch is not ready");
+        return BSP_NOT_READY;
+    }
+
     for (uint8_t i = 0; i < retry_count; i++) {
         if (hyn_i2c_read(reg_addr, buf, len) == BSP_OK) {
+            s_touch_abnormal_count = 0;
             return BSP_OK;
         }
         msleep(10);
     }
+
+    s_touch_abnormal_count++;
+    if (s_touch_abnormal_count > HYN_ABNORMAL_MAX_COUNT) {
+        s_touch_is_ready = false;
+    } else {
+        LOG_PBUS("HYN touch i2c read abnormal count: %d", s_touch_abnormal_count);
+    }
+
     return BSP_ERROR;
 }
 

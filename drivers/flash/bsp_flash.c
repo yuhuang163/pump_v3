@@ -5,22 +5,21 @@
 #include "bsp_common.h"
 #include "norflash_api.h"
 #include "app_flash_api.h"
-#include "hal_norflash.h"
 #include "hal_flash.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
+#define FLASH_ABNORMAL_MAX_COUNT    30
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
 static rt_device_node_t *node = NULL;
-
-/// Flash操作失败次数统计
-static flash_fail_stats_t flash_fail_stats = {0};
+static uint16_t s_flash_abnormal_count = 0;
+static bool s_flash_is_ready = true;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -31,6 +30,31 @@ static flash_fail_stats_t flash_fail_stats = {0};
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+/// 累计失败：成功不清零，避免间歇失败夹成功导致阈值迟迟达不到
+/// trip 后仍允许操作：成功则恢复 ready，避免永久锁死
+static void flash_record_operation_success(void)
+{
+    if (!s_flash_is_ready) {
+        s_flash_is_ready = true;
+        LOG_PBUS("flash recovered, fail count: %d", s_flash_abnormal_count);
+    }
+}
+
+static void flash_record_operation_fail(void)
+{
+    if (s_flash_abnormal_count < 0xFFFF) {
+        s_flash_abnormal_count++;
+    }
+    if (s_flash_abnormal_count > FLASH_ABNORMAL_MAX_COUNT) {
+        if (s_flash_is_ready) {
+            LOG_PBUS("flash trip, fail count: %d", s_flash_abnormal_count);
+        }
+        s_flash_is_ready = false;
+    } else {
+        LOG_PBUS("flash operation abnormal count: %d", s_flash_abnormal_count);
+    }
+}
+
 static void flash_callback(void* param)
 {
     NORFLASH_API_OPERA_RESULT *opera_result;
@@ -73,6 +97,8 @@ static int flash_dev_open(struct rt_device_node *dev)
         LOGE("flash section init failure! result = %d.",ret);
         return BSP_ERROR;
     }
+    s_flash_is_ready = true;
+    s_flash_abnormal_count = 0;
     return BSP_OK;
 }
 
@@ -92,10 +118,10 @@ static int flash_dev_read(struct rt_device_node *dev, void *buf, uint32_t n_byte
     ret = platform_flash_read(tmp->partition, tmp->addr, tmp->buf, tmp->size) != 0 ? BSP_ERROR : BSP_OK;
     platform_int_unlock_global(lock);
     if (ret != BSP_OK) {
-        LOGE("flash dev read failure! result = %d.",ret);
-        flash_fail_stats.read_fail_count++;
+        flash_record_operation_fail();
         return BSP_ERROR;
     }
+    flash_record_operation_success();
     return BSP_OK;
 }
 
@@ -110,10 +136,10 @@ static int flash_dev_write(struct rt_device_node *dev, const void *buf, uint32_t
     ret = platform_flash_write(tmp->partition, tmp->addr, tmp->buf, tmp->size) != 0 ? BSP_ERROR : BSP_OK;
     platform_int_unlock_global(lock);
     if (ret != BSP_OK) {
-        LOGE("flash dev write failure! result = %d.",ret);
-        flash_fail_stats.write_fail_count++;
+        flash_record_operation_fail();
         return BSP_ERROR;
     }
+    flash_record_operation_success();
     return BSP_OK;
 }
 
@@ -128,29 +154,21 @@ static int flash_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void *a
             ret = platform_flash_erase(temp->partition, temp->addr, temp->size) != 0 ? BSP_ERROR : BSP_OK;
             platform_int_unlock_global(lock);
             if (ret != BSP_OK) {
-                LOGE("flash dev erase failure! result = %d.",ret);
-                flash_fail_stats.erase_fail_count++;
+                flash_record_operation_fail();
                 return BSP_ERROR;
             }
+            flash_record_operation_success();
             return BSP_OK;
 
         case OP_CODE_FLASH_ERASE_ALL:
             return 0;
 
         case OP_CODE_FLASH_GET_FAIL_STATS:
-        {
-            flash_fail_stats_t *stats = (flash_fail_stats_t *)args;
-            if (stats) {
-                stats->erase_fail_count = flash_fail_stats.erase_fail_count;
-                stats->read_fail_count = flash_fail_stats.read_fail_count;
-                stats->write_fail_count = flash_fail_stats.write_fail_count;
-                stats->total_fail_count = flash_fail_stats.erase_fail_count + 
-                                         flash_fail_stats.read_fail_count + 
-                                         flash_fail_stats.write_fail_count;
+            if (args) {
+                *(bool *)args = s_flash_is_ready;
                 return BSP_OK;
             }
             return BSP_ERROR;
-        }
 
         default:
             LOGE("database err op_code: %lx", op_code);

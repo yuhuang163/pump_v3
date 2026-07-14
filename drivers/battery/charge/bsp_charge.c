@@ -29,7 +29,7 @@
 #define CHARGE_RETRY_COUNT                  3
 #define CHARGE_GET_10BIT_DATA(data)         (((data[1] & 0xFF03) << 8) | data[0])
 
-#define CHARGE_ABNORMAL_MAX_COUNT           10
+#define CHARGE_ABNORMAL_MAX_COUNT           20
 #define CHARGE_THREAD_POLL_INTERVAL         100
 #define CHARGE_TEMP_POLICY_POLL_INTERVAL    3
 /*
