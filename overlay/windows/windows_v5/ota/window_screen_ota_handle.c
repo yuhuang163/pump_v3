@@ -64,7 +64,7 @@ static int on_ota_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
         return 0;
     }
 
-    if (proc->ota_status != OTA_UI_STATUS_DOWNLOADING) {
+    if (proc->ota_status == OTA_UI_STATUS_DOWNLOADING) {
         return 0;
     }
 
