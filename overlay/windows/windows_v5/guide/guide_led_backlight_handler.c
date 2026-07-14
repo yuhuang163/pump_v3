@@ -97,14 +97,12 @@ static void guide_led_backlight_mode_guide_update(ui_proc_guide_t *proc)
 static void guide_led_backlight_mode_select_update(ui_proc_guide_t *proc)
 {
     const bool blink_on = proc->state_blink_visible != 0;
-    const uint8_t blink_level = blink_on ? LED_LEVEL_MAX : 0;
 
-    guide_led_backlight_all_off(proc);
+    guide_led_backlight_return_only(proc);
     if (proc->led == NULL) {
         return;
     }
-    proc->led->set_led_level(PUMP_MODE_BL, blink_level);
-    proc->led->set_led_level(PUMP_FREQ_SET_BL, blink_level);
+    proc->led->set_led_level(PUMP_MODE_BL, blink_on ? LED_LEVEL_MAX : 0);
 }
 
 static void guide_led_backlight_rhythm_guide_update(ui_proc_guide_t *proc)
@@ -121,14 +119,12 @@ static void guide_led_backlight_rhythm_guide_update(ui_proc_guide_t *proc)
 static void guide_led_backlight_rhythm_select_update(ui_proc_guide_t *proc)
 {
     const bool blink_on = proc->state_blink_visible != 0;
-    const uint8_t blink_level = blink_on ? LED_LEVEL_MAX : 0;
 
-    guide_led_backlight_all_off(proc);
+    guide_led_backlight_return_only(proc);
     if (proc->led == NULL) {
         return;
     }
-    proc->led->set_led_level(PUMP_BREASTFEEDING_BL, blink_level);
-    proc->led->set_led_level(PUMP_FREQ_SET_BL, blink_level);
+    proc->led->set_led_level(PUMP_BREASTFEEDING_BL, blink_on ? LED_LEVEL_MAX : 0);
 }
 
 static void guide_led_backlight_pump_start_guide_update(ui_proc_guide_t *proc)
@@ -155,16 +151,7 @@ static void guide_led_backlight_intro_update(ui_proc_guide_t *proc)
 
 static void guide_led_backlight_key_guide_update(ui_proc_guide_t *proc)
 {
-    const bool blink_on = proc->state_blink_visible != 0;
-    const uint8_t blink_level = blink_on ? LED_LEVEL_MAX : 0;
-
     guide_led_backlight_all_on(proc);
-    if (proc->led == NULL) {
-        return;
-    }
-    proc->led->set_led_level(PUMP_START_BL, blink_level);
-    proc->led->set_led_level(PUMP_MODE_BL, blink_level);
-    proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, blink_level);
 }
 
 static void guide_led_backlight_pump_stop_guide_update(ui_proc_guide_t *proc)
@@ -202,11 +189,6 @@ void guide_led_backlight_blink_tick(ui_proc_guide_t *proc)
         case GUIDE_PAGE_PUMP_START_GUIDE:
             guide_led_backlight_blink_led_set(proc, PUMP_START_BL);
             break;
-        case GUIDE_PAGE_KEY_GUIDE:
-            guide_led_backlight_blink_led_set(proc, PUMP_START_BL);
-            guide_led_backlight_blink_led_set(proc, PUMP_MODE_BL);
-            guide_led_backlight_blink_led_set(proc, PUMP_LEFT_CONTROL_BL);
-            break;
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
             guide_led_backlight_blink_led_set(proc, PUMP_LEFT_CONTROL_BL);
             break;
@@ -218,14 +200,12 @@ void guide_led_backlight_blink_tick(ui_proc_guide_t *proc)
             break;
         case GUIDE_PAGE_MODE_SELECT:
             guide_led_backlight_blink_led_set(proc, PUMP_MODE_BL);
-            guide_led_backlight_blink_led_set(proc, PUMP_FREQ_SET_BL);
             break;
         case GUIDE_PAGE_RHYTHM_SELECT_GUIDE:
             guide_led_backlight_blink_led_set(proc, PUMP_BREASTFEEDING_BL);
             break;
         case GUIDE_PAGE_RHYTHM_SELECT:
             guide_led_backlight_blink_led_set(proc, PUMP_BREASTFEEDING_BL);
-            guide_led_backlight_blink_led_set(proc, PUMP_FREQ_SET_BL);
             break;
         case GUIDE_PAGE_PUMP_STOP_GUIDE:
             guide_led_backlight_blink_led_set(proc, PUMP_FREQ_SET_BL);
@@ -241,7 +221,7 @@ void guide_led_backlight_update(ui_proc_guide_t *proc)
 
     switch (proc->page_index) {
         case GUIDE_PAGE_WELCOME_ANIM:
-            guide_led_backlight_all_off(proc);
+            guide_led_backlight_all_on(proc);
             break;
         case GUIDE_PAGE_INTRO:
             guide_led_backlight_intro_update(proc);

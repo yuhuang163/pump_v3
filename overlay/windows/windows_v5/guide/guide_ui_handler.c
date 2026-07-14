@@ -61,6 +61,9 @@ void guide_exit_countdown_popup_dismiss(ui_proc_guide_t *proc)
     LOG_WM("dismiss guide exit countdown popup, page:%d.", proc->page_index);
     proc->exit_holding = 0;
     proc->popup_ui_type = ID_POPUP_UI_NONE;
+    /// 弹窗占用期间暂停了自动切页，关闭后刷新计时，避免立刻翻页
+    proc->last_adjust_time = get_timestamp();
+    proc->page_enter_time = get_timestamp();
 }
 
 void guide_cancel_key_down_handler(ui_proc_guide_t *proc)
@@ -124,6 +127,14 @@ static void guide_blink_state_sync(ui_proc_guide_t *proc)
 
 void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page)
 {
+    EXCEPTION_CHECK_VOID(proc);
+    /// 弹窗期间禁止切页，否则新建组件会叠在弹窗之上
+    if (proc->popup_ui_type != ID_POPUP_UI_NONE) {
+        LOG_WM("skip page advance while popup:%d, page:%d -> %d.",
+            proc->popup_ui_type, proc->page_index, next_page);
+        return;
+    }
+
     proc->page_index = next_page;
     proc->page_enter_time = get_timestamp();
     if (next_page >= GUIDE_PAGE_LEVEL_BOTH_GUIDE && next_page <= GUIDE_PAGE_LEVEL_RIGHT) {
@@ -228,16 +239,19 @@ static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
     ui_proc_guide_t *proc = (ui_proc_guide_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
 
-    if (proc->page_index == GUIDE_PAGE_WELCOME_ANIM &&
-        index >= (int)BASE_GUIDE_ANIM_NUM) {
-        guide_page_advance(proc, GUIDE_PAGE_INTRO);
-    }
+    /// 弹窗期间不跑自动切页逻辑，避免组件重建盖住弹窗
+    if (proc->popup_ui_type == ID_POPUP_UI_NONE) {
+        if (proc->page_index == GUIDE_PAGE_WELCOME_ANIM &&
+            index >= (int)BASE_GUIDE_ANIM_NUM) {
+            guide_page_advance(proc, GUIDE_PAGE_INTRO);
+        }
 
-    guide_guide_step_timeout_handler(proc);
-    guide_mode_select_idle_timeout_handler(proc);
-    guide_rhythm_select_idle_timeout_handler(proc);
-    guide_pump_level_idle_timeout_handler(proc);
-    guide_finish_timeout_handler(proc);
+        guide_guide_step_timeout_handler(proc);
+        guide_mode_select_idle_timeout_handler(proc);
+        guide_rhythm_select_idle_timeout_handler(proc);
+        guide_pump_level_idle_timeout_handler(proc);
+        guide_finish_timeout_handler(proc);
+    }
 
     const bool blink_changed = guide_ui_blink_update(proc);
     if (blink_changed && GUIDE_PAGE_IS_LED_BLINK(proc->page_index)) {

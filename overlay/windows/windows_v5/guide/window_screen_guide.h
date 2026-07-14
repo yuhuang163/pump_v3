@@ -119,7 +119,7 @@ typedef enum {
      (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT || \
      (page) == GUIDE_PAGE_PUMP_START_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
 #define GUIDE_PAGE_IS_LED_BLINK(page)           \
-    ((page) == GUIDE_PAGE_INTRO || (page) == GUIDE_PAGE_KEY_GUIDE || \
+    ((page) == GUIDE_PAGE_INTRO || \
      (page) == GUIDE_PAGE_FUNCTION_HOME || \
      (page) == GUIDE_PAGE_LEVEL_LEFT_GUIDE || (page) == GUIDE_PAGE_LEVEL_RIGHT_GUIDE || \
      (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_MODE_SELECT || \

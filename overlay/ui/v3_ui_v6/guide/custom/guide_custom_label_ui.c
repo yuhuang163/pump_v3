@@ -139,7 +139,7 @@ void guide_custom_label_step_header_create(guide_custom_ui_info_t *info, lv_obj_
         *step = lv_label_create(guide_custom_page_parent_get(info));
         EXCEPTION_CHECK_VOID(*step);
         lv_obj_set_style_text_color(*step, lv_color_hex(GUIDE_LEVEL_STEP_COLOR), 0);
-        lv_obj_set_style_text_font(*step, &lv_font_aeonik_soft_20_semibold, 0);
+        lv_obj_set_style_text_font(*step, &lv_font_aeonik_soft_20_medium, 0);
         lv_obj_set_style_text_align(*step, LV_TEXT_ALIGN_CENTER, 0);
         lv_label_set_text(*step, step_text);
         lv_obj_align(*step, LV_ALIGN_TOP_MID, 0, GUIDE_LEVEL_STEP_Y);
