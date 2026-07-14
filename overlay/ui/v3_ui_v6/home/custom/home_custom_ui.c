@@ -9,8 +9,8 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_ROOT_HOME_COMP_BG                (0)
-#if IS_SUPPORT_ROOT_HOME_COMP_BG
+#define IS_SUPPORT_CUSTOM_HOME_COMP_BG              (0)
+#if IS_SUPPORT_CUSTOM_HOME_COMP_BG
 #define IS_SUPPORT_HOME_UI_TEST                     (0)
 #else
 #define IS_SUPPORT_HOME_UI_TEST                     (0)
@@ -20,7 +20,7 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_ROOT_HOME_COMP_BG
+#if IS_SUPPORT_CUSTOM_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/home_ip11_360x360.txt"
     // #include "comparison_png2txt/home_ip12_360x360.txt"
@@ -31,7 +31,8 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/home_ip17_360x360.txt"
     // #include "comparison_png2txt/LR_level_adjust11_360x360.txt"
     // #include "comparison_png2txt/pumping_timeout11_360x360.txt"
-    #include "comparison_png2txt/pumping_timeout12_360x360.txt"
+    // #include "comparison_png2txt/pumping_timeout12_360x360.txt"
+    #include "comparison_png2txt/home_custom_31_360x360.txt"
 };
 #endif
 
@@ -106,7 +107,7 @@ static void home_root_init(void)
     lv_obj_clear_flag(home_info->root, LV_OBJ_FLAG_SCROLLABLE);
 }
 
-#if IS_SUPPORT_ROOT_HOME_COMP_BG
+#if IS_SUPPORT_CUSTOM_HOME_COMP_BG
 static void home_root_bg_update(ui_manager_context_t *thiz)
 {
     static uint32_t start_time = 0;
