@@ -139,6 +139,7 @@ typedef struct {
     uint8_t home_light_status; /// 主界面灯光状态.
     uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
     uint8_t mode_select_blink_visible; /// 模式选择 start 灯上次闪烁相位.
+    uint32_t blink_start_time; /// 闪烁起始时间
 } ui_proc_home_t;
 
 /*

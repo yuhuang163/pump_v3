@@ -137,6 +137,9 @@ void home_pump_mode_adjust_enter(ui_proc_home_t *proc, bool is_bf_mode)
     proc->pump_mode_display_type = is_bf_mode ?
             HOME_PUMP_MODE_DISPLAY_BF_MODE : HOME_PUMP_MODE_DISPLAY_NORMAL_MODE;
     proc->pump_mode_adjust_time = get_timestamp();
+    proc->blink_start_time = get_timestamp();
+    proc->state_blink_visible = 1;
+    proc->mode_select_blink_visible = 0;
     proc->ui_mode_index = enter_select_pump_mode(work_mode, is_bf_mode,
             last_expert_mode, last_common_mode, activate_status);
     update_home_display_for_mode(proc);

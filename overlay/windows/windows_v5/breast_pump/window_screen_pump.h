@@ -162,6 +162,7 @@ typedef struct {
     uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
     uint8_t finish_tip_blink_visible; /// 完成提示闪烁可见: 0: 隐藏相, 1: 显示相.
     uint8_t pump_pause_blink_state; /// 泵奶暂停闪烁状态: 0: 不闪烁, 1: 闪烁.
+    uint32_t blink_start_time; /// 闪烁起始时间
 } ui_proc_pump_t;
 
 /*

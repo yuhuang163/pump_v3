@@ -30,7 +30,7 @@
 static bool factory_reset_confirm_ui_blink_update(ui_proc_factory_reset_t *proc)
 {
     const uint8_t blink_visible =
-        ((get_timestamp() / FACTORY_RESET_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
+        ((get_timestamp_ms(proc->blink_start_time) / FACTORY_RESET_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
     if (proc->state_blink_visible == blink_visible) {
         return false;
     }
@@ -129,9 +129,9 @@ void show_factory_reset_confirm_ui(ui_proc_factory_reset_t *proc)
     if (proc->current_ui_type == FACTORY_RESET_UI_TYPE_FACTORY_RESET_CONFIRM) {
         return;
     }
-    proc->state_blink_visible =
-        ((get_timestamp() / FACTORY_RESET_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
-    proc->confirm_return_blink_visible = proc->state_blink_visible ? 0 : 1;
+    proc->blink_start_time = get_timestamp();
+    proc->state_blink_visible = 1;
+    proc->confirm_return_blink_visible = 0;
     ui_play_info_t play_info = {
         .tag = "factory_reset_confirm_screen",
         .fps = FACTORY_RESET_ANIMATION_FREQ,
