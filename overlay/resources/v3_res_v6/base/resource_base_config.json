@@ -215,14 +215,14 @@
     {
       "resource_id": "BASE_RES_ID_SYS_THEME_IMG",
       "description": "系统主题引导图片",
-      "file": "baj/page_sys_theme_140x140_a8_q99_444.baj",
+      "file": "png/page_sys_theme.png",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_IP_THEME_IMG",
       "description": "IP主题引导图片",
-      "file": "baj/page_ip_theme_140x140_a8_q99_444.baj",
+      "file": "png/page_ip_theme.png",
       "x_offset": 0,
       "y_offset": 0
     },
