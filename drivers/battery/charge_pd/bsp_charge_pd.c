@@ -15,7 +15,7 @@
 */
 #define CHARGE_PD_I2C_ADDR                     0x23
 #define CHARGE_PD_RETRY_COUNT                  3
-#define CHARGE_PD_ABNORMAL_MAX_COUNT           10
+#define CHARGE_PD_ABNORMAL_MAX_COUNT           20
 #define CHARGE_PD_VERSION_1                    0    /// PD1.0
 #define CHARGE_PD_VERSION_2                    1    /// PD2.0
 #define CHARGE_PD_VERSION_3                    2    /// PD3.0
@@ -33,6 +33,7 @@ typedef enum {
 */
 static bool s_charge_pd_onoff = false;
 static bool s_charge_pd_isready = false;
+static uint16_t s_charge_pd_abnormal_count = 0;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -47,6 +48,11 @@ static int charge_pd_write_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
 
+    if (!s_charge_pd_onoff) {
+        LOGE("charge pd is not ready");
+        return BSP_NOT_READY;
+    }
+
     i2c_master_data_t i2c_data = {
         .dev_address = CHARGE_PD_I2C_ADDR,
         .reg_addr = &reg_addr,
@@ -58,16 +64,30 @@ static int charge_pd_write_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
     for (uint8_t i = 0; i < CHARGE_PD_RETRY_COUNT; i++) {
         ret = bsp_i2c_write_byte(CHARGE_PD_I2C_ID, &i2c_data);
         if (ret == BSP_OK) {
+            s_charge_pd_abnormal_count = 0;
             return BSP_OK;
         }
         msleep(10);
     }
+
+    s_charge_pd_abnormal_count++;
+    if (s_charge_pd_abnormal_count > CHARGE_PD_ABNORMAL_MAX_COUNT) {
+        s_charge_pd_isready = false;
+    } else {
+        LOG_PBUS("charge pd i2c write abnormal count: %d", s_charge_pd_abnormal_count);
+    }
+
     return BSP_ERROR;
 }
 
 static int charge_pd_read_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
+
+    if (!s_charge_pd_onoff) {
+        LOGE("charge pd is not ready");
+        return BSP_NOT_READY;
+    }
 
     i2c_master_data_t i2c_data = {
         .dev_address = CHARGE_PD_I2C_ADDR,
@@ -80,10 +100,19 @@ static int charge_pd_read_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
     for (uint8_t i = 0; i < CHARGE_PD_RETRY_COUNT; i++) {
         ret = bsp_i2c_read_byte(CHARGE_PD_I2C_ID, &i2c_data);
         if (ret == BSP_OK) {
+            s_charge_pd_abnormal_count = 0;
             return BSP_OK;
         }
         msleep(10);
     }
+
+    s_charge_pd_abnormal_count++;
+    if (s_charge_pd_abnormal_count > CHARGE_PD_ABNORMAL_MAX_COUNT) {
+        s_charge_pd_isready = false;
+    } else {
+        LOG_PBUS("charge pd i2c read abnormal count: %d", s_charge_pd_abnormal_count);
+    }
+
     return BSP_ERROR;
 }
 
@@ -124,10 +153,8 @@ static bool charge_pd_power_is_ready(void)
 {
     if (charge_pd_device_is_ready() != BSP_OK) {
         // LOG_PBUS("charge pd device not ready");
-        s_charge_pd_isready = false;
         return false;
     }
-    s_charge_pd_isready = true;
     int version = charge_pd_version_get();
     if (version < CHARGE_PD_VERSION_2) {
         // LOG_PBUS("charge pd version too low, version: %d", version);
@@ -170,6 +197,8 @@ void charge_pd_status_poll(bool plug_in_debounce)
         if (s_charge_pd_onoff == false) {
             bsp_i2c_init(CHARGE_PD_I2C_ID);
             s_charge_pd_onoff = true;
+            s_charge_pd_isready = true;
+            s_charge_pd_abnormal_count = 0;
             debounce_count = 0;
             LOG_PBUS("%s", "charge pd plug in");
             return;
@@ -190,6 +219,8 @@ void charge_pd_status_poll(bool plug_in_debounce)
             charge_event_internal_cb(CHARGE_EVENT_PLUG_OUT);
             charge_pd_gpio_init();
             s_charge_pd_onoff = false;
+            s_charge_pd_isready = false;
+            s_charge_pd_abnormal_count = 0;
             LOG_PBUS("%s", "charge pd plug out");
         }
     }

@@ -8,13 +8,13 @@
 #include "root_log_define.h"
 #include "time_utils.h" // IWYU pragma: keep
 #include "windows_manager_api.h" // IWYU pragma: keep
+#include "power_manager_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
 #define ABNORMAL_MONITOR_POLL_MS    5000 //5s
-#define FLASH_FAILURE_THRESHOLD     10  /// Flash失败次数阈值
 #define ABNORMAL_HOOK_DEBUG     1
 
 /*
@@ -161,10 +161,10 @@ static void check_flash_failure_abnormal(void)
     
     rt_device_node_t *flash_dev = (rt_device_node_t *)pbus->find_device(ID_DEVICE_FLASH);
     if (flash_dev) {
-        flash_fail_stats_t stats = {0};
-        DEVICE_IOCTL_ARGS_NO_RET(flash_dev, OP_CODE_FLASH_GET_FAIL_STATS, &stats);
-        
-        if (stats.total_fail_count > FLASH_FAILURE_THRESHOLD) {
+        bool flash_is_ready = true;
+        DEVICE_IOCTL_ARGS_NO_RET(flash_dev, OP_CODE_FLASH_GET_FAIL_STATS, &flash_is_ready);
+
+        if (!flash_is_ready) {
             LOGE("sys_abnormal_report_storage_failure");
             sys_abnormal_report_storage_failure(1);
         }
@@ -328,6 +328,12 @@ static void abnormal_monitor_thread(void *user_data)
     window_manager_context_t *wm =
         (window_manager_context_t *)find_module(ID_MODULE_WM);
     if (wm && wm->is_current_window(wm, ID_WINDOW_PRODUCT_TEST_MODE)) {
+        return;
+    }
+    ///如果系统在suspend状态，则不检查异常
+    power_manager_context_t *pm =
+        (power_manager_context_t *)find_module(ID_MODULE_POWER);
+    if (pm && pm->is_pm_suspend()) {
         return;
     }
     

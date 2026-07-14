@@ -17,7 +17,7 @@
 #define LED_THREAD_POLL_INTERVAL            (10)
 #define HTR3316_RETRY_COUNT                 (3)
 #define HTR3316_DEV_ADDR                    (0x5B)
-#define LED_ABNORMAL_MAX_COUNT              (10)
+#define LED_ABNORMAL_MAX_COUNT              (20)
 #define LED_LUX_MAX                         (100)
 
 #define HTR3316_REG_OUTPUT_P1               (0x03)
@@ -137,6 +137,8 @@ static int led_extension_write_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t l
     s_led_abnormal_count++;
     if (s_led_abnormal_count > LED_ABNORMAL_MAX_COUNT) {
         s_led_is_ready = 0;
+    } else {
+        LOG_PBUS("led extension i2c write abnormal count: %d", s_led_abnormal_count);
     }
 
     return BSP_ERROR;
@@ -144,7 +146,7 @@ static int led_extension_write_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t l
 
 static int led_extension_read_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
-    int ret = 0;    
+    int ret = 0;
     
     if (s_led_is_ready == 0) {
         LOGE("led extension is not ready");
@@ -178,6 +180,8 @@ static int led_extension_read_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t le
     s_led_abnormal_count++;
     if (s_led_abnormal_count > LED_ABNORMAL_MAX_COUNT) {
         s_led_is_ready = 0;
+    } else {
+        LOG_PBUS("led extension i2c read abnormal count: %d", s_led_abnormal_count);
     }
 
     return BSP_ERROR;
