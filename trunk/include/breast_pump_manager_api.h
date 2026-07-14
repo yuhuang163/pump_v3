@@ -13,8 +13,12 @@ extern "C" {
 #include "persist_storage.h" // IWYU pragma: keep
    
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
-#define SETTING_PUMP_TIME_MAX                        (1 * 60 * 60 * 1000) /// app设置的单次泵奶时间最大值 1小时
-#define TOTAL_PUMP_TIME_MAX                          (60 * 60 * 60 * 1000) /// 最大泵奶时间 10小时
+#if IS_SUPPORT_PUMP_MODE_FAST_TEST
+#define TOTAL_PUMP_TIME_MAX                          (3 * 60 * 1000) /// 最大泵奶时间 3分钟
+#else
+#define TOTAL_PUMP_TIME_MAX                          (1.2 * 60 * 60 * 1000) /// 最大泵奶时间 1.2小时
+#endif
+#define SETTING_PUMP_TIME_MAX                        (2 * 60 * 60 * 1000) /// app设置的单次泵奶时间最大值 2小时
 #else
 #define SETTING_PUMP_TIME_MAX                        (60 * 60 * 1000)  /// app设置的单次泵奶时间最大值 1小时
 #define TOTAL_PUMP_TIME_MAX                          (60 * 60 * 60 * 1000) /// 最大泵奶时间 10小时
@@ -34,6 +38,7 @@ typedef enum {
     BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST, /// 自动暂停请求.
     BREAST_PUMP_BROADCAST_RUNNING_30M_TIP, /// 运行30分钟提示.
     BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH_TIP, /// 即将结束10秒提示.
+    BREAST_PUMP_BROADCAST_TIMEOUT, /// 达到最大泵奶时长超时结束.
     BREAST_PUMP_BROADCAST_ID_MAX, 
 } breast_pump_broadcast_id_e;
 

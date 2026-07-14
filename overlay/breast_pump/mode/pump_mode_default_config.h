@@ -9,17 +9,14 @@ extern "C" {
 /*******************************************************************************
  * Include files
  ******************************************************************************/
-#include "project_default_features.h"
 #include "motor_policy.h"
 #include "persist_storage.h"
+#include "project_support_overlay.h"
 #include "breast_pump_manager_api.h" // IWYU pragma: keep
 
 #ifndef REGULAR_PUMPING_MODE_LEN
 #error "REGULAR_PUMPING_MODE_LEN not defined. Check project_default_features.h include."
 #endif
-
-/// 支持泵奶策略快速测试
-#define IS_SUPPORT_PUMP_MODE_FAST_TEST               (0)
 
 #if (IS_SUPPORT_PUMP_MODE_FAST_TEST == 0)
 /// 常规模式默认工作时长，单位：秒
@@ -79,7 +76,7 @@ extern "C" {
 #define RELAX_MODE_WORK_TIME                         600
 #else
 /// 常规模式默认工作时长，单位：秒
-#define NORMAL_MODE_DEFAULT_WORK_TIME               (60)
+#define NORMAL_MODE_DEFAULT_WORK_TIME               (5 * 60)
 
 /// 个性化模式按摩默认时长2分钟，单位：秒
 #define CUSTOM_MODE_DEFAULT_MASSAGE_TIME             12  

@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_pump.h"
 
 /*
@@ -49,6 +50,65 @@ void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)
     proc->popup_ui_type = type;
 }
 
+void pump_finish_manual_popup_dismiss(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        return;
+    }
+    LOG_WM("dismiss pump finish manual popup.");
+    proc->finish_manual_holding = 0;
+    pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+}
+
+void pump_cancel_key_down_handler(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        return;
+    }
+
+    proc->exit_current_ui = true;
+    int mode_adjust_result = pump_mode_adjust_exit_handler(proc);
+    int level_adjust_result = pump_level_adjust_exit_handler(proc);
+    if (mode_adjust_result == 0 || level_adjust_result == 0) {
+        return;
+    }
+
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER) {
+        return;
+    }
+
+    int pump_status = 0;
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (!PUMP_NO_FINISH(pump_status)) {
+        LOG_WM("pump status:%d, ignore cancel key down.", pump_status);
+        return;
+    }
+
+    /// 按下返回：直接弹出确认弹窗并启动 3s 圆弧倒计时
+    LOG_WM("finish manual popup show on cancel key down.");
+    proc->finish_manual_holding = 1;
+    pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_MANUAL);
+}
+
+void pump_cancel_key_up_handler(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        return;
+    }
+    if (!proc->finish_manual_holding) {
+        return;
+    }
+    LOG_WM("finish manual hold release before complete, dismiss popup.");
+    pump_finish_manual_popup_dismiss(proc);
+    proc->finish_manual_ignore_click = 1;
+}
+
 void pump_sub_ui_exit_handler(ui_proc_pump_t *proc)
 {
     int pump_status = 0;
@@ -89,6 +149,11 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
 void pump_cancel_key_event_handler(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
+    if (proc->finish_manual_ignore_click) {
+        proc->finish_manual_ignore_click = 0;
+        LOG_WM("ignore cancel click after finish manual release.");
+        return;
+    }
     proc->exit_current_ui = true;
     int mode_adjust_result = pump_mode_adjust_exit_handler(proc);
     int level_adjust_result = pump_level_adjust_exit_handler(proc);
@@ -97,32 +162,25 @@ void pump_cancel_key_event_handler(ui_proc_pump_t *proc)
     }
     LOG_WM("cancel key event, popup ui type:%d.", proc->popup_ui_type);
     if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
-        /// 触发泵奶结束埋点
-        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 0);
-        pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
-        pump_complete_event_handler(proc);
+        pump_finish_manual_popup_dismiss(proc);
         return;
-    } else if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
+    }
+
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
         /// 触发泵奶结束埋点
         DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 0);
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         pump_complete_event_handler(proc);
         return;
     }
-    int pump_status = 0;
-    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-    if (PUMP_NO_FINISH(pump_status)) {
-        pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_MANUAL);
-    } else {
-        LOG_WM("pump status:%d, ignore cancel key event.", pump_status);
-    }
+    /// 手动结束确认由 KEY_DOWN 触发，CLICK 不再二次弹窗
 }
 
 void pump_start_key_event_handler(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
-        pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+        pump_finish_manual_popup_dismiss(proc);
         return;
     } else if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
         int work_mode = 0;
@@ -140,8 +198,11 @@ void pump_start_key_event_handler(ui_proc_pump_t *proc)
 void pump_mode_key_event_handler(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP || 
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        pump_finish_manual_popup_dismiss(proc);
+        return;
+    }
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
         LOG_WM("ignore mode key event.");
         return;
     }
@@ -151,6 +212,10 @@ void pump_mode_key_event_handler(ui_proc_pump_t *proc)
 void pump_breastfeeding_key_event_handler(ui_proc_pump_t *proc)
 {
 #if IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        pump_finish_manual_popup_dismiss(proc);
+        return;
+    }
     pump_mode_adjust_handler(proc, true);
 #endif
 }
@@ -158,8 +223,11 @@ void pump_breastfeeding_key_event_handler(ui_proc_pump_t *proc)
 void pump_level_control_key_event_handler(ui_proc_pump_t *proc, uint8_t is_left)
 {
     EXCEPTION_CHECK_VOID(proc);
-    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP ||
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        pump_finish_manual_popup_dismiss(proc);
+        return;
+    }
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
         LOG_WM("ignore right control key event.");
         return;
     }
@@ -182,8 +250,12 @@ void pump_knob_event_cb(ui_proc_pump_t *proc, uint8_t is_left)
     }
 #endif
 
-    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP ||
-       proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        pump_finish_manual_popup_dismiss(proc);
+        return;
+    }
+
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
         LOG_WM("ignore knob event.");
         return;
     }

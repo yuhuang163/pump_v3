@@ -803,6 +803,12 @@ static void make_progress(breast_pump_manager_context_t *ctx)
             PUMP_NOTIFY_THROTTLE_MS, BREAST_PUMP_BROADCAST_COMPLETED);
         DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
         break;
+    case RESULT_PUMP_TIMEOUT:
+        WRITE_PUMP_WORK_STATUS(ctx, BREAST_PUMP_FINISH, 1);
+        send_throttled_pump_broadcast(ctx, &ctx->priv.completed_notify_time,
+            PUMP_NOTIFY_THROTTLE_MS, BREAST_PUMP_BROADCAST_TIMEOUT);
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
+        break;
     case RESULT_PUMP_WILL_FINISH:
         send_throttled_pump_broadcast(ctx, &ctx->priv.will_finish_notify_time,
             PUMP_NOTIFY_THROTTLE_MS, BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH);
