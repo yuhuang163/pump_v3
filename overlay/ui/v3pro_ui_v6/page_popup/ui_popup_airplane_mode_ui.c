@@ -15,6 +15,6 @@ void ui_popup_airplane_mode_ui_update(ui_manager_context_t *thiz, popup_ui_id_e 
     }
     ui_popup_mask_layer_update(thiz);
     ui_popup_arc_update(thiz);
-    ui_popup_num_update(thiz);
+    ui_popup_num_update(thiz, 0);
     ui_popup_display_complete(thiz, popup_type);
 }

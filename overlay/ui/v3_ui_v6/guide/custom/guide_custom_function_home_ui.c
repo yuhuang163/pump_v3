@@ -11,6 +11,8 @@
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_FUNCTION_HOME_DESC              (0)
+
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
 #define GUIDE_FUNCTION_HOME_TITLE_COLOR            (0x00FF00)
 #define GUIDE_FUNCTION_HOME_DESC_COLOR             (0x00FF00)
@@ -20,12 +22,20 @@
 #define GUIDE_FUNCTION_HOME_DESC_COLOR             (0xCA5C77)
 #define GUIDE_FUNCTION_HOME_HINT_COLOR             (0xBD4060)
 #endif
+
+#if IS_SUPPORT_FUNCTION_HOME_DESC
 #define GUIDE_FUNCTION_HOME_TITLE_Y                (184)
 #define GUIDE_FUNCTION_HOME_DESC_Y                 (224)
 #define GUIDE_FUNCTION_HOME_HINT_Y                 (304)
 #define GUIDE_FUNCTION_HOME_START_ICON_X           (157)
 #define GUIDE_FUNCTION_HOME_START_ICON_Y           (296)
-
+#else
+#define GUIDE_FUNCTION_HOME_TITLE_Y                (204)
+#define GUIDE_FUNCTION_HOME_DESC_Y                 (224)
+#define GUIDE_FUNCTION_HOME_HINT_Y                 (254)
+#define GUIDE_FUNCTION_HOME_START_ICON_X           (157)
+#define GUIDE_FUNCTION_HOME_START_ICON_Y           (246)
+#endif
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -50,6 +60,7 @@ static void guide_function_home_title_create(guide_custom_ui_info_t *info)
     lv_obj_align(info->function_home.title, LV_ALIGN_TOP_MID, 0, GUIDE_FUNCTION_HOME_TITLE_Y);
 }
 
+#if IS_SUPPORT_FUNCTION_HOME_DESC
 static void guide_function_home_desc_create(guide_custom_ui_info_t *info)
 {
     info->function_home.desc = lv_label_create(guide_custom_page_parent_get(info));
@@ -61,6 +72,7 @@ static void guide_function_home_desc_create(guide_custom_ui_info_t *info)
     lv_obj_set_style_text_line_space(info->function_home.desc, 4, 0);
     lv_obj_align(info->function_home.desc, LV_ALIGN_TOP_MID, 0, GUIDE_FUNCTION_HOME_DESC_Y);
 }
+#endif
 
 static void guide_function_home_hint_create(guide_custom_ui_info_t *info)
 {
@@ -101,7 +113,9 @@ void guide_custom_function_home_ui_build(guide_custom_ui_info_t *info)
     guide_function_home_bg_create(info);
 #endif
     guide_function_home_title_create(info);
+#if IS_SUPPORT_FUNCTION_HOME_DESC
     guide_function_home_desc_create(info);
+#endif
     guide_function_home_hint_create(info);
     guide_function_home_start_icon_create(info);
 }

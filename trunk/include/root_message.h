@@ -64,6 +64,7 @@ typedef enum {
     ID_POPUP_UI_AIR_PRESSURE_OVER_UPPER_LIMIT, /// 气压（负压）超出上限
     ID_POPUP_UI_AIR_PRESSURE_GENERATE_FAILED, /// 气压（负压）生成失败
     ID_POPUP_UI_GUIDE_EXIT_CONFIRM, /// 引导退出确认
+    ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN, /// 引导退出倒计时
 } popup_ui_id_e;
 
 /// 窗口屏幕进入参数描述,记录进入新窗口屏幕需要的参数.

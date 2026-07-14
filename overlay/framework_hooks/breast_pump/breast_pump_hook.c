@@ -243,9 +243,15 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     /// 更新运行时间
     update_work_valid_time(ctx, result_info);
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
-    if ((result_info->work_valid_time >= result_info->target_valid_time && 
-         result_info->target_valid_time != 0) || 
-         result_info->work_valid_time >= TOTAL_PUMP_TIME_MAX) {
+    if (result_info->work_valid_time >= TOTAL_PUMP_TIME_MAX) {
+        LOG_PMP("timeout, work_time=%d/%d, mode_time=%d", 
+            PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->target_valid_time),
+            result_info->current_mode_work_time);   
+        log_timer = 0;
+        return RESULT_PUMP_TIMEOUT;
+    }
+
+    if (result_info->work_valid_time >= result_info->target_valid_time && result_info->target_valid_time != 0) {
         LOG_PMP("finish, work_time=%d/%d, mode_time=%d", 
             PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->target_valid_time),
             result_info->current_mode_work_time);   
@@ -260,6 +266,7 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
             ret = RESULT_PUMP_RUNNING_30M_TIP;
         }
     }
+    
     /// 判断是否即将结束
     if ((result_info->work_valid_time + PUMP_WILL_FINISH_TIP_TIME_MS) >= result_info->target_valid_time) {
         ret = RESULT_PUMP_WILL_FINISH_TIP;

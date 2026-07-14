@@ -112,7 +112,8 @@ typedef struct {
 typedef enum {
     PUMP_LIGHT_STATUS_DEFAULT = 0,      /// 默认
     PUMP_LIGHT_STATUS_PAUSE,            /// 暂停
-    PUMP_LIGHT_STATUS_FINISH_TIP,           /// 完成提示闪烁
+    PUMP_LIGHT_STATUS_FINISH_TIP,       /// 完成提示闪烁
+    PUMP_LIGHT_STATUS_FINISH_MANUAL,    /// 手动结束确认：仅返回键常亮
     PUMP_LIGHT_STATUS_MAX
 } pump_light_status_e;
 
@@ -138,6 +139,8 @@ typedef struct {
     uint16_t current_ui_type; /// 当前UI类型
     uint16_t start_ui_type;   
     uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
+    uint8_t finish_manual_holding; /// 手动结束弹窗是否已进入长按倒计时
+    uint8_t finish_manual_ignore_click; /// 手动结束弹窗松手后忽略紧随的 CLICK
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     /// 泵奶信息
     uint8_t pump_will_finish; /// 泵奶即将完成标志.
@@ -195,6 +198,11 @@ void pump_sub_ui_exit_handler(ui_proc_pump_t *proc);
 void pump_power_key_event_handler(ui_proc_pump_t *proc);
 /// 取消按键事件处理
 void pump_cancel_key_event_handler(ui_proc_pump_t *proc);
+/// 取消按键按下/抬起（手动结束确认长按倒计时）
+void pump_cancel_key_down_handler(ui_proc_pump_t *proc);
+void pump_cancel_key_up_handler(ui_proc_pump_t *proc);
+/// 手动结束确认弹窗下按任意键退出弹窗
+void pump_finish_manual_popup_dismiss(ui_proc_pump_t *proc);
 /// 开始按键事件处理
 void pump_start_key_event_handler(ui_proc_pump_t *proc);
 /// 模式按键事件处理

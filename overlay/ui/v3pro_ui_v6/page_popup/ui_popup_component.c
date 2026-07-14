@@ -279,7 +279,7 @@ void ui_popup_spin_arc_update(ui_manager_context_t *thiz, const ui_popup_spin_ar
     lv_obj_invalidate(info->arc.obj);
 }
 
-void ui_popup_num_update(ui_manager_context_t *thiz)
+void ui_popup_num_update(ui_manager_context_t *thiz, int16_t y_offset)
 {
     ui_popup_disp_info_t *info = ui_popup_info_get();
 
@@ -301,7 +301,11 @@ void ui_popup_num_update(ui_manager_context_t *thiz)
     lv_obj_set_style_text_color(info->countdown.label, lv_color_white(), 0);
     lv_obj_set_style_text_font(info->countdown.label, &lv_font_quicksand_96_bold, 0);
     lv_obj_set_style_text_align(info->countdown.label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(info->countdown.label, LV_ALIGN_CENTER, 0, 0);
+    if (y_offset == 0) {
+        lv_obj_align(info->countdown.label, LV_ALIGN_CENTER, 0, 0);
+    } else {
+        lv_obj_align(info->countdown.label, LV_ALIGN_TOP_MID, 0, y_offset);
+    }
     info->countdown.shown_value = show_num;
     lv_obj_clear_flag(info->countdown.label, LV_OBJ_FLAG_HIDDEN);
 }

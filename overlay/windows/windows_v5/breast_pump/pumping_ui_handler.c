@@ -37,7 +37,11 @@ static bool pump_ui_blink_update(ui_proc_pump_t *proc)
 
 static bool pumping_ui_led_needs_update(const ui_proc_pump_t *proc)
 {
-    const bool is_finish_tip_popup = IS_PUMP_FINISH_TIP_POPUP(proc->popup_ui_type);
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        return proc->pump_light_status != PUMP_LIGHT_STATUS_FINISH_MANUAL;
+    }
+
+    const bool is_finish_tip_popup = (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP);
 
     if (is_finish_tip_popup) {
         if (proc->pump_light_status != PUMP_LIGHT_STATUS_FINISH_TIP) {
@@ -49,7 +53,8 @@ static bool pumping_ui_led_needs_update(const ui_proc_pump_t *proc)
         return false;
 #endif
     }
-    if (proc->pump_light_status == PUMP_LIGHT_STATUS_FINISH_TIP) {
+    if (proc->pump_light_status == PUMP_LIGHT_STATUS_FINISH_TIP ||
+        proc->pump_light_status == PUMP_LIGHT_STATUS_FINISH_MANUAL) {
         return true;
     }
     if (proc->pump_status == BREAST_PUMP_PAUSE) {
@@ -64,11 +69,40 @@ static bool pumping_ui_led_needs_update(const ui_proc_pump_t *proc)
     return false;
 }
 
+static void pumping_ui_led_all_keys_on(ui_proc_pump_t *proc)
+{
+    proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+    proc->led->set_led_level(PUMP_MODE_BL, LED_LEVEL_MAX);
+    proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
+    proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX);
+    proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, LED_LEVEL_MAX);
+#if IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
+    proc->led->set_led_level(PUMP_BREASTFEEDING_BL, LED_LEVEL_MAX);
+#endif
+}
+
 static void pumping_ui_led_update(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->led);
     const bool blink_visible = proc->state_blink_visible != 0;
-    const bool is_finish_tip_popup = IS_PUMP_FINISH_TIP_POPUP(proc->popup_ui_type);
+
+    /// 手动结束确认：仅返回按键灯常亮
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        if (proc->pump_light_status != PUMP_LIGHT_STATUS_FINISH_MANUAL) {
+            proc->pump_light_status = PUMP_LIGHT_STATUS_FINISH_MANUAL;
+            proc->led->set_led_level(PUMP_START_BL, 0);
+            proc->led->set_led_level(PUMP_MODE_BL, 0);
+            proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, 0);
+            proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, 0);
+#if IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
+            proc->led->set_led_level(PUMP_BREASTFEEDING_BL, 0);
+#endif
+            proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
+        }
+        return;
+    }
+
+    const bool is_finish_tip_popup = (proc->popup_ui_type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP);
 
     if (is_finish_tip_popup) {
 #if IS_SUPPORT_PUMP_FINISH_TIP_LED_BLINK
@@ -115,14 +149,7 @@ static void pumping_ui_led_update(ui_proc_pump_t *proc)
     }
 
     if (proc->pump_light_status != PUMP_LIGHT_STATUS_DEFAULT) {
-        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
-        proc->led->set_led_level(PUMP_MODE_BL, LED_LEVEL_MAX);
-        proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
-        proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, LED_LEVEL_MAX);
-        proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, LED_LEVEL_MAX);
-        #if IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
-        proc->led->set_led_level(PUMP_BREASTFEEDING_BL, LED_LEVEL_MAX);
-        #endif
+        pumping_ui_led_all_keys_on(proc);
         proc->pump_light_status = PUMP_LIGHT_STATUS_DEFAULT;
         proc->finish_tip_blink_visible = blink_visible;
         proc->pump_pause_blink_state = blink_visible;
@@ -142,9 +169,16 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
             pump_complete_event_handler(proc);
             break;
         case ID_POPUP_UI_PUMP_FINISH_MANUAL:
+            /// 长按 3s 圆弧闭环，跳转 home 泵奶完成页
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 0);
+            proc->finish_manual_holding = 0;
+            proc->finish_manual_ignore_click = 1;
+            pump_complete_event_handler(proc);
             break;
         case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
+            break;
         case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
+            pump_complete_event_handler(proc);
             break;
         default:
             break;
@@ -159,16 +193,9 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
     pump_mode_adjust_timeout_handler(proc);
     const bool blink_changed = pump_ui_blink_update(proc);
     ui_display_pump_home_screen_process(ui);
-#if IS_SUPPORT_PUMP_FINISH_TIP_LED_BLINK
     if (blink_changed || pumping_ui_led_needs_update(proc)) {
         pumping_ui_led_update(proc);
     }
-#else
-    if (pumping_ui_led_needs_update(proc) ||
-        (blink_changed && !IS_PUMP_FINISH_TIP_POPUP(proc->popup_ui_type))) {
-        pumping_ui_led_update(proc);
-    }
-#endif
 }
 
 static void pumping_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)

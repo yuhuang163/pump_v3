@@ -56,6 +56,7 @@ typedef struct {
     uint32_t start_time;
     uint16_t target_time;
     uint8_t force_update;
+    uint8_t hold_countdown_active; /// 长按倒计时是否已启动（手动结束确认等）
 } ui_popup_runtime_info_t;
 
 typedef struct {
@@ -107,7 +108,7 @@ void ui_popup_single_icon_update(ui_manager_context_t *thiz, uint16_t img_id, ui
 void ui_popup_mask_layer_update(ui_manager_context_t *thiz);
 void ui_popup_arc_update(ui_manager_context_t *thiz);
 void ui_popup_spin_arc_update(ui_manager_context_t *thiz, const ui_popup_spin_arc_info_t *cfg);
-void ui_popup_num_update(ui_manager_context_t *thiz);
+void ui_popup_num_update(ui_manager_context_t *thiz, int16_t y_offset);
 void ui_popup_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type,
     const ui_popup_text_info_t *text_info, uint16_t img_id, uint16_t icon_y);
 void ui_popup_arc_countdown_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type,

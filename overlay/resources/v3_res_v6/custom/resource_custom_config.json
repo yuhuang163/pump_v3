@@ -348,7 +348,7 @@
     {
       "resource_id": "CUSTOM_RES_ID_HOME_IDLE_IP",
       "description": "首页空闲IP图标",
-      "file": "baj/ip_home_idle_188x151_a8_q99_444.baj",
+      "file": "png/ip_home_idle.png",
       "x_offset": 0,
       "y_offset": 0
     },

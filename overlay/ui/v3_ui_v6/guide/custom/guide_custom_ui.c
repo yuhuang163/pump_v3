@@ -24,7 +24,8 @@ static PSRAM_NC_DATA_LOC uint8_t guide_bg_data[] = {
     // #include "comparison_png2txt/guide_custom_p25_360x360.txt"
     //  #include "comparison_png2txt/home_custom_25_360x360.txt"
     // #include "comparison_png2txt/guide_custom_p26_360x360.txt"
-    #include "comparison_png2txt/guide_custom_p27_360x360.txt"
+    // #include "comparison_png2txt/guide_custom_p27_360x360.txt"
+    #include "comparison_png2txt/home_custom_34_360x360.txt"
 };
 #endif
 
@@ -92,6 +93,7 @@ bool guide_custom_level_theme_is_active(const guide_custom_ui_info_t *info)
         lv_obj_is_valid(info->level_theme.layer);
 }
 
+#if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
 static void guide_custom_level_theme_bg_create(guide_custom_ui_info_t *info)
 {
     if (info->level_theme.bg != NULL && lv_obj_is_valid(info->level_theme.bg)) {
@@ -111,6 +113,7 @@ static void guide_custom_level_theme_bg_create(guide_custom_ui_info_t *info)
     lv_obj_align(info->level_theme.bg, LV_ALIGN_CENTER, 0, 0);
     lv_obj_move_background(info->level_theme.bg);
 }
+#endif
 
 void guide_custom_level_theme_ensure(guide_custom_ui_info_t *info)
 {
@@ -131,7 +134,9 @@ void guide_custom_level_theme_ensure(guide_custom_ui_info_t *info)
     lv_obj_align(info->level_theme.layer, LV_ALIGN_CENTER, 0, 0);
     lv_obj_move_background(info->level_theme.layer);
 
+#if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
     guide_custom_level_theme_bg_create(info);
+#endif
 }
 
 void guide_custom_level_theme_remove(guide_custom_ui_info_t *info)
@@ -238,8 +243,8 @@ int guide_custom_ui_process(ui_manager_context_t *thiz)
 
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
     guide_custom_root_comp_bg_update(thiz);
+    proc->page_index = GUIDE_PAGE_RHYTHM_SELECT;
 #endif
-    // proc->page_index = GUIDE_PAGE_FINISH;
     guide_info->level.left.new_value = proc->setting.level[0];
     guide_info->level.right.new_value = proc->setting.level[1];
     guide_custom_page_ui_update(guide_info, proc, thiz->priv.play_info.played_count);

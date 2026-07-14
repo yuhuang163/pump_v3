@@ -37,6 +37,7 @@ static bool ui_popup_is_supported(popup_ui_id_e popup_type)
         case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
         case ID_POPUP_UI_FACTORY_RESET_CONFIRM:
         case ID_POPUP_UI_GUIDE_EXIT_CONFIRM:
+        case ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN:
         case ID_POPUP_UI_THEME_RESELECT:
             return true;
         default:
@@ -80,6 +81,9 @@ static void ui_popup_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_t
         case ID_POPUP_UI_GUIDE_EXIT_CONFIRM:
             ui_popup_guide_exit_confirm_ui_update(thiz, popup_type);
             break;
+        case ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN:
+            ui_popup_guide_exit_countdown_ui_update(thiz, popup_type);
+            break;
         case ID_POPUP_UI_THEME_RESELECT:
             ui_popup_theme_ui_update(thiz, popup_type);
             break;
@@ -107,6 +111,7 @@ static void ui_popup_prepare(ui_manager_context_t *thiz, lv_obj_t *parent, popup
         ((time / UI_POPUP_STATUS_DISPLAY_STEP_TIME) - UI_POPUP_STATUS_ARC_RING_PROGRESS_LEAD_STEPS) : 0;
     operation_info->runtime.force_update = true;
     operation_info->runtime.start_time = get_timestamp();
+    operation_info->runtime.hold_countdown_active = 1;
     LOG_UI("pump status popup prepare %s", ui_popup_name_get(thiz, type));
 }
 
@@ -142,6 +147,18 @@ void ui_popup_remove(ui_manager_context_t *thiz)
     LVGL_OBJ_DELETE(operation_info->root.obj);
     u_free(operation_info);
     operation_info = NULL;
+}
+
+void ui_popup_hold_countdown_start(ui_manager_context_t *thiz)
+{
+    ui_popup_disp_info_t *info = ui_popup_info_get();
+
+    (void)thiz;
+    EXCEPTION_CHECK_VOID(info);
+    info->runtime.start_time = get_timestamp();
+    info->arc.ring_progress = 0;
+    info->runtime.hold_countdown_active = 1;
+    info->runtime.force_update = true;
 }
 
 void ui_popup_update(ui_manager_context_t *thiz,

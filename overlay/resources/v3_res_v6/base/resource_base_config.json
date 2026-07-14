@@ -306,7 +306,7 @@
     {
       "resource_id": "BASE_RES_ID_HOME_IDLE_ICON",
       "description": "首页空闲图标",
-      "file": "baj/icon_home_idle_88x88_a8_q99_444.baj",
+      "file": "png/icon_home_idle.png",
       "x_offset": 0,
       "y_offset": 0
     },
