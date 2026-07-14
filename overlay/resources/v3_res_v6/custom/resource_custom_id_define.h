@@ -79,7 +79,7 @@ typedef enum {
     CUSTOM_RES_ID_HD_ANIM_IP_START = 11500, /// 首页默认动画-开始
     CUSTOM_RES_ID_HD_ANIM_IP_END = 11619, /// 首页默认动画-结束
     CUSTOM_RES_ID_GUIDE_IP_START = 11700, /// 引导IP图标-开始
-    CUSTOM_RES_ID_GUIDE_IP_END = 11795, /// 引导IP图标-结束
+    CUSTOM_RES_ID_GUIDE_IP_END = 11768, /// 引导IP图标-结束
 
     CUSTOM_RES_ID_TYPE_MAX
 } custom_res_id_type_e;

@@ -83,7 +83,7 @@ typedef enum {
     BASE_RES_ID_RELAX_SUCTION_ANIM_START = 1300, /// 放松吸吮动画-开始
     BASE_RES_ID_RELAX_SUCTION_ANIM_END = 1359, /// 放松吸吮动画-结束 
     BASE_RES_ID_GUIDE_ANIM_START = 1400, /// 引导动画-开始
-    BASE_RES_ID_GUIDE_ANIM_END = 1495, /// 引导动画-结束 
+    BASE_RES_ID_GUIDE_ANIM_END = 1468, /// 引导动画-结束 
 
     BASE_RES_ID_TYPE_MAX
 } base_res_id_type_e;
