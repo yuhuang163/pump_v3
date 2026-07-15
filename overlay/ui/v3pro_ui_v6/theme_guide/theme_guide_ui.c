@@ -102,7 +102,7 @@ static const theme_guide_text_cfg_t theme_guide_title_cfg = {
 };
 
 static const char *theme_guide_option_labels[THEME_GUIDE_OPTION_NUM] = {
-    "Simple",
+    "Minimal",
     "IP",
 };
 
