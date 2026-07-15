@@ -79,6 +79,11 @@ void guide_exit_countdown_popup_dismiss(ui_proc_guide_t *proc)
 void guide_cancel_key_down_handler(ui_proc_guide_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
+#if IS_SUPPORT_GUIDE_KEY_GUIDE_CANCEL_ADVANCE
+    if (proc->page_index == GUIDE_PAGE_KEY_GUIDE) {
+        return;
+    }
+#endif
     if (proc->popup_ui_type == ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN) {
         return;
     }
@@ -433,6 +438,12 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
     }
 
     if (keycode == KEY_CODE_CANCEL) {
+#if IS_SUPPORT_GUIDE_KEY_GUIDE_CANCEL_ADVANCE
+        if (proc->page_index == GUIDE_PAGE_KEY_GUIDE) {
+            guide_page_advance(proc, GUIDE_PAGE_KNOB_PRESS_GUIDE);
+            return;
+        }
+#endif
         /// 退出倒计时由 DOWN/UP 处理，短按 CLICK 忽略
         return;
     }
