@@ -104,14 +104,20 @@ typedef struct {
     lv_obj_t *card;
     lv_obj_t *text;
     lv_obj_t *button_icon;
+    lv_obj_t *countdown_ring;
+    lv_obj_t *countdown_num;
     uint8_t page_index;
+    uint8_t shown_countdown_sec;
 } guide_base_level_guide_info_t;
 
 typedef struct {
     lv_obj_t *bg;
     lv_obj_t *wave;
     lv_obj_t *select_titles[3];
+    lv_obj_t *countdown_ring;
+    lv_obj_t *countdown_num;
     uint8_t shown_mode_index;
+    uint8_t shown_countdown_sec;
     uint16_t shown_wave_res_id;
     uint16_t shown_label_res_id;
 } guide_base_mode_select_info_t;
@@ -121,7 +127,10 @@ typedef struct {
     lv_obj_t *wave;
     lv_obj_t *time;
     lv_obj_t *select_titles[3];
+    lv_obj_t *countdown_ring;
+    lv_obj_t *countdown_num;
     uint8_t shown_mode_index;
+    uint8_t shown_countdown_sec;
     uint16_t shown_wave_res_id;
     uint16_t shown_label_res_id;
     char shown_time_text[16];
@@ -139,6 +148,7 @@ typedef struct {
     lv_obj_t *bg;
     lv_obj_t *icon;
     lv_obj_t *title;
+    lv_obj_t *hint;
 } guide_base_finish_info_t;
 
 typedef struct {
@@ -220,18 +230,21 @@ void guide_label_inline_icon_create(guide_base_ui_info_t *info, lv_obj_t **icon,
 
 void guide_level_guide_ui_remove(guide_base_ui_info_t *info);
 void guide_level_guide_ui_build(guide_base_ui_info_t *info, uint8_t page_index);
+void guide_level_idle_countdown_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
 void guide_mode_select_guide_ui_build(guide_base_ui_info_t *info);
 void guide_rhythm_select_guide_ui_build(guide_base_ui_info_t *info);
-void guide_pump_start_guide_ui_build(guide_base_ui_info_t *info);
+void guide_pump_pause_guide_ui_build(guide_base_ui_info_t *info);
 void guide_pump_stop_guide_ui_build(guide_base_ui_info_t *info);
 
 void guide_mode_select_ui_remove(guide_base_ui_info_t *info);
 void guide_mode_select_ui_build(guide_base_ui_info_t *info);
 void guide_mode_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
+void guide_mode_select_idle_countdown_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
 
 void guide_rhythm_select_ui_remove(guide_base_ui_info_t *info);
 void guide_rhythm_select_ui_build(guide_base_ui_info_t *info);
 void guide_rhythm_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
+void guide_rhythm_select_idle_countdown_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
 
 void guide_pump_level_ui_remove(guide_base_ui_info_t *info);
 void guide_pump_level_ui_build(guide_base_ui_info_t *info);

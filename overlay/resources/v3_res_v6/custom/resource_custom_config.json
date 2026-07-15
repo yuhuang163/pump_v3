@@ -278,7 +278,14 @@
     {
       "resource_id": "CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_ICON",
       "description": "引导-返回按钮图标",
-      "file": "baj/icon_guide_return_button_24x24_a8_q99_444.baj",
+      "file": "baj/icon_guide_return_button_28x28_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_MIN_ICON",
+      "description": "引导-返回按钮小图标",
+      "file": "baj/icon_guide_return_button_min_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },

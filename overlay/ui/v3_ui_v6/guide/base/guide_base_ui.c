@@ -32,7 +32,10 @@ static PSRAM_NC_DATA_LOC uint8_t guide_bg_data[] = {
     // #include "comparison_png2txt/guide_base_p24_360x360.txt"
     // #include "comparison_png2txt/guide_base_p26_360x360.txt"
     // #include "comparison_png2txt/guide_base_p28_360x360.txt"
-    #include "comparison_png2txt/home_base_34_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p32_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p31_360x360.txt"
+    #include "comparison_png2txt/guide_base_p35_360x360.txt"
+    // #include "comparison_png2txt/home_base_34_360x360.txt"
 };
 #endif
 
@@ -249,7 +252,7 @@ int guide_base_ui_process(ui_manager_context_t *thiz)
 
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
     guide_root_comp_bg_update(thiz);
-    proc->page_index = GUIDE_PAGE_RHYTHM_SELECT;
+    proc->page_index = GUIDE_PAGE_MODE_SELECT;
 #endif
     guide_info->level.left.new_value = proc->setting.level[0];
     guide_info->level.right.new_value = proc->setting.level[1];

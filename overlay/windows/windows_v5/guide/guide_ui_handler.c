@@ -26,6 +26,16 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
     proc->wm->set_window_guidance_deployed_flag(true);
     multi_func_msg_data_t msg = {0};
     LOG_WM("goto home window.");
+#if IS_SUPPORT_GUIDE_PUMP_START
+    if (proc->pump) {
+        WRITE_PUMP_WORK_MODE(proc->pump, BREAST_PUMP_MILK_BOOST_MODE, false, false);
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, false);
+        proc->setting.level[0] = BREAST_PUMP_LEVEL_1;
+        proc->setting.level[1] = BREAST_PUMP_LEVEL_1;
+        proc->setting.speed = BREAST_PUMP_SPEED_MID;
+        WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
+    }
+#endif
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
@@ -114,7 +124,6 @@ static void guide_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup
         guide_page_advance(proc, GUIDE_PAGE_FINISH);
         return;
     }
-
     guide_exit_settings_reset(proc);
     guide_exit_to_home(proc);
 }
@@ -134,25 +143,57 @@ void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page)
             proc->popup_ui_type, proc->page_index, next_page);
         return;
     }
-
     proc->page_index = next_page;
     proc->page_enter_time = get_timestamp();
-    if (next_page >= GUIDE_PAGE_LEVEL_BOTH_GUIDE && next_page <= GUIDE_PAGE_LEVEL_RIGHT) {
-        guide_pump_level_page_enter_reset(proc);
-    }
-    if (next_page == GUIDE_PAGE_MODE_SELECT_GUIDE) {
-        proc->ui_mode_index = BREAST_PUMP_STIMULATION_MODE;
-    }
-    if (next_page == GUIDE_PAGE_RHYTHM_SELECT_GUIDE) {
-        proc->ui_mode_index = BREAST_PUMP_MILK_BOOST_MODE;
-    }
-    if (next_page == GUIDE_PAGE_MODE_SELECT) {
-        proc->mode_select_touched = 0;
-        proc->last_adjust_time = get_timestamp();
-    }
-    if (next_page == GUIDE_PAGE_RHYTHM_SELECT) {
-        proc->rhythm_select_touched = 0;
-        proc->last_adjust_time = get_timestamp();
+
+    switch (next_page) {
+        case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
+#if IS_SUPPORT_GUIDE_PUMP_START
+        if (proc->pump) {
+            WRITE_PUMP_WORK_MODE(proc->pump, BREAST_PUMP_STIMULATION_MODE, false, false);
+            WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_START, false);
+        }
+#endif
+        case GUIDE_PAGE_LEVEL_BOTH:
+        case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
+        case GUIDE_PAGE_LEVEL_LEFT:
+        case GUIDE_PAGE_LEVEL_RIGHT_GUIDE:
+        case GUIDE_PAGE_LEVEL_RIGHT:
+            guide_pump_level_page_enter_reset(proc);
+            break;
+        case GUIDE_PAGE_MODE_SELECT_GUIDE:
+            proc->ui_mode_index = BREAST_PUMP_STIMULATION_MODE;
+            break;
+        case GUIDE_PAGE_RHYTHM_SELECT_GUIDE:
+            proc->ui_mode_index = BREAST_PUMP_MILK_BOOST_MODE;
+            break;
+        case GUIDE_PAGE_MODE_SELECT:
+#if IS_SUPPORT_GUIDE_PUMP_START
+            if (proc->pump) {
+                WRITE_PUMP_WORK_MODE(proc->pump, BREAST_PUMP_STIMULATION_MODE, false, false);
+            }
+#endif
+            proc->mode_select_touched = 0;
+            proc->last_adjust_time = get_timestamp();
+            break;
+        case GUIDE_PAGE_RHYTHM_SELECT:
+#if IS_SUPPORT_GUIDE_PUMP_START
+            if (proc->pump) {
+                WRITE_PUMP_WORK_MODE(proc->pump, BREAST_PUMP_MILK_BOOST_MODE, false, false);
+            }
+#endif
+            proc->rhythm_select_touched = 0;
+            proc->last_adjust_time = get_timestamp();
+            break;
+        case GUIDE_PAGE_PUMP_STOP_GUIDE:
+#if IS_SUPPORT_GUIDE_PUMP_START
+            if (proc->pump) {
+                WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, false);
+            }
+#endif
+            break;
+        default:
+            break;
     }
     guide_blink_state_restart(proc);
     guide_led_backlight_update(proc);
@@ -187,8 +228,8 @@ static void guide_guide_step_timeout_handler(ui_proc_guide_t *proc)
 
 static uint32_t guide_mode_select_idle_threshold_get(ui_proc_guide_t *proc)
 {
-    return proc->mode_select_touched ?
-        GUIDE_MODE_SELECT_MISOP_TIMEOUT_MS : GUIDE_MODE_SELECT_IDLE_TIMEOUT_MS;
+    (void)proc;
+    return GUIDE_MODE_SELECT_IDLE_TIMEOUT_MS;
 }
 
 static void guide_mode_select_idle_timeout_handler(ui_proc_guide_t *proc)
@@ -206,8 +247,8 @@ static void guide_mode_select_idle_timeout_handler(ui_proc_guide_t *proc)
 
 static uint32_t guide_rhythm_select_idle_threshold_get(ui_proc_guide_t *proc)
 {
-    return proc->rhythm_select_touched ?
-        GUIDE_RHYTHM_SELECT_MISOP_TIMEOUT_MS : GUIDE_RHYTHM_SELECT_IDLE_TIMEOUT_MS;
+    (void)proc;
+    return GUIDE_RHYTHM_SELECT_IDLE_TIMEOUT_MS;
 }
 
 static void guide_rhythm_select_idle_timeout_handler(ui_proc_guide_t *proc)
@@ -219,7 +260,33 @@ static void guide_rhythm_select_idle_timeout_handler(ui_proc_guide_t *proc)
     if (get_timestamp_ms(proc->last_adjust_time) < guide_rhythm_select_idle_threshold_get(proc)) {
         return;
     }
-    guide_page_advance(proc, GUIDE_PAGE_PUMP_START_GUIDE);
+    guide_page_advance(proc, GUIDE_PAGE_PUMP_PAUSE_GUIDE);
+}
+
+static uint8_t guide_idle_remain_sec_calc(uint32_t last_adjust_time, uint32_t threshold_ms)
+{
+    uint32_t elapsed_ms = get_timestamp_ms(last_adjust_time);
+
+    if (elapsed_ms >= threshold_ms) {
+        return 0;
+    }
+    return (uint8_t)((threshold_ms - elapsed_ms + 999U) / 1000U);
+}
+
+uint8_t guide_mode_select_idle_remain_sec_get(const ui_proc_guide_t *proc)
+{
+    if (proc == NULL || proc->page_index != GUIDE_PAGE_MODE_SELECT) {
+        return 0;
+    }
+    return guide_idle_remain_sec_calc(proc->last_adjust_time, GUIDE_MODE_SELECT_IDLE_TIMEOUT_MS);
+}
+
+uint8_t guide_rhythm_select_idle_remain_sec_get(const ui_proc_guide_t *proc)
+{
+    if (proc == NULL || proc->page_index != GUIDE_PAGE_RHYTHM_SELECT) {
+        return 0;
+    }
+    return guide_idle_remain_sec_calc(proc->last_adjust_time, GUIDE_RHYTHM_SELECT_IDLE_TIMEOUT_MS);
 }
 
 static void guide_finish_timeout_handler(ui_proc_guide_t *proc)
@@ -428,10 +495,10 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
             if (keycode == KEY_CODE_BREASTFEEDING) {
                 guide_pump_mode_adjust_handler(proc, true);
             } else if (keycode == KEY_CODE_MODE) {
-                guide_page_advance(proc, GUIDE_PAGE_PUMP_START_GUIDE);
+                guide_page_advance(proc, GUIDE_PAGE_PUMP_PAUSE_GUIDE);
             }
             break;
-        case GUIDE_PAGE_PUMP_START_GUIDE:
+        case GUIDE_PAGE_PUMP_PAUSE_GUIDE:
             if (keycode == KEY_CODE_START) {
                 guide_page_advance(proc, GUIDE_PAGE_PUMP_STOP_GUIDE);
             }

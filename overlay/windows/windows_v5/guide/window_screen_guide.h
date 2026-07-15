@@ -29,31 +29,36 @@ extern "C" {
 #define GUIDE_LEVEL_KNOB_IDLE_TIMEOUT_MS        (3000) /// 3s
 /// 模式选择页无操作静默超时
 #define GUIDE_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
-/// 模式选择页切换模式后误操作超时
-#define GUIDE_MODE_SELECT_MISOP_TIMEOUT_MS      (3000) /// 3s
+/// 模式选择页切换模式后静默超时
+#define GUIDE_MODE_SELECT_MISOP_TIMEOUT_MS      (5000) /// 5s
 /// 韵律选择页无操作静默超时
 #define GUIDE_RHYTHM_SELECT_IDLE_TIMEOUT_MS     (5000) /// 5s
-/// 韵律选择页切换韵律后误操作超时
-#define GUIDE_RHYTHM_SELECT_MISOP_TIMEOUT_MS    (3000) /// 3s
+/// 韵律选择页切换韵律后静默超时
+#define GUIDE_RHYTHM_SELECT_MISOP_TIMEOUT_MS    (5000) /// 5s
 /// 单边力度调节静止超时
 #define GUIDE_LEVEL_ADJUST_IDLE_TIMEOUT_MS      (3000) /// 3s
 /// 力度调节后，展示页面停留时间
-#define GUIDE_GUIDE_STEP_ADVANCE_TIME_MS      (3000) /// 纯引导页自动翻页时间
-#define GUIDE_FINISH_IDLE_TIMEOUT_MS          (3000) /// 引导结束页无操作超时
-#define GUIDE_PUMP_STOP_RETURN_LONG_PRESS_MS  (3000) /// 泵奶结束引导长按返回跳转时间
-#define GUIDE_DEFAULT_LEFT_LEVEL              (12)
-#define GUIDE_DEFAULT_RIGHT_LEVEL             (6)
-#define GUIDE_LEVEL_MIN                       (0)
-#define GUIDE_LEVEL_MAX                       (15)
+#define GUIDE_GUIDE_STEP_ADVANCE_TIME_MS        (3000) /// 纯引导页自动翻页时间
+#define GUIDE_FINISH_IDLE_TIMEOUT_MS            (3000) /// 引导结束页无操作超时
+#define GUIDE_PUMP_STOP_RETURN_LONG_PRESS_MS    (3000) /// 泵奶结束引导长按返回跳转时间
+#define GUIDE_DEFAULT_LEFT_LEVEL                (12)
+#define GUIDE_DEFAULT_RIGHT_LEVEL               (6)
+#define GUIDE_LEVEL_MIN                         (0)
+#define GUIDE_LEVEL_MAX                         (15)
 
 /// 引导页模式/韵律切换是否同步到 breast_pump_manager
 #ifndef IS_SUPPORT_GUIDE_PUMP_MODE_SYNC
-#define IS_SUPPORT_GUIDE_PUMP_MODE_SYNC       (0)
+#define IS_SUPPORT_GUIDE_PUMP_MODE_SYNC       (1)
 #endif
 
 /// 引导页力度调节是否同步到 breast_pump_manager
 #ifndef IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC
-#define IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC      (0)
+#define IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC      (1)
+#endif
+
+/// 是否支持引导中启动泵阀
+#ifndef IS_SUPPORT_GUIDE_PUMP_START
+#define IS_SUPPORT_GUIDE_PUMP_START           (1)
 #endif
 
 /// 主界面UI动作枚举
@@ -84,7 +89,7 @@ typedef enum {
     GUIDE_PAGE_MODE_SELECT = 12,        /// 13. 模式选择
     GUIDE_PAGE_RHYTHM_SELECT_GUIDE = 13,/// 14. 韵律选择引导
     GUIDE_PAGE_RHYTHM_SELECT = 14,      /// 15. 韵律选择
-    GUIDE_PAGE_PUMP_START_GUIDE = 15,   /// 16. 泵奶开始引导
+    GUIDE_PAGE_PUMP_PAUSE_GUIDE = 15,   /// 16. 泵奶暂停引导
     GUIDE_PAGE_PUMP_STOP_GUIDE = 16,    /// 17. 泵奶结束引导
     GUIDE_PAGE_FINISH = 17,             /// 18. 引导结束
     GUIDE_PAGE_MAX,
@@ -110,21 +115,20 @@ typedef enum {
      (page) == GUIDE_PAGE_KNOB_GUIDE || (page) == GUIDE_PAGE_LEVEL_BOTH_GUIDE || \
      (page) == GUIDE_PAGE_LEVEL_LEFT_GUIDE || (page) == GUIDE_PAGE_LEVEL_RIGHT_GUIDE || \
      (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || \
-     (page) == GUIDE_PAGE_PUMP_START_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
+     (page) == GUIDE_PAGE_PUMP_PAUSE_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
 #define GUIDE_PAGE_SHOW_BLE(page)               \
     ((page) == GUIDE_PAGE_MODE_SELECT || (page) == GUIDE_PAGE_RHYTHM_SELECT)
 #define GUIDE_PAGE_SHOW_LEVEL(page)             \
     (((page) >= GUIDE_PAGE_LEVEL_BOTH_GUIDE && (page) <= GUIDE_PAGE_LEVEL_RIGHT) || \
      (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_MODE_SELECT || \
-     (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT || \
-     (page) == GUIDE_PAGE_PUMP_START_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
+     (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT)
 #define GUIDE_PAGE_IS_LED_BLINK(page)           \
     ((page) == GUIDE_PAGE_INTRO || \
      (page) == GUIDE_PAGE_FUNCTION_HOME || \
      (page) == GUIDE_PAGE_LEVEL_LEFT_GUIDE || (page) == GUIDE_PAGE_LEVEL_RIGHT_GUIDE || \
      (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_MODE_SELECT || \
      (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT || \
-     (page) == GUIDE_PAGE_PUMP_START_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
+     (page) == GUIDE_PAGE_PUMP_PAUSE_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
 
 /// 主界面UI结构体
 typedef struct {
@@ -170,6 +174,9 @@ int guide_pump_mode_adjust_handler(ui_proc_guide_t *proc, bool is_bf_mode);
 void guide_pump_level_page_enter_reset(ui_proc_guide_t *proc);
 int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase);
 void guide_pump_level_idle_timeout_handler(ui_proc_guide_t *proc);
+uint8_t guide_pump_level_idle_remain_sec_get(const ui_proc_guide_t *proc);
+uint8_t guide_mode_select_idle_remain_sec_get(const ui_proc_guide_t *proc);
+uint8_t guide_rhythm_select_idle_remain_sec_get(const ui_proc_guide_t *proc);
 void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left);
 void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t keytype);
 void guide_exit_countdown_popup_dismiss(ui_proc_guide_t *proc);

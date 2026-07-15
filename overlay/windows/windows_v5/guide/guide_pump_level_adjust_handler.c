@@ -42,7 +42,7 @@ static void guide_level_adjust_side(ui_proc_guide_t *proc, uint8_t index, bool i
     }
 }
 
-static uint32_t guide_level_idle_threshold_get(ui_proc_guide_t *proc)
+static uint32_t guide_level_idle_threshold_get(const ui_proc_guide_t *proc)
 {
     return proc->level_knob_touched ?
         GUIDE_LEVEL_KNOB_IDLE_TIMEOUT_MS : GUIDE_LEVEL_BOTH_IDLE_TIMEOUT_MS;
@@ -101,6 +101,25 @@ int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase)
     proc->level_knob_touched = 1;
     proc->last_adjust_time = get_timestamp();
     return 0;
+}
+
+uint8_t guide_pump_level_idle_remain_sec_get(const ui_proc_guide_t *proc)
+{
+    uint32_t threshold_ms;
+    uint32_t elapsed_ms;
+    uint32_t remain_ms;
+
+    if (proc == NULL || !GUIDE_PAGE_IS_LEVEL_INTERACTIVE(proc->page_index)) {
+        return 0;
+    }
+
+    threshold_ms = guide_level_idle_threshold_get(proc);
+    elapsed_ms = get_timestamp_ms(proc->last_adjust_time);
+    if (elapsed_ms >= threshold_ms) {
+        return 0;
+    }
+    remain_ms = threshold_ms - elapsed_ms;
+    return (uint8_t)((remain_ms + 999U) / 1000U);
 }
 
 void guide_pump_level_idle_timeout_handler(ui_proc_guide_t *proc)
