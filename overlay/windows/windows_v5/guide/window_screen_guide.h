@@ -23,23 +23,35 @@ extern "C" {
 /// 主界面动画展示时间
 #define GUIDE_ANIMATION_DISPLAY_TIME            (2000) /// 2s
 #define GUIDE_BLINK_PERIOD                      (500)
-/// 双边力度调节静止超时
-#define GUIDE_LEVEL_BOTH_IDLE_TIMEOUT_MS        (5000) /// 5s
-/// 旋转旋钮后无操作超时
-#define GUIDE_LEVEL_KNOB_IDLE_TIMEOUT_MS        (3000) /// 3s
-/// 模式选择页无操作静默超时
-#define GUIDE_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
-/// 模式选择页切换模式后静默超时
-#define GUIDE_MODE_SELECT_MISOP_TIMEOUT_MS      (5000) /// 5s
-/// 韵律选择页无操作静默超时
-#define GUIDE_RHYTHM_SELECT_IDLE_TIMEOUT_MS     (5000) /// 5s
-/// 韵律选择页切换韵律后静默超时
-#define GUIDE_RHYTHM_SELECT_MISOP_TIMEOUT_MS    (5000) /// 5s
-/// 单边力度调节静止超时
-#define GUIDE_LEVEL_ADJUST_IDLE_TIMEOUT_MS      (3000) /// 3s
+/// 首次进入带倒计时页的静默时间（UI 不显示倒计时）
+#define GUIDE_IDLE_SILENT_FIRST_MS              (7000) /// 7s
+/// 力度调节页有调节后，静默时间重置为
+#define GUIDE_IDLE_SILENT_LEVEL_TOUCH_MS        (3000) /// 3s
+/// 模式选择页有切换后，静默时间重置为
+#define GUIDE_IDLE_SILENT_MODE_TOUCH_MS         (5000) /// 5s
+/// 韵律选择页有切换后，静默时间重置为
+#define GUIDE_IDLE_SILENT_RHYTHM_TOUCH_MS       (5000) /// 5s
+/// 静默结束后的可见倒计时时长，结束后切下一页
+#define GUIDE_IDLE_COUNTDOWN_SHOW_MS            (3000) /// 3s
 /// 力度调节后，展示页面停留时间
 #define GUIDE_GUIDE_STEP_ADVANCE_TIME_MS        (3000) /// 纯引导页自动翻页时间
 #define GUIDE_FINISH_IDLE_TIMEOUT_MS            (3000) /// 引导结束页无操作超时
+
+/** 静默结束后剩余可见倒计时秒数；静默中或已超时返回 0（UI 应隐藏） */
+static inline uint8_t guide_idle_countdown_remain_sec(uint32_t elapsed_ms, uint32_t silent_ms)
+{
+    uint32_t total_ms = silent_ms + GUIDE_IDLE_COUNTDOWN_SHOW_MS;
+
+    if (elapsed_ms < silent_ms || elapsed_ms >= total_ms) {
+        return 0;
+    }
+    return (uint8_t)((total_ms - elapsed_ms + 999U) / 1000U);
+}
+
+static inline uint32_t guide_idle_total_timeout_ms(uint32_t silent_ms)
+{
+    return silent_ms + GUIDE_IDLE_COUNTDOWN_SHOW_MS;
+}
 #define GUIDE_PUMP_STOP_RETURN_LONG_PRESS_MS    (3000) /// 泵奶结束引导长按返回跳转时间
 #define GUIDE_DEFAULT_LEFT_LEVEL                (12)
 #define GUIDE_DEFAULT_RIGHT_LEVEL               (6)
