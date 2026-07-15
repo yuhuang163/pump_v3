@@ -114,14 +114,14 @@ static void guide_page_build(guide_base_ui_info_t *info, uint8_t page_index, boo
         case GUIDE_PAGE_KEY_GUIDE:
             guide_key_guide_ui_build(info);
             break;
-        case GUIDE_PAGE_KNOB_PRESS_GUIDE:
-            guide_knob_press_guide_ui_build(info);
-            break;
         case GUIDE_PAGE_KNOB_GUIDE:
             guide_knob_guide_ui_build(info);
             break;
         case GUIDE_PAGE_FUNCTION_HOME:
             guide_function_home_ui_build(info);
+            break;
+        case GUIDE_PAGE_KNOB_PRESS_GUIDE:
+            guide_knob_press_guide_ui_build(info);
             break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
         case GUIDE_PAGE_LEVEL_BOTH:

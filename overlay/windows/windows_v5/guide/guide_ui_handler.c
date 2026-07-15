@@ -440,7 +440,7 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
     if (keycode == KEY_CODE_CANCEL) {
 #if IS_SUPPORT_GUIDE_KEY_GUIDE_CANCEL_ADVANCE
         if (proc->page_index == GUIDE_PAGE_KEY_GUIDE) {
-            guide_page_advance(proc, GUIDE_PAGE_KNOB_PRESS_GUIDE);
+            guide_page_advance(proc, GUIDE_PAGE_KNOB_GUIDE);
             return;
         }
 #endif
@@ -459,13 +459,13 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
 #endif
 
     if (proc->page_index == GUIDE_PAGE_KEY_GUIDE && keycode != KEY_CODE_POWER) {
-        guide_page_advance(proc, GUIDE_PAGE_KNOB_PRESS_GUIDE);
+        guide_page_advance(proc, GUIDE_PAGE_KNOB_GUIDE);
         return;
     }
 
     if (proc->page_index == GUIDE_PAGE_KNOB_PRESS_GUIDE) {
         if (keycode == KEY_CODE_POWER) {
-            guide_page_advance(proc, GUIDE_PAGE_KNOB_GUIDE);
+            guide_page_advance(proc, GUIDE_PAGE_LEVEL_BOTH_GUIDE);
         }
         return;
     }
@@ -480,7 +480,7 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
             break;
         case GUIDE_PAGE_FUNCTION_HOME:
             if (keycode == KEY_CODE_START) {
-                guide_page_advance(proc, GUIDE_PAGE_LEVEL_BOTH_GUIDE);
+                guide_page_advance(proc, GUIDE_PAGE_KNOB_PRESS_GUIDE);
             }
             break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
