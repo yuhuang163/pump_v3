@@ -52,30 +52,35 @@ static inline uint32_t guide_idle_total_timeout_ms(uint32_t silent_ms)
 {
     return silent_ms + GUIDE_IDLE_COUNTDOWN_SHOW_MS;
 }
-#define GUIDE_PUMP_STOP_RETURN_LONG_PRESS_MS    (3000) /// 泵奶结束引导长按返回跳转时间
-#define GUIDE_DEFAULT_LEFT_LEVEL                (12)
-#define GUIDE_DEFAULT_RIGHT_LEVEL               (6)
-#define GUIDE_LEVEL_MIN                         (0)
-#define GUIDE_LEVEL_MAX                         (15)
+#define GUIDE_PUMP_STOP_RETURN_LONG_PRESS_MS     (3000) /// 泵奶结束引导长按返回跳转时间
+#define GUIDE_DEFAULT_LEFT_LEVEL                 (12)
+#define GUIDE_DEFAULT_RIGHT_LEVEL                (6)
+#define GUIDE_LEVEL_MIN                          (0)
+#define GUIDE_LEVEL_MAX                          (15)
 
 /// 引导页模式/韵律切换是否同步到 breast_pump_manager
 #ifndef IS_SUPPORT_GUIDE_PUMP_MODE_SYNC
-#define IS_SUPPORT_GUIDE_PUMP_MODE_SYNC       (1)
+#define IS_SUPPORT_GUIDE_PUMP_MODE_SYNC          (1)
 #endif
 
 /// 引导页力度调节是否同步到 breast_pump_manager
 #ifndef IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC
-#define IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC      (1)
+#define IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC         (1)
 #endif
 
 /// 是否支持引导中启动泵阀
 #ifndef IS_SUPPORT_GUIDE_PUMP_START
-#define IS_SUPPORT_GUIDE_PUMP_START           (1)
+#define IS_SUPPORT_GUIDE_PUMP_START              (1)
+#endif
+
+/// 是否支持点击 power 键切换引导页（默认关闭）
+#ifndef IS_SUPPORT_GUIDE_POWER_PAGE_ADVANCE
+#define IS_SUPPORT_GUIDE_POWER_PAGE_ADVANCE      (1)
 #endif
 
 /// KEY_GUIDE 页短按返回键是否切到下一页（关闭时走退出倒计时）
 #ifndef IS_SUPPORT_GUIDE_KEY_GUIDE_CANCEL_ADVANCE
-#define IS_SUPPORT_GUIDE_KEY_GUIDE_CANCEL_ADVANCE  (0)
+#define IS_SUPPORT_GUIDE_KEY_GUIDE_CANCEL_ADVANCE   (0)
 #endif
 
 /// 主界面UI动作枚举
@@ -148,6 +153,16 @@ typedef enum {
      (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_MODE_SELECT || \
      (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT || \
      (page) == GUIDE_PAGE_PUMP_PAUSE_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)
+
+/// power 键可切换的适用页；返回非 0 表示当前页可切下一页。产品可重定义覆盖。
+#if IS_SUPPORT_GUIDE_POWER_PAGE_ADVANCE
+#ifndef GUIDE_PAGE_IS_POWER_ADVANCE
+#define GUIDE_PAGE_IS_POWER_ADVANCE(page)        \
+    ((page) != GUIDE_PAGE_WELCOME_ANIM && (page) < GUIDE_PAGE_FINISH)
+#endif
+#else
+#define GUIDE_PAGE_IS_POWER_ADVANCE(page)        (0)
+#endif
 
 /// 主界面UI结构体
 typedef struct {

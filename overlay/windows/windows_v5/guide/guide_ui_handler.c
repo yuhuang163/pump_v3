@@ -448,6 +448,16 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
         return;
     }
 
+#if IS_SUPPORT_GUIDE_POWER_PAGE_ADVANCE
+    if (keycode == KEY_CODE_POWER && GUIDE_PAGE_IS_POWER_ADVANCE(proc->page_index)) {
+        uint16_t next_page = (uint16_t)(proc->page_index + 1);
+        if (next_page < GUIDE_PAGE_MAX) {
+            guide_page_advance(proc, next_page);
+        }
+        return;
+    }
+#endif
+
     if (proc->page_index == GUIDE_PAGE_KEY_GUIDE) {
         guide_page_advance(proc, GUIDE_PAGE_KNOB_PRESS_GUIDE);
         return;
