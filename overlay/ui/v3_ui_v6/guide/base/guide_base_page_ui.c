@@ -40,6 +40,7 @@ static void guide_page_container_reset(guide_base_ui_info_t *info)
     guide_pump_animation_ui_remove(info);
     guide_intro_ui_remove(info);
     guide_key_guide_ui_remove(info);
+    guide_knob_press_guide_ui_remove(info);
     guide_knob_guide_ui_remove(info);
     guide_function_home_ui_remove(info);
     guide_finish_ui_remove(info);
@@ -48,6 +49,7 @@ static void guide_page_container_reset(guide_base_ui_info_t *info)
     memset(&info->animation, 0, sizeof(info->animation));
     memset(&info->intro, 0, sizeof(info->intro));
     memset(&info->key_guide, 0, sizeof(info->key_guide));
+    memset(&info->knob_press_guide, 0, sizeof(info->knob_press_guide));
     memset(&info->knob_guide, 0, sizeof(info->knob_guide));
     memset(&info->function_home, 0, sizeof(info->function_home));
     memset(&info->finish, 0, sizeof(info->finish));
@@ -111,6 +113,9 @@ static void guide_page_build(guide_base_ui_info_t *info, uint8_t page_index, boo
             break;
         case GUIDE_PAGE_KEY_GUIDE:
             guide_key_guide_ui_build(info);
+            break;
+        case GUIDE_PAGE_KNOB_PRESS_GUIDE:
+            guide_knob_press_guide_ui_build(info);
             break;
         case GUIDE_PAGE_KNOB_GUIDE:
             guide_knob_guide_ui_build(info);

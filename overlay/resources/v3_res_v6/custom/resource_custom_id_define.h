@@ -53,6 +53,7 @@ typedef enum {
     CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_MIN_ICON, /// 引导-返回按钮小图标
     CUSTOM_RES_ID_GUIDE_BG, /// 引导背景
     CUSTOM_RES_ID_GUIDE_ANIM_BG, /// 引导动画背景
+    CUSTOM_RES_ID_GUIDE_KNOB_PRESS_BG, /// 引导旋钮按下背景
 
     /* 模式相关组 [10200..10300]（大图 + 小图标） */
     CUSTOM_RES_ID_PUMP_LEVEL_SEPARATOR = 10200, /// 泵奶力度分割符

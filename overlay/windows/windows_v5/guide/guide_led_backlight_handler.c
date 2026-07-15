@@ -229,6 +229,7 @@ void guide_led_backlight_update(ui_proc_guide_t *proc)
         case GUIDE_PAGE_KEY_GUIDE:
             guide_led_backlight_key_guide_update(proc);
             break;
+        case GUIDE_PAGE_KNOB_PRESS_GUIDE:
         case GUIDE_PAGE_KNOB_GUIDE:
             guide_led_backlight_return_only(proc);
             break;
