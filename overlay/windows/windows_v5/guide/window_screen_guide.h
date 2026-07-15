@@ -73,6 +73,11 @@ static inline uint32_t guide_idle_total_timeout_ms(uint32_t silent_ms)
 #define IS_SUPPORT_GUIDE_PUMP_START           (1)
 #endif
 
+/// KEY_GUIDE 页短按返回键是否切到下一页（关闭时走退出倒计时）
+#ifndef IS_SUPPORT_GUIDE_KEY_GUIDE_CANCEL_ADVANCE
+#define IS_SUPPORT_GUIDE_KEY_GUIDE_CANCEL_ADVANCE  (0)
+#endif
+
 /// 主界面UI动作枚举
 typedef enum {
     GUIDE_HDR_ACTION_MAX
