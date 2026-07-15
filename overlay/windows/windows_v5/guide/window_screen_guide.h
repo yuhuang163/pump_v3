@@ -94,21 +94,22 @@ typedef enum {
     GUIDE_PAGE_WELCOME_ANIM = 0,        /// 1. 引导动画
     GUIDE_PAGE_INTRO = 1,               /// 2. 引导简介
     GUIDE_PAGE_KEY_GUIDE = 2,           /// 3. 按键引导
-    GUIDE_PAGE_KNOB_GUIDE = 3,          /// 4. 旋钮引导
-    GUIDE_PAGE_FUNCTION_HOME = 4,       /// 5. 功能引导首页
-    GUIDE_PAGE_LEVEL_BOTH_GUIDE = 5,    /// 6. 双边力度调节引导
-    GUIDE_PAGE_LEVEL_BOTH = 6,          /// 7. 双边力度调节
-    GUIDE_PAGE_LEVEL_LEFT_GUIDE = 7,    /// 8. 左边力度调节引导
-    GUIDE_PAGE_LEVEL_LEFT = 8,          /// 9. 左边力度调节
-    GUIDE_PAGE_LEVEL_RIGHT_GUIDE = 9,   /// 10. 右边力度调节引导
-    GUIDE_PAGE_LEVEL_RIGHT = 10,        /// 11. 右边力度调节
-    GUIDE_PAGE_MODE_SELECT_GUIDE = 11,  /// 12. 模式选择引导
-    GUIDE_PAGE_MODE_SELECT = 12,        /// 13. 模式选择
-    GUIDE_PAGE_RHYTHM_SELECT_GUIDE = 13,/// 14. 韵律选择引导
-    GUIDE_PAGE_RHYTHM_SELECT = 14,      /// 15. 韵律选择
-    GUIDE_PAGE_PUMP_PAUSE_GUIDE = 15,   /// 16. 泵奶暂停引导
-    GUIDE_PAGE_PUMP_STOP_GUIDE = 16,    /// 17. 泵奶结束引导
-    GUIDE_PAGE_FINISH = 17,             /// 18. 引导结束
+    GUIDE_PAGE_KNOB_PRESS_GUIDE = 3,    /// 4. 旋钮按下引导
+    GUIDE_PAGE_KNOB_GUIDE = 4,          /// 5. 旋钮旋转引导
+    GUIDE_PAGE_FUNCTION_HOME = 5,       /// 6. 功能引导首页
+    GUIDE_PAGE_LEVEL_BOTH_GUIDE = 6,    /// 7. 双边力度调节引导
+    GUIDE_PAGE_LEVEL_BOTH = 7,          /// 8. 双边力度调节
+    GUIDE_PAGE_LEVEL_LEFT_GUIDE = 8,    /// 9. 左边力度调节引导
+    GUIDE_PAGE_LEVEL_LEFT = 9,          /// 10. 左边力度调节
+    GUIDE_PAGE_LEVEL_RIGHT_GUIDE = 10,  /// 11. 右边力度调节引导
+    GUIDE_PAGE_LEVEL_RIGHT = 11,        /// 12. 右边力度调节
+    GUIDE_PAGE_MODE_SELECT_GUIDE = 12,  /// 13. 模式选择引导
+    GUIDE_PAGE_MODE_SELECT = 13,        /// 14. 模式选择
+    GUIDE_PAGE_RHYTHM_SELECT_GUIDE = 14,/// 15. 韵律选择引导
+    GUIDE_PAGE_RHYTHM_SELECT = 15,      /// 16. 韵律选择
+    GUIDE_PAGE_PUMP_PAUSE_GUIDE = 16,   /// 17. 泵奶暂停引导
+    GUIDE_PAGE_PUMP_STOP_GUIDE = 17,    /// 18. 泵奶结束引导
+    GUIDE_PAGE_FINISH = 18,             /// 19. 引导结束
     GUIDE_PAGE_MAX,
 } guide_page_index_t;
 
@@ -129,7 +130,8 @@ typedef enum {
     ((page) == GUIDE_PAGE_LEVEL_LEFT || (page) == GUIDE_PAGE_LEVEL_RIGHT)
 #define GUIDE_PAGE_IS_GUIDE_STEP(page)        \
     ((page) == GUIDE_PAGE_INTRO || (page) == GUIDE_PAGE_KEY_GUIDE || \
-     (page) == GUIDE_PAGE_KNOB_GUIDE || (page) == GUIDE_PAGE_LEVEL_BOTH_GUIDE || \
+     (page) == GUIDE_PAGE_KNOB_PRESS_GUIDE || (page) == GUIDE_PAGE_KNOB_GUIDE || \
+     (page) == GUIDE_PAGE_LEVEL_BOTH_GUIDE || \
      (page) == GUIDE_PAGE_LEVEL_LEFT_GUIDE || (page) == GUIDE_PAGE_LEVEL_RIGHT_GUIDE || \
      (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || \
      (page) == GUIDE_PAGE_PUMP_PAUSE_GUIDE || (page) == GUIDE_PAGE_PUMP_STOP_GUIDE)

@@ -449,7 +449,14 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
     }
 
     if (proc->page_index == GUIDE_PAGE_KEY_GUIDE) {
-        guide_page_advance(proc, GUIDE_PAGE_KNOB_GUIDE);
+        guide_page_advance(proc, GUIDE_PAGE_KNOB_PRESS_GUIDE);
+        return;
+    }
+
+    if (proc->page_index == GUIDE_PAGE_KNOB_PRESS_GUIDE) {
+        if (keycode == KEY_CODE_POWER) {
+            guide_page_advance(proc, GUIDE_PAGE_KNOB_GUIDE);
+        }
         return;
     }
 

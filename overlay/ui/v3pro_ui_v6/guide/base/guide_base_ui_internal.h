@@ -87,6 +87,13 @@ typedef struct {
     lv_obj_t *title;
     lv_obj_t *hint;
     lv_obj_t *icon;
+} guide_base_knob_press_guide_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *title;
+    lv_obj_t *hint;
+    lv_obj_t *icon;
 } guide_base_knob_guide_info_t;
 
 typedef struct {
@@ -164,6 +171,7 @@ typedef struct {
     guide_base_animation_info_t animation;
     guide_base_intro_info_t intro;
     guide_base_key_guide_info_t key_guide;
+    guide_base_knob_press_guide_info_t knob_press_guide;
     guide_base_knob_guide_info_t knob_guide;
     guide_base_function_home_info_t function_home;
     guide_base_level_guide_info_t level_guide;
@@ -211,6 +219,9 @@ void guide_intro_ui_build(guide_base_ui_info_t *info);
 
 void guide_key_guide_ui_remove(guide_base_ui_info_t *info);
 void guide_key_guide_ui_build(guide_base_ui_info_t *info);
+
+void guide_knob_press_guide_ui_remove(guide_base_ui_info_t *info);
+void guide_knob_press_guide_ui_build(guide_base_ui_info_t *info);
 
 void guide_knob_guide_ui_remove(guide_base_ui_info_t *info);
 void guide_knob_guide_ui_build(guide_base_ui_info_t *info);
