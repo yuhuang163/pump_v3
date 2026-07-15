@@ -25,7 +25,8 @@ static PSRAM_NC_DATA_LOC uint8_t guide_bg_data[] = {
     //  #include "comparison_png2txt/home_custom_25_360x360.txt"
     // #include "comparison_png2txt/guide_custom_p26_360x360.txt"
     // #include "comparison_png2txt/guide_custom_p27_360x360.txt"
-    #include "comparison_png2txt/home_custom_34_360x360.txt"
+    #include "comparison_png2txt/guide_custom_p31_360x360.txt"
+    // #include "comparison_png2txt/home_custom_34_360x360.txt"
 };
 #endif
 
@@ -243,7 +244,7 @@ int guide_custom_ui_process(ui_manager_context_t *thiz)
 
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
     guide_custom_root_comp_bg_update(thiz);
-    proc->page_index = GUIDE_PAGE_RHYTHM_SELECT;
+    proc->page_index = GUIDE_PAGE_FINISH;
 #endif
     guide_info->level.left.new_value = proc->setting.level[0];
     guide_info->level.right.new_value = proc->setting.level[1];
