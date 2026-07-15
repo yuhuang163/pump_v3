@@ -24,7 +24,7 @@ extern "C" {
 /// 工厂重置动画展示时间
 #define FACTORY_RESET_ANIMATION_DISPLAY_TIME         (2000) /// 2s
 
-/// 工厂重置确认页 return 键/UI 闪烁周期
+/// 工厂重置确认页 UI 闪烁周期（return 键灯常亮，不闪烁）
 #define FACTORY_RESET_BLINK_PERIOD                   (500)
 
 /// 系统UI类型枚举
@@ -56,12 +56,11 @@ typedef struct {
     uint16_t current_ui_type; /// 当前UI类型. factory_reset_ui_type_e
     uint8_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
     uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
-    uint8_t confirm_return_blink_visible; /// 确认页 return 灯上次闪烁相位.
     uint32_t blink_start_time; /// 闪烁起始时间
     uint32_t led_blink_time; /// 上次LED闪烁时间.
     uint16_t led_blink_period; /// LED闪烁周期.
     uint8_t led_blink_status; /// LED闪烁状态.
-    uint8_t rsv[11];
+    uint8_t rsv[12];
 } ui_proc_factory_reset_t;
 
 /*
