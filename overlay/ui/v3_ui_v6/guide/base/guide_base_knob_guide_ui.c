@@ -52,7 +52,7 @@ static void guide_knob_guide_hint_create(guide_base_ui_info_t *info)
     lv_obj_set_style_text_color(info->knob_guide.hint, lv_color_hex(GUIDE_KNOB_GUIDE_HINT_COLOR), 0);
     lv_obj_set_style_text_font(info->knob_guide.hint, &lv_font_aeonik_soft_20_medium, 0);
     lv_obj_set_style_text_align(info->knob_guide.hint, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->knob_guide.hint, "Rotate the knob");
+    lv_label_set_text(info->knob_guide.hint, "Rotate the knob to switch\noptions");
     lv_obj_align(info->knob_guide.hint, LV_ALIGN_TOP_MID, 0, GUIDE_KNOB_GUIDE_HINT_Y);
 }
 
