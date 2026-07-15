@@ -209,6 +209,8 @@ static void guide_custom_level_idle_countdown_ui_create(guide_custom_ui_info_t *
     lv_label_set_text(info->level_guide.countdown_num, "5");
     lv_obj_align_to(info->level_guide.countdown_num, info->level_guide.countdown_ring,
         LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_flag(info->level_guide.countdown_ring, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(info->level_guide.countdown_num, LV_OBJ_FLAG_HIDDEN);
     info->level_guide.shown_countdown_sec = 0xFF;
 }
 
@@ -307,7 +309,7 @@ void guide_custom_level_guide_ui_build(guide_custom_ui_info_t *info, uint8_t pag
 void guide_custom_level_idle_countdown_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc)
 {
     uint8_t remain_sec;
-    char num_buf[4];
+    char num_buf[8];
 
     EXCEPTION_CHECK_VOID(info && proc);
     if (!GUIDE_PAGE_IS_LEVEL_INTERACTIVE(proc->page_index)) {
@@ -318,17 +320,21 @@ void guide_custom_level_idle_countdown_ui_update(guide_custom_ui_info_t *info, u
     }
 
     remain_sec = guide_pump_level_idle_remain_sec_get(proc);
-    if (remain_sec == 0) {
-        remain_sec = 1;
-    }
     if (info->level_guide.shown_countdown_sec == remain_sec) {
         return;
     }
 
-    lv_snprintf(num_buf, sizeof(num_buf), "%u", remain_sec);
-    lv_label_set_text(info->level_guide.countdown_num, num_buf);
-    lv_obj_align_to(info->level_guide.countdown_num, info->level_guide.countdown_ring,
-        LV_ALIGN_CENTER, 0, 0);
+    if (remain_sec == 0) {
+        lv_obj_add_flag(info->level_guide.countdown_ring, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(info->level_guide.countdown_num, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_snprintf(num_buf, sizeof(num_buf), "%us", remain_sec);
+        lv_label_set_text(info->level_guide.countdown_num, num_buf);
+        lv_obj_align_to(info->level_guide.countdown_num, info->level_guide.countdown_ring,
+            LV_ALIGN_CENTER, 0, 0);
+        lv_obj_clear_flag(info->level_guide.countdown_ring, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(info->level_guide.countdown_num, LV_OBJ_FLAG_HIDDEN);
+    }
     info->level_guide.shown_countdown_sec = remain_sec;
 }
 

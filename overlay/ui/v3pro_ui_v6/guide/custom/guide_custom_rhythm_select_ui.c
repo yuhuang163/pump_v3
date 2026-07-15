@@ -312,6 +312,8 @@ static void guide_custom_rhythm_select_idle_countdown_ui_create(guide_custom_ui_
     lv_label_set_text(info->rhythm_select.countdown_num, "5");
     lv_obj_align_to(info->rhythm_select.countdown_num, info->rhythm_select.countdown_ring,
         LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_flag(info->rhythm_select.countdown_ring, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
     info->rhythm_select.shown_countdown_sec = 0xFF;
 }
 
@@ -374,7 +376,7 @@ void guide_custom_rhythm_select_idle_countdown_ui_update(guide_custom_ui_info_t 
     ui_proc_guide_t *proc)
 {
     uint8_t remain_sec;
-    char num_buf[4];
+    char num_buf[8];
 
     EXCEPTION_CHECK_VOID(info && proc);
     if (proc->page_index != GUIDE_PAGE_RHYTHM_SELECT) {
@@ -386,16 +388,20 @@ void guide_custom_rhythm_select_idle_countdown_ui_update(guide_custom_ui_info_t 
     }
 
     remain_sec = guide_rhythm_select_idle_remain_sec_get(proc);
-    if (remain_sec == 0) {
-        remain_sec = 1;
-    }
     if (info->rhythm_select.shown_countdown_sec == remain_sec) {
         return;
     }
 
-    lv_snprintf(num_buf, sizeof(num_buf), "%u", remain_sec);
-    lv_label_set_text(info->rhythm_select.countdown_num, num_buf);
-    lv_obj_align_to(info->rhythm_select.countdown_num, info->rhythm_select.countdown_ring,
-        LV_ALIGN_CENTER, 0, 0);
+    if (remain_sec == 0) {
+        lv_obj_add_flag(info->rhythm_select.countdown_ring, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_snprintf(num_buf, sizeof(num_buf), "%us", remain_sec);
+        lv_label_set_text(info->rhythm_select.countdown_num, num_buf);
+        lv_obj_align_to(info->rhythm_select.countdown_num, info->rhythm_select.countdown_ring,
+            LV_ALIGN_CENTER, 0, 0);
+        lv_obj_clear_flag(info->rhythm_select.countdown_ring, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
+    }
     info->rhythm_select.shown_countdown_sec = remain_sec;
 }

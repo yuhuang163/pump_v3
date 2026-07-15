@@ -226,10 +226,10 @@ static void guide_guide_step_timeout_handler(ui_proc_guide_t *proc)
     }
 }
 
-static uint32_t guide_mode_select_idle_threshold_get(ui_proc_guide_t *proc)
+static uint32_t guide_mode_select_idle_silent_ms_get(const ui_proc_guide_t *proc)
 {
-    (void)proc;
-    return GUIDE_MODE_SELECT_IDLE_TIMEOUT_MS;
+    return proc->mode_select_touched ?
+        GUIDE_IDLE_SILENT_MODE_TOUCH_MS : GUIDE_IDLE_SILENT_FIRST_MS;
 }
 
 static void guide_mode_select_idle_timeout_handler(ui_proc_guide_t *proc)
@@ -238,17 +238,18 @@ static void guide_mode_select_idle_timeout_handler(ui_proc_guide_t *proc)
     if (proc->page_index != GUIDE_PAGE_MODE_SELECT) {
         return;
     }
-    if (get_timestamp_ms(proc->last_adjust_time) < guide_mode_select_idle_threshold_get(proc)) {
+    if (get_timestamp_ms(proc->last_adjust_time) <
+        guide_idle_total_timeout_ms(guide_mode_select_idle_silent_ms_get(proc))) {
         return;
     }
     proc->mode_selected = GUIDE_MODE_SELECT_MODE;
     guide_page_advance(proc, GUIDE_PAGE_RHYTHM_SELECT_GUIDE);
 }
 
-static uint32_t guide_rhythm_select_idle_threshold_get(ui_proc_guide_t *proc)
+static uint32_t guide_rhythm_select_idle_silent_ms_get(const ui_proc_guide_t *proc)
 {
-    (void)proc;
-    return GUIDE_RHYTHM_SELECT_IDLE_TIMEOUT_MS;
+    return proc->rhythm_select_touched ?
+        GUIDE_IDLE_SILENT_RHYTHM_TOUCH_MS : GUIDE_IDLE_SILENT_FIRST_MS;
 }
 
 static void guide_rhythm_select_idle_timeout_handler(ui_proc_guide_t *proc)
@@ -257,20 +258,11 @@ static void guide_rhythm_select_idle_timeout_handler(ui_proc_guide_t *proc)
     if (proc->page_index != GUIDE_PAGE_RHYTHM_SELECT) {
         return;
     }
-    if (get_timestamp_ms(proc->last_adjust_time) < guide_rhythm_select_idle_threshold_get(proc)) {
+    if (get_timestamp_ms(proc->last_adjust_time) <
+        guide_idle_total_timeout_ms(guide_rhythm_select_idle_silent_ms_get(proc))) {
         return;
     }
     guide_page_advance(proc, GUIDE_PAGE_PUMP_PAUSE_GUIDE);
-}
-
-static uint8_t guide_idle_remain_sec_calc(uint32_t last_adjust_time, uint32_t threshold_ms)
-{
-    uint32_t elapsed_ms = get_timestamp_ms(last_adjust_time);
-
-    if (elapsed_ms >= threshold_ms) {
-        return 0;
-    }
-    return (uint8_t)((threshold_ms - elapsed_ms + 999U) / 1000U);
 }
 
 uint8_t guide_mode_select_idle_remain_sec_get(const ui_proc_guide_t *proc)
@@ -278,7 +270,8 @@ uint8_t guide_mode_select_idle_remain_sec_get(const ui_proc_guide_t *proc)
     if (proc == NULL || proc->page_index != GUIDE_PAGE_MODE_SELECT) {
         return 0;
     }
-    return guide_idle_remain_sec_calc(proc->last_adjust_time, GUIDE_MODE_SELECT_IDLE_TIMEOUT_MS);
+    return guide_idle_countdown_remain_sec(get_timestamp_ms(proc->last_adjust_time),
+        guide_mode_select_idle_silent_ms_get(proc));
 }
 
 uint8_t guide_rhythm_select_idle_remain_sec_get(const ui_proc_guide_t *proc)
@@ -286,7 +279,8 @@ uint8_t guide_rhythm_select_idle_remain_sec_get(const ui_proc_guide_t *proc)
     if (proc == NULL || proc->page_index != GUIDE_PAGE_RHYTHM_SELECT) {
         return 0;
     }
-    return guide_idle_remain_sec_calc(proc->last_adjust_time, GUIDE_RHYTHM_SELECT_IDLE_TIMEOUT_MS);
+    return guide_idle_countdown_remain_sec(get_timestamp_ms(proc->last_adjust_time),
+        guide_rhythm_select_idle_silent_ms_get(proc));
 }
 
 static void guide_finish_timeout_handler(ui_proc_guide_t *proc)
