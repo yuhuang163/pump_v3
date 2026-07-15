@@ -1,338 +1,412 @@
 {
-  "meta": {
-    "version": "2.0",
-    "description": "custom 资源包配置文件 - 映射资源ID到实际图片文件",
-    "resource_type": "IMG_RES_TYPE_UI",
-    "language": "IMG_RES_LANG_TYPE_ZH",
-    "compressed": false,
-    "config_hint": "custom 主题资源 ID 区间 [10000 .. 20000]。建议按 resource_id（数值ID）升序添加/维护 resources；打包脚本会根据头文件解析出的数值ID自动排序后再打包。动画资源可使用 resource_ranges 配置范围。"
-  },
-  "resource_ranges": [
-    {
-      "start_resource_id": "CUSTOM_RES_ID_YAWN_ANIM_IP_START",
-      "end_resource_id": "CUSTOM_RES_ID_YAWN_ANIM_IP_END",
-      "description": "打哈欠动画",
-      "file_template": "animation/yawn/baj/X_{file_index:05d}_180x168_a4_q99_422.baj",
-      "start_file_index": 0,
-      "id_to_file_offset": -11100,
-      "x_offset": 0,
-      "y_offset": 0,
-      "note": "file_index = resource_id - 11100"
+    "meta": {
+        "version": "2.0",
+        "description": "custom 资源包配置文件 - 映射资源ID到实际图片文件",
+        "resource_type": "IMG_RES_TYPE_UI",
+        "language": "IMG_RES_LANG_TYPE_ZH",
+        "compressed": false,
+        "config_hint": "custom 主题资源 ID 区间 [10000 .. 20000]。建议按 resource_id（数值ID）升序添加/维护 resources；打包脚本会根据头文件解析出的数值ID自动排序后再打包。动画资源可使用 resource_ranges 配置范围。"
     },
-    {
-      "start_resource_id": "CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_START",
-      "end_resource_id": "CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_END",
-      "description": "摇奶瓶动画",
-      "file_template": "animation/shake_bottle/baj/C_{file_index:05d}_180x168_a4_q99_422.baj",
-      "start_file_index": 0,
-      "id_to_file_offset": -11200,
-      "x_offset": 0,
-      "y_offset": 0,
-      "note": "file_index = resource_id - 11200"
-    },
-    {
-      "start_resource_id": "CUSTOM_RES_ID_SUCTION_ANIM_IP_START",
-      "end_resource_id": "CUSTOM_RES_ID_SUCTION_ANIM_IP_END",
-      "description": "吸奶动画",
-      "file_template": "animation/suction/baj/S_{file_index:05d}_180x168_a4_q99_422.baj",
-      "start_file_index": 0,
-      "id_to_file_offset": -11300,
-      "x_offset": 0,
-      "y_offset": 0,
-      "note": "file_index = resource_id - 11300"
-    },
-    {
-      "start_resource_id": "CUSTOM_RES_ID_HD_ANIM_IP_START",
-      "end_resource_id": "CUSTOM_RES_ID_HD_ANIM_IP_END",
-      "description": "首页默认动画帧",
-      "file_template": "animation/home_default/baj/s_{file_index:05d}_180x145_a4_q99_422.baj",
-      "start_file_index": 0,
-      "id_to_file_offset": -11500,
-      "x_offset": 0,
-      "y_offset": 0,
-      "note": "file_index = resource_id - 11500"
-    }
-  ],
-  "resources": [
-    {
-      "resource_id": "CUSTOM_RES_ID_BLE_CONNECT_ICON",
-      "description": "蓝牙连接图标",
-      "file": "baj/icon_ble_connect_24x24_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_BLE_DISCONNECT_ICON",
-      "description": "蓝牙断开图标",
-      "file": "baj/icon_ble_disconnect_24x24_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_BLE_CONNECT_POPUP_ICON",
-      "description": "蓝牙连接弹窗图标",
-      "file": "baj/icon_ble_connect_tip_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_BLE_DISCONNECT_POPUP_ICON",
-      "description": "蓝牙断开弹窗图标",
-      "file": "baj/icon_ble_disconnect_tip_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_BIND_ICON",
-      "description": "绑定图标",
-      "file": "baj/icon_bind_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_UNBIND_ICON",
-      "description": "解绑图标",
-      "file": "baj/icon_unbind_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_ALLOW_ICON",
-      "description": "允许图标",
-      "file": "baj/icon_allow_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_BAN_ICON",
-      "description": "禁止图标",
-      "file": "baj/icon_ban_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_WARNING_ICON",
-      "description": "警告图标",
-      "file": "baj/icon_warning_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_START_BUTTON_ICON",
-      "description": "开始按钮图标",
-      "file": "baj/icon_start_button_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_RETURN_BUTTON_ICON",
-      "description": "返回按钮图标",
-      "file": "baj/icon_return_button_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_MODE_BUTTON_ICON",
-      "description": "模式按钮24x24图标",
-      "file": "baj/icon_mode_button_24x24_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_PROGRAM_BUTTON_ICON",
-      "description": "程序按钮24x24图标",
-      "file": "baj/icon_program_button_24x24_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_RETURN_BUTTON_24X24_ICON",
-      "description": "24x24返回按钮图标",
-      "file": "baj/icon_return_button_min_24x24_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_BATTERY_ICON",
-      "description": "电池电量图标",
-      "file": "baj/icon_battery_28x15_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_BATTERY_WARNING_ICON",
-      "description": "电池警告图标",
-      "file": "baj/icon_battery_warning_28x15_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_CHARGE_PAGE_ICON",
-      "description": "充电页面图标",
-      "file": "baj/icon_charge_page_25x30_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_POWER_ECO_ICON",
-      "description": "电源节能图标",
-      "file": "baj/icon_power_eco_24x24_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_BATTERY_LOW_POWER_ICON",
-      "description": "电池低电量图标",
-      "file": "baj/icon_battery_low_power_90x48_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_COMMON_BG",
-      "description": "通用背景",
-      "file": "png/bg_common_ui.png",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_START_LOGO_ICON",
-      "description": "启动LOGO",
-      "file": "baj/icon_logo_start_232x31_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_HOME_WIDTH_LABLE",
-      "description": "主页宽标签",
-      "file": "baj/label_home_width_280x152_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_HOME_BIG_LABLE",
-      "description": "主页大标签",
-      "file": "baj/label_home_big_280x172_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_HOME_NARROW_LABLE",
-      "description": "主页窄标签",
-      "file": "baj/label_home_narrow_280x128_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON",
-      "description": "飞行界面解锁按钮图标",
-      "file": "baj/icon_travel_unlock_160x56_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_GUIDE_LABLE",
-      "description": "引导标签",
-      "file": "baj/label_guide_280x128_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_IP_THEME_IMG",
-      "description": "IP主题引导图片",
-      "file": "baj/page_ip_theme_140x140_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_THEME_SELECT_ICON",
-      "description": "主题选择引导图标",
-      "file": "baj/icon_theme_select_28x28_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_THEME_UNSELECT_ICON",
-      "description": "主题未选择引导图标",
-      "file": "baj/icon_theme_unselect_28x28_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_PUMP_LEVEL_BIG_BG",
-      "description": "泵奶力度大背景",
-      "file": "baj/bg_pump_level_big_44x44_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_PUMP_LEVEL_BG",
-      "description": "泵奶力度背景",
-      "file": "baj/bg_pump_level_40x40_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_PUMP_LEVEL_BIG_INDICATOR",
-      "description": "泵奶力度大指示符",
-      "file": "baj/Indicator_pump_level_big_24x24_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_PUMP_LEVEL_INDICATOR",
-      "description": "泵奶力度指示符",
-      "file": "baj/Indicator_pump_level_16x16_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_PUMP_RHYTHM_ICON",
-      "description": "泵奶节奏图标",
-      "file": "baj/icon_pump_rhythm_32x32_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_PUMP_RHYTHM_WHITE_ICON",
-      "description": "泵奶节奏白色图标",
-      "file": "baj/icon_pump_rhythm_white_32x32_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_PUMP_RELAX_ICON",
-      "description": "泵奶放松图标",
-      "file": "baj/icon_pump_relax_64x64_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_HOME_IDLE_IP",
-      "description": "首页空闲IP图标",
-      "file": "baj/ip_home_idle_188x151_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_PUMP_FINISH_IP",
-      "description": "泵奶完成IP图标",
-      "file": "baj/ip_pump_finish_160x160_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_CHARGE_ADAPTER_IP",
-      "description": "充电适配器错误IP图标",
-      "file": "baj/ip_charge_error_168x168_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "CUSTOM_RES_ID_GUIDE_IP",
-      "description": "引导IP图标",
-      "file": "baj/ip_guide_160x130_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    }
-  ]
+    "resource_ranges": [
+        {
+            "start_resource_id": "CUSTOM_RES_ID_YAWN_ANIM_IP_START",
+            "end_resource_id": "CUSTOM_RES_ID_YAWN_ANIM_IP_END",
+            "description": "打哈欠动画",
+            "file_template": "animation/yawn/baj/X_{file_index:05d}_180x168_a4_q99_422.baj",
+            "start_file_index": 0,
+            "id_to_file_offset": -11100,
+            "x_offset": 0,
+            "y_offset": 0,
+            "note": "file_index = resource_id - 11100"
+        },
+        {
+            "start_resource_id": "CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_START",
+            "end_resource_id": "CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_END",
+            "description": "摇奶瓶动画",
+            "file_template": "animation/shake_bottle/baj/C_{file_index:05d}_180x168_a4_q99_422.baj",
+            "start_file_index": 0,
+            "id_to_file_offset": -11200,
+            "x_offset": 0,
+            "y_offset": 0,
+            "note": "file_index = resource_id - 11200"
+        },
+        {
+            "start_resource_id": "CUSTOM_RES_ID_SUCTION_ANIM_IP_START",
+            "end_resource_id": "CUSTOM_RES_ID_SUCTION_ANIM_IP_END",
+            "description": "吸奶动画",
+            "file_template": "animation/suction/baj/S_{file_index:05d}_180x168_a4_q99_422.baj",
+            "start_file_index": 0,
+            "id_to_file_offset": -11300,
+            "x_offset": 0,
+            "y_offset": 0,
+            "note": "file_index = resource_id - 11300"
+        },
+        {
+            "start_resource_id": "CUSTOM_RES_ID_HD_ANIM_IP_START",
+            "end_resource_id": "CUSTOM_RES_ID_HD_ANIM_IP_END",
+            "description": "首页默认动画帧",
+            "file_template": "animation/home_default/baj/s_{file_index:05d}_180x145_a4_q99_422.baj",
+            "start_file_index": 0,
+            "id_to_file_offset": -11500,
+            "x_offset": 0,
+            "y_offset": 0,
+            "note": "file_index = resource_id - 11500"
+        },
+        {
+            "start_resource_id": "CUSTOM_RES_ID_GUIDE_IP_START",
+            "end_resource_id": "CUSTOM_RES_ID_GUIDE_IP_END",
+            "description": "引导IP图标",
+            "file_template": "animation/guide/baj/IPXSYD_{file_index:05d}_190x190_a8_q99_422.baj",
+            "start_file_index": 0,
+            "id_to_file_offset": -11700,
+            "x_offset": 0,
+            "y_offset": 0,
+            "note": "file_index = resource_id - 11700"
+        }
+    ],
+    "resources": [
+        {
+            "resource_id": "CUSTOM_RES_ID_BLE_CONNECT_ICON",
+            "description": "蓝牙连接图标",
+            "file": "baj/icon_ble_connect_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_BLE_DISCONNECT_ICON",
+            "description": "蓝牙断开图标",
+            "file": "baj/icon_ble_disconnect_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_BLE_CONNECT_POPUP_ICON",
+            "description": "蓝牙连接弹窗图标",
+            "file": "baj/icon_ble_connect_tip_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_BLE_DISCONNECT_POPUP_ICON",
+            "description": "蓝牙断开弹窗图标",
+            "file": "baj/icon_ble_disconnect_tip_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_BIND_ICON",
+            "description": "绑定图标",
+            "file": "baj/icon_bind_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_UNBIND_ICON",
+            "description": "解绑图标",
+            "file": "baj/icon_unbind_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_ALLOW_ICON",
+            "description": "允许图标",
+            "file": "baj/icon_allow_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_BAN_ICON",
+            "description": "禁止图标",
+            "file": "baj/icon_ban_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_WARNING_ICON",
+            "description": "警告图标",
+            "file": "baj/icon_warning_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_START_BUTTON_ICON",
+            "description": "开始按钮图标",
+            "file": "baj/icon_start_button_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_RETURN_BUTTON_ICON",
+            "description": "返回按钮图标",
+            "file": "baj/icon_return_button_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_MODE_BUTTON_ICON",
+            "description": "模式按钮24x24图标",
+            "file": "baj/icon_mode_button_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_PROGRAM_BUTTON_ICON",
+            "description": "程序按钮24x24图标",
+            "file": "baj/icon_program_button_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_RETURN_BUTTON_24X24_ICON",
+            "description": "24x24返回按钮图标",
+            "file": "baj/icon_return_button_min_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_BATTERY_ICON",
+            "description": "电池电量图标",
+            "file": "baj/icon_battery_28x15_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_BATTERY_WARNING_ICON",
+            "description": "电池警告图标",
+            "file": "baj/icon_battery_warning_28x15_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_CHARGE_PAGE_ICON",
+            "description": "充电页面图标",
+            "file": "baj/icon_charge_page_25x30_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_POWER_ECO_ICON",
+            "description": "电源节能图标",
+            "file": "baj/icon_power_eco_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_BATTERY_LOW_POWER_ICON",
+            "description": "电池低电量图标",
+            "file": "baj/icon_battery_low_power_90x48_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_COMMON_BG",
+            "description": "通用背景",
+            "file": "png/bg_common_ui.png",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_START_LOGO_ICON",
+            "description": "启动LOGO",
+            "file": "baj/icon_logo_start_232x31_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_HOME_WIDTH_LABLE",
+            "description": "主页宽标签",
+            "file": "baj/label_home_width_280x152_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_HOME_BIG_LABLE",
+            "description": "主页大标签",
+            "file": "baj/label_home_big_280x172_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_HOME_NARROW_LABLE",
+            "description": "主页窄标签",
+            "file": "baj/label_home_narrow_280x128_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON",
+            "description": "飞行界面解锁按钮图标",
+            "file": "baj/icon_travel_unlock_160x56_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_LABLE",
+            "description": "引导标签",
+            "file": "baj/label_guide_280x128_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_IP_THEME_IMG",
+            "description": "IP主题引导图片",
+            "file": "png/page_ip_theme.png",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_THEME_SELECT_ICON",
+            "description": "主题选择引导图标",
+            "file": "baj/icon_theme_select_28x28_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_THEME_UNSELECT_ICON",
+            "description": "主题未选择引导图标",
+            "file": "baj/icon_theme_unselect_28x28_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_BUTTON_BG",
+            "description": "引导按钮背景",
+            "file": "png/bg_guide_button.png",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_KNOB_BG",
+            "description": "引导旋钮背景",
+            "file": "png/bg_guide_knob.png",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_LEFT_BUTTON_ICON",
+            "description": "引导-左按钮图片",
+            "file": "baj/icon_guide_left_button_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_RIGHT_BUTTON_ICON",
+            "description": "引导-右按钮图片",
+            "file": "baj/icon_guide_right_button_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_START_BUTTON_ICON",
+            "description": "引导-开始按钮图标",
+            "file": "baj/icon_guide_start_button_28x28_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_START_BUTTON_MIN_ICON",
+            "description": "引导-开始按钮小图标",
+            "file": "baj/icon_guide_start_button_min_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_ICON",
+            "description": "引导-返回按钮图标",
+            "file": "baj/icon_guide_return_button_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_BG",
+            "description": "引导背景",
+            "file": "png/bg_guide_ui.png",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_ANIM_BG",
+            "description": "引导动画背景",
+            "file": "png/bg_guide_anim_ui.png",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_PUMP_LEVEL_BIG_BG",
+            "description": "泵奶力度大背景",
+            "file": "baj/bg_pump_level_big_44x44_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_PUMP_LEVEL_BG",
+            "description": "泵奶力度背景",
+            "file": "baj/bg_pump_level_40x40_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_PUMP_LEVEL_BIG_INDICATOR",
+            "description": "泵奶力度大指示符",
+            "file": "baj/Indicator_pump_level_big_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_PUMP_LEVEL_INDICATOR",
+            "description": "泵奶力度指示符",
+            "file": "baj/Indicator_pump_level_16x16_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_PUMP_RHYTHM_ICON",
+            "description": "泵奶节奏图标",
+            "file": "baj/icon_pump_rhythm_32x32_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_PUMP_RHYTHM_WHITE_ICON",
+            "description": "泵奶节奏白色图标",
+            "file": "baj/icon_pump_rhythm_white_32x32_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_PUMP_RELAX_ICON",
+            "description": "泵奶放松图标",
+            "file": "baj/icon_pump_relax_64x64_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_HOME_IDLE_IP",
+            "description": "首页空闲IP图标",
+            "file": "png/ip_home_idle.png",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_PUMP_FINISH_IP",
+            "description": "泵奶完成IP图标",
+            "file": "baj/ip_pump_finish_160x160_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_CHARGE_ADAPTER_IP",
+            "description": "充电适配器错误IP图标",
+            "file": "baj/ip_charge_error_168x168_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_GUIDE_IP",
+            "description": "引导IP图标",
+            "file": "baj/ip_guide_160x130_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        }
+    ]
 }
