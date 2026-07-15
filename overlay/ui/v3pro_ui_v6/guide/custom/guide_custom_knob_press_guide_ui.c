@@ -12,14 +12,12 @@
 *****************************************************************************************
 */
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
-#define GUIDE_KNOB_PRESS_GUIDE_TITLE_COLOR         (0x00FF00)
 #define GUIDE_KNOB_PRESS_GUIDE_HINT_COLOR          (0x00FF00)
 #else
-#define GUIDE_KNOB_PRESS_GUIDE_TITLE_COLOR         (0xBD4060)
 #define GUIDE_KNOB_PRESS_GUIDE_HINT_COLOR          (0xCA5C77)
 #endif
-#define GUIDE_KNOB_PRESS_GUIDE_TITLE_Y             (54)
-#define GUIDE_KNOB_PRESS_GUIDE_HINT_Y              (90)
+#define GUIDE_KNOB_PRESS_GUIDE_HINT_Y              (68)
+#define GUIDE_KNOB_PRESS_GUIDE_HINT_LINE_SPACE     (4)
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -35,18 +33,6 @@ static void guide_knob_press_guide_bg_create(guide_custom_ui_info_t *info)
     lv_obj_align(info->knob_press_guide.bg, LV_ALIGN_CENTER, 0, 0);
 }
 
-static void guide_knob_press_guide_title_create(guide_custom_ui_info_t *info)
-{
-    info->knob_press_guide.title = lv_label_create(guide_custom_page_parent_get(info));
-    EXCEPTION_CHECK_VOID(info->knob_press_guide.title);
-    lv_obj_set_style_text_color(info->knob_press_guide.title,
-        lv_color_hex(GUIDE_KNOB_PRESS_GUIDE_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->knob_press_guide.title, &lv_font_aeonik_soft_24_semibold, 0);
-    lv_obj_set_style_text_align(info->knob_press_guide.title, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->knob_press_guide.title, "Display");
-    lv_obj_align(info->knob_press_guide.title, LV_ALIGN_TOP_MID, 0, GUIDE_KNOB_PRESS_GUIDE_TITLE_Y);
-}
-
 static void guide_knob_press_guide_hint_create(guide_custom_ui_info_t *info)
 {
     info->knob_press_guide.hint = lv_label_create(guide_custom_page_parent_get(info));
@@ -55,7 +41,8 @@ static void guide_knob_press_guide_hint_create(guide_custom_ui_info_t *info)
         lv_color_hex(GUIDE_KNOB_PRESS_GUIDE_HINT_COLOR), 0);
     lv_obj_set_style_text_font(info->knob_press_guide.hint, &lv_font_aeonik_soft_20_medium, 0);
     lv_obj_set_style_text_align(info->knob_press_guide.hint, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->knob_press_guide.hint, "Press the knob for the next page");
+    lv_label_set_text(info->knob_press_guide.hint, "Can press the knob\nfor the next page");
+    lv_obj_set_style_text_line_space(info->knob_press_guide.hint, GUIDE_KNOB_PRESS_GUIDE_HINT_LINE_SPACE, 0);
     lv_obj_align(info->knob_press_guide.hint, LV_ALIGN_TOP_MID, 0, GUIDE_KNOB_PRESS_GUIDE_HINT_Y);
 }
 
@@ -75,6 +62,5 @@ void guide_custom_knob_press_guide_ui_build(guide_custom_ui_info_t *info)
 #if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
     guide_knob_press_guide_bg_create(info);
 #endif
-    guide_knob_press_guide_title_create(info);
     guide_knob_press_guide_hint_create(info);
 }

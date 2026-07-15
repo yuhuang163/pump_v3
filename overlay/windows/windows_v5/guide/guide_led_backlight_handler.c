@@ -229,12 +229,15 @@ void guide_led_backlight_update(ui_proc_guide_t *proc)
         case GUIDE_PAGE_KEY_GUIDE:
             guide_led_backlight_key_guide_update(proc);
             break;
-        case GUIDE_PAGE_KNOB_PRESS_GUIDE:
         case GUIDE_PAGE_KNOB_GUIDE:
             guide_led_backlight_return_only(proc);
             break;
         case GUIDE_PAGE_FUNCTION_HOME:
             guide_led_backlight_intro_update(proc);
+            break;
+        case GUIDE_PAGE_KNOB_PRESS_GUIDE:
+            /// 旋钮按下引导页仅点亮返回按键灯
+            guide_led_backlight_return_only(proc);
             break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
         case GUIDE_PAGE_LEVEL_BOTH:

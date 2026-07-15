@@ -99,9 +99,9 @@ typedef enum {
     GUIDE_PAGE_WELCOME_ANIM = 0,        /// 1. 引导动画
     GUIDE_PAGE_INTRO = 1,               /// 2. 引导简介
     GUIDE_PAGE_KEY_GUIDE = 2,           /// 3. 按键引导
-    GUIDE_PAGE_KNOB_PRESS_GUIDE = 3,    /// 4. 旋钮按下引导
-    GUIDE_PAGE_KNOB_GUIDE = 4,          /// 5. 旋钮旋转引导
-    GUIDE_PAGE_FUNCTION_HOME = 5,       /// 6. 功能引导首页
+    GUIDE_PAGE_KNOB_GUIDE = 3,          /// 4. 旋钮旋转引导
+    GUIDE_PAGE_FUNCTION_HOME = 4,       /// 5. 功能引导首页
+    GUIDE_PAGE_KNOB_PRESS_GUIDE = 5,    /// 6. 旋钮按下引导
     GUIDE_PAGE_LEVEL_BOTH_GUIDE = 6,    /// 7. 双边力度调节引导
     GUIDE_PAGE_LEVEL_BOTH = 7,          /// 8. 双边力度调节
     GUIDE_PAGE_LEVEL_LEFT_GUIDE = 8,    /// 9. 左边力度调节引导
@@ -135,7 +135,7 @@ typedef enum {
     ((page) == GUIDE_PAGE_LEVEL_LEFT || (page) == GUIDE_PAGE_LEVEL_RIGHT)
 #define GUIDE_PAGE_IS_GUIDE_STEP(page)        \
     ((page) == GUIDE_PAGE_INTRO || (page) == GUIDE_PAGE_KEY_GUIDE || \
-     (page) == GUIDE_PAGE_KNOB_PRESS_GUIDE || (page) == GUIDE_PAGE_KNOB_GUIDE || \
+     (page) == GUIDE_PAGE_KNOB_GUIDE || (page) == GUIDE_PAGE_KNOB_PRESS_GUIDE || \
      (page) == GUIDE_PAGE_LEVEL_BOTH_GUIDE || \
      (page) == GUIDE_PAGE_LEVEL_LEFT_GUIDE || (page) == GUIDE_PAGE_LEVEL_RIGHT_GUIDE || \
      (page) == GUIDE_PAGE_MODE_SELECT_GUIDE || (page) == GUIDE_PAGE_RHYTHM_SELECT_GUIDE || \
