@@ -119,7 +119,10 @@ static void factory_reset_cb(hdr_post_args_t *args)
     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight_adaptive_dimming_switch) {
         proc->led->hook->set_key_backlight_adaptive_dimming_switch(proc->led, 0);
     }
-    factory_reset_confirm_led_restore(proc);
+    /// 勿调用 factory_reset_confirm_led_restore：会先点亮 PUMP_FREQ_SET_BL(Return) 再关，造成闪一下
+    if (proc->led) {
+        proc->led->set_led_level(PUMP_FREQ_SET_BL, 0);
+    }
     factory_reset_led_blink_policy(proc);
     start_factory_reset_ui_animation(proc);
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
