@@ -64,7 +64,8 @@ void pump_finish_manual_popup_dismiss(ui_proc_pump_t *proc)
 void pump_cancel_key_down_handler(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL || 
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT) {
         return;
     }
 
@@ -101,6 +102,7 @@ void pump_cancel_key_up_handler(ui_proc_pump_t *proc)
     if (proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
         return;
     }
+    
     if (!proc->finish_manual_holding) {
         return;
     }

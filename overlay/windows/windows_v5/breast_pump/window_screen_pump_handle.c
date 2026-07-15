@@ -181,6 +181,9 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
                     proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
                     proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
                     pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_TIMEOUT);
+                    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+                        proc->led->hook->set_key_backlight(proc->led, 0);
+                    }
                     LOG_WM("pump timeout, post pump finish timeout task.");
                 }
             } else if (state == BREAST_PUMP_BROADCAST_APP_COMPLETED) {
@@ -260,7 +263,17 @@ static void on_pump_window_battery_state_change_cb(void *user_data, battery_stat
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
             pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR);
+            if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+                proc->led->hook->set_key_backlight(proc->led, 0);
+            }
             return;
+        }
+    } else {
+        if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR) {
+            if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+                proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+            }
+            pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         }
     }
 
