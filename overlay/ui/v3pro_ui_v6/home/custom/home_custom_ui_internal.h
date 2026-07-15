@@ -19,6 +19,8 @@ extern "C" {
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_HOME_CUSTOM_MODE_CMP         (0)
+
 #if HOME_MODE_SELECT_TRANSITION_ENABLE
 
 #if HOME_MODE_SELECT_CAPSULE_ENABLE

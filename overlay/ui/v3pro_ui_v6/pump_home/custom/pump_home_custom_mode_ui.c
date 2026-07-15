@@ -56,7 +56,8 @@
 #define PUMP_HOME_SELECT_ANIM_TIME_MS                (300)
 #define PUMP_HOME_SELECT_ENTER_Y_OFFSET              (8)
 
-#define PUMP_HOME_SELECT_TITLE_Y                     (82)
+#define PUMP_HOME_SELECT_TITLE_ACTIVE_Y              (82)
+#define PUMP_HOME_SELECT_TITLE_INACTIVE_Y            (84)
 #define PUMP_HOME_SELECT_TITLE_GAP                   (24)
 #define PUMP_HOME_SELECT_CAROUSEL_SIDE_COLOR         (0xE89AAB)
 #define PUMP_HOME_SELECT_SLOT_PREV                   0
@@ -474,8 +475,12 @@ static void pump_home_mode_select_title_style_apply(lv_obj_t *label, bool active
 
     lv_obj_set_style_text_color(label, lv_color_hex(active ?
         PUMP_HOME_MODE_TITLE_COLOR : PUMP_HOME_SELECT_CAROUSEL_SIDE_COLOR), 0);
-    lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    if (active) {
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
+    } else {
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_22_semibold, 0);
+    }
 }
 
 static lv_coord_t pump_home_mode_select_title_half_width_get(lv_obj_t *label)
@@ -509,7 +514,6 @@ static lv_coord_t pump_home_mode_select_carousel_step_get(pump_home_custom_ui_in
 static void pump_home_mode_select_carousel_realign(pump_home_custom_ui_info_t *info)
 {
     const lv_coord_t slide = info->mode.select_title_slide_offset;
-    const lv_coord_t title_y = PUMP_HOME_SELECT_TITLE_Y + info->mode.select_title_y_offset;
     lv_obj_t *labels[3] = {
         info->mode.select_titles[PUMP_HOME_SELECT_SLOT_PREV],
         info->mode.select_titles[PUMP_HOME_SELECT_SLOT_CUR],
@@ -535,6 +539,9 @@ static void pump_home_mode_select_carousel_realign(pump_home_custom_ui_info_t *i
         if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
             continue;
         }
+        const lv_coord_t title_y = ((i == PUMP_HOME_SELECT_SLOT_CUR) ?
+            PUMP_HOME_SELECT_TITLE_ACTIVE_Y : PUMP_HOME_SELECT_TITLE_INACTIVE_Y) +
+            info->mode.select_title_y_offset;
         lv_obj_align(labels[i], LV_ALIGN_TOP_MID, x_pos[i] - center_x, title_y);
     }
 }
@@ -669,7 +676,7 @@ static void pump_home_mode_select_carousel_enter(pump_home_custom_ui_info_t *inf
 {
     pump_home_mode_select_carousel_slide_stop(info);
 
-    const int16_t title_y_from = (int16_t)(PUMP_HOME_MODE_TITLE_Y - PUMP_HOME_SELECT_TITLE_Y);
+    const int16_t title_y_from = (int16_t)(PUMP_HOME_MODE_TITLE_Y - PUMP_HOME_SELECT_TITLE_ACTIVE_Y);
     if (!anim || info->force_update) {
         info->mode.select_title_y_offset = 0;
     } else {

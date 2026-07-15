@@ -12,29 +12,31 @@ extern "C" {
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
-#include "ble_ui.h" // IWYU pragma: keep
 #include "window_screen_guide.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_CUSTOM_GUIDE_COMP_BG            (0)
+#define GUIDE_PAGE_INDEX_INVALID                   (0xFF)
+
+#define IS_SUPPORT_CUSTOM_GUIDE_LABEL_TEXT_CMP     (0) /// 支持label文本对比
+#if IS_SUPPORT_CUSTOM_GUIDE_LABEL_TEXT_CMP
+#define GUIDE_CUSTOM_LABEL_CARD_TEXT_COLOR         (0x00FF00)
+#else
+#define GUIDE_CUSTOM_LABEL_CARD_TEXT_COLOR         (0xA0183B)
+#endif
+
+#define CUSTOM_GUIDE_ANIM_NUM \
+    (CUSTOM_RES_ID_GUIDE_IP_END - CUSTOM_RES_ID_GUIDE_IP_START + 1)
+
 typedef enum {
     GUIDE_CUSTOM_LEVEL_DISPLAY_DEFAULT = 0,
     GUIDE_CUSTOM_LEVEL_DISPLAY_LEFT_ADJUST,
     GUIDE_CUSTOM_LEVEL_DISPLAY_RIGHT_ADJUST,
     GUIDE_CUSTOM_LEVEL_DISPLAY_BOTH_ADJUST,
 } guide_custom_level_display_type_e;
-
-typedef enum {
-    GUIDE_CUSTOM_TEXT_DOUBLE_ADJUST = GUIDE_PAGE_PUMP_LEVEL_DOUBLE_ADJUST,
-    GUIDE_CUSTOM_TEXT_SINGLE_SELECT = GUIDE_PAGE_PUMP_LEVEL_SINGLE_SELECT,
-    GUIDE_CUSTOM_TEXT_LEFT_ADJUST = GUIDE_PAGE_PUMP_LEVEL_LEFT_ADJUST,
-    GUIDE_CUSTOM_TEXT_RIGHT_ADJUST = GUIDE_PAGE_PUMP_LEVEL_RIGHT_ADJUST,
-    GUIDE_CUSTOM_TEXT_MODE_SELECT = GUIDE_PAGE_PUMP_MODE_SELECT,
-    GUIDE_CUSTOM_TEXT_MODE_UNSELECT = GUIDE_PAGE_PUMP_MODE_UNSELECT,
-    GUIDE_CUSTOM_TEXT_MAX = GUIDE_PAGE_MAX,
-} guide_custom_text_id_e;
 
 typedef struct {
     lv_obj_t *arc;
@@ -61,23 +63,127 @@ typedef struct {
     lv_obj_t *exit_text;
     lv_obj_t *return_icon;
     lv_obj_t *button[2];
+    lv_obj_t *icon;
     uint8_t page_index;
     uint8_t force_update;
     uint8_t text_id;
     uint16_t button_img_id[2];
+    uint16_t icon_img_id;
 } guide_custom_label_info_t;
 
 typedef struct {
-    lv_obj_t *root;
-    lv_obj_t *background;
+    lv_obj_t *bg;
+    lv_obj_t *title;
+    lv_obj_t *hint;
+    lv_obj_t *start_icon;
+} guide_custom_intro_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *title;
+    lv_obj_t *hint;
+    lv_obj_t *icon;
+} guide_custom_key_guide_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *title;
+    lv_obj_t *hint;
+    lv_obj_t *icon;
+} guide_custom_knob_guide_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *title;
+    lv_obj_t *desc;
+    lv_obj_t *hint;
+    lv_obj_t *start_icon;
+} guide_custom_function_home_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *step;
+    lv_obj_t *title;
+    lv_obj_t *card;
+    lv_obj_t *text;
+    lv_obj_t *button_icon;
+    uint8_t page_index;
+} guide_custom_level_guide_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *select_titles[3];
+    uint8_t shown_mode_index;
+    uint16_t shown_label_res_id;
+} guide_custom_mode_select_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *time;
+    lv_obj_t *select_titles[3];
+    uint8_t shown_mode_index;
+    uint16_t shown_label_res_id;
+    char shown_time_text[16];
+} guide_custom_rhythm_select_info_t;
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *frame;
+    lv_obj_t *text;
+    res_img_info_t frame_info;
+    uint16_t shown_frame_res_id;
+} guide_custom_animation_info_t;
+
+#define GUIDE_CUSTOM_FINISH_IP_X                        (0)
+#define GUIDE_CUSTOM_FINISH_IP_Y                        (76)
+#define GUIDE_CUSTOM_FINISH_TITLE_Y                     (252)
+
+typedef struct {
+    lv_obj_t *bg;
+    lv_obj_t *title;
+} guide_custom_finish_info_t;
+
+typedef struct {
     lv_obj_t *ip;
+} guide_custom_ip_info_t;
+
+typedef struct {
+    lv_obj_t *layer;
+    lv_obj_t *bg;
+} guide_custom_level_theme_t;
+
+typedef struct {
+    lv_obj_t *root;
+    lv_obj_t *comp_bg;
+    lv_obj_t *page;
+    guide_custom_level_theme_t level_theme;
+    guide_custom_ip_info_t ip;
+    guide_custom_animation_info_t animation;
+    guide_custom_intro_info_t intro;
+    guide_custom_key_guide_info_t key_guide;
+    guide_custom_knob_guide_info_t knob_guide;
+    guide_custom_function_home_info_t function_home;
+    guide_custom_level_guide_info_t level_guide;
+    guide_custom_mode_select_info_t mode_select;
+    guide_custom_rhythm_select_info_t rhythm_select;
+    guide_custom_finish_info_t finish;
     guide_custom_level_info_t level;
     guide_custom_label_info_t label;
     ui_manager_context_t *ui;
     uint8_t force_update;
     uint8_t page_index;
+    uint8_t shown_page_index;
+    uint8_t popup_ui_index;
     guide_custom_level_display_type_e level_display_type;
 } guide_custom_ui_info_t;
+
+static inline lv_obj_t *guide_custom_page_parent_get(const guide_custom_ui_info_t *info)
+{
+    if (info != NULL && info->page != NULL && lv_obj_is_valid(info->page)) {
+        return info->page;
+    }
+    return info != NULL ? info->root : NULL;
+}
 
 /*
 * GLOBAL FUNCTION DECLARATIONS
@@ -85,13 +191,71 @@ typedef struct {
 */
 guide_custom_ui_info_t *guide_custom_info_get(void);
 
+bool guide_custom_level_theme_page_is(uint8_t page_index);
+bool guide_custom_level_theme_is_active(const guide_custom_ui_info_t *info);
+void guide_custom_level_theme_ensure(guide_custom_ui_info_t *info);
+void guide_custom_level_theme_remove(guide_custom_ui_info_t *info);
+lv_obj_t *guide_custom_level_theme_parent_get(const guide_custom_ui_info_t *info);
+
 void guide_custom_blink_state_update(guide_custom_ui_info_t *info, uint8_t page_index);
 
+void guide_custom_pump_animation_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_pump_animation_ui_build(guide_custom_ui_info_t *info);
+void guide_custom_pump_animation_ui_update(guide_custom_ui_info_t *info, uint16_t frame_index);
+
+void guide_custom_intro_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_intro_ui_build(guide_custom_ui_info_t *info);
+
+void guide_custom_key_guide_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_key_guide_ui_build(guide_custom_ui_info_t *info);
+
+void guide_custom_knob_guide_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_knob_guide_ui_build(guide_custom_ui_info_t *info);
+
+void guide_custom_function_home_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_function_home_ui_build(guide_custom_ui_info_t *info);
+
+void guide_custom_label_step_header_create(guide_custom_ui_info_t *info, lv_obj_t **step, lv_obj_t **title,
+    const char *step_text, const char *title_text);
+void guide_custom_label_level_header_create(guide_custom_ui_info_t *info, lv_obj_t **step, lv_obj_t **title);
+void guide_custom_label_instruction_card_create(guide_custom_ui_info_t *info, lv_obj_t **card,
+    uint16_t res_id, int16_t x, int16_t y);
+void guide_custom_label_instruction_text_create(guide_custom_ui_info_t *info, lv_obj_t **text,
+    const char *content, int16_t y, uint8_t line_space);
+void guide_custom_label_inline_icon_create(guide_custom_ui_info_t *info, lv_obj_t **icon,
+    uint16_t res_id, int16_t x, int16_t y);
+
+void guide_custom_level_guide_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_level_guide_ui_build(guide_custom_ui_info_t *info, uint8_t page_index);
+void guide_custom_mode_select_guide_ui_build(guide_custom_ui_info_t *info);
+void guide_custom_rhythm_select_guide_ui_build(guide_custom_ui_info_t *info);
+void guide_custom_pump_start_guide_ui_build(guide_custom_ui_info_t *info);
+void guide_custom_pump_stop_guide_ui_build(guide_custom_ui_info_t *info);
+
+void guide_custom_mode_select_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_mode_select_ui_build(guide_custom_ui_info_t *info);
+void guide_custom_mode_select_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc);
+
+void guide_custom_rhythm_select_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_rhythm_select_ui_build(guide_custom_ui_info_t *info);
+void guide_custom_rhythm_select_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc);
+
 void guide_custom_pump_level_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_pump_level_ui_build(guide_custom_ui_info_t *info);
 void guide_custom_pump_level_ui_update(guide_custom_ui_info_t *info, bool blink_visible);
 
+void guide_custom_ip_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_ip_ui_on_page_reset(guide_custom_ui_info_t *info);
+void guide_custom_ip_ui_update(guide_custom_ui_info_t *info, uint8_t page_index);
+
 void guide_custom_pump_label_ui_remove(guide_custom_ui_info_t *info);
-void guide_custom_pump_label_ui_update(guide_custom_ui_info_t *info, uint8_t page_index);
+void guide_custom_pump_label_ui_build(guide_custom_ui_info_t *info, uint8_t page_index);
+
+void guide_custom_finish_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_finish_ui_build(guide_custom_ui_info_t *info);
+
+void guide_custom_page_ui_remove(guide_custom_ui_info_t *info);
+void guide_custom_page_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc, uint16_t frame_index);
 
 void guide_custom_ui_prepare(ui_manager_context_t *thiz);
 void guide_custom_ui_remove(ui_manager_context_t *thiz);

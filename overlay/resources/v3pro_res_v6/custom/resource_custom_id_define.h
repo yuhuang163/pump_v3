@@ -44,16 +44,19 @@ typedef enum {
     CUSTOM_RES_ID_GUIDE_LABLE, /// 引导标签
 
     /* 引导组 [10150..10200] */
-    CUSTOM_RES_ID_GUIDE_PAGE1_IMG = 10150, /// 引导-页1图片
-    CUSTOM_RES_ID_GUIDE_PAGE2_IMG, /// 引导-页2图片
-    CUSTOM_RES_ID_GUIDE_PAGE3_IMG, /// 引导-页3图片
-    CUSTOM_RES_ID_GUIDE_PAGE4_IMG, /// 引导-页4图片
-    CUSTOM_RES_ID_GUIDE_PAGE5_IMG, /// 引导-页5图片
-    CUSTOM_RES_ID_GUIDE_PAGE6_IMG, /// 引导-页6图片
-    CUSTOM_RES_ID_SYS_THEME_IMG, /// 系统主题引导背景
+    CUSTOM_RES_ID_SYS_THEME_IMG  = 10150, /// 系统主题引导背景
     CUSTOM_RES_ID_IP_THEME_IMG, /// IP主题引导背景
     CUSTOM_RES_ID_THEME_SELECT_ICON, /// 主题选择引导图标
     CUSTOM_RES_ID_THEME_UNSELECT_ICON, /// 主题未选择引导图标
+    CUSTOM_RES_ID_GUIDE_BUTTON_BG, /// 引导按钮背景
+    CUSTOM_RES_ID_GUIDE_KNOB_BG, /// 引导旋钮背景
+    CUSTOM_RES_ID_GUIDE_LEFT_BUTTON_ICON, /// 引导-左按钮图片
+    CUSTOM_RES_ID_GUIDE_RIGHT_BUTTON_ICON, /// 引导-右按钮图片
+    CUSTOM_RES_ID_GUIDE_START_BUTTON_ICON, /// 引导-开始按钮图标
+    CUSTOM_RES_ID_GUIDE_START_BUTTON_MIN_ICON, /// 引导-开始按钮小图标
+    CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_ICON, /// 引导-返回按钮图标
+    CUSTOM_RES_ID_GUIDE_BG, /// 引导背景
+    CUSTOM_RES_ID_GUIDE_ANIM_BG, /// 引导动画背景
 
     /* 模式相关组 [10200..10300]（大图 + 小图标） */
     CUSTOM_RES_ID_PUMP_LEVEL_SEPARATOR = 10200, /// 泵奶力度分割符
@@ -80,6 +83,8 @@ typedef enum {
     CUSTOM_RES_ID_SUCTION_ANIM_IP_END = 11326, /// 吸奶动画-结束
     CUSTOM_RES_ID_HD_ANIM_IP_START = 11500, /// 首页默认动画-开始
     CUSTOM_RES_ID_HD_ANIM_IP_END = 11619, /// 首页默认动画-结束
+    CUSTOM_RES_ID_GUIDE_IP_START = 11700, /// 引导IP图标-开始
+    CUSTOM_RES_ID_GUIDE_IP_END = 11768, /// 引导IP图标-结束
 
     CUSTOM_RES_ID_TYPE_MAX
 } custom_res_id_type_e;

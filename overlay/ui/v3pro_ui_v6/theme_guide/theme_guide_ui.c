@@ -25,13 +25,25 @@
 #define THEME_GUIDE_DESC_COLOR                          (0xCD6F87)
 #define THEME_GUIDE_LABEL_SELECTED_COLOR                (0xBD4060)
 #define THEME_GUIDE_LABEL_UNSELECTED_COLOR              (0xB99BA3)
+#define THEME_GUIDE_RING_COLOR                          (0xBD4060)
 
 #define THEME_GUIDE_TITLE_Y                             (51)
 #define THEME_GUIDE_DESC_Y                              (87)
 
+#define THEME_GUIDE_PREVIEW_SIZE                        (140)
 #define THEME_GUIDE_PREVIEW_Y                           (126)
 #define THEME_GUIDE_PREVIEW_LEFT_X                      (32)
 #define THEME_GUIDE_PREVIEW_RIGHT_X                     (188)
+
+#define THEME_GUIDE_RING_SIZE                           (148)
+#define THEME_GUIDE_RING_LINE_WIDTH                     (2)
+#define THEME_GUIDE_RING_OFFSET                         ((THEME_GUIDE_RING_SIZE - THEME_GUIDE_PREVIEW_SIZE) / 2)
+#define THEME_GUIDE_RING_Y                              (THEME_GUIDE_PREVIEW_Y - THEME_GUIDE_RING_OFFSET)
+#define THEME_GUIDE_RING_LEFT_X                         (THEME_GUIDE_PREVIEW_LEFT_X - THEME_GUIDE_RING_OFFSET)
+#define THEME_GUIDE_RING_RIGHT_X                        (THEME_GUIDE_PREVIEW_RIGHT_X - THEME_GUIDE_RING_OFFSET)
+
+#define THEME_GUIDE_CONFIRM_ICON_X                      (144)
+#define THEME_GUIDE_CONFIRM_ICON_Y                      (80)
 
 #define THEME_GUIDE_RADIO_Y                             (282)
 #define THEME_GUIDE_RADIO_LEFT_X                        (57)
@@ -42,7 +54,7 @@
 #define THEME_GUIDE_LABEL_Y                             (289)
 
 #define THEME_GUIDE_DESC_SELECT_TEXT                    "Turn the knob to select style"
-#define THEME_GUIDE_DESC_CONFIRM_TEXT                   "Press the knob to confirm"
+#define THEME_GUIDE_DESC_CONFIRM_TEXT                   "Press          to confirm"
 
 typedef struct {
     const char *text;
@@ -57,14 +69,16 @@ typedef struct {
     lv_obj_t *background;
     lv_obj_t *title;
     lv_obj_t *desc;
+    lv_obj_t *confirm_icon;
     lv_obj_t *preview[THEME_GUIDE_OPTION_NUM];
+    lv_obj_t *select_ring;
     lv_obj_t *radio[THEME_GUIDE_OPTION_NUM];
     lv_obj_t *label[THEME_GUIDE_OPTION_NUM];
     uint8_t selected_index;
     uint8_t is_operated;
     uint8_t force_update;
     uint8_t popup_ui_index;
-    uint8_t rsv[13];
+    uint8_t rsv[11];
 } theme_guide_ui_info_t;
 
 /*
@@ -187,7 +201,25 @@ static void theme_guide_title_update(void)
     theme_guide_label_update(&theme_info->title, &theme_guide_title_cfg);
 }
 
-static void theme_guide_desc_update(void)
+static void theme_guide_confirm_icon_update(ui_manager_context_t *thiz)
+{
+    if (theme_info->confirm_icon == NULL || !lv_obj_is_valid(theme_info->confirm_icon)) {
+        theme_info->confirm_icon = lv_image_create(theme_info->root);
+        EXCEPTION_CHECK_VOID(theme_info->confirm_icon);
+        ui_img_baj_theme_set_src(thiz, theme_info->confirm_icon, BASE_RES_ID_GUIDE_START_BUTTON_ICON,
+            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+        lv_obj_align(theme_info->confirm_icon, LV_ALIGN_TOP_LEFT,
+            THEME_GUIDE_CONFIRM_ICON_X, THEME_GUIDE_CONFIRM_ICON_Y);
+    }
+
+    if (theme_info->is_operated) {
+        lv_obj_clear_flag(theme_info->confirm_icon, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(theme_info->confirm_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void theme_guide_desc_update(ui_manager_context_t *thiz)
 {
     static uint8_t last_is_operated = 0xFF;
     const char *desc_text = theme_info->is_operated ?
@@ -205,6 +237,31 @@ static void theme_guide_desc_update(void)
     }
     last_is_operated = theme_info->is_operated;
     theme_guide_label_update(&theme_info->desc, &desc_cfg);
+    theme_guide_confirm_icon_update(thiz);
+}
+
+static void theme_guide_select_ring_update(void)
+{
+    const int16_t ring_x[THEME_GUIDE_OPTION_NUM] = {
+        THEME_GUIDE_RING_LEFT_X,
+        THEME_GUIDE_RING_RIGHT_X,
+    };
+
+    if (theme_info->select_ring == NULL || !lv_obj_is_valid(theme_info->select_ring)) {
+        theme_info->select_ring = lv_obj_create(theme_info->root);
+        EXCEPTION_CHECK_VOID(theme_info->select_ring);
+        lv_obj_remove_style_all(theme_info->select_ring);
+        lv_obj_set_size(theme_info->select_ring, THEME_GUIDE_RING_SIZE, THEME_GUIDE_RING_SIZE);
+        lv_obj_set_style_radius(theme_info->select_ring, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(theme_info->select_ring, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_color(theme_info->select_ring, lv_color_hex(THEME_GUIDE_RING_COLOR), 0);
+        lv_obj_set_style_border_width(theme_info->select_ring, THEME_GUIDE_RING_LINE_WIDTH, 0);
+        lv_obj_set_style_border_opa(theme_info->select_ring, LV_OPA_COVER, 0);
+        lv_obj_clear_flag(theme_info->select_ring, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    }
+
+    lv_obj_align(theme_info->select_ring, LV_ALIGN_TOP_LEFT,
+        ring_x[theme_info->selected_index], THEME_GUIDE_RING_Y);
 }
 
 static void theme_guide_preview_update(ui_manager_context_t *thiz)
@@ -223,9 +280,9 @@ static void theme_guide_preview_update(ui_manager_context_t *thiz)
             theme_info->preview[i] = lv_image_create(theme_info->root);
             EXCEPTION_CHECK_VOID(theme_info->preview[i]);
         }
-        
-        ui_img_baj_theme_set_src(thiz, theme_info->preview[i], theme_guide_preview_res_ids[i],
-            theme_guide_preview_theme_types[i], UI_IMG_BAJ_DECODE_RGBA8888);
+
+        ui_img_png_theme_set_src(thiz, theme_info->preview[i], theme_guide_preview_res_ids[i],
+            theme_guide_preview_theme_types[i], UI_IMG_PNG_DECODE_RGBA8888);
         lv_obj_align(theme_info->preview[i], LV_ALIGN_TOP_LEFT, preview_x[i], THEME_GUIDE_PREVIEW_Y);
     }
 }
@@ -279,6 +336,7 @@ static void theme_guide_selection_update(ui_manager_context_t *thiz)
     }
     last_selected_index = theme_info->selected_index;
 
+    theme_guide_select_ring_update();
     for (uint8_t i = 0; i < THEME_GUIDE_OPTION_NUM; i++) {
         theme_guide_radio_update(thiz, i);
     }
@@ -306,9 +364,10 @@ void ui_display_theme_guide_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && theme_info && theme_info->root);
     for (uint8_t i = 0; i < THEME_GUIDE_OPTION_NUM; i++) {
-        ui_img_baj_release_decoded_buf(theme_info->preview[i]);
+        ui_img_png_release_decoded_buf(theme_info->preview[i]);
         ui_img_baj_release_decoded_buf(theme_info->radio[i]);
     }
+    ui_img_baj_release_decoded_buf(theme_info->confirm_icon);
     ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(theme_info->root);
     u_free(theme_info);
@@ -335,7 +394,7 @@ int ui_display_theme_guide_process(ui_manager_context_t *thiz)
 
     theme_guide_bg_update(thiz);
     theme_guide_title_update();
-    theme_guide_desc_update();
+    theme_guide_desc_update(thiz);
     theme_guide_preview_update(thiz);
     theme_guide_selection_update(thiz);
     theme_info->force_update = false;

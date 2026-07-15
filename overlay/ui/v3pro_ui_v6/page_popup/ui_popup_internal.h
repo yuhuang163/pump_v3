@@ -122,6 +122,8 @@ void ui_popup_pump_pause_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
 void ui_popup_pump_finish_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void ui_popup_airplane_mode_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void ui_popup_factory_reset_confirm_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+void ui_popup_guide_exit_confirm_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+void ui_popup_guide_exit_countdown_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void ui_popup_operation_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void ui_popup_theme_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 

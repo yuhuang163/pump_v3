@@ -110,8 +110,8 @@ static void home_screen_saver_icon_prepare(ui_manager_context_t *thiz, int16_t y
         saver_info->saver_icon = lv_image_create(saver_info->root);
         EXCEPTION_CHECK_VOID(saver_info->saver_icon);
     }
-    ui_img_baj_theme_set_src(thiz, saver_info->saver_icon, CUSTOM_RES_ID_HOME_IDLE_IP,
-        RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
+    ui_img_png_theme_set_src(thiz, saver_info->saver_icon, CUSTOM_RES_ID_HOME_IDLE_IP,
+        RES_THEME_TYPE_CUSTOM, UI_IMG_PNG_DECODE_RGBA8888);
     lv_obj_align(saver_info->saver_icon, LV_ALIGN_TOP_MID,
         HOME_SCREEN_SAVER_ICON_X, HOME_SCREEN_SAVER_ICON_Y + y_offset);
 }
@@ -147,7 +147,7 @@ void home_screen_saver_custom_ui_prepare(ui_manager_context_t *thiz)
 void home_screen_saver_custom_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && saver_info);
-    ui_img_baj_release_decoded_buf(saver_info->saver_icon);
+    ui_img_png_release_decoded_buf(saver_info->saver_icon);
     ble_ui_deinit(thiz);
     battery_ui_deinit(thiz);
     LVGL_OBJ_DELETE(saver_info->root);

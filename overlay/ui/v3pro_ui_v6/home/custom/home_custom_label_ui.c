@@ -13,10 +13,9 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_LABEL_TEXT_CMP                   (0)
-#define IS_SUPPORT_LABEL_DESC_CMP                   (0)
 
-#if IS_SUPPORT_LABEL_DESC_CMP
-#define HOME_LABEL_DESC_INDEX                       HOME_UI_DISPLAY_MIXED_MODE_DESC
+#if IS_SUPPORT_HOME_CUSTOM_MODE_CMP
+#define HOME_LABEL_CMP_INDEX                        HOME_UI_DISPLAY_MILK_BOOST_DESC
 #endif
 
 #define IDLE_LABEL_X                                (44)
@@ -396,8 +395,8 @@ void home_custom_pump_label_ui_update(home_custom_ui_info_t *info)
         info->label.force_update = true;
     }
 
-    #if IS_SUPPORT_LABEL_DESC_CMP
-    info->label.type = HOME_LABEL_DESC_INDEX;
+    #if IS_SUPPORT_HOME_CUSTOM_MODE_CMP
+    info->label.type = HOME_LABEL_CMP_INDEX;
     #endif
     
     switch (info->label.type) {

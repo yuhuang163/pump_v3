@@ -5,6 +5,7 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
 #include "window_screen_guide.h" // IWYU pragma: keep
 #include "guide_base_ui_internal.h" // IWYU pragma: keep
 
@@ -12,227 +13,335 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_GUIDE_UI_TEST                     (0)
-
-#if IS_SUPPORT_GUIDE_UI_TEST
-#define GUIDE_TITLE_TEXT_COLOR                      (0x00FF00)
-#define GUIDE_CARD_TEXT_COLOR                       (0x00FF00)
-#define GUIDE_EXIT_TEXT_COLOR                       (0x00FF00)
+#define GUIDE_LEVEL_STEP_Y                          (54)
+#define GUIDE_LEVEL_TITLE_Y                         (86)
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
+#define GUIDE_LEVEL_STEP_COLOR                      (0x00FF00)
+#define GUIDE_LEVEL_TITLE_COLOR                     (0x00FF00)
 #else
-#define GUIDE_TITLE_TEXT_COLOR                      (0xBD4060)
-#define GUIDE_CARD_TEXT_COLOR                       (0xA0183B)
-#define GUIDE_EXIT_TEXT_COLOR                       (0xC87A8C)
+#define GUIDE_LEVEL_STEP_COLOR                      (0xCA5C77)
+#define GUIDE_LEVEL_TITLE_COLOR                     (0xBD4060)
 #endif
 
-#define GUIDE_TITLE_Y                               (68)
-#define GUIDE_LABEL_X                               (32)
-#define GUIDE_LABEL_Y                               (106)
-#define GUIDE_LABEL_TEXT_Y                          (156)
-#define GUIDE_EXIT_TEXT_Y                           (266)
-#define GUIDE_EXIT_ICON_X                           (165)
-#define GUIDE_EXIT_ICON_Y                           (262)
-#define GUIDE_MODE_BUTTON_X                         (130)
-#define GUIDE_PROGRAM_BUTTON_X                      (164)
-#define GUIDE_PLAN_BUTTON_Y                         (152)
+#define GUIDE_LEVEL_WIDE_LABEL_X                    (49)
+#if IS_SUPPORT_BASE_GUIDE_LABEL_TEXT_CMP
+#define GUIDE_LEVEL_WIDE_LABEL_Y                    (360)
+#else
+#define GUIDE_LEVEL_WIDE_LABEL_Y                    (125)
+#endif
+#define GUIDE_LEVEL_WIDE_LABEL_TEXT_Y               (177)
+
+#define GUIDE_LEVEL_NARROW_LABEL_X                  (36)
+#if IS_SUPPORT_BASE_GUIDE_LABEL_TEXT_CMP
+#define GUIDE_LEVEL_NARROW_LABEL_Y                  (360)
+#else
+#define GUIDE_LEVEL_NARROW_LABEL_Y                  (124)
+#endif
+#define GUIDE_LEVEL_NARROW_LABEL_TEXT_Y             (174)
+
+#define GUIDE_LEVEL_SIDE_BUTTON_ICON_X              (196)
+#define GUIDE_LEVEL_SIDE_BUTTON_ICON_Y              (170)
+
+#define GUIDE_MODE_SELECT_START_ICON_X              (153)
+#define GUIDE_MODE_SELECT_START_ICON_Y              (168)
+
+#define GUIDE_PUMP_START_GUIDE_ICON_X               (160)
+#define GUIDE_PUMP_START_GUIDE_ICON_Y               (168)
+
+#define GUIDE_PUMP_STOP_GUIDE_ICON_X                (144)
+#define GUIDE_PUMP_STOP_GUIDE_ICON_Y                (168)
 
 typedef struct {
     const char *text;
-    uint16_t y_offset;
+    uint16_t label_res_id;
+    int16_t label_x;
+    int16_t label_y;
+    int16_t text_y;
     uint8_t line_space;
-} guide_base_text_info_t;
+    uint16_t button_icon_res_id;
+} guide_level_guide_page_cfg_t;
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-const static guide_base_text_info_t guide_base_label_infos[GUIDE_PAGE_MAX] = {
-    [GUIDE_PAGE_PUMP_LEVEL_DOUBLE_ADJUST] =
-        {"Rotate the knob to adjust\nboth sides' level", GUIDE_LABEL_TEXT_Y, 4},
-    [GUIDE_PAGE_PUMP_LEVEL_SINGLE_SELECT] =
-        {"Press L/R to enter\nsingle-side adjustment", GUIDE_LABEL_TEXT_Y, 4},
-    [GUIDE_PAGE_PUMP_LEVEL_LEFT_ADJUST] =
-        {"Rotate the knob to\nadjust the left side", GUIDE_LABEL_TEXT_Y, 4},
-    [GUIDE_PAGE_PUMP_LEVEL_RIGHT_ADJUST] =
-        {"Rotate the knob to\nadjust the right side", GUIDE_LABEL_TEXT_Y, 4},
-    [GUIDE_PAGE_PUMP_MODE_SELECT] =
-        {"Press                    to select a\npumping plan", GUIDE_LABEL_TEXT_Y + 2, 6},
-    [GUIDE_PAGE_PUMP_MODE_UNSELECT] =
-        {"No pumping plan\nselected", GUIDE_LABEL_TEXT_Y, 4},
+static const guide_level_guide_page_cfg_t guide_level_guide_page_cfgs[GUIDE_PAGE_MAX] = {
+    [GUIDE_PAGE_LEVEL_BOTH_GUIDE] = {
+        "Rotate the knob\nAdjust suction levels\nfor both sides",
+        BASE_RES_ID_HOME_WIDTH_LABLE,
+        GUIDE_LEVEL_WIDE_LABEL_X, GUIDE_LEVEL_WIDE_LABEL_Y,
+        GUIDE_LEVEL_WIDE_LABEL_TEXT_Y, 4, 0,
+    },
+    [GUIDE_PAGE_LEVEL_BOTH] = {
+        "Rotate the knob\nAdjust suction levels\nfor both sides",
+        BASE_RES_ID_HOME_WIDTH_LABLE,
+        GUIDE_LEVEL_WIDE_LABEL_X, GUIDE_LEVEL_WIDE_LABEL_Y,
+        GUIDE_LEVEL_WIDE_LABEL_TEXT_Y, 4, 0,
+    },
+    [GUIDE_PAGE_LEVEL_LEFT_GUIDE] = {
+        "Press        \nAdjust left level",
+        BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_NARROW_LABEL_X, GUIDE_LEVEL_NARROW_LABEL_Y,
+        GUIDE_LEVEL_NARROW_LABEL_TEXT_Y, 8, BASE_RES_ID_GUIDE_LEFT_BUTTON_ICON,
+    },
+    [GUIDE_PAGE_LEVEL_LEFT] = {
+        "Press        \nAdjust left level",
+        BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_NARROW_LABEL_X, GUIDE_LEVEL_NARROW_LABEL_Y,
+        GUIDE_LEVEL_NARROW_LABEL_TEXT_Y, 8, BASE_RES_ID_GUIDE_LEFT_BUTTON_ICON,
+    },
+    [GUIDE_PAGE_LEVEL_RIGHT_GUIDE] = {
+        "Press        \nAdjust right level",
+        BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_NARROW_LABEL_X, GUIDE_LEVEL_NARROW_LABEL_Y,
+        GUIDE_LEVEL_NARROW_LABEL_TEXT_Y, 8, BASE_RES_ID_GUIDE_RIGHT_BUTTON_ICON,
+    },
+    [GUIDE_PAGE_LEVEL_RIGHT] = {
+        "Press        \nAdjust right level",
+        BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_NARROW_LABEL_X, GUIDE_LEVEL_NARROW_LABEL_Y,
+        GUIDE_LEVEL_NARROW_LABEL_TEXT_Y, 8, BASE_RES_ID_GUIDE_RIGHT_BUTTON_ICON,
+    },
 };
 
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static bool guide_label_need_update(const guide_base_ui_info_t *info)
-{
-    return (info->label.force_update != 0 || info->force_update != 0);
-}
-
-static guide_base_text_id_e guide_base_text_id_get(uint8_t page_index)
+static const guide_level_guide_page_cfg_t *guide_level_guide_page_cfg_get(uint8_t page_index)
 {
     if (page_index >= GUIDE_PAGE_MAX) {
-        return GUIDE_BASE_TEXT_DOUBLE_ADJUST;
+        return NULL;
     }
-    return (guide_base_text_id_e)page_index;
+    return &guide_level_guide_page_cfgs[page_index];
 }
 
-static void guide_label_title_update(guide_base_ui_info_t *info)
+static void guide_level_guide_bg_create(guide_base_ui_info_t *info)
 {
-    if (info->label.title == NULL || !lv_obj_is_valid(info->label.title)) {
-        info->label.title = lv_label_create(info->root);
-        EXCEPTION_CHECK_VOID(info->label.title);
-        lv_obj_set_style_text_color(info->label.title, lv_color_hex(GUIDE_TITLE_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(info->label.title, &lv_font_aeonik_soft_24_bold, 0);
-        lv_obj_set_style_text_align(info->label.title, LV_TEXT_ALIGN_CENTER, 0);
-        lv_label_set_text(info->label.title, "Operation Guidance");
-        lv_obj_align(info->label.title, LV_ALIGN_TOP_MID, 0, GUIDE_TITLE_Y);
-    }
-}
-
-static void guide_label_bg_update(guide_base_ui_info_t *info)
-{
-    if (info->label.label == NULL || !lv_obj_is_valid(info->label.label)) {
-        info->label.label = lv_image_create(info->root);
-        EXCEPTION_CHECK_VOID(info->label.label);
-        ui_img_baj_theme_set_src(info->ui, info->label.label, BASE_RES_ID_GUIDE_LABLE,
-            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-        lv_obj_align(info->label.label, LV_ALIGN_TOP_LEFT, GUIDE_LABEL_X, GUIDE_LABEL_Y);
-    }
-}
-
-static void guide_label_text_update(guide_base_ui_info_t *info, guide_base_text_id_e text_id)
-{
-    if (info->label.text == NULL || !lv_obj_is_valid(info->label.text)) {
-        info->label.text = lv_label_create(info->root);
-        EXCEPTION_CHECK_VOID(info->label.text);
-        lv_obj_set_style_text_color(info->label.text, lv_color_hex(GUIDE_CARD_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(info->label.text, &lv_font_aeonik_soft_18_regular, 0);
-        lv_obj_set_style_text_align(info->label.text, LV_TEXT_ALIGN_CENTER, 0);
-    }
-
-    if (text_id >= GUIDE_BASE_TEXT_MAX) {
-        lv_obj_add_flag(info->label.text, LV_OBJ_FLAG_HIDDEN);
-        info->label.text_id = GUIDE_BASE_TEXT_MAX;
-        return;
-    }
-
-    if (!guide_label_need_update(info) && info->label.text_id == text_id) {
-        return;
-    }
-
-    const guide_base_text_info_t *text_info = &guide_base_label_infos[text_id];
-    lv_obj_clear_flag(info->label.text, LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(info->label.text, text_info->text);
-    lv_obj_set_style_text_line_space(info->label.text, text_info->line_space, 0);
-    lv_obj_align(info->label.text, LV_ALIGN_TOP_MID, 0, text_info->y_offset);
-    info->label.text_id = text_id;
-}
-
-static void guide_label_plan_button_update(guide_base_ui_info_t *info, bool show)
-{
-    static const uint16_t button_res_ids[2] = {
-        BASE_RES_ID_MODE_BUTTON_ICON,
-        BASE_RES_ID_PROGRAM_BUTTON_ICON,
-    };
-
-    for (uint8_t i = 0; i < 2; i++) {
-        if (info->label.button[i] == NULL || !lv_obj_is_valid(info->label.button[i])) {
-            info->label.button[i] = lv_image_create(info->root);
-            EXCEPTION_CHECK_VOID(info->label.button[i]);
-            lv_obj_add_flag(info->label.button[i], LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    if (!show) {
-        for (uint8_t i = 0; i < 2; i++) {
-            if (info->label.button[i] == NULL || !lv_obj_is_valid(info->label.button[i])) {
-                continue;
-            }
-            if (info->label.button_img_id[i] != 0) {
-                ui_img_baj_release_decoded_buf(info->label.button[i]);
-                info->label.button_img_id[i] = 0;
-            }
-            lv_obj_add_flag(info->label.button[i], LV_OBJ_FLAG_HIDDEN);
-        }
-        return;
-    }
-
-    for (uint8_t i = 0; i < 2; i++) {
-        if (info->label.button[i] == NULL || !lv_obj_is_valid(info->label.button[i])) {
-            continue;
-        }
-
-        const uint16_t img_id = button_res_ids[i];
-        if (!guide_label_need_update(info) && info->label.button_img_id[i] == img_id) {
-            lv_obj_clear_flag(info->label.button[i], LV_OBJ_FLAG_HIDDEN);
-            continue;
-        }
-
-        lv_obj_clear_flag(info->label.button[i], LV_OBJ_FLAG_HIDDEN);
-        ui_img_baj_theme_set_src(info->ui, info->label.button[i], img_id,
-            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-        if (i == 0) {
-            lv_obj_align(info->label.button[i], LV_ALIGN_TOP_LEFT,
-                GUIDE_MODE_BUTTON_X, GUIDE_PLAN_BUTTON_Y);
-        } else {
-            lv_obj_align(info->label.button[i], LV_ALIGN_TOP_LEFT,
-                GUIDE_PROGRAM_BUTTON_X, GUIDE_PLAN_BUTTON_Y);
-        }
-        info->label.button_img_id[i] = img_id;
-    }
-}
-
-static void guide_label_exit_update(guide_base_ui_info_t *info)
-{
-    if (info->label.exit_text == NULL || !lv_obj_is_valid(info->label.exit_text)) {
-        info->label.exit_text = lv_label_create(info->root);
-        EXCEPTION_CHECK_VOID(info->label.exit_text);
-        lv_obj_set_style_text_color(info->label.exit_text, lv_color_hex(GUIDE_EXIT_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(info->label.exit_text, &lv_font_aeonik_soft_18_regular, 0);
-        lv_obj_set_style_text_align(info->label.exit_text, LV_TEXT_ALIGN_CENTER, 0);
-        lv_label_set_text(info->label.exit_text, "Press          to exit");
-        lv_obj_align(info->label.exit_text, LV_ALIGN_TOP_MID, 0, GUIDE_EXIT_TEXT_Y);
-    }
-
-    if (info->label.return_icon == NULL || !lv_obj_is_valid(info->label.return_icon)) {
-        info->label.return_icon = lv_image_create(info->root);
-        EXCEPTION_CHECK_VOID(info->label.return_icon);
-        ui_img_baj_theme_set_src(info->ui, info->label.return_icon,
-            BASE_RES_ID_RETURN_BUTTON_24X24_ICON, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-        lv_obj_align(info->label.return_icon, LV_ALIGN_TOP_LEFT, GUIDE_EXIT_ICON_X, GUIDE_EXIT_ICON_Y);
-    }
+#if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+    info->level_guide.bg = lv_image_create(guide_page_parent_get(info));
+    EXCEPTION_CHECK_VOID(info->level_guide.bg);
+    lv_image_set_src(info->level_guide.bg, background_snapshot);
+    lv_obj_align(info->level_guide.bg, LV_ALIGN_CENTER, 0, 0);
+#else
+    info->level_guide.bg = lv_image_create(guide_page_parent_get(info));
+    EXCEPTION_CHECK_VOID(info->level_guide.bg);
+    ui_img_png_theme_set_src(info->ui, info->level_guide.bg, BASE_RES_ID_COMMON_BG,
+        RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888);
+    lv_obj_align(info->level_guide.bg, LV_ALIGN_CENTER, 0, 0);
+#endif
 }
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+void guide_label_step_header_create(guide_base_ui_info_t *info, lv_obj_t **step, lv_obj_t **title,
+    const char *step_text, const char *title_text)
+{
+    EXCEPTION_CHECK_VOID(info);
+
+    if (step != NULL && step_text != NULL) {
+        *step = lv_label_create(guide_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(*step);
+        lv_obj_set_style_text_color(*step, lv_color_hex(GUIDE_LEVEL_STEP_COLOR), 0);
+        lv_obj_set_style_text_font(*step, &lv_font_aeonik_soft_20_medium, 0);
+        lv_obj_set_style_text_align(*step, LV_TEXT_ALIGN_CENTER, 0);
+        lv_label_set_text(*step, step_text);
+        lv_obj_align(*step, LV_ALIGN_TOP_MID, 0, GUIDE_LEVEL_STEP_Y);
+    }
+
+    if (title != NULL && title_text != NULL) {
+        *title = lv_label_create(guide_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(*title);
+        lv_obj_set_style_text_color(*title, lv_color_hex(GUIDE_LEVEL_TITLE_COLOR), 0);
+        lv_obj_set_style_text_font(*title, &lv_font_aeonik_soft_24_semibold, 0);
+        lv_obj_set_style_text_align(*title, LV_TEXT_ALIGN_CENTER, 0);
+        lv_label_set_text(*title, title_text);
+        lv_obj_align(*title, LV_ALIGN_TOP_MID, 0, GUIDE_LEVEL_TITLE_Y);
+    }
+}
+
+void guide_label_level_header_create(guide_base_ui_info_t *info, lv_obj_t **step, lv_obj_t **title)
+{
+    guide_label_step_header_create(info, step, title, "Step 1", "Adjust to comfortable");
+}
+
+void guide_label_instruction_card_create(guide_base_ui_info_t *info, lv_obj_t **card,
+    uint16_t res_id, int16_t x, int16_t y)
+{
+    EXCEPTION_CHECK_VOID(info && card);
+
+    *card = lv_image_create(guide_page_parent_get(info));
+    EXCEPTION_CHECK_VOID(*card);
+    ui_img_baj_theme_set_src(info->ui, *card, res_id,
+        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    lv_obj_align(*card, LV_ALIGN_TOP_LEFT, x, y);
+}
+
+void guide_label_instruction_text_create(guide_base_ui_info_t *info, lv_obj_t **text,
+    const char *content, int16_t y, uint8_t line_space)
+{
+    EXCEPTION_CHECK_VOID(info && text && content);
+
+    *text = lv_label_create(guide_page_parent_get(info));
+    EXCEPTION_CHECK_VOID(*text);
+    lv_obj_set_style_text_color(*text, lv_color_hex(GUIDE_BASE_LABEL_CARD_TEXT_COLOR), 0);
+    lv_obj_set_style_text_font(*text, &lv_font_aeonik_soft_18_regular, 0);
+    lv_obj_set_style_text_align(*text, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(*text, content);
+    lv_obj_set_style_text_line_space(*text, line_space, 0);
+    lv_obj_align(*text, LV_ALIGN_TOP_MID, 0, y);
+}
+
+void guide_label_inline_icon_create(guide_base_ui_info_t *info, lv_obj_t **icon,
+    uint16_t res_id, int16_t x, int16_t y)
+{
+    EXCEPTION_CHECK_VOID(info && icon);
+
+    *icon = lv_image_create(guide_page_parent_get(info));
+    EXCEPTION_CHECK_VOID(*icon);
+    ui_img_baj_theme_set_src(info->ui, *icon, res_id,
+        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    lv_obj_align(*icon, LV_ALIGN_TOP_LEFT, x, y);
+}
+
+void guide_level_guide_ui_remove(guide_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+#if !LV_USE_SNAPSHOT
+    ui_img_png_release_decoded_buf(info->level_guide.bg);
+#endif
+    ui_img_baj_release_decoded_buf(info->level_guide.card);
+    ui_img_baj_release_decoded_buf(info->level_guide.button_icon);
+}
+
+void guide_level_guide_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
+{
+    const guide_level_guide_page_cfg_t *cfg = guide_level_guide_page_cfg_get(page_index);
+
+    EXCEPTION_CHECK_VOID(info && info->ui && cfg);
+
+    info->level_guide.page_index = page_index;
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
+    if (!guide_base_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
+#endif
+    guide_label_level_header_create(info, &info->level_guide.step, &info->level_guide.title);
+    guide_label_instruction_card_create(info, &info->level_guide.card, cfg->label_res_id,
+        cfg->label_x, cfg->label_y);
+    guide_label_instruction_text_create(info, &info->level_guide.text, cfg->text,
+        cfg->text_y, cfg->line_space);
+    if (cfg->button_icon_res_id != 0) {
+        guide_label_inline_icon_create(info, &info->level_guide.button_icon,
+            cfg->button_icon_res_id, GUIDE_LEVEL_SIDE_BUTTON_ICON_X,
+            GUIDE_LEVEL_SIDE_BUTTON_ICON_Y);
+    }
+}
+
+void guide_mode_select_guide_ui_build(guide_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info && info->ui);
+
+    info->level_guide.page_index = GUIDE_PAGE_MODE_SELECT_GUIDE;
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
+    if (!guide_base_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
+#endif
+    guide_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
+        "Step 2", "Choose pumping way");
+    guide_label_instruction_card_create(info, &info->level_guide.card, BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_NARROW_LABEL_X, GUIDE_LEVEL_NARROW_LABEL_Y);
+    guide_label_instruction_text_create(info, &info->level_guide.text,
+        "Press          to switch\nbetween 3 modes", GUIDE_LEVEL_NARROW_LABEL_TEXT_Y, 6);
+    guide_label_inline_icon_create(info, &info->level_guide.button_icon,
+        BASE_RES_ID_MODE_BUTTON_ICON, GUIDE_MODE_SELECT_START_ICON_X,
+        GUIDE_MODE_SELECT_START_ICON_Y);
+}
+
+void guide_rhythm_select_guide_ui_build(guide_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info && info->ui);
+
+    info->level_guide.page_index = GUIDE_PAGE_RHYTHM_SELECT_GUIDE;
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
+    if (!guide_base_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
+#endif
+    guide_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
+        "Step 2", "Choose pumping way");
+    guide_label_instruction_card_create(info, &info->level_guide.card, BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_NARROW_LABEL_X, GUIDE_LEVEL_NARROW_LABEL_Y);
+    guide_label_instruction_text_create(info, &info->level_guide.text,
+        "Press          to switch\nprogram", GUIDE_LEVEL_NARROW_LABEL_TEXT_Y, 6);
+    guide_label_inline_icon_create(info, &info->level_guide.button_icon,
+        BASE_RES_ID_PROGRAM_BUTTON_ICON, GUIDE_MODE_SELECT_START_ICON_X,
+        GUIDE_MODE_SELECT_START_ICON_Y);
+}
+
+void guide_pump_start_guide_ui_build(guide_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info && info->ui);
+
+    info->level_guide.page_index = GUIDE_PAGE_PUMP_START_GUIDE;
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
+    if (!guide_base_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
+#endif
+    guide_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
+        "Step 3", "Start / Stop pumping");
+    guide_label_instruction_card_create(info, &info->level_guide.card, BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_NARROW_LABEL_X, GUIDE_LEVEL_NARROW_LABEL_Y);
+    guide_label_instruction_text_create(info, &info->level_guide.text,
+        "Press          to start\npumping", GUIDE_LEVEL_NARROW_LABEL_TEXT_Y, 6);
+    guide_label_inline_icon_create(info, &info->level_guide.button_icon,
+        BASE_RES_ID_GUIDE_START_BUTTON_MIN_ICON, GUIDE_PUMP_START_GUIDE_ICON_X,
+        GUIDE_PUMP_START_GUIDE_ICON_Y);
+}
+
+void guide_pump_stop_guide_ui_build(guide_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info && info->ui);
+
+    info->level_guide.page_index = GUIDE_PAGE_PUMP_STOP_GUIDE;
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
+    if (!guide_base_level_theme_is_active(info)) {
+        guide_level_guide_bg_create(info);
+    }
+#endif
+    guide_label_step_header_create(info, &info->level_guide.step, &info->level_guide.title,
+        "Step 3", "Start / Stop pumping");
+    guide_label_instruction_card_create(info, &info->level_guide.card, BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_NARROW_LABEL_X, GUIDE_LEVEL_NARROW_LABEL_Y);
+    guide_label_instruction_text_create(info, &info->level_guide.text,
+        "Press          and hold to\nstop pumping", GUIDE_LEVEL_NARROW_LABEL_TEXT_Y, 6);
+    guide_label_inline_icon_create(info, &info->level_guide.button_icon,
+        BASE_RES_ID_GUIDE_RETURN_BUTTON_ICON, GUIDE_PUMP_STOP_GUIDE_ICON_X,
+        GUIDE_PUMP_STOP_GUIDE_ICON_Y);
+}
+
 void guide_pump_label_ui_remove(guide_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
     ui_img_baj_release_decoded_buf(info->label.label);
     ui_img_baj_release_decoded_buf(info->label.return_icon);
+    ui_img_baj_release_decoded_buf(info->label.icon);
     for (uint8_t i = 0; i < 2; i++) {
         ui_img_baj_release_decoded_buf(info->label.button[i]);
         info->label.button_img_id[i] = 0;
     }
-    info->label.text_id = GUIDE_BASE_TEXT_MAX;
+    info->label.icon_img_id = 0;
+    info->label.text_id = GUIDE_PAGE_MAX;
 }
 
-void guide_pump_label_ui_update(guide_base_ui_info_t *info, uint8_t page_index)
+void guide_pump_label_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
 {
-    EXCEPTION_CHECK_VOID(info && info->ui);
-    if (info->label.page_index != page_index) {
-        info->label.page_index = page_index;
-        info->label.force_update = true;
-    }
-
-    guide_label_title_update(info);
-    guide_label_bg_update(info);
-    const guide_base_text_id_e text_id = guide_base_text_id_get(page_index);
-    guide_label_text_update(info, text_id);
-    guide_label_plan_button_update(info, text_id == GUIDE_BASE_TEXT_MODE_SELECT);
-    guide_label_exit_update(info);
-    info->label.force_update = false;
+    (void)info;
+    (void)page_index;
 }

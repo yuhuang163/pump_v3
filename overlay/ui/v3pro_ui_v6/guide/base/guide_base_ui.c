@@ -3,26 +3,36 @@
 *****************************************************************************************
 */
 #include "guide_base_ui_internal.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
 #include "window_screen_guide.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_ROOT_GUIDE_COMP_BG                (0)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t guide_bg_data[] = {
-    // #include "comparison_png2txt/guide_base_p1_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p2_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p3_1_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p3_2_360x360.txt"
-    #include "comparison_png2txt/guide_base_p4_1_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p4_2_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p11_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p12_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p13_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p14_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p15_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p17_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p18_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p19_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p20_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p21_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p22_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p23_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p24_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p26_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p28_360x360.txt"
+    #include "comparison_png2txt/home_base_34_360x360.txt"
 };
 #endif
 
@@ -41,24 +51,19 @@ void guide_base_blink_state_update(guide_base_ui_info_t *info, uint8_t page_inde
     EXCEPTION_CHECK_VOID(info);
 
     switch (page_index) {
-        case GUIDE_PAGE_PUMP_LEVEL_DOUBLE_ADJUST:
+        case GUIDE_PAGE_LEVEL_BOTH:
             display_type = GUIDE_BASE_LEVEL_DISPLAY_BOTH_ADJUST;
-            break;
-        case GUIDE_PAGE_PUMP_LEVEL_SINGLE_SELECT:
-            display_type = GUIDE_BASE_LEVEL_DISPLAY_DEFAULT;
             new_left_level_blink = 1;
             new_right_level_blink = 1;
             break;
-        case GUIDE_PAGE_PUMP_LEVEL_LEFT_ADJUST:
+        case GUIDE_PAGE_LEVEL_LEFT:
             display_type = GUIDE_BASE_LEVEL_DISPLAY_LEFT_ADJUST;
             new_left_level_blink = 1;
             break;
-        case GUIDE_PAGE_PUMP_LEVEL_RIGHT_ADJUST:
+        case GUIDE_PAGE_LEVEL_RIGHT:
             display_type = GUIDE_BASE_LEVEL_DISPLAY_RIGHT_ADJUST;
             new_right_level_blink = 1;
             break;
-        case GUIDE_PAGE_PUMP_MODE_SELECT:
-        case GUIDE_PAGE_PUMP_MODE_UNSELECT:
         default:
             display_type = GUIDE_BASE_LEVEL_DISPLAY_DEFAULT;
             break;
@@ -84,48 +89,115 @@ static void guide_base_root_init(void)
     lv_obj_clear_flag(guide_info->root, LV_OBJ_FLAG_SCROLLABLE);
 }
 
-#if IS_SUPPORT_ROOT_GUIDE_COMP_BG
-static void guide_base_root_bg_update(ui_manager_context_t *thiz)
+bool guide_base_level_theme_page_is(uint8_t page_index)
+{
+    return GUIDE_PAGE_SHOW_LEVEL(page_index);
+}
+
+bool guide_base_level_theme_is_active(const guide_base_ui_info_t *info)
+{
+    return info != NULL && info->level_theme.layer != NULL &&
+        lv_obj_is_valid(info->level_theme.layer);
+}
+
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
+static void guide_base_level_theme_bg_create(guide_base_ui_info_t *info)
+{
+    if (info->level_theme.bg != NULL && lv_obj_is_valid(info->level_theme.bg)) {
+        return;
+    }
+
+    info->level_theme.bg = lv_image_create(info->level_theme.layer);
+    EXCEPTION_CHECK_VOID(info->level_theme.bg);
+#if LV_USE_SNAPSHOT
+    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
+    EXCEPTION_CHECK_VOID(background_snapshot);
+    lv_image_set_src(info->level_theme.bg, background_snapshot);
+#else
+    ui_img_png_theme_set_src(info->ui, info->level_theme.bg, BASE_RES_ID_COMMON_BG,
+        RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888);
+#endif
+    lv_obj_align(info->level_theme.bg, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_move_background(info->level_theme.bg);
+}
+#endif
+
+void guide_base_level_theme_ensure(guide_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+
+    if (guide_base_level_theme_is_active(info)) {
+        return;
+    }
+
+    info->level_theme.layer = lv_obj_create(info->root);
+    EXCEPTION_CHECK_VOID(info->level_theme.layer);
+    lv_obj_set_size(info->level_theme.layer, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_opa(info->level_theme.layer, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(info->level_theme.layer, 0, 0);
+    lv_obj_set_style_pad_all(info->level_theme.layer, 0, 0);
+    lv_obj_clear_flag(info->level_theme.layer, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(info->level_theme.layer, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_align(info->level_theme.layer, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_move_background(info->level_theme.layer);
+
+#if (IS_SUPPORT_BASE_GUIDE_COMP_BG == 0)
+    guide_base_level_theme_bg_create(info);
+#endif
+}
+
+void guide_base_level_theme_remove(guide_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+
+    if (!guide_base_level_theme_is_active(info)) {
+        return;
+    }
+
+    guide_pump_level_ui_remove(info);
+#if !LV_USE_SNAPSHOT
+    ui_img_png_release_decoded_buf(info->level_theme.bg);
+#endif
+    LVGL_OBJ_DELETE(info->level_theme.layer);
+    memset(&info->level_theme, 0, sizeof(info->level_theme));
+    memset(&info->level, 0, sizeof(info->level));
+}
+
+lv_obj_t *guide_base_level_theme_parent_get(const guide_base_ui_info_t *info)
+{
+    if (guide_base_level_theme_is_active(info)) {
+        return info->level_theme.layer;
+    }
+    return guide_page_parent_get(info);
+}
+
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
+static void guide_root_comp_bg_update(ui_manager_context_t *thiz)
 {
     static uint32_t start_time = 0;
     static uint8_t status = 0;
-    if (guide_info->background == NULL || !lv_obj_is_valid(guide_info->background)) {
-        guide_info->background = lv_image_create(guide_info->root);
-        EXCEPTION_CHECK_VOID(guide_info->background);
+
+    if (guide_info->comp_bg == NULL || !lv_obj_is_valid(guide_info->comp_bg)) {
+        guide_info->comp_bg = lv_image_create(guide_info->root);
+        EXCEPTION_CHECK_VOID(guide_info->comp_bg);
+        lv_obj_move_background(guide_info->comp_bg);
     }
+
     lv_fs_path_ex_t bg_img_path;
     if (status == 0) {
-        lv_obj_add_flag(guide_info->background, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(guide_info->comp_bg, LV_OBJ_FLAG_HIDDEN);
     } else {
-        lv_obj_clear_flag(guide_info->background, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(guide_info->comp_bg, LV_OBJ_FLAG_HIDDEN);
         lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, guide_bg_data,
             sizeof(guide_bg_data), "png");
-        lv_image_set_src(guide_info->background, (const void *)&bg_img_path);
-        lv_obj_align(guide_info->background, LV_ALIGN_CENTER, 0, 0);
+        lv_image_set_src(guide_info->comp_bg, (const void *)&bg_img_path);
+        lv_obj_align(guide_info->comp_bg, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_move_background(guide_info->comp_bg);
     }
 
     if (get_timestamp() - start_time > 1000) {
         start_time = get_timestamp();
         status = (status == 0) ? 1 : 0;
-    }
-    (void)thiz;
-}
-#else
-static void guide_base_root_bg_update(ui_manager_context_t *thiz)
-{
-    #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
-    EXCEPTION_CHECK_VOID(background_snapshot);
-    #endif
-    if (guide_info->background == NULL || !lv_obj_is_valid(guide_info->background)) {
-        guide_info->background = lv_image_create(guide_info->root);
-        EXCEPTION_CHECK_VOID(guide_info->background);
-        lv_obj_align(guide_info->background, LV_ALIGN_CENTER, 0, 0);
-        #if LV_USE_SNAPSHOT
-        lv_image_set_src(guide_info->background, background_snapshot);
-        #else
-        lv_obj_add_flag(guide_info->background, LV_OBJ_FLAG_HIDDEN);
-        #endif
     }
     (void)thiz;
 }
@@ -150,21 +222,20 @@ void guide_base_ui_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     guide_base_root_init();
-    ble_ui_init(thiz);
-    battery_ui_init(thiz);
     guide_info->ui = thiz;
     guide_info->force_update = true;
-    guide_info->label.force_update = true;
-    guide_info->label.text_id = GUIDE_BASE_TEXT_MAX;
+    guide_info->popup_ui_index = ID_POPUP_UI_NONE;
+    guide_info->shown_page_index = GUIDE_PAGE_INDEX_INVALID;
+    guide_info->page_index = GUIDE_PAGE_MAX;
+    guide_info->label.text_id = GUIDE_PAGE_MAX;
+    guide_info->animation.shown_frame_res_id = BASE_RES_ID_GUIDE_ANIM_START - 1;
 }
 
 void guide_base_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && guide_info && guide_info->root);
-    ble_ui_deinit(thiz);
-    battery_ui_deinit(thiz);
-    guide_pump_level_ui_remove(guide_info);
-    guide_pump_label_ui_remove(guide_info);
+    guide_page_ui_remove(guide_info);
+    ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(guide_info->root);
     u_free(guide_info);
     guide_info = NULL;
@@ -174,28 +245,23 @@ int guide_base_ui_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && guide_info && guide_info->root);
     ui_proc_guide_t *proc = (ui_proc_guide_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc && proc->ble);
+    EXCEPTION_CHECK_INT(proc);
+
+#if IS_SUPPORT_BASE_GUIDE_COMP_BG
+    guide_root_comp_bg_update(thiz);
+    proc->page_index = GUIDE_PAGE_RHYTHM_SELECT;
+#endif
     guide_info->level.left.new_value = proc->setting.level[0];
     guide_info->level.right.new_value = proc->setting.level[1];
-    guide_base_root_bg_update(thiz);
-    guide_base_blink_state_update(guide_info, proc->page_index);
-    const bool blink_visible = proc->state_blink_visible != 0;
-    guide_pump_level_ui_update(guide_info, blink_visible);
-    guide_pump_label_ui_update(guide_info, proc->page_index);
-
-    const ble_ui_blink_sync_t ble_sync = {
-        .sync_enable = (guide_info->level.left_blink_state != 0 ||
-            guide_info->level.right_blink_state != 0) ? 1 : 0,
-        .blink_time = 0,
-    };
-    battery_ui_update(thiz, guide_info->root, proc->battery, true);
-    ble_ui_update(thiz, guide_info->root, proc->ble,
-        BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, &ble_sync);
+    guide_page_ui_update(guide_info, proc, thiz->priv.play_info.played_count);
+    ui_popup_update(thiz, proc->popup_ui_type,
+        guide_info->root, &guide_info->popup_ui_index);
     guide_info->force_update = false;
+
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
-        LOG_UI("===> guide fps: %d", thiz->priv.fps_count);
+        LOG_UI("===> guide fps: %d, page: %u", thiz->priv.fps_count, proc->page_index);
         thiz->priv.fps_count = 0;
     }
     return 0;
