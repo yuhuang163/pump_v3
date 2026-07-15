@@ -27,30 +27,14 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static bool factory_reset_confirm_ui_blink_update(ui_proc_factory_reset_t *proc)
+static void factory_reset_confirm_ui_blink_update(ui_proc_factory_reset_t *proc)
 {
     const uint8_t blink_visible =
         ((get_timestamp_ms(proc->blink_start_time) / FACTORY_RESET_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
     if (proc->state_blink_visible == blink_visible) {
-        return false;
+        return;
     }
     proc->state_blink_visible = blink_visible;
-    return true;
-}
-
-static bool factory_reset_confirm_ui_led_needs_update(const ui_proc_factory_reset_t *proc)
-{
-    return proc->confirm_return_blink_visible != proc->state_blink_visible;
-}
-
-static void factory_reset_confirm_ui_led_update(ui_proc_factory_reset_t *proc)
-{
-    EXCEPTION_CHECK_VOID(proc && proc->led);
-    const bool blink_visible = proc->state_blink_visible != 0;
-    if (proc->confirm_return_blink_visible != blink_visible) {
-        proc->led->set_led_level(PUMP_FREQ_SET_BL, blink_visible ? LED_LEVEL_MAX : 0);
-        proc->confirm_return_blink_visible = blink_visible;
-    }
 }
 
 static void factory_reset_confirm_ui_finish_policy(ui_manager_context_t *ui, int index)
@@ -72,11 +56,8 @@ static void factory_reset_confirm_ui_after_policy(ui_manager_context_t *ui, int 
 {
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
-    const bool blink_changed = factory_reset_confirm_ui_blink_update(proc);
+    factory_reset_confirm_ui_blink_update(proc);
     ui_display_factory_reset_confirm_process(ui, proc->state_blink_visible != 0);
-    if (blink_changed || factory_reset_confirm_ui_led_needs_update(proc)) {
-        factory_reset_confirm_ui_led_update(proc);
-    }
 }
 
 static void factory_reset_confirm_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -131,7 +112,8 @@ void show_factory_reset_confirm_ui(ui_proc_factory_reset_t *proc)
     }
     proc->blink_start_time = get_timestamp();
     proc->state_blink_visible = 1;
-    proc->confirm_return_blink_visible = 0;
+    /// 确认页 return 键灯常亮，仅 UI 文案闪烁
+    factory_reset_confirm_led_restore(proc);
     ui_play_info_t play_info = {
         .tag = "factory_reset_confirm_screen",
         .fps = FACTORY_RESET_ANIMATION_FREQ,
@@ -148,7 +130,6 @@ void factory_reset_confirm_led_restore(ui_proc_factory_reset_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->led);
     proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
-    proc->confirm_return_blink_visible = 1;
 }
 
 void factory_reset_confirm_ui_hdr_remove(void)

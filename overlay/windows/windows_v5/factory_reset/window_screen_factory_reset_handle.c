@@ -182,9 +182,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             factory_reset_handle(proc, 1000);
         } else {
             show_factory_reset_confirm_ui(proc);
-            if (proc->led) {
-                proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
-            }
         } 
     }
     return 0;
