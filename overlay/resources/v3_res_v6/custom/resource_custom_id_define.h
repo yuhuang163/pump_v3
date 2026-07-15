@@ -50,6 +50,7 @@ typedef enum {
     CUSTOM_RES_ID_GUIDE_START_BUTTON_ICON, /// 引导-开始按钮图标
     CUSTOM_RES_ID_GUIDE_START_BUTTON_MIN_ICON, /// 引导-开始按钮小图标
     CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_ICON, /// 引导-返回按钮图标
+    CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_MIN_ICON, /// 引导-返回按钮小图标
     CUSTOM_RES_ID_GUIDE_BG, /// 引导背景
     CUSTOM_RES_ID_GUIDE_ANIM_BG, /// 引导动画背景
 
