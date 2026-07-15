@@ -58,6 +58,7 @@ typedef enum {
     BASE_RES_ID_GUIDE_RETURN_BUTTON_MIN_ICON, /// 引导-返回按钮小图标
     BASE_RES_ID_GUIDE_BG, /// 引导背景
     BASE_RES_ID_GUIDE_ANIM_BG, /// 引导动画背景
+    BASE_RES_ID_GUIDE_KNOB_PRESS_BG, /// 引导旋钮按下背景
 
     /* 模式相关组 [200..300]（大图 + 小图标） */
     BASE_RES_ID_HOME_IDLE_ICON = 200, /// 空闲界面图标

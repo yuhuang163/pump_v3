@@ -304,6 +304,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "CUSTOM_RES_ID_GUIDE_KNOB_PRESS_BG",
+      "description": "引导旋钮按下背景",
+      "file": "png/bg_guide_knob_press.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "CUSTOM_RES_ID_PUMP_LEVEL_BIG_BG",
       "description": "泵奶力度大背景",
       "file": "baj/bg_pump_level_big_44x44_a8_q99_444.baj",
