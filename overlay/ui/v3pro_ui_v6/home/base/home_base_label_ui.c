@@ -14,6 +14,10 @@
 */
 #define IS_SUPPORT_LABEL_TEXT_CMP                   (0) /// 支持label文本对比
 
+#if IS_SUPPORT_HOME_BASE_MODE_CMP
+#define HOME_LABEL_CMP_INDEX                        HOME_UI_DISPLAY_MILK_BOOST_DESC
+#endif
+
 #define IDLE_LABEL_X                                (49)
 #define IDLE_LABEL_Y                                (147)
 #define IDLE_TEXT_X                                 (0)
@@ -47,18 +51,18 @@
 #define CUSTOMIZE_TIME_TEXT_Y                       (104)
 
 #define MILK_BOOST_LABEL_X                          (49)
-#define MILK_BOOST_LABEL_Y                          (163) /// 164
+#define MILK_BOOST_LABEL_Y                          (163 - 14) /// 164
 #define MILK_BOOST_TEXT_X                           (0)
-#define MILK_BOOST_TEXT_Y                           (215) /// 198
+#define MILK_BOOST_TEXT_Y                           (215 - 14) /// 198
 #define MILK_BOOST_TIME_TEXT_X                      (0)
-#define MILK_BOOST_TIME_TEXT_Y                      (152)
+#define MILK_BOOST_TIME_TEXT_Y                      (152 - 48)
 
 #define POWER_PUMPING_LABEL_X                       (49)
-#define POWER_PUMPING_LABEL_Y                       (163)
+#define POWER_PUMPING_LABEL_Y                       (163 - 14)
 #define POWER_PUMPING_TEXT_X                        (0)
-#define POWER_PUMPING_TEXT_Y                        (215)
+#define POWER_PUMPING_TEXT_Y                        (215 - 14)
 #define POWER_PUMPING_TIME_TEXT_X                   (0)
-#define POWER_PUMPING_TIME_TEXT_Y                   (152)
+#define POWER_PUMPING_TIME_TEXT_Y                   (152 - 48)
 
 #define IDLE_RECORD_LABEL_X                         (0)
 #define IDLE_RECORD_LABEL_Y                         (106)
@@ -385,7 +389,11 @@ void home_pump_label_ui_update(home_base_ui_info_t *info)
         info->label.type = proc->home_display_type;
         info->label.force_update = true;
     }
-    // info->label.type = HOME_UI_DISPLAY_MIXED_MODE_DESC;
+
+#if IS_SUPPORT_HOME_BASE_MODE_CMP
+    info->label.type = HOME_LABEL_CMP_INDEX;
+#endif
+
     switch (info->label.type) {
         default:
         case HOME_UI_DISPLAY_DEFAULT:

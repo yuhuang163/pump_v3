@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "ui_popup_internal.h" // IWYU pragma: keep
+#include <stdint.h>
 
 /*
 * DEFINES
@@ -361,6 +362,8 @@ const static ui_popup_name_info_t ui_popup_name_infos[] = {
     { ID_POPUP_UI_OP_FAILED, "operation failed" },
     { ID_POPUP_UI_AIRPLANE_MODE_PROMPT, "airplane mode prompt" },
     { ID_POPUP_UI_FACTORY_RESET_CONFIRM, "factory reset confirm" },
+    { ID_POPUP_UI_GUIDE_EXIT_CONFIRM, "guide exit confirm" },
+    { ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN, "guide exit countdown" },
     { ID_POPUP_UI_THEME_RESELECT, "theme reselect" },
 };
 
@@ -378,17 +381,21 @@ const char *ui_popup_name_get(ui_manager_context_t *thiz, uint16_t popup_type)
 
 uint16_t ui_popup_target_time_get(popup_ui_id_e type)
 {
-    uint16_t time = 3000;
-    if (type == ID_POPUP_UI_AIRPLANE_MODE_PROMPT) {
-        time = 5000;
-    } else if (type == ID_POPUP_UI_FACTORY_RESET_CONFIRM) {
-        time = 3000;
-    } else if (type == ID_POPUP_UI_PUMP_FINISH_MANUAL || type == ID_POPUP_UI_THEME_RESELECT) {
-        time = 3000;
-    } else if (type == ID_POPUP_UI_PUMP_WILL_FINISH_TIP) {
-        time = 10000;
-    } else if (type == ID_POPUP_UI_OP_SUCCESS || type == ID_POPUP_UI_OP_FAILED) {
-        time = 1000;
+    switch (type) {
+        case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
+            return 5000;
+        case ID_POPUP_UI_FACTORY_RESET_CONFIRM:
+        case ID_POPUP_UI_GUIDE_EXIT_CONFIRM:
+        case ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN:
+        case ID_POPUP_UI_PUMP_FINISH_MANUAL:
+        case ID_POPUP_UI_THEME_RESELECT:
+            return 3000;
+        case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
+            return 10000;
+        case ID_POPUP_UI_OP_SUCCESS:
+        case ID_POPUP_UI_OP_FAILED:
+            return 1000;
+        default:
+            return 3000;
     }
-    return time;
 }

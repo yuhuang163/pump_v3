@@ -11,7 +11,13 @@
 * DEFINES
 *****************************************************************************************
 */
+#if IS_SUPPORT_HOME_BASE_MODE_CMP
+#define HOME_MODE_CMP_INDEX                               BREAST_PUMP_MILK_BOOST_MODE
+#define HOME_MODE_TITLE_COLOR                             (0x00FF00)
+#else
 #define HOME_MODE_TITLE_COLOR                             (0xBD4060)
+#endif
+
 #define HOME_MODE_NAME_COLOR                              (0xD36682)
 #define HOME_MODE_WAVE_Y                                  (110)
 #define HOME_MODE_TITLE_Y                                 (70)
@@ -47,7 +53,40 @@
 #define HOME_MODE_SELECT_ANIM_TIME_MS                     (300)
 #define HOME_MODE_SELECT_ENTER_Y_OFFSET                   (8)
 
-#define HOME_MODE_SELECT_TITLE_Y                          82
+/* 选择态布局偏移：最终 Y = 各控件基准 Y + 下列 offset */
+#if HOME_MODE_SELECT_CAPSULE_ENABLE
+/* COMMON 胶囊（Stimulation / Expression / Mixed） */
+#define HOME_MODE_SELECT_COMMON_WAVE_Y_OFFSET             (20)
+#define HOME_MODE_SELECT_COMMON_TIME_Y_OFFSET             (0)
+#define HOME_MODE_SELECT_COMMON_STIM_LABEL_Y_OFFSET       (10)
+#define HOME_MODE_SELECT_COMMON_LABEL_Y_OFFSET            (26)
+/* BF 胶囊（Milk Boost / Power Pumping / Custom） */
+#define HOME_MODE_SELECT_BF_WAVE_Y_OFFSET                 (22)
+#define HOME_MODE_SELECT_BF_LABEL_Y_OFFSET                (7)
+#define HOME_MODE_SELECT_BF_TIME_Y_OFFSET                 (18)
+#define HOME_MODE_SELECT_BF_CUSTOM_WAVE_Y_OFFSET          (0)
+#define HOME_MODE_SELECT_BF_CUSTOM_LABEL_Y_OFFSET         (14)
+#define HOME_MODE_SELECT_BF_CUSTOM_TIME_Y_OFFSET          (30)
+#elif HOME_MODE_SELECT_CAROUSEL_ENABLE
+#define HOME_MODE_SELECT_STIM_WAVE_Y_OFFSET               (26)
+#define HOME_MODE_SELECT_STIM_LABEL_Y_OFFSET              (10)
+#define HOME_MODE_SELECT_STIM_TIME_Y_OFFSET               (0)
+
+#define HOME_MODE_SELECT_EXPR_WAVE_Y_OFFSET               (26)
+#define HOME_MODE_SELECT_EXPR_LABEL_Y_OFFSET              (26)
+#define HOME_MODE_SELECT_EXPR_TIME_Y_OFFSET               (0)
+
+#define HOME_MODE_SELECT_BF_WAVE_Y_OFFSET                 (22)
+#define HOME_MODE_SELECT_BF_LABEL_Y_OFFSET                (12)
+#define HOME_MODE_SELECT_BF_TIME_Y_OFFSET                 (12)
+
+#define HOME_MODE_SELECT_CUSTOM_WAVE_Y_OFFSET             (0)
+#define HOME_MODE_SELECT_CUSTOM_LABEL_Y_OFFSET            (14)
+#define HOME_MODE_SELECT_CUSTOM_TIME_Y_OFFSET             (20)
+#endif
+
+#define HOME_MODE_SELECT_TITLE_ACTIVE_Y                   82
+#define HOME_MODE_SELECT_TITLE_INACTIVE_Y                 84
 #define HOME_MODE_SELECT_TITLE_GAP                        24
 #define HOME_MODE_SELECT_CAROUSEL_SIDE_COLOR              (0xE89AAB)
 #define HOME_MODE_SELECT_SLOT_PREV                        0
@@ -351,25 +390,25 @@ static void home_pump_mode_select_layout_target_get(const home_base_ui_info_t *i
 
 #if HOME_MODE_SELECT_CAPSULE_ENABLE
     if (info->mode.select_capsule_style == HOME_MODE_CAPSULE_STYLE_COMMON) {
-        *wave_offset = 20;
-        *time_offset = 0;
+        *wave_offset = HOME_MODE_SELECT_COMMON_WAVE_Y_OFFSET;
+        *time_offset = HOME_MODE_SELECT_COMMON_TIME_Y_OFFSET;
         if (mode == BREAST_PUMP_STIMULATION_MODE) {
-            *label_offset = 10;
+            *label_offset = HOME_MODE_SELECT_COMMON_STIM_LABEL_Y_OFFSET;
         } else {
-            *label_offset = 26;
+            *label_offset = HOME_MODE_SELECT_COMMON_LABEL_Y_OFFSET;
         }
         return;
     }
 
     if (info->mode.select_capsule_style == HOME_MODE_CAPSULE_STYLE_BF) {
         if (mode == BREAST_PUMP_CUSTOM_MODE) {
-            *wave_offset = 0;
-            *label_offset = 14;
-            *time_offset = 30;
+            *wave_offset = HOME_MODE_SELECT_BF_CUSTOM_WAVE_Y_OFFSET;
+            *label_offset = HOME_MODE_SELECT_BF_CUSTOM_LABEL_Y_OFFSET;
+            *time_offset = HOME_MODE_SELECT_BF_CUSTOM_TIME_Y_OFFSET;
         } else {
-            *wave_offset = 22;
-            *label_offset = 7;
-            *time_offset = 18;
+            *wave_offset = HOME_MODE_SELECT_BF_WAVE_Y_OFFSET;
+            *label_offset = HOME_MODE_SELECT_BF_LABEL_Y_OFFSET;
+            *time_offset = HOME_MODE_SELECT_BF_TIME_Y_OFFSET;
         }
         return;
     }
@@ -380,26 +419,26 @@ static void home_pump_mode_select_layout_target_get(const home_base_ui_info_t *i
 #elif HOME_MODE_SELECT_CAROUSEL_ENABLE
     switch (mode) {
         case BREAST_PUMP_STIMULATION_MODE:
-            *wave_offset = 26;
-            *label_offset = 10;
-            *time_offset = 0;
+            *wave_offset = HOME_MODE_SELECT_STIM_WAVE_Y_OFFSET;
+            *label_offset = HOME_MODE_SELECT_STIM_LABEL_Y_OFFSET;
+            *time_offset = HOME_MODE_SELECT_STIM_TIME_Y_OFFSET;
             break;
         case BREAST_PUMP_LACTATION_MODE:
         case BREAST_PUMP_MIX_MODE:
-            *wave_offset = 26;
-            *label_offset = 26;
-            *time_offset = 0;
+            *wave_offset = HOME_MODE_SELECT_EXPR_WAVE_Y_OFFSET;
+            *label_offset = HOME_MODE_SELECT_EXPR_LABEL_Y_OFFSET;
+            *time_offset = HOME_MODE_SELECT_EXPR_TIME_Y_OFFSET;
             break;
         case BREAST_PUMP_MILK_BOOST_MODE:
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
-            *wave_offset = 22;
-            *label_offset = 7;
-            *time_offset = 18;
+            *wave_offset = HOME_MODE_SELECT_BF_WAVE_Y_OFFSET;
+            *label_offset = HOME_MODE_SELECT_BF_LABEL_Y_OFFSET;
+            *time_offset = HOME_MODE_SELECT_BF_TIME_Y_OFFSET;
             break;
         case BREAST_PUMP_CUSTOM_MODE:
-            *wave_offset = 0;
-            *label_offset = 14;
-            *time_offset = 20;
+            *wave_offset = HOME_MODE_SELECT_CUSTOM_WAVE_Y_OFFSET;
+            *label_offset = HOME_MODE_SELECT_CUSTOM_LABEL_Y_OFFSET;
+            *time_offset = HOME_MODE_SELECT_CUSTOM_TIME_Y_OFFSET;
             break;
         default:
             *wave_offset = 0;
@@ -486,7 +525,11 @@ static void home_pump_mode_select_title_style_apply(lv_obj_t *label, bool active
 
     lv_obj_set_style_text_color(label, lv_color_hex(active ?
         HOME_MODE_TITLE_COLOR : HOME_MODE_SELECT_CAROUSEL_SIDE_COLOR), 0);
-    lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
+    if (active) {
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
+    } else {
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_22_semibold, 0);
+    }
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
 }
 
@@ -521,7 +564,6 @@ static lv_coord_t home_pump_mode_select_carousel_step_get(home_base_ui_info_t *i
 static void home_pump_mode_select_carousel_realign(home_base_ui_info_t *info)
 {
     const lv_coord_t slide = info->mode.select_title_slide_offset;
-    const lv_coord_t title_y = HOME_MODE_SELECT_TITLE_Y;
     lv_obj_t *labels[3] = {
         info->mode.select_titles[HOME_MODE_SELECT_SLOT_PREV],
         info->mode.select_titles[HOME_MODE_SELECT_SLOT_CUR],
@@ -547,6 +589,8 @@ static void home_pump_mode_select_carousel_realign(home_base_ui_info_t *info)
         if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
             continue;
         }
+        const lv_coord_t title_y = (i == HOME_MODE_SELECT_SLOT_CUR) ?
+            HOME_MODE_SELECT_TITLE_ACTIVE_Y : HOME_MODE_SELECT_TITLE_INACTIVE_Y;
         lv_obj_align(labels[i], LV_ALIGN_TOP_MID, x_pos[i] - center_x, title_y);
     }
 }
@@ -1270,6 +1314,10 @@ void home_pump_mode_ui_update(home_base_ui_info_t *info, bool blink_visible,
     home_pump_mode_display_type_e display_type)
 {
     EXCEPTION_CHECK_VOID(info);
+    
+#if IS_SUPPORT_HOME_BASE_MODE_CMP
+    info->mode.new_index = HOME_MODE_CMP_INDEX;
+#endif
 
     const bool mode_index_changed = info->force_update ||
         info->mode.index != info->mode.new_index;

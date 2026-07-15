@@ -9,8 +9,8 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_ROOT_HOME_COMP_BG                (0)
-#if IS_SUPPORT_ROOT_HOME_COMP_BG
+#define IS_SUPPORT_BASE_HOME_COMP_BG                (0)
+#if IS_SUPPORT_BASE_HOME_COMP_BG
 #define IS_SUPPORT_HOME_UI_TEST                     (0)
 #else
 #define IS_SUPPORT_HOME_UI_TEST                     (0)
@@ -20,7 +20,7 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_ROOT_HOME_COMP_BG
+#if IS_SUPPORT_BASE_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/pump_pause_popup_360x360.txt"
     // #include "comparison_png2txt/pumping_timeout_360x360.txt"
@@ -33,8 +33,14 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     // #include "comparison_png2txt/home_ip4_360x360.txt"
     // #include "comparison_png2txt/home_ip5_360x360.txt"
     // #include "comparison_png2txt/home_ip6_360x360.txt"
-    #include "comparison_png2txt/home_ip7_360x360.txt"
+    // #include "comparison_png2txt/home_ip7_360x360.txt"
     // #include "comparison_png2txt/home_idle2_360x360.txt"
+    // #include "comparison_png2txt/pump_finish_timeout_p11_360x360.txt"
+    // #include "comparison_png2txt/pump_will_finish_p12_360x360.txt"
+    // #include "comparison_png2txt/pump_finish_timeout_p13_360x360.txt"
+    // #include "comparison_png2txt/pump_finish_charge_erro_p11_360x360.txt"
+    // #include "comparison_png2txt/guide_exit_popup_p1_360x360.txt"
+    #include "comparison_png2txt/home_base_34_360x360.txt"
 };
 #endif
 
@@ -109,7 +115,7 @@ static void home_root_init(void)
     lv_obj_clear_flag(home_info->root, LV_OBJ_FLAG_SCROLLABLE); /// 禁止滚动
 }
 
-#if IS_SUPPORT_ROOT_HOME_COMP_BG
+#if IS_SUPPORT_BASE_HOME_COMP_BG
 static void home_root_bg_update(ui_manager_context_t *thiz)
 {
     static uint32_t start_time = 0;
@@ -223,8 +229,12 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     } 
     home_root_bg_update(thiz);
     #if IS_SUPPORT_HOME_UI_TEST
-    proc->popup_ui_type = ID_POPUP_UI_PUMP_PAUSE_TIMEOUT;
+    // proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_CONFIRM;
+    proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN;
+    // proc->popup_ui_type = ID_POPUP_UI_PUMP_FINISH_TIMEOUT;
+    // proc->popup_ui_type = ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR;
     #else
+    // proc->pump_mode_display_type = HOME_PUMP_MODE_DISPLAY_BF_MODE; /// 追奶模式
     home_base_blink_state_update(home_info, proc);
     const bool blink_visible = proc->state_blink_visible != 0;
     home_pump_mode_ui_update(home_info, blink_visible, proc->pump_mode_display_type);

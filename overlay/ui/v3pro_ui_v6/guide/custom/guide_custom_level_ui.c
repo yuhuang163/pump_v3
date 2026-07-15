@@ -31,6 +31,7 @@
 #define PUMP_LEVEL_INDICATOR_ADJUST_SIZE           (24)
 #define PUMP_LEVEL_INDICATOR_EXT_DRAW              (PUMP_LEVEL_INDICATOR_ADJUST_SIZE / 2)
 #define PUMP_LEVEL_IMAGE_SCALE_NORMAL              (256)
+#define PUMP_LEVEL_ARC_BG_COLOR                    (0xE5C1C5)
 #define PUMP_LEVEL_ARC_ACTIVE_COLOR                (0xBD4060)
 #define PUMP_LEVEL_TEXT_COLOR                      (0xC94265)
 
@@ -43,10 +44,11 @@
 #define PUMP_LEFT_LEVEL_ADJUST_BG_Y                (133)
 #define PUMP_RIGHT_LEVEL_ADJUST_BG_X               (306)
 #define PUMP_RIGHT_LEVEL_ADJUST_BG_Y               (PUMP_LEFT_LEVEL_ADJUST_BG_Y)
+
 #if IS_SUPPORT_PUMP_LEVEL_ADJUST_BLINK
-#define GUIDE_CUSTOM_LEVEL_BLINK_ENABLE            (1) /// 0: 关闭力度闪烁, 1: 开启力度闪烁(不影响调节放大).
+#define GUIDE_CUSTOM_LEVEL_BLINK_ENABLE             (1) /// 0: 关闭力度闪烁, 1: 开启力度闪烁(不影响调节放大).
 #else
-#define GUIDE_CUSTOM_LEVEL_BLINK_ENABLE            (0)
+#define GUIDE_CUSTOM_LEVEL_BLINK_ENABLE             (0)
 #endif
 
 /*
@@ -217,7 +219,7 @@ static void guide_left_level_progress_update(guide_custom_ui_info_t *info, uint8
     guide_custom_level_t *level = &info->level.left;
 
     if (level->progress_bg == NULL || !lv_obj_is_valid(level->progress_bg)) {
-        level->progress_bg = lv_image_create(info->root);
+        level->progress_bg = lv_image_create(guide_custom_level_theme_parent_get(info));
         EXCEPTION_CHECK_VOID(level->progress_bg);
         ui_img_baj_theme_set_src(info->ui, level->progress_bg, CUSTOM_RES_ID_PUMP_LEVEL_BG,
             RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
@@ -240,7 +242,7 @@ static void guide_left_level_arc_update(guide_custom_ui_info_t *info, uint16_t e
     guide_custom_level_t *level = &info->level.left;
 
     if (level->arc == NULL || !lv_obj_is_valid(level->arc)) {
-        level->arc = lv_arc_create(info->root);
+        level->arc = lv_arc_create(guide_custom_level_theme_parent_get(info));
         EXCEPTION_CHECK_VOID(level->arc);
         lv_arc_set_bg_angles(level->arc, PUMP_LEFT_ARC_START_ANGLE, PUMP_LEFT_ARC_END_ANGLE);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_MAIN);
@@ -276,7 +278,7 @@ static void guide_right_level_progress_update(guide_custom_ui_info_t *info, uint
     guide_custom_level_t *level = &info->level.right;
 
     if (level->progress_bg == NULL || !lv_obj_is_valid(level->progress_bg)) {
-        level->progress_bg = lv_image_create(info->root);
+        level->progress_bg = lv_image_create(guide_custom_level_theme_parent_get(info));
         EXCEPTION_CHECK_VOID(level->progress_bg);
         ui_img_baj_theme_set_src(info->ui, level->progress_bg, CUSTOM_RES_ID_PUMP_LEVEL_BG,
             RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
@@ -299,7 +301,7 @@ static void guide_right_level_arc_update(guide_custom_ui_info_t *info, uint16_t 
     guide_custom_level_t *level = &info->level.right;
 
     if (level->arc == NULL || !lv_obj_is_valid(level->arc)) {
-        level->arc = lv_arc_create(info->root);
+        level->arc = lv_arc_create(guide_custom_level_theme_parent_get(info));
         EXCEPTION_CHECK_VOID(level->arc);
         lv_arc_set_bg_angles(level->arc, PUMP_RIGHT_ARC_START_ANGLE, PUMP_RIGHT_ARC_END_ANGLE);
         lv_obj_set_style_arc_color(level->arc, lv_color_hex(PUMP_LEVEL_ARC_ACTIVE_COLOR), LV_PART_MAIN);
@@ -387,6 +389,19 @@ static void guide_right_level_update(guide_custom_ui_info_t *info, bool blink_vi
     guide_level_side_blink_apply(level, info->level.right_blink_state, blink_visible);
 }
 
+#if 0
+static void guide_level_separator_update(guide_custom_ui_info_t *info)
+{
+    if (info->level.separator == NULL || !lv_obj_is_valid(info->level.separator)) {
+        info->level.separator = lv_image_create(guide_custom_level_theme_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->level.separator);
+        lv_obj_align(info->level.separator, LV_ALIGN_BOTTOM_MID, 2, -16);
+        ui_img_baj_theme_set_src(info->ui, info->level.separator, CUSTOM_RES_ID_PUMP_LEVEL_SEPARATOR,
+            RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+}
+#endif
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -401,9 +416,17 @@ void guide_custom_pump_level_ui_remove(guide_custom_ui_info_t *info)
     ui_img_baj_release_decoded_buf(info->level.right.progress_bg);
 }
 
+void guide_custom_pump_level_ui_build(guide_custom_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+    guide_left_level_update(info, true);
+    guide_right_level_update(info, true);
+}
+
 void guide_custom_pump_level_ui_update(guide_custom_ui_info_t *info, bool blink_visible)
 {
     EXCEPTION_CHECK_VOID(info);
+    // guide_level_separator_update(info);
     guide_left_level_update(info, blink_visible);
     guide_right_level_update(info, blink_visible);
 }
