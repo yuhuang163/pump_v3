@@ -158,7 +158,7 @@ typedef enum {
 #if IS_SUPPORT_GUIDE_POWER_PAGE_ADVANCE
 #ifndef GUIDE_PAGE_IS_POWER_ADVANCE
 #define GUIDE_PAGE_IS_POWER_ADVANCE(page)        \
-    ((page) != GUIDE_PAGE_WELCOME_ANIM && (page) < GUIDE_PAGE_FINISH)
+    ((page) > GUIDE_PAGE_FUNCTION_HOME && (page) < GUIDE_PAGE_FINISH)
 #endif
 #else
 #define GUIDE_PAGE_IS_POWER_ADVANCE(page)        (0)
