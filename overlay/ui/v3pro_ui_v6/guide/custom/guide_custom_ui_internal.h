@@ -114,7 +114,6 @@ typedef struct {
     lv_obj_t *card;
     lv_obj_t *text;
     lv_obj_t *button_icon;
-    lv_obj_t *countdown_ring;
     lv_obj_t *countdown_num;
     uint8_t page_index;
     uint8_t shown_countdown_sec;
@@ -123,7 +122,6 @@ typedef struct {
 typedef struct {
     lv_obj_t *bg;
     lv_obj_t *select_titles[3];
-    lv_obj_t *countdown_ring;
     lv_obj_t *countdown_num;
     uint8_t shown_mode_index;
     uint8_t shown_countdown_sec;
@@ -134,7 +132,6 @@ typedef struct {
     lv_obj_t *bg;
     lv_obj_t *time;
     lv_obj_t *select_titles[3];
-    lv_obj_t *countdown_ring;
     lv_obj_t *countdown_num;
     uint8_t shown_mode_index;
     uint8_t shown_countdown_sec;

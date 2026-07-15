@@ -18,9 +18,7 @@
 #define GUIDE_RHYTHM_SELECT_TITLE_ACTIVE_Y                (82)
 #define GUIDE_RHYTHM_SELECT_TITLE_INACTIVE_Y              (84)
 #define GUIDE_RHYTHM_SELECT_TITLE_GAP                     (24)
-#define GUIDE_RHYTHM_SELECT_COUNTDOWN_RING_SIZE           (36)
-#define GUIDE_RHYTHM_SELECT_COUNTDOWN_RING_WIDTH          (1)
-#define GUIDE_RHYTHM_SELECT_COUNTDOWN_RING_Y              (36)
+#define GUIDE_RHYTHM_SELECT_COUNTDOWN_Y                   (32)
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
 #define GUIDE_RHYTHM_SELECT_COUNTDOWN_COLOR               (0x00FF00)
 #else
@@ -286,33 +284,15 @@ static void guide_custom_rhythm_select_idle_countdown_ui_create(guide_custom_ui_
 {
     EXCEPTION_CHECK_VOID(info);
 
-    info->rhythm_select.countdown_ring = lv_arc_create(guide_custom_page_parent_get(info));
-    EXCEPTION_CHECK_VOID(info->rhythm_select.countdown_ring);
-    lv_obj_set_size(info->rhythm_select.countdown_ring, GUIDE_RHYTHM_SELECT_COUNTDOWN_RING_SIZE,
-        GUIDE_RHYTHM_SELECT_COUNTDOWN_RING_SIZE);
-    lv_arc_set_bg_angles(info->rhythm_select.countdown_ring, 0, 360);
-    lv_arc_set_angles(info->rhythm_select.countdown_ring, 0, 360);
-    lv_obj_remove_style(info->rhythm_select.countdown_ring, NULL, LV_PART_KNOB);
-    lv_obj_clear_flag(info->rhythm_select.countdown_ring, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_arc_width(info->rhythm_select.countdown_ring,
-        GUIDE_RHYTHM_SELECT_COUNTDOWN_RING_WIDTH, LV_PART_MAIN);
-    lv_obj_set_style_arc_color(info->rhythm_select.countdown_ring,
-        lv_color_hex(GUIDE_RHYTHM_SELECT_COUNTDOWN_COLOR), LV_PART_MAIN);
-    lv_obj_set_style_arc_opa(info->rhythm_select.countdown_ring, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_arc_opa(info->rhythm_select.countdown_ring, LV_OPA_TRANSP, LV_PART_INDICATOR);
-    lv_obj_align(info->rhythm_select.countdown_ring, LV_ALIGN_TOP_MID, 0,
-        GUIDE_RHYTHM_SELECT_COUNTDOWN_RING_Y);
-
     info->rhythm_select.countdown_num = lv_label_create(guide_custom_page_parent_get(info));
     EXCEPTION_CHECK_VOID(info->rhythm_select.countdown_num);
     lv_obj_set_style_text_color(info->rhythm_select.countdown_num,
         lv_color_hex(GUIDE_RHYTHM_SELECT_COUNTDOWN_COLOR), 0);
-    lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_24_medium, 0);
+    lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
     lv_obj_set_style_text_align(info->rhythm_select.countdown_num, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->rhythm_select.countdown_num, "5");
-    lv_obj_align_to(info->rhythm_select.countdown_num, info->rhythm_select.countdown_ring,
-        LV_ALIGN_CENTER, 0, 0);
-    lv_obj_add_flag(info->rhythm_select.countdown_ring, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(info->rhythm_select.countdown_num, "3s");
+    lv_obj_align(info->rhythm_select.countdown_num, LV_ALIGN_TOP_MID, 0,
+        GUIDE_RHYTHM_SELECT_COUNTDOWN_Y);
     lv_obj_add_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
     info->rhythm_select.shown_countdown_sec = 0xFF;
 }
@@ -393,14 +373,12 @@ void guide_custom_rhythm_select_idle_countdown_ui_update(guide_custom_ui_info_t 
     }
 
     if (remain_sec == 0) {
-        lv_obj_add_flag(info->rhythm_select.countdown_ring, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_snprintf(num_buf, sizeof(num_buf), "%us", remain_sec);
         lv_label_set_text(info->rhythm_select.countdown_num, num_buf);
-        lv_obj_align_to(info->rhythm_select.countdown_num, info->rhythm_select.countdown_ring,
-            LV_ALIGN_CENTER, 0, 0);
-        lv_obj_clear_flag(info->rhythm_select.countdown_ring, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_align(info->rhythm_select.countdown_num, LV_ALIGN_TOP_MID, 0,
+            GUIDE_RHYTHM_SELECT_COUNTDOWN_Y);
         lv_obj_clear_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
     }
     info->rhythm_select.shown_countdown_sec = remain_sec;
