@@ -64,6 +64,12 @@ static void guide_custom_ip_hide(guide_custom_ui_info_t *info)
     }
 }
 
+static bool guide_custom_page_show_ip(uint8_t page_index)
+{
+    return GUIDE_PAGE_SHOW_LEVEL(page_index) ||
+        page_index == GUIDE_PAGE_PUMP_STOP_GUIDE;
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -87,7 +93,7 @@ void guide_custom_ip_ui_update(guide_custom_ui_info_t *info, uint8_t page_index)
     EXCEPTION_CHECK_VOID(info);
     if (page_index == GUIDE_PAGE_FINISH) {
         guide_custom_ip_show_at(info, GUIDE_CUSTOM_FINISH_IP_X, GUIDE_CUSTOM_FINISH_IP_Y);
-    } else if (GUIDE_PAGE_SHOW_LEVEL(page_index)) {
+    } else if (guide_custom_page_show_ip(page_index)) {
         guide_custom_ip_show(info);
     } else {
         guide_custom_ip_hide(info);
