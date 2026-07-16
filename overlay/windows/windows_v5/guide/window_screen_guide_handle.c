@@ -97,7 +97,17 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
         proc->page_index = GUIDE_PAGE_WELCOME_ANIM;
+#else
+        {
+            int res_theme_type = RES_THEME_TYPE_BASE;
+            if (proc->ui && proc->ui->priv.res) {
+                res_theme_type = proc->ui->priv.res->get_sys_theme_type();
+            }
+            proc->page_index = guide_page_initial_get(res_theme_type);
+        }
+#endif
         proc->page_enter_time = get_timestamp();
         guide_led_backlight_update(proc);
         proc->mode_selected = 0;

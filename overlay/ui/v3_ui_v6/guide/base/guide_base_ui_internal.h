@@ -70,6 +70,7 @@ typedef struct {
 
 typedef struct {
     lv_obj_t *bg;
+    lv_obj_t *home_icon;
     lv_obj_t *title;
     lv_obj_t *hint;
     lv_obj_t *start_icon;
@@ -91,6 +92,7 @@ typedef struct {
 
 typedef struct {
     lv_obj_t *bg;
+    lv_obj_t *home_icon;
     lv_obj_t *title;
     lv_obj_t *desc;
     lv_obj_t *hint;
@@ -133,6 +135,7 @@ typedef struct {
     char shown_time_text[16];
 } guide_base_rhythm_select_info_t;
 
+#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
 typedef struct {
     lv_obj_t *bg;
     lv_obj_t *frame;
@@ -140,6 +143,7 @@ typedef struct {
     res_img_info_t frame_info;
     uint16_t shown_frame_res_id;
 } guide_base_animation_info_t;
+#endif
 
 typedef struct {
     lv_obj_t *bg;
@@ -163,7 +167,9 @@ typedef struct {
     lv_obj_t *comp_bg;
     lv_obj_t *page;
     guide_base_level_theme_t level_theme;
+#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
     guide_base_animation_info_t animation;
+#endif
     guide_base_intro_info_t intro;
     guide_base_key_guide_info_t key_guide;
     guide_base_knob_guide_info_t knob_guide;
@@ -221,9 +227,7 @@ void guide_knob_guide_ui_build(guide_base_ui_info_t *info);
 void guide_function_home_ui_remove(guide_base_ui_info_t *info);
 void guide_function_home_ui_build(guide_base_ui_info_t *info);
 
-void guide_label_step_header_create(guide_base_ui_info_t *info, lv_obj_t **step, lv_obj_t **title,
-    const char *step_text, const char *title_text);
-void guide_label_level_header_create(guide_base_ui_info_t *info, lv_obj_t **step, lv_obj_t **title);
+void guide_label_level_header_create(guide_base_ui_info_t *info, lv_obj_t **title);
 void guide_label_instruction_card_create(guide_base_ui_info_t *info, lv_obj_t **card,
     uint16_t res_id, int16_t x, int16_t y);
 void guide_label_instruction_text_create(guide_base_ui_info_t *info, lv_obj_t **text,

@@ -30,11 +30,11 @@
 #define GUIDE_FUNCTION_HOME_START_ICON_X           (157)
 #define GUIDE_FUNCTION_HOME_START_ICON_Y           (296)
 #else
-#define GUIDE_FUNCTION_HOME_TITLE_Y                (204)
+#define GUIDE_FUNCTION_HOME_TITLE_Y                (194)
 #define GUIDE_FUNCTION_HOME_DESC_Y                 (224)
-#define GUIDE_FUNCTION_HOME_HINT_Y                 (254)
+#define GUIDE_FUNCTION_HOME_HINT_Y                 (240)
 #define GUIDE_FUNCTION_HOME_START_ICON_X           (157)
-#define GUIDE_FUNCTION_HOME_START_ICON_Y           (246)
+#define GUIDE_FUNCTION_HOME_START_ICON_Y           (234)
 #endif
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -54,9 +54,9 @@ static void guide_function_home_title_create(guide_custom_ui_info_t *info)
     info->function_home.title = lv_label_create(guide_custom_page_parent_get(info));
     EXCEPTION_CHECK_VOID(info->function_home.title);
     lv_obj_set_style_text_color(info->function_home.title, lv_color_hex(GUIDE_FUNCTION_HOME_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->function_home.title, &lv_font_aeonik_soft_24_semibold, 0);
+    lv_obj_set_style_text_font(info->function_home.title, &lv_font_aeonik_soft_26_semibold, 0);
     lv_obj_set_style_text_align(info->function_home.title, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->function_home.title, "Pumping walkthrough");
+    lv_label_set_text(info->function_home.title, "Pumping in 10 Steps");
     lv_obj_align(info->function_home.title, LV_ALIGN_TOP_MID, 0, GUIDE_FUNCTION_HOME_TITLE_Y);
 }
 
@@ -79,7 +79,7 @@ static void guide_function_home_hint_create(guide_custom_ui_info_t *info)
     info->function_home.hint = lv_label_create(guide_custom_page_parent_get(info));
     EXCEPTION_CHECK_VOID(info->function_home.hint);
     lv_obj_set_style_text_color(info->function_home.hint, lv_color_hex(GUIDE_FUNCTION_HOME_HINT_COLOR), 0);
-    lv_obj_set_style_text_font(info->function_home.hint, &lv_font_aeonik_soft_20_medium, 0);
+    lv_obj_set_style_text_font(info->function_home.hint, &lv_font_aeonik_soft_24_medium, 0);
     lv_obj_set_style_text_align(info->function_home.hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->function_home.hint, "Press         to start");
     lv_obj_align(info->function_home.hint, LV_ALIGN_TOP_MID, 0, GUIDE_FUNCTION_HOME_HINT_Y);
