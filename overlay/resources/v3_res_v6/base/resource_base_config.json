@@ -51,17 +51,6 @@
       "x_offset": 0,
       "y_offset": 0,
       "note": "file_index = resource_id - 1300"
-    },
-    {
-      "start_resource_id": "BASE_RES_ID_GUIDE_ANIM_START",
-      "end_resource_id": "BASE_RES_ID_GUIDE_ANIM_END",
-      "description": "引导动画",
-      "file_template": "animation/guide/baj/IPXSYD_{file_index:05d}_190x190_a8_q99_422.baj",
-      "start_file_index": 0,
-      "id_to_file_offset": -1400,
-      "x_offset": 0,
-      "y_offset": 0,
-      "note": "file_index = resource_id - 1400"
     }
   ],
   "resources": [
@@ -208,7 +197,7 @@
     {
       "resource_id": "BASE_RES_ID_GUIDE_LABLE",
       "description": "引导标签",
-      "file": "baj/label_guide_300x128_a8_q99_444.baj",
+      "file": "baj/label_guide_300x136_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -271,7 +260,7 @@
     {
       "resource_id": "BASE_RES_ID_GUIDE_START_BUTTON_ICON",
       "description": "引导-开始按钮图标",
-      "file": "baj/icon_guide_start_button_28x28_a8_q99_444.baj",
+      "file": "baj/icon_guide_start_button_32x32_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -297,23 +286,9 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_GUIDE_BG",
-      "description": "引导背景",
-      "file": "png/bg_guide_ui.png",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_GUIDE_ANIM_BG",
-      "description": "引导动画背景",
-      "file": "png/bg_guide_anim_ui.png",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_GUIDE_KNOB_PRESS_BG",
-      "description": "引导旋钮按下背景",
-      "file": "png/bg_guide_knob_press.png",
+      "resource_id": "BASE_RES_ID_GUIDE_HOME_ICON",
+      "description": "引导-功能首页图标",
+      "file": "png/icon_guide_home.png",
       "x_offset": 0,
       "y_offset": 0
     },

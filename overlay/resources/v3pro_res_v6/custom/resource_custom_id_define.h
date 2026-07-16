@@ -91,6 +91,10 @@ typedef enum {
     CUSTOM_RES_ID_TYPE_MAX
 } custom_res_id_type_e;
 
+/// 引导欢迎动画帧数
+#define CUSTOM_GUIDE_ANIM_NUM \
+    (CUSTOM_RES_ID_GUIDE_IP_END - CUSTOM_RES_ID_GUIDE_IP_START + 1)
+
 #ifdef __cplusplus
 }
 #endif
