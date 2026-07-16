@@ -90,13 +90,6 @@ typedef struct {
     lv_obj_t *title;
     lv_obj_t *hint;
     lv_obj_t *icon;
-} guide_custom_knob_press_guide_info_t;
-
-typedef struct {
-    lv_obj_t *bg;
-    lv_obj_t *title;
-    lv_obj_t *hint;
-    lv_obj_t *icon;
 } guide_custom_knob_guide_info_t;
 
 typedef struct {
@@ -159,6 +152,11 @@ typedef struct {
 } guide_custom_finish_info_t;
 
 typedef struct {
+    lv_obj_t *current;
+    lv_obj_t *suffix;
+} guide_custom_page_num_info_t;
+
+typedef struct {
     lv_obj_t *ip;
 } guide_custom_ip_info_t;
 
@@ -176,7 +174,6 @@ typedef struct {
     guide_custom_animation_info_t animation;
     guide_custom_intro_info_t intro;
     guide_custom_key_guide_info_t key_guide;
-    guide_custom_knob_press_guide_info_t knob_press_guide;
     guide_custom_knob_guide_info_t knob_guide;
     guide_custom_function_home_info_t function_home;
     guide_custom_level_guide_info_t level_guide;
@@ -185,6 +182,7 @@ typedef struct {
     guide_custom_finish_info_t finish;
     guide_custom_level_info_t level;
     guide_custom_label_info_t label;
+    guide_custom_page_num_info_t page_num;
     ui_manager_context_t *ui;
     uint8_t force_update;
     uint8_t page_index;
@@ -225,9 +223,6 @@ void guide_custom_intro_ui_build(guide_custom_ui_info_t *info);
 void guide_custom_key_guide_ui_remove(guide_custom_ui_info_t *info);
 void guide_custom_key_guide_ui_build(guide_custom_ui_info_t *info);
 
-void guide_custom_knob_press_guide_ui_remove(guide_custom_ui_info_t *info);
-void guide_custom_knob_press_guide_ui_build(guide_custom_ui_info_t *info);
-
 void guide_custom_knob_guide_ui_remove(guide_custom_ui_info_t *info);
 void guide_custom_knob_guide_ui_build(guide_custom_ui_info_t *info);
 
@@ -249,8 +244,9 @@ void guide_custom_level_guide_ui_build(guide_custom_ui_info_t *info, uint8_t pag
 void guide_custom_level_idle_countdown_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc);
 void guide_custom_mode_select_guide_ui_build(guide_custom_ui_info_t *info);
 void guide_custom_rhythm_select_guide_ui_build(guide_custom_ui_info_t *info);
-void guide_custom_pump_pause_guide_ui_build(guide_custom_ui_info_t *info);
 void guide_custom_pump_stop_guide_ui_build(guide_custom_ui_info_t *info);
+void guide_custom_page_num_ui_build(guide_custom_ui_info_t *info, uint8_t page_index);
+void guide_custom_page_num_ui_set_visible(guide_custom_ui_info_t *info, bool visible);
 
 void guide_custom_mode_select_ui_remove(guide_custom_ui_info_t *info);
 void guide_custom_mode_select_ui_build(guide_custom_ui_info_t *info);

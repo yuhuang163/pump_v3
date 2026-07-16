@@ -41,16 +41,6 @@
 #define GUIDE_MODE_SELECT_START_ICON_Y              (144)
 
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
-#define GUIDE_PUMP_PAUSE_GUIDE_TEXT_COLOR           (0x00FF00)
-#else
-#define GUIDE_PUMP_PAUSE_GUIDE_TEXT_COLOR           (0xBD4060)
-#endif
-#define GUIDE_PUMP_PAUSE_GUIDE_TITLE_Y              (194)
-#define GUIDE_PUMP_PAUSE_GUIDE_HINT_Y               (234)
-#define GUIDE_PUMP_PAUSE_GUIDE_ICON_X               (107)
-#define GUIDE_PUMP_PAUSE_GUIDE_ICON_Y               (230)
-
-#if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
 #define GUIDE_PUMP_STOP_GUIDE_TEXT_COLOR            (0x00FF00)
 #else
 #define GUIDE_PUMP_STOP_GUIDE_TEXT_COLOR            (0xBD4060)
@@ -59,6 +49,14 @@
 #define GUIDE_PUMP_STOP_GUIDE_HINT_Y                (234)
 #define GUIDE_PUMP_STOP_GUIDE_ICON_X                (115)
 #define GUIDE_PUMP_STOP_GUIDE_ICON_Y                (230)
+
+#if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
+#define GUIDE_PAGE_NUM_CURRENT_COLOR                (0x00FF00)
+#define GUIDE_PAGE_NUM_SUFFIX_COLOR                 (0x00FF00)
+#else
+#define GUIDE_PAGE_NUM_CURRENT_COLOR                (0xBD4060)
+#define GUIDE_PAGE_NUM_SUFFIX_COLOR                 (0xDE7F93)
+#endif
 
 typedef struct {
     const char *text;
@@ -244,8 +242,7 @@ void guide_custom_label_inline_icon_create(guide_custom_ui_info_t *info, lv_obj_
 void guide_custom_level_guide_ui_remove(guide_custom_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
-    if (info->level_guide.page_index == GUIDE_PAGE_PUMP_PAUSE_GUIDE ||
-        info->level_guide.page_index == GUIDE_PAGE_PUMP_STOP_GUIDE) {
+    if (info->level_guide.page_index == GUIDE_PAGE_PUMP_STOP_GUIDE) {
         ui_img_png_release_decoded_buf(info->level_guide.bg);
     } else {
 #if !LV_USE_SNAPSHOT
@@ -357,42 +354,6 @@ void guide_custom_rhythm_select_guide_ui_build(guide_custom_ui_info_t *info)
         GUIDE_MODE_SELECT_START_ICON_Y);
 }
 
-void guide_custom_pump_pause_guide_ui_build(guide_custom_ui_info_t *info)
-{
-    EXCEPTION_CHECK_VOID(info && info->ui);
-
-    info->level_guide.page_index = GUIDE_PAGE_PUMP_PAUSE_GUIDE;
-#if (IS_SUPPORT_CUSTOM_GUIDE_COMP_BG == 0)
-    info->level_guide.bg = lv_image_create(guide_custom_page_parent_get(info));
-    EXCEPTION_CHECK_VOID(info->level_guide.bg);
-    ui_img_png_theme_set_src(info->ui, info->level_guide.bg, CUSTOM_RES_ID_GUIDE_BG,
-        RES_THEME_TYPE_CUSTOM, UI_IMG_PNG_DECODE_RGBA8888);
-    lv_obj_align(info->level_guide.bg, LV_ALIGN_CENTER, 0, 0);
-#endif
-
-    info->level_guide.title = lv_label_create(guide_custom_page_parent_get(info));
-    EXCEPTION_CHECK_VOID(info->level_guide.title);
-    lv_obj_set_style_text_color(info->level_guide.title,
-        lv_color_hex(GUIDE_PUMP_PAUSE_GUIDE_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(info->level_guide.title, &lv_font_aeonik_soft_24_semibold, 0);
-    lv_obj_set_style_text_align(info->level_guide.title, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->level_guide.title, "Last Step");
-    lv_obj_align(info->level_guide.title, LV_ALIGN_TOP_MID, 0, GUIDE_PUMP_PAUSE_GUIDE_TITLE_Y);
-
-    info->level_guide.text = lv_label_create(guide_custom_page_parent_get(info));
-    EXCEPTION_CHECK_VOID(info->level_guide.text);
-    lv_obj_set_style_text_color(info->level_guide.text,
-        lv_color_hex(GUIDE_PUMP_PAUSE_GUIDE_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(info->level_guide.text, &lv_font_aeonik_soft_20_medium, 0);
-    lv_obj_set_style_text_align(info->level_guide.text, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->level_guide.text, "Press         to pause pumping");
-    lv_obj_align(info->level_guide.text, LV_ALIGN_TOP_MID, 0, GUIDE_PUMP_PAUSE_GUIDE_HINT_Y);
-
-    guide_custom_label_inline_icon_create(info, &info->level_guide.button_icon,
-        CUSTOM_RES_ID_GUIDE_START_BUTTON_ICON, GUIDE_PUMP_PAUSE_GUIDE_ICON_X,
-        GUIDE_PUMP_PAUSE_GUIDE_ICON_Y);
-}
-
 void guide_custom_pump_stop_guide_ui_build(guide_custom_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info && info->ui);
@@ -427,6 +388,64 @@ void guide_custom_pump_stop_guide_ui_build(guide_custom_ui_info_t *info)
     guide_custom_label_inline_icon_create(info, &info->level_guide.button_icon,
         CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_ICON, GUIDE_PUMP_STOP_GUIDE_ICON_X,
         GUIDE_PUMP_STOP_GUIDE_ICON_Y);
+}
+
+void guide_custom_page_num_ui_build(guide_custom_ui_info_t *info, uint8_t page_index)
+{
+    lv_obj_t *parent;
+    char cur_buf[4];
+    char suffix_buf[8];
+    uint8_t page_num;
+    lv_coord_t suffix_w;
+
+    EXCEPTION_CHECK_VOID(info);
+    info->page_num.current = NULL;
+    info->page_num.suffix = NULL;
+    if (!GUIDE_PAGE_SHOW_NUM(page_index)) {
+        return;
+    }
+
+    parent = guide_custom_page_parent_get(info);
+    EXCEPTION_CHECK_VOID(parent);
+    page_num = guide_page_num_of(page_index);
+    lv_snprintf(cur_buf, sizeof(cur_buf), "%u", page_num);
+    lv_snprintf(suffix_buf, sizeof(suffix_buf), "/%u", GUIDE_PAGE_NUM_TOTAL);
+
+    info->page_num.current = lv_label_create(parent);
+    EXCEPTION_CHECK_VOID(info->page_num.current);
+    lv_obj_set_style_text_color(info->page_num.current, lv_color_hex(GUIDE_PAGE_NUM_CURRENT_COLOR), 0);
+    lv_obj_set_style_text_font(info->page_num.current, &lv_font_aeonik_soft_32_medium, 0);
+    lv_label_set_text(info->page_num.current, cur_buf);
+
+    info->page_num.suffix = lv_label_create(parent);
+    EXCEPTION_CHECK_VOID(info->page_num.suffix);
+    lv_obj_set_style_text_color(info->page_num.suffix, lv_color_hex(GUIDE_PAGE_NUM_SUFFIX_COLOR), 0);
+    lv_obj_set_style_text_font(info->page_num.suffix, &lv_font_aeonik_soft_32_medium, 0);
+    lv_label_set_text(info->page_num.suffix, suffix_buf);
+
+    lv_obj_update_layout(info->page_num.suffix);
+    suffix_w = lv_obj_get_width(info->page_num.suffix);
+    lv_obj_align(info->page_num.current, LV_ALIGN_TOP_MID, -(suffix_w / 2), GUIDE_PAGE_NUM_Y);
+    lv_obj_align_to(info->page_num.suffix, info->page_num.current, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+}
+
+void guide_custom_page_num_ui_set_visible(guide_custom_ui_info_t *info, bool visible)
+{
+    EXCEPTION_CHECK_VOID(info);
+    if (info->page_num.current != NULL && lv_obj_is_valid(info->page_num.current)) {
+        if (visible) {
+            lv_obj_clear_flag(info->page_num.current, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(info->page_num.current, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (info->page_num.suffix != NULL && lv_obj_is_valid(info->page_num.suffix)) {
+        if (visible) {
+            lv_obj_clear_flag(info->page_num.suffix, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(info->page_num.suffix, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
 }
 
 void guide_custom_pump_label_ui_remove(guide_custom_ui_info_t *info)
