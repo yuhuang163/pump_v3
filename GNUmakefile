@@ -658,7 +658,6 @@ FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26 \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_28 \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_32 \
-	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_36 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_60 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_72 \
@@ -1301,7 +1300,6 @@ FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_28/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_32/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_36/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_60/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_72/*.c) \

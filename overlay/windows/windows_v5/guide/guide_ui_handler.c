@@ -345,9 +345,15 @@ static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
 
     /// 弹窗期间不跑自动切页逻辑，避免组件重建盖住弹窗
     if (proc->popup_ui_type == ID_POPUP_UI_NONE) {
-        if (proc->page_index == GUIDE_PAGE_WELCOME_ANIM &&
-            index >= (int)BASE_GUIDE_ANIM_NUM) {
-            guide_page_advance(proc, GUIDE_PAGE_INTRO);
+        if (proc->page_index == GUIDE_PAGE_WELCOME_ANIM) {
+            int res_theme_type = RES_THEME_TYPE_BASE;
+            if (proc->ui && proc->ui->priv.res) {
+                res_theme_type = proc->ui->priv.res->get_sys_theme_type();
+            }
+            if (res_theme_type == RES_THEME_TYPE_CUSTOM &&
+                index >= (int)CUSTOM_GUIDE_ANIM_NUM) {
+                guide_page_advance(proc, GUIDE_PAGE_INTRO);
+            }
         }
 
         guide_guide_step_timeout_handler(proc);

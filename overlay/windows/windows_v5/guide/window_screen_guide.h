@@ -108,6 +108,11 @@ static inline uint32_t guide_idle_total_timeout_ms(uint32_t silent_ms)
 #define IS_SUPPORT_GUIDE_LEVEL_FIXED_KNOB_ADVANCE  (1)
 #endif
 
+/// base 主题是否支持引导欢迎动画页
+#ifndef IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
+#define IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM         (0)
+#endif
+
 /// 主界面UI动作枚举
 typedef enum {
     GUIDE_HDR_ACTION_MAX
@@ -149,6 +154,13 @@ typedef enum {
 } guide_mode_select_e;
 
 #define GUIDE_PAGE_IS_WELCOME_ANIM(page)        ((page) == GUIDE_PAGE_WELCOME_ANIM)
+
+/// base 主题无欢迎动画页时，custom 主题仍从欢迎动画页开始
+static inline uint16_t guide_page_initial_get(int res_theme_type)
+{
+    return (res_theme_type == RES_THEME_TYPE_CUSTOM)
+        ? GUIDE_PAGE_WELCOME_ANIM : GUIDE_PAGE_INTRO;
+}
 #define GUIDE_PAGE_IS_LEVEL_INTERACTIVE(page)   \
     ((page) == GUIDE_PAGE_LEVEL_BOTH || (page) == GUIDE_PAGE_LEVEL_LEFT || \
      (page) == GUIDE_PAGE_LEVEL_RIGHT)
@@ -185,13 +197,21 @@ typedef enum {
 
 static inline uint8_t guide_page_num_of(uint8_t page)
 {
+    uint8_t page_num;
+
     if (!GUIDE_PAGE_SHOW_NUM(page)) {
         return 0;
     }
     if (page >= GUIDE_PAGE_PUMP_STOP_GUIDE) {
         return GUIDE_PAGE_NUM_TOTAL;
     }
-    return (uint8_t)(page - GUIDE_PAGE_MODE_SELECT_GUIDE + 1);
+
+    page_num = (uint8_t)(page - GUIDE_PAGE_MODE_SELECT_GUIDE + 1);
+    /// LEVEL_BOTH_GUIDE 与 LEVEL_BOTH 共用第 5 页
+    if (page >= GUIDE_PAGE_LEVEL_BOTH) {
+        page_num--;
+    }
+    return page_num;
 }
 
 /// 主界面UI结构体

@@ -19,6 +19,7 @@ extern "C" {
 *****************************************************************************************
 */
 #define IS_SUPPORT_CUSTOM_GUIDE_COMP_BG            (0)
+#define IS_SUPPORT_CUSTOM_GUIDE_WELCOME_ANIM       (1)
 #define GUIDE_PAGE_INDEX_INVALID                   (0xFF)
 
 #define IS_SUPPORT_CUSTOM_GUIDE_LABEL_TEXT_CMP     (0) /// 支持label文本对比
@@ -27,9 +28,6 @@ extern "C" {
 #else
 #define GUIDE_CUSTOM_LABEL_CARD_TEXT_COLOR         (0xA0183B)
 #endif
-
-#define CUSTOM_GUIDE_ANIM_NUM \
-    (CUSTOM_RES_ID_GUIDE_IP_END - CUSTOM_RES_ID_GUIDE_IP_START + 1)
 
 typedef enum {
     GUIDE_CUSTOM_LEVEL_DISPLAY_DEFAULT = 0,
@@ -229,9 +227,7 @@ void guide_custom_knob_guide_ui_build(guide_custom_ui_info_t *info);
 void guide_custom_function_home_ui_remove(guide_custom_ui_info_t *info);
 void guide_custom_function_home_ui_build(guide_custom_ui_info_t *info);
 
-void guide_custom_label_step_header_create(guide_custom_ui_info_t *info, lv_obj_t **step, lv_obj_t **title,
-    const char *step_text, const char *title_text);
-void guide_custom_label_level_header_create(guide_custom_ui_info_t *info, lv_obj_t **step, lv_obj_t **title);
+void guide_custom_label_level_header_create(guide_custom_ui_info_t *info, lv_obj_t **title);
 void guide_custom_label_instruction_card_create(guide_custom_ui_info_t *info, lv_obj_t **card,
     uint16_t res_id, int16_t x, int16_t y);
 void guide_custom_label_instruction_text_create(guide_custom_ui_info_t *info, lv_obj_t **text,
