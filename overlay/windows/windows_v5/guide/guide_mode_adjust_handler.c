@@ -66,8 +66,24 @@ int guide_pump_mode_adjust_handler(ui_proc_guide_t *proc, bool is_bf_mode)
     proc->ui_mode_index = guide_cycle_pump_mode(proc->ui_mode_index, is_bf_mode);
     if (is_bf_mode) {
         proc->rhythm_select_touched = 1;
+        if (proc->rhythm_select_click_cnt < 0xFF) {
+            proc->rhythm_select_click_cnt++;
+        }
+#if IS_SUPPORT_GUIDE_RHYTHM_SELECT_FIXED_DOUBLE_ADVANCE
+        if (proc->rhythm_select_click_cnt == GUIDE_RHYTHM_SELECT_DOUBLE_CLICK_COUNT) {
+            proc->rhythm_select_double_ready_time = get_timestamp();
+        }
+#endif
     } else {
         proc->mode_select_touched = 1;
+        if (proc->mode_select_click_cnt < 0xFF) {
+            proc->mode_select_click_cnt++;
+        }
+#if IS_SUPPORT_GUIDE_MODE_SELECT_FIXED_TRIPLE_ADVANCE
+        if (proc->mode_select_click_cnt == GUIDE_MODE_SELECT_TRIPLE_CLICK_COUNT) {
+            proc->mode_select_triple_ready_time = get_timestamp();
+        }
+#endif
     }
 #if IS_SUPPORT_GUIDE_PUMP_MODE_SYNC
     if (proc->pump != NULL) {

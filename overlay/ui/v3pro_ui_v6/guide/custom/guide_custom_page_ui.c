@@ -33,6 +33,7 @@ static void guide_page_content_reset(guide_custom_ui_info_t *info)
     memset(&info->mode_select, 0, sizeof(info->mode_select));
     memset(&info->rhythm_select, 0, sizeof(info->rhythm_select));
     memset(&info->label, 0, sizeof(info->label));
+    memset(&info->page_num, 0, sizeof(info->page_num));
     info->label.text_id = GUIDE_PAGE_MAX;
 }
 
@@ -41,7 +42,6 @@ static void guide_page_container_reset(guide_custom_ui_info_t *info)
     guide_custom_pump_animation_ui_remove(info);
     guide_custom_intro_ui_remove(info);
     guide_custom_key_guide_ui_remove(info);
-    guide_custom_knob_press_guide_ui_remove(info);
     guide_custom_knob_guide_ui_remove(info);
     guide_custom_function_home_ui_remove(info);
     guide_custom_finish_ui_remove(info);
@@ -50,7 +50,6 @@ static void guide_page_container_reset(guide_custom_ui_info_t *info)
     memset(&info->animation, 0, sizeof(info->animation));
     memset(&info->intro, 0, sizeof(info->intro));
     memset(&info->key_guide, 0, sizeof(info->key_guide));
-    memset(&info->knob_press_guide, 0, sizeof(info->knob_press_guide));
     memset(&info->knob_guide, 0, sizeof(info->knob_guide));
     memset(&info->function_home, 0, sizeof(info->function_home));
     memset(&info->finish, 0, sizeof(info->finish));
@@ -121,9 +120,6 @@ static void guide_page_build(guide_custom_ui_info_t *info, uint8_t page_index, b
         case GUIDE_PAGE_FUNCTION_HOME:
             guide_custom_function_home_ui_build(info);
             break;
-        case GUIDE_PAGE_KNOB_PRESS_GUIDE:
-            guide_custom_knob_press_guide_ui_build(info);
-            break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
         case GUIDE_PAGE_LEVEL_BOTH:
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
@@ -149,9 +145,6 @@ static void guide_page_build(guide_custom_ui_info_t *info, uint8_t page_index, b
             guide_custom_rhythm_select_ui_build(info);
             guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
-        case GUIDE_PAGE_PUMP_PAUSE_GUIDE:
-            guide_custom_pump_pause_guide_ui_build(info);
-            break;
         case GUIDE_PAGE_PUMP_STOP_GUIDE:
             guide_custom_pump_stop_guide_ui_build(info);
             break;
@@ -163,6 +156,8 @@ static void guide_page_build(guide_custom_ui_info_t *info, uint8_t page_index, b
             guide_custom_pump_label_ui_build(info, page_index);
             break;
     }
+
+    guide_custom_page_num_ui_build(info, page_index);
 }
 
 static void guide_page_switch(guide_custom_ui_info_t *info, uint8_t page_index)

@@ -127,17 +127,6 @@ static void guide_led_backlight_rhythm_select_update(ui_proc_guide_t *proc)
     proc->led->set_led_level(PUMP_BREASTFEEDING_BL, blink_on ? LED_LEVEL_MAX : 0);
 }
 
-static void guide_led_backlight_pump_pause_guide_update(ui_proc_guide_t *proc)
-{
-    const bool blink_on = proc->state_blink_visible != 0;
-
-    guide_led_backlight_return_only(proc);
-    if (proc->led == NULL) {
-        return;
-    }
-    proc->led->set_led_level(PUMP_START_BL, blink_on ? LED_LEVEL_MAX : 0);
-}
-
 static void guide_led_backlight_intro_update(ui_proc_guide_t *proc)
 {
     const bool blink_on = proc->state_blink_visible != 0;
@@ -186,7 +175,6 @@ void guide_led_backlight_blink_tick(ui_proc_guide_t *proc)
     switch (proc->page_index) {
         case GUIDE_PAGE_INTRO:
         case GUIDE_PAGE_FUNCTION_HOME:
-        case GUIDE_PAGE_PUMP_PAUSE_GUIDE:
             guide_led_backlight_blink_led_set(proc, PUMP_START_BL);
             break;
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
@@ -235,10 +223,6 @@ void guide_led_backlight_update(ui_proc_guide_t *proc)
         case GUIDE_PAGE_FUNCTION_HOME:
             guide_led_backlight_intro_update(proc);
             break;
-        case GUIDE_PAGE_KNOB_PRESS_GUIDE:
-            /// 旋钮按下引导页仅点亮返回按键灯
-            guide_led_backlight_return_only(proc);
-            break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
         case GUIDE_PAGE_LEVEL_BOTH:
             guide_led_backlight_return_only(proc);
@@ -260,9 +244,6 @@ void guide_led_backlight_update(ui_proc_guide_t *proc)
             break;
         case GUIDE_PAGE_RHYTHM_SELECT:
             guide_led_backlight_rhythm_select_update(proc);
-            break;
-        case GUIDE_PAGE_PUMP_PAUSE_GUIDE:
-            guide_led_backlight_pump_pause_guide_update(proc);
             break;
         case GUIDE_PAGE_PUMP_STOP_GUIDE:
             guide_led_backlight_pump_stop_guide_update(proc);

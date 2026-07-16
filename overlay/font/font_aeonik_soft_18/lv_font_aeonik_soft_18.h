@@ -8,10 +8,11 @@ extern "C" {
 #include "stdint.h" // IWYU pragma: keep
 #include "lvgl.h"  // IWYU pragma: keep
 
-/// LVGL 字体声明 - Aeonik soft 12px
+/// LVGL 字体声明 - Aeonik soft 18px
 /// 包含字符: 0-9, A-Z, a-z, ' ' ',' '.' '!'
 extern const lv_font_t lv_font_aeonik_soft_18_medium;
 extern const lv_font_t lv_font_aeonik_soft_18_regular;
+extern const lv_font_t lv_font_aeonik_soft_18_semibold;
 
 #ifdef __cplusplus
 }

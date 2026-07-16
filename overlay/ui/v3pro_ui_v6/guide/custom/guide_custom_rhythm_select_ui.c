@@ -372,6 +372,7 @@ void guide_custom_rhythm_select_idle_countdown_ui_update(guide_custom_ui_info_t 
         return;
     }
 
+    guide_custom_page_num_ui_set_visible(info, remain_sec == 0);
     if (remain_sec == 0) {
         lv_obj_add_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
     } else {

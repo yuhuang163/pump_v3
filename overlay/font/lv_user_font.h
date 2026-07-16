@@ -25,6 +25,7 @@ extern "C" {
 #include "lv_font_aeonik_soft_24.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_26.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_28.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_32.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_36.h" // IWYU pragma: keep
 #include "lv_font_quicksand_60.h" // IWYU pragma: keep
 #include "lv_font_quicksand_64.h" // IWYU pragma: keep
