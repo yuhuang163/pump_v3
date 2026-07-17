@@ -252,9 +252,15 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         pump_ui_change_hdr_remove(proc);
     }
+ 
+    int res_theme_type = RES_THEME_TYPE_BASE;
+    if (ui->priv.res) {
+        res_theme_type = ui->priv.res->get_sys_theme_type();
+    }
+
     ui_play_info_t play_info = {
         .tag = "pump_home_screen",
-        .fps = PUMP_ANIMATION_FREQ,
+        .fps = pump_animation_freq_get(res_theme_type),
         .progress_cb = pumping_animation_progress_cb,
         .display_prepare_cb = pumping_ui_display_prepare,
         .display_remove_cb = pumping_ui_display_remove,
