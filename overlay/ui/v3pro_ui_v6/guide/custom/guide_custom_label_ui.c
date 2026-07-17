@@ -456,7 +456,8 @@ void guide_custom_pump_stop_guide_ui_build(guide_custom_ui_info_t *info)
         lv_color_hex(GUIDE_PUMP_STOP_GUIDE_HINT_COLOR), 0);
     lv_obj_set_style_text_font(info->level_guide.text, &lv_font_aeonik_soft_18_regular, 0);
     lv_obj_set_style_text_align(info->level_guide.text, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->level_guide.text, "to stop pumping");
+    // lv_label_set_text(info->level_guide.text, "to stop pumping");
+    lv_label_set_text(info->level_guide.text, "Press & hold 3s");
     lv_obj_align(info->level_guide.text, LV_ALIGN_TOP_MID, 0, GUIDE_PUMP_STOP_GUIDE_HINT_Y);
 
     guide_custom_label_inline_icon_create(info, &info->level_guide.button_icon,
