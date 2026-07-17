@@ -19,7 +19,7 @@
 #define GUIDE_KEY_GUIDE_HINT_COLOR                 (0xCA5C77)
 #endif
 #define GUIDE_KEY_GUIDE_TITLE_Y                    (54)
-#define GUIDE_KEY_GUIDE_HINT_Y                     (90)
+#define GUIDE_KEY_GUIDE_HINT_Y                     (92)
 
 /*
 * LOCAL FUNCTION DEFINITIONS

@@ -18,24 +18,21 @@
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t guide_bg_data[] = {
     // #include "comparison_png2txt/guide_base_p11_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p12_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p13_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p14_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p15_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p17_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p18_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p19_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p20_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p21_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p22_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p23_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p24_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p26_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p28_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p32_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p31_360x360.txt"
-    #include "comparison_png2txt/guide_base_p35_360x360.txt"
-    // #include "comparison_png2txt/home_base_34_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p40_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p41_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p42_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p43_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p44_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p45_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p46_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p47_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p48_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p49_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p50_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p51_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p52_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p53_360x360.txt"
+    #include "comparison_png2txt/guide_base_p54_360x360.txt"
 };
 #endif
 
@@ -94,7 +91,8 @@ static void guide_base_root_init(void)
 
 bool guide_base_level_theme_page_is(uint8_t page_index)
 {
-    return GUIDE_PAGE_SHOW_LEVEL(page_index);
+    return (page_index >= GUIDE_PAGE_LEVEL_BOTH_GUIDE &&
+        page_index <= GUIDE_PAGE_LEVEL_RIGHT);
 }
 
 bool guide_base_level_theme_is_active(const guide_base_ui_info_t *info)
@@ -231,7 +229,9 @@ void guide_base_ui_prepare(ui_manager_context_t *thiz)
     guide_info->shown_page_index = GUIDE_PAGE_INDEX_INVALID;
     guide_info->page_index = GUIDE_PAGE_MAX;
     guide_info->label.text_id = GUIDE_PAGE_MAX;
+#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
     guide_info->animation.shown_frame_res_id = BASE_RES_ID_GUIDE_ANIM_START - 1;
+#endif
 }
 
 void guide_base_ui_remove(ui_manager_context_t *thiz)
@@ -252,7 +252,7 @@ int guide_base_ui_process(ui_manager_context_t *thiz)
 
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
     guide_root_comp_bg_update(thiz);
-    proc->page_index = GUIDE_PAGE_MODE_SELECT;
+    proc->page_index = GUIDE_PAGE_PUMP_STOP_GUIDE;
 #endif
     guide_info->level.left.new_value = proc->setting.level[0];
     guide_info->level.right.new_value = proc->setting.level[1];

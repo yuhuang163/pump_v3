@@ -17,7 +17,7 @@
 #define GUIDE_MODE_SELECT_TITLE_ACTIVE_Y                (82)
 #define GUIDE_MODE_SELECT_TITLE_INACTIVE_Y              (84)
 #define GUIDE_MODE_SELECT_TITLE_GAP                     (24)
-#define GUIDE_MODE_SELECT_COUNTDOWN_Y                   (32)
+#define GUIDE_MODE_SELECT_COUNTDOWN_Y                   (36) //(32)
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
 #define GUIDE_MODE_SELECT_COUNTDOWN_COLOR               (0x00FF00)
 #else
@@ -25,12 +25,12 @@
 #endif
 
 #define GUIDE_MODE_SELECT_LABEL_X                       (44)
-#define GUIDE_MODE_SELECT_STIMULATION_LABEL_Y           (124)
-#define GUIDE_MODE_SELECT_STIMULATION_TEXT_Y            (156)
-#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y            (124)
-#define GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y             (156)
-#define GUIDE_MODE_SELECT_MIXED_LABEL_Y                 (120)
-#define GUIDE_MODE_SELECT_MIXED_TEXT_Y                  (158)
+#define GUIDE_MODE_SELECT_STIMULATION_LABEL_Y           (124 - 8)
+#define GUIDE_MODE_SELECT_STIMULATION_TEXT_Y            (156 - 8)
+#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y            (124 - 8)
+#define GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y             (156 - 8)
+#define GUIDE_MODE_SELECT_MIXED_LABEL_Y                 (120 - 8)
+#define GUIDE_MODE_SELECT_MIXED_TEXT_Y                  (158 - 8)
 
 #define GUIDE_MODE_SELECT_SLOT_PREV                     (0)
 #define GUIDE_MODE_SELECT_SLOT_CUR                      (1)
@@ -264,7 +264,8 @@ static void guide_custom_mode_select_idle_countdown_ui_create(guide_custom_ui_in
     EXCEPTION_CHECK_VOID(info->mode_select.countdown_num);
     lv_obj_set_style_text_color(info->mode_select.countdown_num,
         lv_color_hex(GUIDE_MODE_SELECT_COUNTDOWN_COLOR), 0);
-    lv_obj_set_style_text_font(info->mode_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
+    // lv_obj_set_style_text_font(info->mode_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
+    lv_obj_set_style_text_font(info->mode_select.countdown_num, &lv_font_aeonik_soft_32_medium, 0);
     lv_obj_set_style_text_align(info->mode_select.countdown_num, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->mode_select.countdown_num, "3s");
     lv_obj_align(info->mode_select.countdown_num, LV_ALIGN_TOP_MID, 0, GUIDE_MODE_SELECT_COUNTDOWN_Y);
