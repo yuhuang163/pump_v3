@@ -16,7 +16,7 @@
 #else
 #define GUIDE_INTRO_TEXT_COLOR                     (0xBD4060)
 #endif
-#define GUIDE_INTRO_TITLE_Y                        (204)
+#define GUIDE_INTRO_TITLE_Y                        (206)
 #define GUIDE_INTRO_HINT_Y                         (252)
 #define GUIDE_INTRO_START_ICON_X                   (157)
 #define GUIDE_INTRO_START_ICON_Y                   (246)
@@ -39,7 +39,7 @@ static void guide_intro_title_create(guide_custom_ui_info_t *info)
     info->intro.title = lv_label_create(guide_custom_page_parent_get(info));
     EXCEPTION_CHECK_VOID(info->intro.title);
     lv_obj_set_style_text_color(info->intro.title, lv_color_hex(GUIDE_INTRO_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(info->intro.title, &lv_font_aeonik_soft_24_semibold, 0);
+    lv_obj_set_style_text_font(info->intro.title, &lv_font_aeonik_soft_26_semibold, 0);
     lv_obj_set_style_text_align(info->intro.title, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->intro.title, "Get to know V3 in 2 min");
     lv_obj_align(info->intro.title, LV_ALIGN_TOP_MID, 0, GUIDE_INTRO_TITLE_Y);
@@ -50,7 +50,7 @@ static void guide_intro_hint_create(guide_custom_ui_info_t *info)
     info->intro.hint = lv_label_create(guide_custom_page_parent_get(info));
     EXCEPTION_CHECK_VOID(info->intro.hint);
     lv_obj_set_style_text_color(info->intro.hint, lv_color_hex(GUIDE_INTRO_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(info->intro.hint, &lv_font_aeonik_soft_20_medium, 0);
+    lv_obj_set_style_text_font(info->intro.hint, &lv_font_aeonik_soft_24_medium, 0);
     lv_obj_set_style_text_align(info->intro.hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->intro.hint, "Press         to start");
     lv_obj_align(info->intro.hint, LV_ALIGN_TOP_MID, 0, GUIDE_INTRO_HINT_Y);

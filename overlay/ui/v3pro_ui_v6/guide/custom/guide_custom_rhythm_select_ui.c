@@ -15,10 +15,10 @@
 #define GUIDE_RHYTHM_SELECT_TITLE_COLOR                   (0xBD4060)
 #define GUIDE_RHYTHM_SELECT_CAROUSEL_SIDE_COLOR           (0xE89AAB)
 #define GUIDE_RHYTHM_SELECT_TIME_COLOR                    (0xD36682)
-#define GUIDE_RHYTHM_SELECT_TITLE_ACTIVE_Y                (82)
-#define GUIDE_RHYTHM_SELECT_TITLE_INACTIVE_Y              (84)
+#define GUIDE_RHYTHM_SELECT_TITLE_ACTIVE_Y                (86)
+#define GUIDE_RHYTHM_SELECT_TITLE_INACTIVE_Y              (88)
 #define GUIDE_RHYTHM_SELECT_TITLE_GAP                     (24)
-#define GUIDE_RHYTHM_SELECT_COUNTDOWN_Y                   (32)
+#define GUIDE_RHYTHM_SELECT_COUNTDOWN_Y                   (36) //(32)
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
 #define GUIDE_RHYTHM_SELECT_COUNTDOWN_COLOR               (0x00FF00)
 #else
@@ -29,10 +29,10 @@
 
 #define GUIDE_RHYTHM_SELECT_MILK_BOOST_LABEL_Y            (134)
 #define GUIDE_RHYTHM_SELECT_MILK_BOOST_TEXT_Y             (172)
-#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TIME_Y             (121)
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TIME_Y             (121 + 2)
 #define GUIDE_RHYTHM_SELECT_POWER_PUMPING_LABEL_Y         (146)
 #define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TEXT_Y          (180)
-#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TIME_Y          (121)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TIME_Y          (121 + 2)
 
 #define GUIDE_RHYTHM_SELECT_DESC_LINE_SPACE               (4)
 
@@ -288,7 +288,8 @@ static void guide_custom_rhythm_select_idle_countdown_ui_create(guide_custom_ui_
     EXCEPTION_CHECK_VOID(info->rhythm_select.countdown_num);
     lv_obj_set_style_text_color(info->rhythm_select.countdown_num,
         lv_color_hex(GUIDE_RHYTHM_SELECT_COUNTDOWN_COLOR), 0);
-    lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
+    // lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
+    lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_32_medium, 0);
     lv_obj_set_style_text_align(info->rhythm_select.countdown_num, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->rhythm_select.countdown_num, "3s");
     lv_obj_align(info->rhythm_select.countdown_num, LV_ALIGN_TOP_MID, 0,

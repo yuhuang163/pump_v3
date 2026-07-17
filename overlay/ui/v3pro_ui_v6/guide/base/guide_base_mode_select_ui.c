@@ -15,11 +15,11 @@
 */
 #define GUIDE_MODE_SELECT_TITLE_COLOR                   (0xBD4060)
 #define GUIDE_MODE_SELECT_CAROUSEL_SIDE_COLOR           (0xE89AAB)
-#define GUIDE_MODE_SELECT_WAVE_Y                        (136)
-#define GUIDE_MODE_SELECT_TITLE_ACTIVE_Y                (82)
-#define GUIDE_MODE_SELECT_TITLE_INACTIVE_Y              (84)
+#define GUIDE_MODE_SELECT_WAVE_Y                        (136 + 12)
+#define GUIDE_MODE_SELECT_TITLE_ACTIVE_Y                (82 + 12)
+#define GUIDE_MODE_SELECT_TITLE_INACTIVE_Y              (84 + 12)
 #define GUIDE_MODE_SELECT_TITLE_GAP                     (24)
-#define GUIDE_MODE_SELECT_COUNTDOWN_Y                   (32)
+#define GUIDE_MODE_SELECT_COUNTDOWN_Y                   (36) //(32)
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
 #define GUIDE_MODE_SELECT_COUNTDOWN_COLOR               (0x00FF00)
 #else
@@ -27,12 +27,12 @@
 #endif
 
 #define GUIDE_MODE_SELECT_LABEL_X                       (49)
-#define GUIDE_MODE_SELECT_STIMULATION_LABEL_Y           (165)
-#define GUIDE_MODE_SELECT_STIMULATION_TEXT_Y            (217)
-#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y            (167)
-#define GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y             (219)
-#define GUIDE_MODE_SELECT_MIXED_LABEL_Y                 (167)
-#define GUIDE_MODE_SELECT_MIXED_TEXT_Y                  (219)
+#define GUIDE_MODE_SELECT_STIMULATION_LABEL_Y           (165 + 22)
+#define GUIDE_MODE_SELECT_STIMULATION_TEXT_Y            (217 + 22)
+#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y            (167 + 22)
+#define GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y             (219 + 22)
+#define GUIDE_MODE_SELECT_MIXED_LABEL_Y                 (167 + 22)
+#define GUIDE_MODE_SELECT_MIXED_TEXT_Y                  (219 + 22)
 
 #define GUIDE_MODE_SELECT_DESC_LINE_SPACE               (4)
 
@@ -296,7 +296,8 @@ static void guide_mode_select_idle_countdown_ui_create(guide_base_ui_info_t *inf
     EXCEPTION_CHECK_VOID(info->mode_select.countdown_num);
     lv_obj_set_style_text_color(info->mode_select.countdown_num,
         lv_color_hex(GUIDE_MODE_SELECT_COUNTDOWN_COLOR), 0);
-    lv_obj_set_style_text_font(info->mode_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
+    // lv_obj_set_style_text_font(info->mode_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
+    lv_obj_set_style_text_font(info->mode_select.countdown_num, &lv_font_aeonik_soft_32_medium, 0);
     lv_obj_set_style_text_align(info->mode_select.countdown_num, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->mode_select.countdown_num, "3s");
     lv_obj_align(info->mode_select.countdown_num, LV_ALIGN_TOP_MID, 0, GUIDE_MODE_SELECT_COUNTDOWN_Y);

@@ -38,7 +38,9 @@ static void guide_page_content_reset(guide_base_ui_info_t *info)
 
 static void guide_page_container_reset(guide_base_ui_info_t *info)
 {
+#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
     guide_pump_animation_ui_remove(info);
+#endif
     guide_intro_ui_remove(info);
     guide_key_guide_ui_remove(info);
     guide_knob_guide_ui_remove(info);
@@ -46,13 +48,15 @@ static void guide_page_container_reset(guide_base_ui_info_t *info)
     guide_finish_ui_remove(info);
     guide_base_level_theme_remove(info);
     guide_page_content_reset(info);
+#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
     memset(&info->animation, 0, sizeof(info->animation));
+    info->animation.shown_frame_res_id = BASE_RES_ID_GUIDE_ANIM_START - 1;
+#endif
     memset(&info->intro, 0, sizeof(info->intro));
     memset(&info->key_guide, 0, sizeof(info->key_guide));
     memset(&info->knob_guide, 0, sizeof(info->knob_guide));
     memset(&info->function_home, 0, sizeof(info->function_home));
     memset(&info->finish, 0, sizeof(info->finish));
-    info->animation.shown_frame_res_id = BASE_RES_ID_GUIDE_ANIM_START - 1;
 }
 
 static void guide_page_container_create(guide_base_ui_info_t *info)
@@ -104,9 +108,11 @@ static void guide_page_build(guide_base_ui_info_t *info, uint8_t page_index, boo
     guide_page_container_create(info);
 
     switch (page_index) {
+#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
         case GUIDE_PAGE_WELCOME_ANIM:
             guide_pump_animation_ui_build(info);
             break;
+#endif
         case GUIDE_PAGE_INTRO:
             guide_intro_ui_build(info);
             break;
@@ -130,19 +136,15 @@ static void guide_page_build(guide_base_ui_info_t *info, uint8_t page_index, boo
             break;
         case GUIDE_PAGE_MODE_SELECT_GUIDE:
             guide_mode_select_guide_ui_build(info);
-            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_MODE_SELECT:
             guide_mode_select_ui_build(info);
-            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_RHYTHM_SELECT_GUIDE:
             guide_rhythm_select_guide_ui_build(info);
-            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_RHYTHM_SELECT:
             guide_rhythm_select_ui_build(info);
-            guide_page_level_theme_finish_build(info, page_index, reuse_level_ui);
             break;
         case GUIDE_PAGE_PUMP_STOP_GUIDE:
             guide_pump_stop_guide_ui_build(info);
@@ -191,29 +193,28 @@ static void guide_page_dynamic_update(guide_base_ui_info_t *info, ui_proc_guide_
     uint16_t frame_index)
 {
     switch (proc->page_index) {
+#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
         case GUIDE_PAGE_WELCOME_ANIM:
             guide_pump_animation_ui_update(info, frame_index);
             break;
+#endif
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
         case GUIDE_PAGE_LEVEL_BOTH:
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
         case GUIDE_PAGE_LEVEL_LEFT:
         case GUIDE_PAGE_LEVEL_RIGHT_GUIDE:
         case GUIDE_PAGE_LEVEL_RIGHT:
-        case GUIDE_PAGE_MODE_SELECT_GUIDE:
-        case GUIDE_PAGE_MODE_SELECT:
-        case GUIDE_PAGE_RHYTHM_SELECT_GUIDE:
-        case GUIDE_PAGE_RHYTHM_SELECT:
             guide_base_blink_state_update(info, proc->page_index);
             guide_pump_level_ui_update(info, proc->state_blink_visible != 0);
             guide_level_idle_countdown_ui_update(info, proc);
-            if (proc->page_index == GUIDE_PAGE_MODE_SELECT) {
-                guide_mode_select_ui_update(info, proc);
-                guide_mode_select_idle_countdown_ui_update(info, proc);
-            } else if (proc->page_index == GUIDE_PAGE_RHYTHM_SELECT) {
-                guide_rhythm_select_ui_update(info, proc);
-                guide_rhythm_select_idle_countdown_ui_update(info, proc);
-            }
+            break;
+        case GUIDE_PAGE_MODE_SELECT:
+            guide_mode_select_ui_update(info, proc);
+            guide_mode_select_idle_countdown_ui_update(info, proc);
+            break;
+        case GUIDE_PAGE_RHYTHM_SELECT:
+            guide_rhythm_select_ui_update(info, proc);
+            guide_rhythm_select_idle_countdown_ui_update(info, proc);
             break;
         default:
             break;

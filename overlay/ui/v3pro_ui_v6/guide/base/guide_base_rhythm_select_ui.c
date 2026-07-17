@@ -16,10 +16,11 @@
 #define GUIDE_RHYTHM_SELECT_TITLE_COLOR                 (0xBD4060)
 #define GUIDE_RHYTHM_SELECT_CAROUSEL_SIDE_COLOR         (0xE89AAB)
 #define GUIDE_RHYTHM_SELECT_TIME_COLOR                  (0xD36682)
-#define GUIDE_RHYTHM_SELECT_WAVE_Y                      (132)
-#define GUIDE_RHYTHM_SELECT_TITLE_Y                     (82)
+#define GUIDE_RHYTHM_SELECT_WAVE_Y                      (132 + 20)
+#define GUIDE_RHYTHM_SELECT_TITLE_ACTIVE_Y              (82 + 12)
+#define GUIDE_RHYTHM_SELECT_TITLE_INACTIVE_Y            (84 + 12)
 #define GUIDE_RHYTHM_SELECT_TITLE_GAP                   (24)
-#define GUIDE_RHYTHM_SELECT_COUNTDOWN_Y                 (32)
+#define GUIDE_RHYTHM_SELECT_COUNTDOWN_Y                 (36) //(32)
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
 #define GUIDE_RHYTHM_SELECT_COUNTDOWN_COLOR             (0x00FF00)
 #else
@@ -28,12 +29,12 @@
 
 #define GUIDE_RHYTHM_SELECT_LABEL_X                     (49)
 
-#define GUIDE_RHYTHM_SELECT_MILK_BOOST_LABEL_Y          (170 - 9)
-#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TEXT_Y           (222 - 9)
-#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TIME_Y           (116)
-#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_LABEL_Y       (170 - 9)
-#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TEXT_Y        (222 - 9)
-#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TIME_Y        (116)
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_LABEL_Y          (170 - 9 + 20)
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TEXT_Y           (222 - 9 + 20)
+#define GUIDE_RHYTHM_SELECT_MILK_BOOST_TIME_Y           (116 + 16)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_LABEL_Y       (170 - 9 + 20)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TEXT_Y        (222 - 9 + 20)
+#define GUIDE_RHYTHM_SELECT_POWER_PUMPING_TIME_Y        (116 + 16)
 
 #define GUIDE_RHYTHM_SELECT_DESC_LINE_SPACE             (4)
 
@@ -137,7 +138,11 @@ static void guide_rhythm_select_title_style_apply(lv_obj_t *label, bool active)
 
     lv_obj_set_style_text_color(label, lv_color_hex(active ?
         GUIDE_RHYTHM_SELECT_TITLE_COLOR : GUIDE_RHYTHM_SELECT_CAROUSEL_SIDE_COLOR), 0);
-    lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
+    if (active) {
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
+    } else {
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_22_semibold, 0);
+    }
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
 }
 
@@ -178,7 +183,9 @@ static void guide_rhythm_select_carousel_realign(guide_base_ui_info_t *info)
         if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
             continue;
         }
-        lv_obj_align(labels[i], LV_ALIGN_TOP_MID, x_pos[i] - center_x, GUIDE_RHYTHM_SELECT_TITLE_Y);
+        const lv_coord_t title_y = (i == GUIDE_RHYTHM_SELECT_SLOT_CUR) ?
+        GUIDE_RHYTHM_SELECT_TITLE_ACTIVE_Y : GUIDE_RHYTHM_SELECT_TITLE_INACTIVE_Y;
+        lv_obj_align(labels[i], LV_ALIGN_TOP_MID, x_pos[i] - center_x, title_y);
     }
 }
 
@@ -310,7 +317,8 @@ static void guide_rhythm_select_idle_countdown_ui_create(guide_base_ui_info_t *i
     EXCEPTION_CHECK_VOID(info->rhythm_select.countdown_num);
     lv_obj_set_style_text_color(info->rhythm_select.countdown_num,
         lv_color_hex(GUIDE_RHYTHM_SELECT_COUNTDOWN_COLOR), 0);
-    lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
+    // lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
+    lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_32_medium, 0);
     lv_obj_set_style_text_align(info->rhythm_select.countdown_num, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->rhythm_select.countdown_num, "3s");
     lv_obj_align(info->rhythm_select.countdown_num, LV_ALIGN_TOP_MID, 0,

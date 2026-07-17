@@ -10,6 +10,8 @@
 #include "window_screen_guide.h" // IWYU pragma: keep
 #include "guide_base_ui_internal.h" // IWYU pragma: keep
 
+#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
+
 /*
 * DEFINES
 *****************************************************************************************
@@ -114,3 +116,23 @@ void guide_pump_animation_ui_update(guide_base_ui_info_t *info, uint16_t frame_i
     EXCEPTION_CHECK_VOID(info && info->ui);
     guide_animation_frame_show(info, frame_index);
 }
+
+#else
+
+void guide_pump_animation_ui_remove(guide_base_ui_info_t *info)
+{
+    (void)info;
+}
+
+void guide_pump_animation_ui_build(guide_base_ui_info_t *info)
+{
+    (void)info;
+}
+
+void guide_pump_animation_ui_update(guide_base_ui_info_t *info, uint16_t frame_index)
+{
+    (void)info;
+    (void)frame_index;
+}
+
+#endif
