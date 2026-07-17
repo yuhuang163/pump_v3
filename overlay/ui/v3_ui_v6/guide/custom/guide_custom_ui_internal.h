@@ -29,6 +29,12 @@ extern "C" {
 #define GUIDE_CUSTOM_LABEL_CARD_TEXT_COLOR         (0xA0183B)
 #endif
 
+/// 引导页页号坐标（X 相对屏幕左边，Y 相对顶部；CURRENT_X 为个位数 "1" 左边缘锚点）
+#define GUIDE_CUSTOM_PAGE_NUM_CURRENT_X                (156)
+#define GUIDE_CUSTOM_PAGE_NUM_CURRENT_Y                (44)
+#define GUIDE_CUSTOM_PAGE_NUM_SUFFIX_Y                 (44)
+#define GUIDE_CUSTOM_PAGE_NUM_TOTAL_Y                  (49)
+
 typedef enum {
     GUIDE_CUSTOM_LEVEL_DISPLAY_DEFAULT = 0,
     GUIDE_CUSTOM_LEVEL_DISPLAY_LEFT_ADJUST,
@@ -152,6 +158,7 @@ typedef struct {
 typedef struct {
     lv_obj_t *current;
     lv_obj_t *suffix;
+    lv_obj_t *total;
 } guide_custom_page_num_info_t;
 
 typedef struct {

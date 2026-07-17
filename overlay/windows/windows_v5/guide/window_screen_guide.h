@@ -191,7 +191,6 @@ static inline uint16_t guide_page_initial_get(int res_theme_type)
 
 /// 功能引导段页号：MODE_SELECT_GUIDE ~ PUMP_STOP_GUIDE，共 10 页（PUMP_STOP 显示为 10/10）
 #define GUIDE_PAGE_NUM_TOTAL                    (10)
-#define GUIDE_PAGE_NUM_Y                        (44)
 #define GUIDE_PAGE_SHOW_NUM(page)               \
     ((page) >= GUIDE_PAGE_MODE_SELECT_GUIDE && (page) <= GUIDE_PAGE_PUMP_STOP_GUIDE)
 
