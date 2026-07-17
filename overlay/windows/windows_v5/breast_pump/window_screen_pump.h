@@ -19,10 +19,25 @@ extern "C" {
 #define PUMP_ANIMATION_FREQ                    (24)
 #else
 #define PUMP_ANIMATION_FREQ                    (20)
+#define PUMP_CUSTOM_ANIMATION_FREQ             (16)
 #endif
 #define PUMP_MODE_ANIMATION_FREQ               (25) 
 #define PUMP_SPEED_ANIMATION_FREQ              (25) 
 #define PUMP_LEVEL_ANIMATION_FREQ              (20) 
+
+#if (ROOT_UI_VERSION == ROOT_UI_V2)
+static inline uint8_t pump_animation_freq_get(int res_theme_type)
+{
+    (void)res_theme_type;
+    return PUMP_ANIMATION_FREQ;
+}
+#else
+static inline uint8_t pump_animation_freq_get(int res_theme_type)
+{
+    return (res_theme_type == RES_THEME_TYPE_CUSTOM)
+        ? PUMP_CUSTOM_ANIMATION_FREQ : PUMP_ANIMATION_FREQ;
+}
+#endif
 
 /// 是否支持泵奶中切换韵律
 #define IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM  (1)
