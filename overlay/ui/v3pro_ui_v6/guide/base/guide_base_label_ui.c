@@ -15,7 +15,7 @@
 */
 #define GUIDE_LEVEL_TITLE_Y                         (86)
 #define GUIDE_MODE_SELECT_TITLE_Y                   (94)
-#define GUIDE_LEVEL_COUNTDOWN_Y                     (36)
+#define GUIDE_LEVEL_COUNTDOWN_Y                     (44)
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
 #define GUIDE_LEVEL_TITLE_COLOR                     (0x00FF00)
 #define GUIDE_LEVEL_COUNTDOWN_COLOR                 (0x00FF00)
@@ -478,13 +478,19 @@ void guide_page_num_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
 {
     lv_obj_t *parent;
     char cur_buf[4];
-    char suffix_buf[8];
+    char total_buf[4];
     uint8_t page_num;
-    lv_coord_t suffix_w;
+    lv_coord_t current_w;
+    lv_coord_t single_digit_w;
+    lv_coord_t current_x;
+    lv_coord_t suffix_x;
+    lv_coord_t total_x;
+    lv_point_t text_size;
 
     EXCEPTION_CHECK_VOID(info);
     info->page_num.current = NULL;
     info->page_num.suffix = NULL;
+    info->page_num.total = NULL;
     if (!GUIDE_PAGE_SHOW_NUM(page_index)) {
         return;
     }
@@ -493,24 +499,37 @@ void guide_page_num_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
     EXCEPTION_CHECK_VOID(parent);
     page_num = guide_page_num_of(page_index);
     lv_snprintf(cur_buf, sizeof(cur_buf), "%u", page_num);
-    lv_snprintf(suffix_buf, sizeof(suffix_buf), "/%u", GUIDE_PAGE_NUM_TOTAL);
+    lv_snprintf(total_buf, sizeof(total_buf), "%u", GUIDE_PAGE_NUM_TOTAL);
 
     info->page_num.current = lv_label_create(parent);
     EXCEPTION_CHECK_VOID(info->page_num.current);
     lv_obj_set_style_text_color(info->page_num.current, lv_color_hex(GUIDE_PAGE_NUM_CURRENT_COLOR), 0);
     lv_obj_set_style_text_font(info->page_num.current, &lv_font_aeonik_soft_32_medium, 0);
     lv_label_set_text(info->page_num.current, cur_buf);
+    lv_text_get_size(&text_size, "1", &lv_font_aeonik_soft_32_medium, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    single_digit_w = text_size.x;
+    lv_obj_update_layout(info->page_num.current);
+    current_w = lv_obj_get_width(info->page_num.current);
+    current_x = GUIDE_BASE_PAGE_NUM_CURRENT_X - (current_w - single_digit_w);
+    lv_obj_align(info->page_num.current, LV_ALIGN_TOP_LEFT, current_x, GUIDE_BASE_PAGE_NUM_CURRENT_Y);
 
     info->page_num.suffix = lv_label_create(parent);
     EXCEPTION_CHECK_VOID(info->page_num.suffix);
     lv_obj_set_style_text_color(info->page_num.suffix, lv_color_hex(GUIDE_PAGE_NUM_SUFFIX_COLOR), 0);
     lv_obj_set_style_text_font(info->page_num.suffix, &lv_font_aeonik_soft_32_medium, 0);
-    lv_label_set_text(info->page_num.suffix, suffix_buf);
-
+    lv_label_set_text(info->page_num.suffix, "/");
     lv_obj_update_layout(info->page_num.suffix);
-    suffix_w = lv_obj_get_width(info->page_num.suffix);
-    lv_obj_align(info->page_num.current, LV_ALIGN_TOP_MID, -(suffix_w / 2), GUIDE_PAGE_NUM_Y);
-    lv_obj_align_to(info->page_num.suffix, info->page_num.current, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+    suffix_x = current_x + current_w;
+    lv_obj_align(info->page_num.suffix, LV_ALIGN_TOP_LEFT, suffix_x, GUIDE_BASE_PAGE_NUM_SUFFIX_Y);
+
+    info->page_num.total = lv_label_create(parent);
+    EXCEPTION_CHECK_VOID(info->page_num.total);
+    lv_obj_set_style_text_color(info->page_num.total, lv_color_hex(GUIDE_PAGE_NUM_SUFFIX_COLOR), 0);
+    lv_obj_set_style_text_font(info->page_num.total, &lv_font_aeonik_soft_26_medium, 0);
+    lv_label_set_text(info->page_num.total, total_buf);
+    lv_obj_update_layout(info->page_num.total);
+    total_x = suffix_x + lv_obj_get_width(info->page_num.suffix);
+    lv_obj_align(info->page_num.total, LV_ALIGN_TOP_LEFT, total_x, GUIDE_BASE_PAGE_NUM_TOTAL_Y);
 }
 
 void guide_page_num_ui_set_visible(guide_base_ui_info_t *info, bool visible)
@@ -528,6 +547,13 @@ void guide_page_num_ui_set_visible(guide_base_ui_info_t *info, bool visible)
             lv_obj_clear_flag(info->page_num.suffix, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(info->page_num.suffix, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    if (info->page_num.total != NULL && lv_obj_is_valid(info->page_num.total)) {
+        if (visible) {
+            lv_obj_clear_flag(info->page_num.total, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(info->page_num.total, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }

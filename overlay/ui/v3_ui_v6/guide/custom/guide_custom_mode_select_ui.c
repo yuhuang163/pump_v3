@@ -17,7 +17,7 @@
 #define GUIDE_MODE_SELECT_TITLE_ACTIVE_Y                (82)
 #define GUIDE_MODE_SELECT_TITLE_INACTIVE_Y              (84)
 #define GUIDE_MODE_SELECT_TITLE_GAP                     (24)
-#define GUIDE_MODE_SELECT_COUNTDOWN_Y                   (36) //(32)
+#define GUIDE_MODE_SELECT_COUNTDOWN_Y                   (44) //(32)
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
 #define GUIDE_MODE_SELECT_COUNTDOWN_COLOR               (0x00FF00)
 #else

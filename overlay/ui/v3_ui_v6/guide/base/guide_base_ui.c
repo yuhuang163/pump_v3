@@ -22,7 +22,7 @@ static PSRAM_NC_DATA_LOC uint8_t guide_bg_data[] = {
     // #include "comparison_png2txt/guide_base_p41_360x360.txt"
     // #include "comparison_png2txt/guide_base_p42_360x360.txt"
     // #include "comparison_png2txt/guide_base_p43_360x360.txt"
-    // #include "comparison_png2txt/guide_base_p44_360x360.txt"
+    #include "comparison_png2txt/guide_base_p44_360x360.txt"
     // #include "comparison_png2txt/guide_base_p45_360x360.txt"
     // #include "comparison_png2txt/guide_base_p46_360x360.txt"
     // #include "comparison_png2txt/guide_base_p47_360x360.txt"
@@ -32,7 +32,7 @@ static PSRAM_NC_DATA_LOC uint8_t guide_bg_data[] = {
     // #include "comparison_png2txt/guide_base_p51_360x360.txt"
     // #include "comparison_png2txt/guide_base_p52_360x360.txt"
     // #include "comparison_png2txt/guide_base_p53_360x360.txt"
-    #include "comparison_png2txt/guide_base_p54_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p54_360x360.txt"
 };
 #endif
 
@@ -252,7 +252,7 @@ int guide_base_ui_process(ui_manager_context_t *thiz)
 
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
     guide_root_comp_bg_update(thiz);
-    proc->page_index = GUIDE_PAGE_PUMP_STOP_GUIDE;
+    proc->page_index = GUIDE_PAGE_MODE_SELECT_GUIDE;
 #endif
     guide_info->level.left.new_value = proc->setting.level[0];
     guide_info->level.right.new_value = proc->setting.level[1];

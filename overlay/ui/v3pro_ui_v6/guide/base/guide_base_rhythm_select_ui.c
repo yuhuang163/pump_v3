@@ -20,7 +20,7 @@
 #define GUIDE_RHYTHM_SELECT_TITLE_ACTIVE_Y              (82 + 12)
 #define GUIDE_RHYTHM_SELECT_TITLE_INACTIVE_Y            (84 + 12)
 #define GUIDE_RHYTHM_SELECT_TITLE_GAP                   (24)
-#define GUIDE_RHYTHM_SELECT_COUNTDOWN_Y                 (36) //(32)
+#define GUIDE_RHYTHM_SELECT_COUNTDOWN_Y                 (44) //(32)
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
 #define GUIDE_RHYTHM_SELECT_COUNTDOWN_COLOR             (0x00FF00)
 #else
