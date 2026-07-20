@@ -11,7 +11,7 @@ extern "C" {
 #include "cmsis_os_api.h" // IWYU pragma: keep
 
 /// 各关键业务线程优先级定义.
-#define RT_PRIO_MAIN_THREAD                            OS_PRIORITY_REALTIME5
+#define RT_PRIO_MAIN_THREAD                            OS_PRIORITY_REALTIME7
 #define RT_PRIO_MISC_DISPATCH_THREAD                   OS_PRIORITY_BELOW_NORMAL
 #define RT_PRIO_BREAST_PUMP_DISPATCH_THREAD            OS_PRIORITY_NORMAL
 #define RT_PRIO_SERVERS_DISPATCH_THREAD                OS_PRIORITY_NORMAL

@@ -695,14 +695,16 @@ static int system_power_control(bool state)
         power_off_wait_pump_finish();
         servers_manager_context_t *srv =
             (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+        uint16_t sleep_time = 50;    
         if (srv && srv->hook && srv->hook->on_power_off_status_report_route) {
             srv->hook->on_power_off_status_report_route(srv);
-            msleep(50); /// 留出发送 NOTIFY_STATUS 的 BLE 窗口
+            sleep_time = 100; 
         }
         if (st->hook && st->hook->on_power_off_force_save_route) {
             st->hook->on_power_off_force_save_route(st);
-            msleep(200); /// 等待数据落盘后再 flash_protect
+            sleep_time = 200;
         }
+        msleep(sleep_time); /// 数据同步延时
         st->flash_protect(true); /// 禁止flash读写操作.
     } else {
         LOG_PM("system_power_off");

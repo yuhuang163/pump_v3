@@ -10,7 +10,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define POWER_OFF_DELAY_TIME                    (1000 * 3)
+#define POWER_OFF_DELAY_TIME                    (1000 * 1)
 #define POWER_OFF_TASK_NAME                     "power_off_wm_task"
 
 /*
