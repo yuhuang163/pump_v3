@@ -20,6 +20,10 @@
 #endif
 #define UI_LVGL_MSG_QUEUE_NUM                   4
 
+#ifndef UI_THREAD_DBG_ENABLE
+#define UI_THREAD_DBG_ENABLE                    0
+#endif
+
 typedef enum {
     UI_LVGL_MSG_CMD_ANIM_INIT = 1,
     UI_LVGL_MSG_CMD_ANIM_DEINIT,
@@ -35,11 +39,142 @@ typedef struct {
     ui_play_info_t play_info;
 } ui_lvgl_msg_t;
 
+#if UI_THREAD_DBG_ENABLE
+/* UI thread debug: step value locates where UI thread is stuck */
+typedef enum {
+    UI_DBG_STEP_NONE = 0,
+    UI_DBG_STEP_THREAD_INIT,
+    UI_DBG_STEP_THREAD_INIT_DONE,
+
+    UI_DBG_STEP_LOOP_START = 100,
+    UI_DBG_STEP_LV_TIMER_HANDLER,
+    UI_DBG_STEP_LV_TIMER_HANDLER_DONE,
+    UI_DBG_STEP_MSG_QUEUE_RECV,
+    UI_DBG_STEP_MSG_QUEUE_RECV_TIMEOUT,
+    UI_DBG_STEP_MSG_DISPATCH,
+    UI_DBG_STEP_MSG_ANIM_INIT,
+    UI_DBG_STEP_MSG_ANIM_DEINIT,
+    UI_DBG_STEP_MSG_OVERLAY_INIT,
+    UI_DBG_STEP_MSG_OVERLAY_DEINIT,
+    UI_DBG_STEP_MSG_PM_SUSPEND,
+
+    UI_DBG_STEP_CHANGE_IMAGES_ENTER = 200,
+    UI_DBG_STEP_CHANGE_IMAGES_BASE_LOCK,
+    UI_DBG_STEP_CHANGE_IMAGES_BASE_DRAW,
+    UI_DBG_STEP_CHANGE_IMAGES_OVERLAY_LOCK,
+    UI_DBG_STEP_CHANGE_IMAGES_OVERLAY_DRAW,
+    UI_DBG_STEP_CHANGE_IMAGES_EXIT,
+
+    UI_DBG_STEP_ANIM_INIT_ENTER = 300,
+    UI_DBG_STEP_ANIM_INIT_DEL_TIMER,
+    UI_DBG_STEP_ANIM_INIT_REMOVE_CB,
+    UI_DBG_STEP_ANIM_INIT_REMOVE_CB_LV_LOCK,
+    UI_DBG_STEP_ANIM_INIT_LOCK,
+    UI_DBG_STEP_ANIM_INIT_PREPARE_CB,
+    UI_DBG_STEP_ANIM_INIT_PREPARE_CB_LV_LOCK,
+    UI_DBG_STEP_ANIM_INIT_CREATE_TIMER,
+    UI_DBG_STEP_ANIM_INIT_EXIT,
+
+    UI_DBG_STEP_ANIM_DEINIT_ENTER = 400,
+    UI_DBG_STEP_ANIM_DEINIT_LOCK,
+    UI_DBG_STEP_ANIM_DEINIT_DEL_TIMER,
+    UI_DBG_STEP_ANIM_DEINIT_REMOVE_CB,
+    UI_DBG_STEP_ANIM_DEINIT_REMOVE_CB_LV_LOCK,
+    UI_DBG_STEP_ANIM_DEINIT_CLEAR,
+    UI_DBG_STEP_ANIM_DEINIT_EXIT,
+
+    UI_DBG_STEP_OVERLAY_INIT_ENTER = 500,
+    UI_DBG_STEP_OVERLAY_INIT_REMOVE_CB,
+    UI_DBG_STEP_OVERLAY_INIT_REMOVE_CB_LV_LOCK,
+    UI_DBG_STEP_OVERLAY_INIT_LOCK,
+    UI_DBG_STEP_OVERLAY_INIT_PREPARE_CB,
+    UI_DBG_STEP_OVERLAY_INIT_PREPARE_CB_LV_LOCK,
+    UI_DBG_STEP_OVERLAY_INIT_EXIT,
+
+    UI_DBG_STEP_OVERLAY_DEINIT_ENTER = 600,
+    UI_DBG_STEP_OVERLAY_DEINIT_LOCK,
+    UI_DBG_STEP_OVERLAY_DEINIT_REMOVE_CB,
+    UI_DBG_STEP_OVERLAY_DEINIT_REMOVE_CB_LV_LOCK,
+    UI_DBG_STEP_OVERLAY_DEINIT_CLEAR,
+    UI_DBG_STEP_OVERLAY_DEINIT_EXIT,
+} ui_thread_dbg_step_e;
+
+typedef struct {
+    volatile uint32_t step;
+    volatile uint32_t loop_count;
+    volatile uint8_t last_msg_cmd;
+    volatile uint8_t timer_running;
+    volatile uint8_t is_playing_anim;
+    volatile uint8_t is_playing_overlay;
+    volatile uint32_t ms_till_next;
+    volatile uint32_t anim_tag_ptr;
+    volatile uint32_t overlay_tag_ptr;
+    volatile uint32_t lv_timer_ptr;
+} ui_thread_dbg_info_t;
+#endif
+
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
 static ui_manager_context_t *ui_ctx = NULL;
+#if UI_THREAD_DBG_ENABLE
+static ui_thread_dbg_info_t s_ui_thread_dbg = {0};
+
+static void ui_dbg_update_runtime_state(struct ui_manager_context *thiz)
+{
+    if (thiz == NULL) {
+        return;
+    }
+    s_ui_thread_dbg.is_playing_anim = thiz->priv.is_playing_ui_animation ? 1 : 0;
+    s_ui_thread_dbg.is_playing_overlay = thiz->priv.is_playing_ui_overlay ? 1 : 0;
+    s_ui_thread_dbg.lv_timer_ptr = (uint32_t)(uintptr_t)thiz->priv.lv_timer;
+}
+
+static void ui_dbg_print_status(const char *caller)
+{
+    LOG_UI("[UI_DBG] %s step=%lu loop=%lu msg_cmd=%u timer_run=%u anim=%u overlay=%u "
+           "ms_next=%lu lv_timer=0x%08lx anim_tag=0x%08lx overlay_tag=0x%08lx",
+           caller,
+           (unsigned long)s_ui_thread_dbg.step,
+           (unsigned long)s_ui_thread_dbg.loop_count,
+           s_ui_thread_dbg.last_msg_cmd,
+           s_ui_thread_dbg.timer_running,
+           s_ui_thread_dbg.is_playing_anim,
+           s_ui_thread_dbg.is_playing_overlay,
+           (unsigned long)s_ui_thread_dbg.ms_till_next,
+           (unsigned long)s_ui_thread_dbg.lv_timer_ptr,
+           (unsigned long)s_ui_thread_dbg.anim_tag_ptr,
+           (unsigned long)s_ui_thread_dbg.overlay_tag_ptr);
+}
+
+#define UI_DBG_SET_STEP(step_val) \
+    do { s_ui_thread_dbg.step = (uint32_t)(step_val); } while (0)
+#define UI_DBG_UPDATE_RUNTIME_STATE(thiz) ui_dbg_update_runtime_state(thiz)
+#define UI_DBG_PRINT_STATUS(caller) ui_dbg_print_status(caller)
+#define UI_DBG_SET_ANIM_TAG(tag_ptr) \
+    do { s_ui_thread_dbg.anim_tag_ptr = (uint32_t)(uintptr_t)(tag_ptr); } while (0)
+#define UI_DBG_SET_OVERLAY_TAG(tag_ptr) \
+    do { s_ui_thread_dbg.overlay_tag_ptr = (uint32_t)(uintptr_t)(tag_ptr); } while (0)
+#define UI_DBG_INC_LOOP_COUNT() \
+    do { s_ui_thread_dbg.loop_count++; } while (0)
+#define UI_DBG_SET_TIMER_RUNNING(v) \
+    do { s_ui_thread_dbg.timer_running = (v) ? 1 : 0; } while (0)
+#define UI_DBG_SET_MS_TILL_NEXT(v) \
+    do { s_ui_thread_dbg.ms_till_next = (v); } while (0)
+#define UI_DBG_SET_LAST_MSG_CMD(v) \
+    do { s_ui_thread_dbg.last_msg_cmd = (v); } while (0)
+#else
+#define UI_DBG_SET_STEP(step_val)            ((void)0)
+#define UI_DBG_UPDATE_RUNTIME_STATE(thiz)    ((void)0)
+#define UI_DBG_PRINT_STATUS(caller)          ((void)0)
+#define UI_DBG_SET_ANIM_TAG(tag_ptr)         ((void)0)
+#define UI_DBG_SET_OVERLAY_TAG(tag_ptr)      ((void)0)
+#define UI_DBG_INC_LOOP_COUNT()              ((void)0)
+#define UI_DBG_SET_TIMER_RUNNING(v)          ((void)0)
+#define UI_DBG_SET_MS_TILL_NEXT(v)           ((void)0)
+#define UI_DBG_SET_LAST_MSG_CMD(v)           ((void)0)
+#endif
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -75,6 +210,7 @@ static void lvgl_mem_monitor_cb(void)
 
 static void change_images_cb(lv_timer_t *t)
 {    
+    UI_DBG_SET_STEP(UI_DBG_STEP_CHANGE_IMAGES_ENTER);
     EXCEPTION_CHECK_VOID(ui_ctx);
     if (ui_ctx->priv.lv_timer == NULL || ui_ctx->priv.lv_timer != t) {
         LOG_UI("==>lv_timer is %s:%p", ui_ctx->priv.lv_timer == NULL ? "NULL" : "changed", t);
@@ -82,10 +218,13 @@ static void change_images_cb(lv_timer_t *t)
     }
         
     /// base 动画先绘制
+    UI_DBG_SET_STEP(UI_DBG_STEP_CHANGE_IMAGES_BASE_LOCK);
     ui_ctx->play_animation_lock(NULL);
+    UI_DBG_SET_STEP(UI_DBG_STEP_CHANGE_IMAGES_BASE_DRAW);
     if (ui_ctx->priv.is_playing_ui_animation) {
         ui_animation_play_t *ani = &ui_ctx->priv.play_info;
         if (ani->tag) {
+            UI_DBG_SET_ANIM_TAG(ani->tag);
             if (ani->progress_cb) {
                 ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_BEFORE);
                 ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_AFTER);
@@ -96,10 +235,13 @@ static void change_images_cb(lv_timer_t *t)
     ui_ctx->play_animation_unlock(NULL);
 
     /// overlay 后绘制（保证叠加层在上面）
+    UI_DBG_SET_STEP(UI_DBG_STEP_CHANGE_IMAGES_OVERLAY_LOCK);
     ui_ctx->play_animation_lock(NULL);
+    UI_DBG_SET_STEP(UI_DBG_STEP_CHANGE_IMAGES_OVERLAY_DRAW);
     if (ui_ctx->priv.is_playing_ui_overlay) {
         ui_animation_play_t *ani = &ui_ctx->priv.overlay_play_info;
         if (ani->tag) {
+            UI_DBG_SET_OVERLAY_TAG(ani->tag);
             if (ani->progress_cb) {
                 ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_BEFORE);
                 ani->progress_cb(ui_ctx, ani->played_count, ANI_TIMER_DRAW_AFTER);
@@ -108,14 +250,17 @@ static void change_images_cb(lv_timer_t *t)
         }
     }
     ui_ctx->play_animation_unlock(NULL);
+    UI_DBG_SET_STEP(UI_DBG_STEP_CHANGE_IMAGES_EXIT);
 }
 
 static void ui_animation_play_init_on_ui_thread(struct ui_manager_context *thiz, 
     const ui_play_info_t *play_info)
 {
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_ENTER);
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(play_info);
     EXCEPTION_CHECK_VOID(play_info->tag);
+    UI_DBG_SET_ANIM_TAG(play_info->tag);
 
     uint32_t period = 1000;
     if (play_info->fps > 0) {
@@ -125,6 +270,7 @@ static void ui_animation_play_init_on_ui_thread(struct ui_manager_context *thiz,
 
     LOG_UI("==>%s, period: %lu", play_info->tag, (unsigned long)timer_period);
 
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_DEL_TIMER);
     if (thiz->priv.lv_timer != NULL) {
         lv_timer_t *timer_to_delete = thiz->priv.lv_timer;
         thiz->priv.lv_timer = NULL;
@@ -134,13 +280,16 @@ static void ui_animation_play_init_on_ui_thread(struct ui_manager_context *thiz,
 
     ui_animation_play_t *ani = &thiz->priv.play_info;
     if (ani->display_remove_cb) {
+        UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_REMOVE_CB_LV_LOCK);
         lv_lock();
+        UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_REMOVE_CB);
         ani->display_remove_cb(thiz);
         lv_unlock();
         LOG_UI("==> ui remove tag: %s", ani->tag);
         // lv_refr_now(NULL);
     }
 
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_LOCK);
     thiz->play_animation_lock(play_info->tag);
     ani->played_count = 0;
     ani->user_data = play_info->user_data;
@@ -152,11 +301,14 @@ static void ui_animation_play_init_on_ui_thread(struct ui_manager_context *thiz,
     thiz->play_animation_unlock(play_info->tag);
 
     if (ani->display_prepare_cb) {
+        UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_PREPARE_CB_LV_LOCK);
         lv_lock();
+        UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_PREPARE_CB);
         ani->display_prepare_cb(thiz);
         lv_unlock();
     }
 
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_CREATE_TIMER);
     if (thiz->priv.lv_timer == NULL) {
         thiz->priv.lv_timer = lv_timer_create(change_images_cb, timer_period, NULL);
         if (thiz->priv.lv_timer != NULL) {
@@ -168,18 +320,24 @@ static void ui_animation_play_init_on_ui_thread(struct ui_manager_context *thiz,
     }
 
     thiz->priv.is_playing_ui_animation = true;
+    UI_DBG_UPDATE_RUNTIME_STATE(thiz);
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_EXIT);
     LOG_UI("==>%s, lv_timer created, period: %lu, timer: %p",
            play_info->tag, (unsigned long)timer_period, thiz->priv.lv_timer);
 }
 
 static void ui_animation_play_deinit_on_ui_thread(struct ui_manager_context *thiz)
 {
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_DEINIT_ENTER);
     EXCEPTION_CHECK_VOID(thiz);
     ui_animation_play_t *ani = &thiz->priv.play_info;
     LOG_UI("==> ui deinit tag: %s", ani->tag);
+    UI_DBG_SET_ANIM_TAG(ani->tag);
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_DEINIT_LOCK);
     thiz->play_animation_lock(ani->tag);
     thiz->priv.is_playing_ui_animation = false;
     thiz->play_animation_unlock(ani->tag);
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_DEINIT_DEL_TIMER);
     if (thiz->priv.lv_timer != NULL && lv_timer_get_paused(thiz->priv.lv_timer) == false) {
         lv_timer_t *timer_to_delete = thiz->priv.lv_timer;
         thiz->priv.lv_timer = NULL;  // 先清空，防止回调使用
@@ -189,21 +347,28 @@ static void ui_animation_play_deinit_on_ui_thread(struct ui_manager_context *thi
     }
 
     if (ani->display_remove_cb) {
+        UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_DEINIT_REMOVE_CB_LV_LOCK);
         lv_lock();
+        UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_DEINIT_REMOVE_CB);
         ani->display_remove_cb(thiz);
         lv_unlock();
     }
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_DEINIT_CLEAR);
     thiz->play_animation_lock(NULL);
     memset(ani, 0, sizeof(ui_animation_play_t));
     thiz->play_animation_unlock(NULL);
+    UI_DBG_UPDATE_RUNTIME_STATE(thiz);
+    UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_DEINIT_EXIT);
 }
 
 static void ui_animation_overlay_init_on_ui_thread(struct ui_manager_context *thiz,
     const ui_play_info_t *play_info)
 {
+    UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_INIT_ENTER);
     EXCEPTION_CHECK_VOID(thiz);
     EXCEPTION_CHECK_VOID(play_info);
     EXCEPTION_CHECK_VOID(play_info->tag);
+    UI_DBG_SET_OVERLAY_TAG(play_info->tag);
 
     uint32_t period = 1000;
     if (play_info->fps > 0) {
@@ -213,11 +378,14 @@ static void ui_animation_overlay_init_on_ui_thread(struct ui_manager_context *th
     LOG_UI("==>overlay:%s, period: %lu", play_info->tag, (unsigned long)timer_period);
     ui_animation_play_t *ani = &thiz->priv.overlay_play_info;
     if (ani->display_remove_cb) {
+        UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_INIT_REMOVE_CB_LV_LOCK);
         lv_lock();
+        UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_INIT_REMOVE_CB);
         ani->display_remove_cb(thiz);
         lv_unlock();
         LOG_UI("==> overlay remove tag: %s", ani->tag);
     }
+    UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_INIT_LOCK);
     thiz->play_animation_lock(play_info->tag);
     ani->played_count = 0;
     ani->user_data = play_info->user_data;
@@ -228,31 +396,43 @@ static void ui_animation_overlay_init_on_ui_thread(struct ui_manager_context *th
     ani->display_remove_cb = play_info->display_remove_cb;
     thiz->play_animation_unlock(play_info->tag);
     if (ani->display_prepare_cb) {
+        UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_INIT_PREPARE_CB_LV_LOCK);
         lv_lock();
+        UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_INIT_PREPARE_CB);
         ani->display_prepare_cb(thiz);
         lv_unlock();
     }
     thiz->priv.is_playing_ui_overlay = true;
+    UI_DBG_UPDATE_RUNTIME_STATE(thiz);
+    UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_INIT_EXIT);
 }
 
 static void ui_animation_overlay_deinit_on_ui_thread(struct ui_manager_context *thiz)
 {
+    UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_DEINIT_ENTER);
     EXCEPTION_CHECK_VOID(thiz);
     LOG_UI("==> overlay deinit tag: %s", thiz->priv.overlay_play_info.tag);
+    UI_DBG_SET_OVERLAY_TAG(thiz->priv.overlay_play_info.tag);
 
     ui_animation_play_t *ani = &thiz->priv.overlay_play_info;
+    UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_DEINIT_LOCK);
     thiz->play_animation_lock(ani->tag);
     thiz->priv.is_playing_ui_overlay = false;
     thiz->play_animation_unlock(ani->tag);
     if (ani->display_remove_cb) {
+        UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_DEINIT_REMOVE_CB_LV_LOCK);
         lv_lock();
+        UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_DEINIT_REMOVE_CB);
         ani->display_remove_cb(thiz);
         lv_unlock();
     }
 
+    UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_DEINIT_CLEAR);
     thiz->play_animation_lock(NULL);
     memset(ani, 0, sizeof(ui_animation_play_t));
     thiz->play_animation_unlock(NULL);
+    UI_DBG_UPDATE_RUNTIME_STATE(thiz);
+    UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_DEINIT_EXIT);
 }
 
 static void lvgl_display_handler(struct ui_manager_context *thiz)
@@ -262,17 +442,27 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
     uint16_t log_count = 0;
 
     while (1) {
+        UI_DBG_INC_LOOP_COUNT();
+        UI_DBG_SET_STEP(UI_DBG_STEP_LOOP_START);
+        UI_DBG_UPDATE_RUNTIME_STATE(thiz);
+
         const bool timer_running = (thiz->priv.lv_timer != NULL) &&
                                    (lv_timer_get_paused(thiz->priv.lv_timer) == false);
+        UI_DBG_SET_TIMER_RUNNING(timer_running);
         if (timer_running) {
+            UI_DBG_SET_STEP(UI_DBG_STEP_LV_TIMER_HANDLER);
             ms_till_next = lv_timer_handler();
+            UI_DBG_SET_MS_TILL_NEXT(ms_till_next);
+            UI_DBG_SET_STEP(UI_DBG_STEP_LV_TIMER_HANDLER_DONE);
             if (ms_till_next > 10000) {
                 LOGE("time error!!!!!!!: %lu", (unsigned long)ms_till_next);
                 ms_till_next = 200;
+                UI_DBG_SET_MS_TILL_NEXT(ms_till_next);
             }
 
             if (ms_till_next == 0) {
                 ms_till_next = 1;
+                UI_DBG_SET_MS_TILL_NEXT(ms_till_next);
             }
 
             log_count++;
@@ -284,25 +474,35 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
             }
         }
 
+        UI_DBG_SET_STEP(UI_DBG_STEP_MSG_QUEUE_RECV);
         os_status_e ret = MSG_QUEUE_RECV(thiz->priv.ui_hdr_thd.msg_id, &msg,
                                          timer_running ? ms_till_next : OS_WAIT_FOREVER);
         if (ret != 0) {
+            UI_DBG_SET_STEP(UI_DBG_STEP_MSG_QUEUE_RECV_TIMEOUT);
             continue;
         }
+
+        UI_DBG_SET_LAST_MSG_CMD(msg.cmd);
+        UI_DBG_SET_STEP(UI_DBG_STEP_MSG_DISPATCH);
         switch ((ui_lvgl_msg_cmd_t)msg.cmd) {
             case UI_LVGL_MSG_CMD_ANIM_INIT:
+                UI_DBG_SET_STEP(UI_DBG_STEP_MSG_ANIM_INIT);
                 ui_animation_play_init_on_ui_thread(thiz, &msg.play_info);
                 break;
             case UI_LVGL_MSG_CMD_ANIM_DEINIT:
+                UI_DBG_SET_STEP(UI_DBG_STEP_MSG_ANIM_DEINIT);
                 ui_animation_play_deinit_on_ui_thread(thiz);
                 break;
             case UI_LVGL_MSG_CMD_OVERLAY_INIT:
+                UI_DBG_SET_STEP(UI_DBG_STEP_MSG_OVERLAY_INIT);
                 ui_animation_overlay_init_on_ui_thread(thiz, &msg.play_info);
                 break;
             case UI_LVGL_MSG_CMD_OVERLAY_DEINIT:
+                UI_DBG_SET_STEP(UI_DBG_STEP_MSG_OVERLAY_DEINIT);
                 ui_animation_overlay_deinit_on_ui_thread(thiz);
                 break;
             case UI_LVGL_MSG_CMD_PM_SUSPEND:
+                UI_DBG_SET_STEP(UI_DBG_STEP_MSG_PM_SUSPEND);
                 break;
             default:
                 break;
@@ -456,11 +656,13 @@ static void ui_animation_overlay_deinit(struct ui_manager_context *thiz)
 
 static void ui_thread_init_route(struct ui_manager_context *thiz)
 {
+    UI_DBG_SET_STEP(UI_DBG_STEP_THREAD_INIT);
     CREATE_MSG_TYPE_QUEUE(&thiz->priv.ui_hdr_thd.msg_id, UI_LVGL_MSG_QUEUE_NUM, sizeof(ui_lvgl_msg_t));
     thiz->priv.lvgl_initialized = true;
 #if IS_SUPPORT_LVGL
     ui_snap_shot_perpare(thiz);
 #endif
+    UI_DBG_SET_STEP(UI_DBG_STEP_THREAD_INIT_DONE);
     LOG_UI("==>lvgl init done");
 }
 
@@ -507,6 +709,7 @@ static void on_ui_battery_state_change_cb(void *user_data, battery_state_info_t 
 {
     ui_manager_context_t *ui = (ui_manager_context_t *)user_data;
     EXCEPTION_CHECK_VOID(ui);
+    UI_DBG_PRINT_STATUS("battery_cb");
     if (info->battery_state == BATTERY_STATE_EMPTY || 
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
         info->battery_state == BATTERY_STATE_FORBID_START ||
