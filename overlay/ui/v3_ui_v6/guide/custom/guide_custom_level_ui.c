@@ -236,10 +236,8 @@ static void guide_left_level_progress_update(guide_custom_ui_info_t *info, uint8
         lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
         lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 1);
     }
-    if (level->adjust_active != adjust) {
-        guide_level_progress_style_apply(info, level, guide_level_left_bg_x_get(adjust),
-            guide_level_left_bg_y_get(adjust), adjust);
-    }
+    guide_level_progress_style_apply(info, level, guide_level_left_bg_x_get(adjust),
+        guide_level_left_bg_y_get(adjust), adjust);
     snprintf(level_text, sizeof(level_text), "%d", level_val);
     lv_label_set_text(level->progress, level_text);
 }
@@ -260,9 +258,7 @@ static void guide_left_level_arc_update(guide_custom_ui_info_t *info, uint16_t e
         guide_level_arc_clip_fix_apply(level->arc);
         level->shown_end_angle = 0xFFFF;
     }
-    if (level->adjust_active != adjust) {
-        guide_level_arc_style_apply(level->arc, adjust);
-    }
+    guide_level_arc_style_apply(level->arc, adjust);
     if (level->shown_end_angle != end_angle || level->adjust_active != adjust) {
         lv_arc_set_angles(level->arc, PUMP_LEFT_ARC_START_ANGLE, end_angle);
     }
@@ -307,10 +303,8 @@ static void guide_right_level_progress_update(guide_custom_ui_info_t *info, uint
         lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
         lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 1);
     }
-    if (level->adjust_active != adjust) {
-        guide_level_progress_style_apply(info, level, guide_level_right_bg_x_get(adjust),
-            guide_level_right_bg_y_get(adjust), adjust);
-    }
+    guide_level_progress_style_apply(info, level, guide_level_right_bg_x_get(adjust),
+        guide_level_right_bg_y_get(adjust), adjust);
     snprintf(level_text, sizeof(level_text), "%d", level_val);
     lv_label_set_text(level->progress, level_text);
 }
@@ -331,9 +325,7 @@ static void guide_right_level_arc_update(guide_custom_ui_info_t *info, uint16_t 
         guide_level_arc_clip_fix_apply(level->arc);
         level->shown_end_angle = 0xFFFF;
     }
-    if (level->adjust_active != adjust) {
-        guide_level_arc_style_apply(level->arc, adjust);
-    }
+    guide_level_arc_style_apply(level->arc, adjust);
     if (level->shown_end_angle != end_angle || level->adjust_active != adjust) {
         lv_arc_set_angles(level->arc, end_angle, PUMP_RIGHT_ARC_END_ANGLE);
     }
