@@ -224,7 +224,8 @@ void guide_led_backlight_update(ui_proc_guide_t *proc)
             guide_led_backlight_intro_update(proc);
             break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
-        case GUIDE_PAGE_LEVEL_BOTH:
+        case GUIDE_PAGE_LEVEL_BOTH_INCREASE:
+        case GUIDE_PAGE_LEVEL_BOTH_DECREASE:
             guide_led_backlight_return_only(proc);
             break;
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:

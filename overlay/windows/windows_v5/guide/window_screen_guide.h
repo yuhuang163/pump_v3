@@ -25,24 +25,20 @@ extern "C" {
 #define GUIDE_BLINK_PERIOD                      (500)
 /// 首次进入带倒计时页的静默时间（UI 不显示倒计时）
 #define GUIDE_IDLE_SILENT_FIRST_MS              (7000) /// 7s
-/// 力度调节页旋转旋钮后跳转下一页的等待时间
+/// 左/右力度页：最后一次旋转后静默结算时长，结算完成后等待再跳转
 #define GUIDE_LEVEL_KNOB_ADVANCE_MS             (2000) /// 2s
-/// 模式选择页有切换后，静默时间重置为（旧逻辑，保留兼容）
-#define GUIDE_IDLE_SILENT_MODE_TOUCH_MS         (5000) /// 5s
-/// 模式选择页未满 3 次 mode 键时的静默时间
-#define GUIDE_IDLE_SILENT_MODE_SELECT_MS        (3000) /// 3s
-/// 模式选择页点满 3 次 mode 键后的跳转等待
-#define GUIDE_MODE_SELECT_TRIPLE_ADVANCE_MS     (1000) /// 1s
-/// 模式选择页触发快速跳转所需的 mode 键次数
-#define GUIDE_MODE_SELECT_TRIPLE_CLICK_COUNT    (3)
-/// 韵律选择页有切换后，静默时间重置为（旧逻辑，保留兼容）
-#define GUIDE_IDLE_SILENT_RHYTHM_TOUCH_MS       (5000) /// 5s
-/// 韵律选择页未满 2 次 program 键时的静默时间
-#define GUIDE_IDLE_SILENT_RHYTHM_SELECT_MS      (3000) /// 3s
-/// 韵律选择页点满 2 次 program 键后的跳转等待
-#define GUIDE_RHYTHM_SELECT_DOUBLE_ADVANCE_MS   (1000) /// 1s
-/// 韵律选择页触发快速跳转所需的 program 键次数
-#define GUIDE_RHYTHM_SELECT_DOUBLE_CLICK_COUNT  (2)
+/// 左/右力度页：结算完成后的跳转等待时长（UI 不展示）
+#define GUIDE_LEVEL_SIDE_COUNTDOWN_MS           (1000) /// 1s
+/// 双边力度调节-加页：右侧档位 >= 目标档位后开始结算
+#define GUIDE_LEVEL_BOTH_INCREASE_TARGET        (BREAST_PUMP_LEVEL_5)
+/// 双边力度调节-减页：左侧档位 <= 目标档位后开始结算
+#define GUIDE_LEVEL_BOTH_DECREASE_TARGET        (BREAST_PUMP_LEVEL_1)
+/// 双边力度调节-加/减页：到达目标档位后的结算时长，结算完成后跳转
+#define GUIDE_LEVEL_BOTH_SETTLE_MS               (1000) /// 1s
+/// 模式选择页：调节 2 次后，第 3 次 mode 键切下一页
+#define GUIDE_MODE_SELECT_ADVANCE_CLICK_COUNT   (3)
+/// 韵律选择页：调节 1 次后，第 2 次 program 键切下一页
+#define GUIDE_RHYTHM_SELECT_ADVANCE_CLICK_COUNT (2)
 /// 静默结束后的可见倒计时时长，结束后切下一页
 #define GUIDE_IDLE_COUNTDOWN_SHOW_MS            (3000) /// 3s
 /// 力度调节后，展示页面停留时间
@@ -90,24 +86,6 @@ static inline uint32_t guide_idle_total_timeout_ms(uint32_t silent_ms)
 #define IS_SUPPORT_GUIDE_KEY_GUIDE_CANCEL_ADVANCE   (0)
 #endif
 
-/// 模式选择页：点满 3 次后从第 3 次起固定计时 1s 跳转（不受后续调节重置）
-/// 关闭时退化为「最后一次调节后静默 1s 再跳转」
-#ifndef IS_SUPPORT_GUIDE_MODE_SELECT_FIXED_TRIPLE_ADVANCE
-#define IS_SUPPORT_GUIDE_MODE_SELECT_FIXED_TRIPLE_ADVANCE  (1)
-#endif
-
-/// 韵律选择页：点满 2 次后从第 2 次起固定计时 1s 跳转（不受后续调节重置）
-/// 关闭时退化为「最后一次调节后静默 1s 再跳转」
-#ifndef IS_SUPPORT_GUIDE_RHYTHM_SELECT_FIXED_DOUBLE_ADVANCE
-#define IS_SUPPORT_GUIDE_RHYTHM_SELECT_FIXED_DOUBLE_ADVANCE  (1)
-#endif
-
-/// 力度调节页：首次旋转后固定计时 2s 跳转（不受后续旋转重置）
-/// 关闭时退化为「最后一次旋转后静默 2s 再跳转」
-#ifndef IS_SUPPORT_GUIDE_LEVEL_FIXED_KNOB_ADVANCE
-#define IS_SUPPORT_GUIDE_LEVEL_FIXED_KNOB_ADVANCE  (1)
-#endif
-
 /// base 主题是否支持引导欢迎动画页
 #ifndef IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
 #define IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM         (0)
@@ -136,13 +114,14 @@ typedef enum {
     GUIDE_PAGE_RHYTHM_SELECT_GUIDE = 7, /// 8. 韵律选择引导
     GUIDE_PAGE_RHYTHM_SELECT = 8,       /// 9. 韵律选择
     GUIDE_PAGE_LEVEL_BOTH_GUIDE = 9,    /// 10. 双边力度调节引导
-    GUIDE_PAGE_LEVEL_BOTH = 10,         /// 11. 双边力度调节
-    GUIDE_PAGE_LEVEL_LEFT_GUIDE = 11,   /// 12. 左边力度调节引导
-    GUIDE_PAGE_LEVEL_LEFT = 12,         /// 13. 左边力度调节
-    GUIDE_PAGE_LEVEL_RIGHT_GUIDE = 13,  /// 14. 右边力度调节引导
-    GUIDE_PAGE_LEVEL_RIGHT = 14,        /// 15. 右边力度调节
-    GUIDE_PAGE_PUMP_STOP_GUIDE = 15,    /// 16. 泵奶结束引导
-    GUIDE_PAGE_FINISH = 16,             /// 17. 引导结束
+    GUIDE_PAGE_LEVEL_BOTH_INCREASE = 10, /// 11. 双边力度调节-加档
+    GUIDE_PAGE_LEVEL_BOTH_DECREASE = 11,  /// 12. 双边力度调节-减档
+    GUIDE_PAGE_LEVEL_LEFT_GUIDE = 12,  /// 13. 左边力度调节引导
+    GUIDE_PAGE_LEVEL_LEFT = 13,        /// 14. 左边力度调节
+    GUIDE_PAGE_LEVEL_RIGHT_GUIDE = 14, /// 15. 右边力度调节引导
+    GUIDE_PAGE_LEVEL_RIGHT = 15,       /// 16. 右边力度调节
+    GUIDE_PAGE_PUMP_STOP_GUIDE = 16,   /// 17. 泵奶结束引导
+    GUIDE_PAGE_FINISH = 17,            /// 18. 引导结束
     GUIDE_PAGE_MAX,
 } guide_page_index_t;
 
@@ -158,12 +137,20 @@ typedef enum {
 /// base 主题无欢迎动画页时，custom 主题仍从欢迎动画页开始
 static inline uint16_t guide_page_initial_get(int res_theme_type)
 {
+#if 0
     return (res_theme_type == RES_THEME_TYPE_CUSTOM)
         ? GUIDE_PAGE_WELCOME_ANIM : GUIDE_PAGE_INTRO;
+#else
+    return (res_theme_type == RES_THEME_TYPE_CUSTOM)
+    ? GUIDE_PAGE_WELCOME_ANIM : GUIDE_PAGE_KNOB_GUIDE;
+#endif
 }
 #define GUIDE_PAGE_IS_LEVEL_INTERACTIVE(page)   \
-    ((page) == GUIDE_PAGE_LEVEL_BOTH || (page) == GUIDE_PAGE_LEVEL_LEFT || \
-     (page) == GUIDE_PAGE_LEVEL_RIGHT)
+    ((page) == GUIDE_PAGE_LEVEL_BOTH_INCREASE || (page) == GUIDE_PAGE_LEVEL_BOTH_DECREASE || \
+     (page) == GUIDE_PAGE_LEVEL_LEFT || (page) == GUIDE_PAGE_LEVEL_RIGHT)
+#define GUIDE_PAGE_SHOW_LEVEL_COUNTDOWN(page)   \
+    (GUIDE_PAGE_IS_LEVEL_INTERACTIVE(page) && \
+     (page) != GUIDE_PAGE_LEVEL_BOTH_INCREASE && (page) != GUIDE_PAGE_LEVEL_BOTH_DECREASE)
 #define GUIDE_PAGE_IS_MODE_INTERACTIVE(page)    ((page) == GUIDE_PAGE_MODE_SELECT)
 #define GUIDE_PAGE_IS_RHYTHM_INTERACTIVE(page)  ((page) == GUIDE_PAGE_RHYTHM_SELECT)
 #define GUIDE_PAGE_IS_LEVEL_SIDE(page)        \
@@ -206,8 +193,11 @@ static inline uint8_t guide_page_num_of(uint8_t page)
     }
 
     page_num = (uint8_t)(page - GUIDE_PAGE_MODE_SELECT_GUIDE + 1);
-    /// LEVEL_BOTH_GUIDE 与 LEVEL_BOTH 共用第 5 页
-    if (page >= GUIDE_PAGE_LEVEL_BOTH) {
+    /// LEVEL_BOTH_GUIDE / LEVEL_BOTH_INCREASE / LEVEL_BOTH_DECREASE 共用第 5 页
+    if (page >= GUIDE_PAGE_LEVEL_BOTH_INCREASE) {
+        page_num--;
+    }
+    if (page >= GUIDE_PAGE_LEVEL_BOTH_DECREASE) {
         page_num--;
     }
     return page_num;
@@ -242,9 +232,7 @@ typedef struct {
     uint8_t exit_holding; /// 退出倒计时弹窗是否处于长按中
     uint8_t exit_ignore_click; /// 退出倒计时松手后忽略紧随的 CLICK
     uint32_t last_adjust_time; /// 上次力度调节时间
-    uint32_t mode_select_triple_ready_time; /// 模式选择点满 3 次的时刻
-    uint32_t rhythm_select_double_ready_time; /// 韵律选择点满 2 次的时刻
-    uint32_t level_knob_ready_time; /// 力度页首次旋转旋钮的时刻
+    uint32_t level_knob_ready_time; /// 左/右力度页：非 0 表示倒计时已锁定；双边力度页：到达目标档位后的计时起点
     uint32_t page_enter_time; /// 当前页面进入时间
     uint32_t blink_start_time; /// 闪烁起始时间
 } ui_proc_guide_t;
@@ -263,8 +251,6 @@ void guide_pump_level_page_enter_reset(ui_proc_guide_t *proc);
 int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase);
 void guide_pump_level_idle_timeout_handler(ui_proc_guide_t *proc);
 uint8_t guide_pump_level_idle_remain_sec_get(const ui_proc_guide_t *proc);
-uint8_t guide_mode_select_idle_remain_sec_get(const ui_proc_guide_t *proc);
-uint8_t guide_rhythm_select_idle_remain_sec_get(const ui_proc_guide_t *proc);
 void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left);
 void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t keytype);
 void guide_exit_countdown_popup_dismiss(ui_proc_guide_t *proc);

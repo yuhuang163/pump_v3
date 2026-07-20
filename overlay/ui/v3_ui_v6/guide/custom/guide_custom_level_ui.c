@@ -118,7 +118,7 @@ static void guide_level_indicator_res_apply(guide_custom_ui_info_t *info, guide_
     if (level->indicator == NULL || !lv_obj_is_valid(level->indicator)) {
         return;
     }
-    if (level->adjust_active == adjust && info->force_update == false) {
+    if (level->adjust_active == adjust) {
         return;
     }
     ui_img_baj_release_decoded_buf(level->indicator);
@@ -133,7 +133,7 @@ static void guide_level_progress_bg_res_apply(guide_custom_ui_info_t *info, guid
     if (level->progress_bg == NULL || !lv_obj_is_valid(level->progress_bg)) {
         return;
     }
-    if (level->adjust_active == adjust && info->force_update == false) {
+    if (level->adjust_active == adjust) {
         return;
     }
     ui_img_baj_release_decoded_buf(level->progress_bg);
@@ -207,10 +207,15 @@ static void guide_left_level_indicator_update(guide_custom_ui_info_t *info, uint
         EXCEPTION_CHECK_VOID(level->indicator);
         ui_img_baj_theme_set_src(info->ui, level->indicator, CUSTOM_RES_ID_PUMP_LEVEL_INDICATOR,
             RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
+        level->shown_end_angle = 0xFFFF;
+    }
+    if (level->shown_end_angle == end_angle && level->adjust_active == adjust) {
+        return;
     }
     guide_level_indicator_res_apply(info, level, adjust);
     ui_place_dot_on_arc(level->arc, level->indicator, end_angle,
         guide_level_arc_width_get(adjust), guide_level_indicator_size_get(adjust), 0, false);
+    level->shown_end_angle = end_angle;
 }
 
 static void guide_left_level_progress_update(guide_custom_ui_info_t *info, uint8_t level_val, bool adjust)
@@ -231,8 +236,10 @@ static void guide_left_level_progress_update(guide_custom_ui_info_t *info, uint8
         lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
         lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 1);
     }
-    guide_level_progress_style_apply(info, level, guide_level_left_bg_x_get(adjust),
-        guide_level_left_bg_y_get(adjust), adjust);
+    if (level->adjust_active != adjust) {
+        guide_level_progress_style_apply(info, level, guide_level_left_bg_x_get(adjust),
+            guide_level_left_bg_y_get(adjust), adjust);
+    }
     snprintf(level_text, sizeof(level_text), "%d", level_val);
     lv_label_set_text(level->progress, level_text);
 }
@@ -251,9 +258,14 @@ static void guide_left_level_arc_update(guide_custom_ui_info_t *info, uint16_t e
         lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_INDICATOR);
         lv_obj_remove_style(level->arc, NULL, LV_PART_KNOB);
         guide_level_arc_clip_fix_apply(level->arc);
+        level->shown_end_angle = 0xFFFF;
     }
-    guide_level_arc_style_apply(level->arc, adjust);
-    lv_arc_set_angles(level->arc, PUMP_LEFT_ARC_START_ANGLE, end_angle);
+    if (level->adjust_active != adjust) {
+        guide_level_arc_style_apply(level->arc, adjust);
+    }
+    if (level->shown_end_angle != end_angle || level->adjust_active != adjust) {
+        lv_arc_set_angles(level->arc, PUMP_LEFT_ARC_START_ANGLE, end_angle);
+    }
 }
 
 static void guide_right_level_indicator_update(guide_custom_ui_info_t *info, uint16_t end_angle,
@@ -266,10 +278,15 @@ static void guide_right_level_indicator_update(guide_custom_ui_info_t *info, uin
         EXCEPTION_CHECK_VOID(level->indicator);
         ui_img_baj_theme_set_src(info->ui, level->indicator, CUSTOM_RES_ID_PUMP_LEVEL_INDICATOR,
             RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
+        level->shown_end_angle = 0xFFFF;
+    }
+    if (level->shown_end_angle == end_angle && level->adjust_active == adjust) {
+        return;
     }
     guide_level_indicator_res_apply(info, level, adjust);
     ui_place_dot_on_arc(level->arc, level->indicator, end_angle,
         guide_level_arc_width_get(adjust), guide_level_indicator_size_get(adjust), -0.5f, false);
+    level->shown_end_angle = end_angle;
 }
 
 static void guide_right_level_progress_update(guide_custom_ui_info_t *info, uint8_t level_val, bool adjust)
@@ -290,8 +307,10 @@ static void guide_right_level_progress_update(guide_custom_ui_info_t *info, uint
         lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
         lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 1);
     }
-    guide_level_progress_style_apply(info, level, guide_level_right_bg_x_get(adjust),
-        guide_level_right_bg_y_get(adjust), adjust);
+    if (level->adjust_active != adjust) {
+        guide_level_progress_style_apply(info, level, guide_level_right_bg_x_get(adjust),
+            guide_level_right_bg_y_get(adjust), adjust);
+    }
     snprintf(level_text, sizeof(level_text), "%d", level_val);
     lv_label_set_text(level->progress, level_text);
 }
@@ -310,9 +329,14 @@ static void guide_right_level_arc_update(guide_custom_ui_info_t *info, uint16_t 
         lv_obj_set_style_arc_opa(level->arc, LV_OPA_COVER, LV_PART_INDICATOR);
         lv_obj_remove_style(level->arc, NULL, LV_PART_KNOB);
         guide_level_arc_clip_fix_apply(level->arc);
+        level->shown_end_angle = 0xFFFF;
     }
-    guide_level_arc_style_apply(level->arc, adjust);
-    lv_arc_set_angles(level->arc, end_angle, PUMP_RIGHT_ARC_END_ANGLE);
+    if (level->adjust_active != adjust) {
+        guide_level_arc_style_apply(level->arc, adjust);
+    }
+    if (level->shown_end_angle != end_angle || level->adjust_active != adjust) {
+        lv_arc_set_angles(level->arc, end_angle, PUMP_RIGHT_ARC_END_ANGLE);
+    }
 }
 
 static uint16_t guide_left_level_end_angle_get(uint8_t level_val)
@@ -356,8 +380,8 @@ static void guide_left_level_update(guide_custom_ui_info_t *info, bool blink_vis
         level_val = PUMP_LEVEL_MAX;
     }
     const uint16_t end_angle = guide_left_level_end_angle_get(level_val);
-    guide_left_level_progress_update(info, level_val, adjust);
     guide_left_level_arc_update(info, end_angle, adjust);
+    guide_left_level_progress_update(info, level_val, adjust);
     guide_left_level_indicator_update(info, end_angle, adjust);
     level->value = level_val;
     level->adjust_active = adjust;
@@ -381,8 +405,8 @@ static void guide_right_level_update(guide_custom_ui_info_t *info, bool blink_vi
         level_val = PUMP_LEVEL_MAX;
     }
     const uint16_t end_angle = guide_right_level_end_angle_get(level_val);
-    guide_right_level_progress_update(info, level_val, adjust);
     guide_right_level_arc_update(info, end_angle, adjust);
+    guide_right_level_progress_update(info, level_val, adjust);
     guide_right_level_indicator_update(info, end_angle, adjust);
     level->value = level_val;
     level->adjust_active = adjust;

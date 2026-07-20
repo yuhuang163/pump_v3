@@ -24,13 +24,13 @@
 #define GUIDE_MODE_SELECT_COUNTDOWN_COLOR               (0xBD4060)
 #endif
 
-#define GUIDE_MODE_SELECT_LABEL_X                       (44)
-#define GUIDE_MODE_SELECT_STIMULATION_LABEL_Y           (124 - 8)
-#define GUIDE_MODE_SELECT_STIMULATION_TEXT_Y            (156 - 8)
-#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y            (124 - 8)
-#define GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y             (156 - 8)
-#define GUIDE_MODE_SELECT_MIXED_LABEL_Y                 (120 - 8)
-#define GUIDE_MODE_SELECT_MIXED_TEXT_Y                  (158 - 8)
+#define GUIDE_MODE_SELECT_LABEL_X                       (37)
+#define GUIDE_MODE_SELECT_STIMULATION_LABEL_Y           (113)
+#define GUIDE_MODE_SELECT_STIMULATION_TEXT_Y            (150)
+#define GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y            (113)
+#define GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y             (150)
+#define GUIDE_MODE_SELECT_MIXED_LABEL_Y                 (113)
+#define GUIDE_MODE_SELECT_MIXED_TEXT_Y                  (148)
 
 #define GUIDE_MODE_SELECT_SLOT_PREV                     (0)
 #define GUIDE_MODE_SELECT_SLOT_CUR                      (1)
@@ -52,7 +52,7 @@ typedef struct {
 static const guide_mode_select_content_cfg_t guide_mode_select_content_cfgs[] = {
     [BREAST_PUMP_STIMULATION_MODE] = {
         "Stimulation",
-        CUSTOM_RES_ID_HOME_NARROW_LABLE,
+        CUSTOM_RES_ID_GUIDE_WIDTH_LABLE,
         GUIDE_MODE_SELECT_STIMULATION_LABEL_Y,
         GUIDE_MODE_SELECT_STIMULATION_TEXT_Y,
         4,
@@ -60,7 +60,7 @@ static const guide_mode_select_content_cfg_t guide_mode_select_content_cfgs[] = 
     },
     [BREAST_PUMP_LACTATION_MODE] = {
         "Expression",
-        CUSTOM_RES_ID_HOME_NARROW_LABLE,
+        CUSTOM_RES_ID_GUIDE_WIDTH_LABLE,
         GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y,
         GUIDE_MODE_SELECT_EXPRESSION_TEXT_Y,
         4,
@@ -68,7 +68,7 @@ static const guide_mode_select_content_cfg_t guide_mode_select_content_cfgs[] = 
     },
     [BREAST_PUMP_MIX_MODE] = {
         "Mixed",
-        CUSTOM_RES_ID_HOME_WIDTH_LABLE,
+        CUSTOM_RES_ID_GUIDE_HEIGHT_LABLE,
         GUIDE_MODE_SELECT_MIXED_LABEL_Y,
         GUIDE_MODE_SELECT_MIXED_TEXT_Y,
         4,
@@ -256,23 +256,6 @@ static void guide_mode_select_label_update(guide_custom_ui_info_t *info, uint8_t
     info->mode_select.shown_label_res_id = cfg->label_res_id;
 }
 
-static void guide_custom_mode_select_idle_countdown_ui_create(guide_custom_ui_info_t *info)
-{
-    EXCEPTION_CHECK_VOID(info);
-
-    info->mode_select.countdown_num = lv_label_create(guide_custom_page_parent_get(info));
-    EXCEPTION_CHECK_VOID(info->mode_select.countdown_num);
-    lv_obj_set_style_text_color(info->mode_select.countdown_num,
-        lv_color_hex(GUIDE_MODE_SELECT_COUNTDOWN_COLOR), 0);
-    // lv_obj_set_style_text_font(info->mode_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
-    lv_obj_set_style_text_font(info->mode_select.countdown_num, &lv_font_aeonik_soft_32_medium, 0);
-    lv_obj_set_style_text_align(info->mode_select.countdown_num, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->mode_select.countdown_num, "3s");
-    lv_obj_align(info->mode_select.countdown_num, LV_ALIGN_TOP_MID, 0, GUIDE_MODE_SELECT_COUNTDOWN_Y);
-    lv_obj_add_flag(info->mode_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
-    info->mode_select.shown_countdown_sec = 0xFF;
-}
-
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -295,7 +278,6 @@ void guide_custom_mode_select_ui_build(guide_custom_ui_info_t *info)
         guide_mode_select_bg_create(info);
     }
 #endif
-    guide_custom_mode_select_idle_countdown_ui_create(info);
     guide_mode_select_carousel_ensure(info);
 }
 
@@ -312,35 +294,4 @@ void guide_custom_mode_select_ui_update(guide_custom_ui_info_t *info, ui_proc_gu
     guide_mode_select_carousel_update(info, center_mode);
     guide_mode_select_label_update(info, center_mode);
     info->mode_select.shown_mode_index = center_mode;
-}
-
-void guide_custom_mode_select_idle_countdown_ui_update(guide_custom_ui_info_t *info,
-    ui_proc_guide_t *proc)
-{
-    uint8_t remain_sec;
-    char num_buf[8];
-
-    EXCEPTION_CHECK_VOID(info && proc);
-    if (proc->page_index != GUIDE_PAGE_MODE_SELECT) {
-        return;
-    }
-    if (info->mode_select.countdown_num == NULL || !lv_obj_is_valid(info->mode_select.countdown_num)) {
-        return;
-    }
-
-    remain_sec = guide_mode_select_idle_remain_sec_get(proc);
-    if (info->mode_select.shown_countdown_sec == remain_sec) {
-        return;
-    }
-
-    guide_custom_page_num_ui_set_visible(info, remain_sec == 0);
-    if (remain_sec == 0) {
-        lv_obj_add_flag(info->mode_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_snprintf(num_buf, sizeof(num_buf), "%us", remain_sec);
-        lv_label_set_text(info->mode_select.countdown_num, num_buf);
-        lv_obj_align(info->mode_select.countdown_num, LV_ALIGN_TOP_MID, 0, GUIDE_MODE_SELECT_COUNTDOWN_Y);
-        lv_obj_clear_flag(info->mode_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
-    }
-    info->mode_select.shown_countdown_sec = remain_sec;
 }

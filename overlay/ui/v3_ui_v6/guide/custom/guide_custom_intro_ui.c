@@ -84,6 +84,6 @@ void guide_custom_intro_ui_build(guide_custom_ui_info_t *info)
     guide_intro_bg_create(info);
 #endif
     guide_intro_title_create(info);
-    guide_intro_hint_create(info);
+    // guide_intro_hint_create(info);
     guide_intro_start_icon_create(info);
 }

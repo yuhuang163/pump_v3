@@ -28,8 +28,7 @@ extern "C" {
 #define GUIDE_BASE_LABEL_CARD_TEXT_COLOR                (0xA0183B)
 #endif
 
-/// 引导页页号坐标（X 相对屏幕左边，Y 相对顶部；CURRENT_X 为个位数 "1" 左边缘锚点）
-#define GUIDE_BASE_PAGE_NUM_CURRENT_X                   (156)
+/// 引导页页号坐标（Y 相对顶部；X 由 current/suffix/total 三者总宽度在父容器内水平居中）
 #define GUIDE_BASE_PAGE_NUM_CURRENT_Y                   (44)
 #define GUIDE_BASE_PAGE_NUM_SUFFIX_Y                    (44)
 #define GUIDE_BASE_PAGE_NUM_TOTAL_Y                     (49)
@@ -254,12 +253,10 @@ void guide_page_num_ui_set_visible(guide_base_ui_info_t *info, bool visible);
 void guide_mode_select_ui_remove(guide_base_ui_info_t *info);
 void guide_mode_select_ui_build(guide_base_ui_info_t *info);
 void guide_mode_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
-void guide_mode_select_idle_countdown_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
 
 void guide_rhythm_select_ui_remove(guide_base_ui_info_t *info);
 void guide_rhythm_select_ui_build(guide_base_ui_info_t *info);
 void guide_rhythm_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
-void guide_rhythm_select_idle_countdown_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc);
 
 void guide_pump_level_ui_remove(guide_base_ui_info_t *info);
 void guide_pump_level_ui_build(guide_base_ui_info_t *info);

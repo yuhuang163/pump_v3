@@ -121,7 +121,8 @@ static void guide_page_build(guide_custom_ui_info_t *info, uint8_t page_index, b
             guide_custom_function_home_ui_build(info);
             break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
-        case GUIDE_PAGE_LEVEL_BOTH:
+        case GUIDE_PAGE_LEVEL_BOTH_INCREASE:
+        case GUIDE_PAGE_LEVEL_BOTH_DECREASE:
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
         case GUIDE_PAGE_LEVEL_LEFT:
         case GUIDE_PAGE_LEVEL_RIGHT_GUIDE:
@@ -161,8 +162,12 @@ static void guide_page_switch(guide_custom_ui_info_t *info, uint8_t page_index)
     const bool new_is_theme = guide_custom_level_theme_page_is(page_index);
     const bool old_is_theme = guide_custom_level_theme_page_is(info->shown_page_index);
     const bool reuse_level_ui = new_is_theme && old_is_theme;
+    const bool same_level_shell = reuse_level_ui &&
+        guide_custom_level_guide_same_shell(info->shown_page_index, page_index);
 
-    if (reuse_level_ui) {
+    if (same_level_shell) {
+        guide_custom_level_guide_ui_update(info, page_index);
+    } else if (reuse_level_ui) {
         guide_page_content_reset(info);
     } else {
         guide_page_container_reset(info);
@@ -170,13 +175,19 @@ static void guide_page_switch(guide_custom_ui_info_t *info, uint8_t page_index)
 
     info->page_index = page_index;
     info->shown_page_index = page_index;
-    info->force_update = true;
+    if (!same_level_shell) {
+        info->force_update = true;
+    }
 
     if (new_is_theme) {
         guide_custom_level_theme_ensure(info);
     }
 
-    guide_page_build(info, page_index, reuse_level_ui);
+    if (!same_level_shell) {
+        guide_page_build(info, page_index, reuse_level_ui);
+    } else {
+        guide_custom_blink_state_update(info, page_index);
+    }
     guide_custom_ip_ui_update(info, page_index);
 #if IS_SUPPORT_CUSTOM_GUIDE_COMP_BG
     if (info->comp_bg != NULL && lv_obj_is_valid(info->comp_bg)) {
@@ -193,7 +204,8 @@ static void guide_page_dynamic_update(guide_custom_ui_info_t *info, ui_proc_guid
             guide_custom_pump_animation_ui_update(info, frame_index);
             break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
-        case GUIDE_PAGE_LEVEL_BOTH:
+        case GUIDE_PAGE_LEVEL_BOTH_INCREASE:
+        case GUIDE_PAGE_LEVEL_BOTH_DECREASE:
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
         case GUIDE_PAGE_LEVEL_LEFT:
         case GUIDE_PAGE_LEVEL_RIGHT_GUIDE:
@@ -204,11 +216,9 @@ static void guide_page_dynamic_update(guide_custom_ui_info_t *info, ui_proc_guid
             break;
         case GUIDE_PAGE_MODE_SELECT:
             guide_custom_mode_select_ui_update(info, proc);
-            guide_custom_mode_select_idle_countdown_ui_update(info, proc);
             break;
         case GUIDE_PAGE_RHYTHM_SELECT:
             guide_custom_rhythm_select_ui_update(info, proc);
-            guide_custom_rhythm_select_idle_countdown_ui_update(info, proc);
             break;
         default:
             break;

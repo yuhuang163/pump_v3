@@ -126,7 +126,8 @@ static void guide_page_build(guide_base_ui_info_t *info, uint8_t page_index, boo
             guide_function_home_ui_build(info);
             break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
-        case GUIDE_PAGE_LEVEL_BOTH:
+        case GUIDE_PAGE_LEVEL_BOTH_INCREASE:
+        case GUIDE_PAGE_LEVEL_BOTH_DECREASE:
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
         case GUIDE_PAGE_LEVEL_LEFT:
         case GUIDE_PAGE_LEVEL_RIGHT_GUIDE:
@@ -199,7 +200,8 @@ static void guide_page_dynamic_update(guide_base_ui_info_t *info, ui_proc_guide_
             break;
 #endif
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
-        case GUIDE_PAGE_LEVEL_BOTH:
+        case GUIDE_PAGE_LEVEL_BOTH_INCREASE:
+        case GUIDE_PAGE_LEVEL_BOTH_DECREASE:
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
         case GUIDE_PAGE_LEVEL_LEFT:
         case GUIDE_PAGE_LEVEL_RIGHT_GUIDE:
@@ -210,11 +212,9 @@ static void guide_page_dynamic_update(guide_base_ui_info_t *info, ui_proc_guide_
             break;
         case GUIDE_PAGE_MODE_SELECT:
             guide_mode_select_ui_update(info, proc);
-            guide_mode_select_idle_countdown_ui_update(info, proc);
             break;
         case GUIDE_PAGE_RHYTHM_SELECT:
             guide_rhythm_select_ui_update(info, proc);
-            guide_rhythm_select_idle_countdown_ui_update(info, proc);
             break;
         default:
             break;
