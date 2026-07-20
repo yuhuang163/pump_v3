@@ -10,6 +10,13 @@
 *****************************************************************************************
 */
 
+#define IS_SUPPORT_DEVICE_DEBUG_LOG   0
+#if IS_SUPPORT_DEVICE_DEBUG_LOG
+#define LOG_DEVICE   LOGI
+#else
+#define LOG_DEVICE
+#endif
+
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -131,18 +138,22 @@ static int on_post_pbus_init(void *ptr)
         ctx->fs_remount();
     }
     #endif
-
+    uint32_t t0 = get_timestamp();
     if (ctx->hook && ctx->hook->on_module_init) {
         ctx->hook->on_module_init(ctx);
     }
+    LOG_DEVICE("on_module_init, escaped: %lu ms", get_timestamp_ms(t0));
 
     LIST_FOR_EACH(pos, __list_head) {
         rt_device_node_t *node = CONTAINER_OF(pos, rt_device_node_t, list);
         if (node->open) {
             // LOG_PBUS("node:(%s/%d) ",node->name, node->id);
+            uint32_t t0 = get_timestamp();
             int ret = node->open(node);
             if (ret) {
                 LOGE("node:(%s/%d) open fail, ret=%d", node->name, node->id, ret);
+            } else {
+                LOG_DEVICE("node:(%s/%d) open success, escaped: %lu ms", node->name, node->id, get_timestamp_ms(t0));
             }
         }
     }

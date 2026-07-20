@@ -9,6 +9,14 @@
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_MODULE_DEBUG_LOG   0
+
+#if IS_SUPPORT_MODULE_DEBUG_LOG
+#define LOG_MODULE   LOGI
+#else
+#define LOG_MODULE
+#endif
+
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -175,7 +183,9 @@ int init_module(void)
     LIST_FOR_EACH(pos, list_head) {
         module_node_t *node = CONTAINER_OF(pos, module_node_t, list);
         if (node->perpare_init) {
+            uint32_t t0 = get_timestamp();
             node->perpare_init(node->module_ptr);
+            LOG_MODULE("perpare node:[%s/%d],escaped: %lu ms",node->name, node->id, get_timestamp_ms(t0));
         }
     }
 
@@ -183,9 +193,9 @@ int init_module(void)
     LIST_FOR_EACH(pos, list_head) {
         module_node_t *node = CONTAINER_OF(pos, module_node_t, list);
         if (node->post_init) {
-            // uint32_t t0 = get_timestamp();
+            uint32_t t0 = get_timestamp();
             node->post_init(node->module_ptr);
-            // LOGI("node:[%s/%d],escaped: %lu ms",node->name, node->id, get_timestamp_ms(t0));
+            LOG_MODULE("post node:[%s/%d],escaped: %lu ms",node->name, node->id, get_timestamp_ms(t0));
         }
     }
     return 0;

@@ -38,12 +38,11 @@ static void res_data_unload(res_img_info_t *img)
     memset(img, 0, sizeof(*img));
 }
 
-static void on_res_init_cb(hdr_post_args_t *args)
+static void on_res_init_cb(resource_manager_context_t *ctx)
 {
-    EXCEPTION_CHECK_VOID(thiz);
-    int ret = img_res_init(thiz);
-    if (!thiz->priv.res_init_completed) {
-        thiz->priv.res_init_completed = true;
+    int ret = img_res_init(ctx);
+    if (!ctx->priv.res_init_completed) {
+        ctx->priv.res_init_completed = true;
     }
 }
 
@@ -129,7 +128,9 @@ static int on_post_res_init(void *ptr)
 {
     resource_manager_context_t *ctx = ptr;
     ctx->priv.res_init_completed = false;
-    POST_TASK_HANDLER_NO_DELAY(on_res_init_cb, ptr, "res_init");
+    // uint32_t t0 = get_timestamp();
+    on_res_init_cb(ctx);
+    // LOG_RES("on_res_init_cb, escaped: %lu ms", get_timestamp_ms(t0));
     thiz->priv.st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     int sys_ui_style = 0;
     if (thiz->priv.st) {
