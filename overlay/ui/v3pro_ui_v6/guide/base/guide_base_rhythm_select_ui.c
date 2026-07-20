@@ -309,24 +309,6 @@ static void guide_rhythm_select_label_update(guide_base_ui_info_t *info, uint8_t
     info->rhythm_select.shown_label_res_id = cfg->label_res_id;
 }
 
-static void guide_rhythm_select_idle_countdown_ui_create(guide_base_ui_info_t *info)
-{
-    EXCEPTION_CHECK_VOID(info);
-
-    info->rhythm_select.countdown_num = lv_label_create(guide_page_parent_get(info));
-    EXCEPTION_CHECK_VOID(info->rhythm_select.countdown_num);
-    lv_obj_set_style_text_color(info->rhythm_select.countdown_num,
-        lv_color_hex(GUIDE_RHYTHM_SELECT_COUNTDOWN_COLOR), 0);
-    // lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
-    lv_obj_set_style_text_font(info->rhythm_select.countdown_num, &lv_font_aeonik_soft_32_medium, 0);
-    lv_obj_set_style_text_align(info->rhythm_select.countdown_num, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(info->rhythm_select.countdown_num, "3s");
-    lv_obj_align(info->rhythm_select.countdown_num, LV_ALIGN_TOP_MID, 0,
-        GUIDE_RHYTHM_SELECT_COUNTDOWN_Y);
-    lv_obj_add_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
-    info->rhythm_select.shown_countdown_sec = 0xFF;
-}
-
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -355,7 +337,6 @@ void guide_rhythm_select_ui_build(guide_base_ui_info_t *info)
         guide_rhythm_select_bg_create(info);
     }
 #endif
-    guide_rhythm_select_idle_countdown_ui_create(info);
     guide_rhythm_select_carousel_ensure(info);
     guide_rhythm_select_wave_ensure(info);
 }
@@ -386,36 +367,4 @@ void guide_rhythm_select_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *
     guide_rhythm_select_time_update(info, time_text, cfg->time_y);
     guide_rhythm_select_label_update(info, center_mode);
     info->rhythm_select.shown_mode_index = center_mode;
-}
-
-void guide_rhythm_select_idle_countdown_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc)
-{
-    uint8_t remain_sec;
-    char num_buf[8];
-
-    EXCEPTION_CHECK_VOID(info && proc);
-    if (proc->page_index != GUIDE_PAGE_RHYTHM_SELECT) {
-        return;
-    }
-    if (info->rhythm_select.countdown_num == NULL ||
-        !lv_obj_is_valid(info->rhythm_select.countdown_num)) {
-        return;
-    }
-
-    remain_sec = guide_rhythm_select_idle_remain_sec_get(proc);
-    if (info->rhythm_select.shown_countdown_sec == remain_sec) {
-        return;
-    }
-
-    guide_page_num_ui_set_visible(info, remain_sec == 0);
-    if (remain_sec == 0) {
-        lv_obj_add_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_snprintf(num_buf, sizeof(num_buf), "%us", remain_sec);
-        lv_label_set_text(info->rhythm_select.countdown_num, num_buf);
-        lv_obj_align(info->rhythm_select.countdown_num, LV_ALIGN_TOP_MID, 0,
-            GUIDE_RHYTHM_SELECT_COUNTDOWN_Y);
-        lv_obj_clear_flag(info->rhythm_select.countdown_num, LV_OBJ_FLAG_HIDDEN);
-    }
-    info->rhythm_select.shown_countdown_sec = remain_sec;
 }

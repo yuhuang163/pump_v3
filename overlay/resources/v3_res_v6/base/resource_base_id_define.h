@@ -27,6 +27,8 @@ typedef enum {
     BASE_RES_ID_MODE_BUTTON_ICON, /// 模式按钮图标
     BASE_RES_ID_PROGRAM_BUTTON_ICON, /// 程序按钮图标
     BASE_RES_ID_RETURN_BUTTON_24X24_ICON, /// 24x24返回按钮图标
+    BASE_RES_ID_LEFT_KNOB_ICON, /// 左旋钮图标
+    BASE_RES_ID_RIGHT_KNOB_ICON, /// 右旋钮图标
   
     BASE_RES_ID_CLOCK_COLON_ICON = 99, /// 时钟冒号图标
     /* 主界面组 [99..150] */

@@ -159,7 +159,8 @@ void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page)
             WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_START, false);
         }
 #endif
-        case GUIDE_PAGE_LEVEL_BOTH:
+        case GUIDE_PAGE_LEVEL_BOTH_INCREASE:
+        case GUIDE_PAGE_LEVEL_BOTH_DECREASE:
         case GUIDE_PAGE_LEVEL_LEFT_GUIDE:
         case GUIDE_PAGE_LEVEL_LEFT:
         case GUIDE_PAGE_LEVEL_RIGHT_GUIDE:
@@ -180,8 +181,6 @@ void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page)
 #endif
             proc->mode_select_touched = 0;
             proc->mode_select_click_cnt = 0;
-            proc->mode_select_triple_ready_time = 0;
-            proc->last_adjust_time = get_timestamp();
             break;
         case GUIDE_PAGE_RHYTHM_SELECT:
 #if IS_SUPPORT_GUIDE_PUMP_START
@@ -191,8 +190,6 @@ void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page)
 #endif
             proc->rhythm_select_touched = 0;
             proc->rhythm_select_click_cnt = 0;
-            proc->rhythm_select_double_ready_time = 0;
-            proc->last_adjust_time = get_timestamp();
             break;
         case GUIDE_PAGE_PUMP_STOP_GUIDE:
 #if IS_SUPPORT_GUIDE_PUMP_START
@@ -230,100 +227,12 @@ static void guide_guide_step_timeout_handler(ui_proc_guide_t *proc)
     }
 
     switch (proc->page_index) {
+        case GUIDE_PAGE_INTRO:
+            guide_page_advance(proc, GUIDE_PAGE_KNOB_GUIDE);
+            break;
         default:
             break;
     }
-}
-
-static void guide_mode_select_idle_timeout_handler(ui_proc_guide_t *proc)
-{
-    uint32_t elapsed_ms;
-
-    EXCEPTION_CHECK_VOID(proc);
-    if (proc->page_index != GUIDE_PAGE_MODE_SELECT) {
-        return;
-    }
-
-    if (proc->mode_select_click_cnt >= GUIDE_MODE_SELECT_TRIPLE_CLICK_COUNT) {
-#if IS_SUPPORT_GUIDE_MODE_SELECT_FIXED_TRIPLE_ADVANCE
-        /// 从第 3 次点击起固定计时，后续调节不重置
-        if (proc->mode_select_triple_ready_time == 0 ||
-            get_timestamp_ms(proc->mode_select_triple_ready_time) <
-                GUIDE_MODE_SELECT_TRIPLE_ADVANCE_MS) {
-            return;
-        }
-#else
-        /// 最后一次调节后静默满 1s 再跳转
-        if (get_timestamp_ms(proc->last_adjust_time) < GUIDE_MODE_SELECT_TRIPLE_ADVANCE_MS) {
-            return;
-        }
-#endif
-    } else {
-        elapsed_ms = get_timestamp_ms(proc->last_adjust_time);
-        if (elapsed_ms < guide_idle_total_timeout_ms(GUIDE_IDLE_SILENT_MODE_SELECT_MS)) {
-            return;
-        }
-    }
-
-    proc->mode_selected = GUIDE_MODE_SELECT_MODE;
-    guide_page_advance(proc, GUIDE_PAGE_RHYTHM_SELECT_GUIDE);
-}
-
-static void guide_rhythm_select_idle_timeout_handler(ui_proc_guide_t *proc)
-{
-    uint32_t elapsed_ms;
-
-    EXCEPTION_CHECK_VOID(proc);
-    if (proc->page_index != GUIDE_PAGE_RHYTHM_SELECT) {
-        return;
-    }
-
-    if (proc->rhythm_select_click_cnt >= GUIDE_RHYTHM_SELECT_DOUBLE_CLICK_COUNT) {
-#if IS_SUPPORT_GUIDE_RHYTHM_SELECT_FIXED_DOUBLE_ADVANCE
-        /// 从第 2 次点击起固定计时，后续调节不重置
-        if (proc->rhythm_select_double_ready_time == 0 ||
-            get_timestamp_ms(proc->rhythm_select_double_ready_time) <
-                GUIDE_RHYTHM_SELECT_DOUBLE_ADVANCE_MS) {
-            return;
-        }
-#else
-        /// 最后一次调节后静默满 1s 再跳转
-        if (get_timestamp_ms(proc->last_adjust_time) < GUIDE_RHYTHM_SELECT_DOUBLE_ADVANCE_MS) {
-            return;
-        }
-#endif
-    } else {
-        elapsed_ms = get_timestamp_ms(proc->last_adjust_time);
-        if (elapsed_ms < guide_idle_total_timeout_ms(GUIDE_IDLE_SILENT_RHYTHM_SELECT_MS)) {
-            return;
-        }
-    }
-
-    guide_page_advance(proc, GUIDE_PAGE_LEVEL_BOTH_GUIDE);
-}
-
-uint8_t guide_mode_select_idle_remain_sec_get(const ui_proc_guide_t *proc)
-{
-    if (proc == NULL || proc->page_index != GUIDE_PAGE_MODE_SELECT) {
-        return 0;
-    }
-    if (proc->mode_select_click_cnt >= GUIDE_MODE_SELECT_TRIPLE_CLICK_COUNT) {
-        return 0;
-    }
-    return guide_idle_countdown_remain_sec(get_timestamp_ms(proc->last_adjust_time),
-        GUIDE_IDLE_SILENT_MODE_SELECT_MS);
-}
-
-uint8_t guide_rhythm_select_idle_remain_sec_get(const ui_proc_guide_t *proc)
-{
-    if (proc == NULL || proc->page_index != GUIDE_PAGE_RHYTHM_SELECT) {
-        return 0;
-    }
-    if (proc->rhythm_select_click_cnt >= GUIDE_RHYTHM_SELECT_DOUBLE_CLICK_COUNT) {
-        return 0;
-    }
-    return guide_idle_countdown_remain_sec(get_timestamp_ms(proc->last_adjust_time),
-        GUIDE_IDLE_SILENT_RHYTHM_SELECT_MS);
 }
 
 static void guide_finish_timeout_handler(ui_proc_guide_t *proc)
@@ -352,13 +261,12 @@ static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
             }
             if (res_theme_type == RES_THEME_TYPE_CUSTOM &&
                 index >= (int)CUSTOM_GUIDE_ANIM_NUM) {
-                guide_page_advance(proc, GUIDE_PAGE_INTRO);
+                // guide_page_advance(proc, GUIDE_PAGE_INTRO);
+                guide_page_advance(proc, GUIDE_PAGE_KNOB_GUIDE);
             }
         }
 
         guide_guide_step_timeout_handler(proc);
-        guide_mode_select_idle_timeout_handler(proc);
-        guide_rhythm_select_idle_timeout_handler(proc);
         guide_pump_level_idle_timeout_handler(proc);
         guide_finish_timeout_handler(proc);
     }
@@ -530,6 +438,10 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
         case GUIDE_PAGE_MODE_SELECT:
             if (keycode == KEY_CODE_MODE) {
                 guide_pump_mode_adjust_handler(proc, false);
+                if (proc->mode_select_click_cnt >= GUIDE_MODE_SELECT_ADVANCE_CLICK_COUNT) {
+                    proc->mode_selected = GUIDE_MODE_SELECT_MODE;
+                    guide_page_advance(proc, GUIDE_PAGE_RHYTHM_SELECT_GUIDE);
+                }
             } else if (keycode == KEY_CODE_BREASTFEEDING) {
                 proc->mode_selected = GUIDE_MODE_SELECT_BREASTFEEDING;
                 guide_page_advance(proc, GUIDE_PAGE_RHYTHM_SELECT_GUIDE);
@@ -543,6 +455,9 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
         case GUIDE_PAGE_RHYTHM_SELECT:
             if (keycode == KEY_CODE_BREASTFEEDING) {
                 guide_pump_mode_adjust_handler(proc, true);
+                if (proc->rhythm_select_click_cnt >= GUIDE_RHYTHM_SELECT_ADVANCE_CLICK_COUNT) {
+                    guide_page_advance(proc, GUIDE_PAGE_LEVEL_BOTH_GUIDE);
+                }
             } else if (keycode == KEY_CODE_MODE) {
                 guide_page_advance(proc, GUIDE_PAGE_LEVEL_BOTH_GUIDE);
             }
@@ -574,7 +489,7 @@ void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left)
     }
 
     if (proc->page_index == GUIDE_PAGE_LEVEL_BOTH_GUIDE) {
-        guide_page_advance(proc, GUIDE_PAGE_LEVEL_BOTH);
+        guide_page_advance(proc, GUIDE_PAGE_LEVEL_BOTH_INCREASE);
         return;
     }
 

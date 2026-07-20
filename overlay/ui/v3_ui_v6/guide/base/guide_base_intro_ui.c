@@ -110,6 +110,6 @@ void guide_intro_ui_build(guide_base_ui_info_t *info)
 #endif
     guide_intro_home_icon_create(info);
     guide_intro_title_create(info);
-    guide_intro_hint_create(info);
+    // guide_intro_hint_create(info);
     guide_intro_start_icon_create(info);
 }

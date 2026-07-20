@@ -42,6 +42,8 @@ typedef enum {
     CUSTOM_RES_ID_HOME_NARROW_LABLE, /// 主页窄标签
     CUSTOM_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, /// 飞行模式解锁按钮图标
     CUSTOM_RES_ID_GUIDE_LABLE, /// 引导标签
+    CUSTOM_RES_ID_GUIDE_WIDTH_LABLE, /// 引导-宽度标签
+    CUSTOM_RES_ID_GUIDE_HEIGHT_LABLE, /// 引导-高度标签
 
     /* 引导组 [10150..10200] */
     CUSTOM_RES_ID_SYS_THEME_IMG  = 10150, /// 系统主题引导背景

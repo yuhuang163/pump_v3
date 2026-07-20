@@ -12,7 +12,7 @@
 *****************************************************************************************
 */
 #define POWER_ON_BOOT_RUN_TIME_MS                   600    /// boot 启动补偿, 冷启动和热启动时间不一致
-#define POWER_ON_TIMEOUT_MS_DEFAULT                 (3000 - POWER_ON_BOOT_RUN_TIME_MS)     /// 电源按键超时时间，单位ms
+#define POWER_ON_TIMEOUT_MS_DEFAULT                 (2000 - POWER_ON_BOOT_RUN_TIME_MS)     /// 电源按键超时时间，单位ms
 #define POWER_ON_TIMEOUT_MS                         (POWER_ON_TIMEOUT_MS_DEFAULT - get_timestamp_ms(0))
 #define POWER_ONOFF_AND_STANDBY_TASK_NAME           "power_onoff_and_standby"
 
@@ -61,6 +61,31 @@ static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
     return false;
 }
 
+static void system_power_control_off(power_manager_context_t *pm)
+{
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    rt_device_node_t *led_dev = NULL;
+    if (pbus) {
+        led_dev = pbus->find_device(ID_DEVICE_LED);
+    }
+    
+    if (led_dev) {
+        led_status_msg_t msg = {
+            .led_index = PUMP_LED_ALL_ID,
+            .led_status = {
+                .mode = LED_MODE_LEVEL,
+                .un.luminous = {
+                    .level = 0,
+                },
+            },
+        };
+        led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+        LOG_PM("set key led off");
+        msleep(10);
+    }
+    pm->system_power_control(false);
+}
+
 static void system_power_event_cb(hdr_post_args_t *args)
 {
     int action = args->arg1;
@@ -92,7 +117,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
                     return;
                 }
                 #endif      
-                pm->system_power_control(false); 
+                system_power_control_off(pm);
             } else {
                 pm->system_power_control(true);
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
@@ -123,12 +148,12 @@ static void system_power_event_cb(hdr_post_args_t *args)
             break;
         case HDR_ACTION_POWER_ON_INVALID: 
             LOG_PM("%s action:%d", args->name, action);
-            pm->system_power_control(false);
+            system_power_control_off(pm);
             break;
         case HDR_ACTION_POWER_OFF: 
             LOG_PM("%s action:%d", args->name, action);
             pm->priv.allow_shutdown_or_standby = 0;
-            pm->system_power_control(false);
+            system_power_control_off(pm);
             break;
         case HDR_ACTION_SYS_STANDBY: 
             LOG_PM("%s action:%d", args->name, action);
@@ -148,8 +173,8 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
         return 0;
     }
 
-    /// 待机状态下长按3s退出待机状态.
-    if (ctx->priv.is_enter_suspend == true  && keytype == KEY_EVENT_LONG_3S) {
+    /// 待机状态下长按2s退出待机状态.
+    if (ctx->priv.is_enter_suspend == true  && keytype == KEY_EVENT_LONG_2S) {
         ctx->pm_wakeup(PM_WAKEUP_REASON_KEY_POWER); /// 唤醒电源管理器.
         LOG_PM("wakeup by key power");
         return 0;
@@ -175,8 +200,8 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
         return 0;
     }
 
-    /// 开机检测窗口内收到3s长按, 立即确认开机成功, 避免后续抬键触发invalid关机.
-    if (keytype == KEY_EVENT_LONG_3S && ctx->priv.is_power_on_timeout_detect == 1) {
+    /// 开机检测窗口内收到2s长按, 立即确认开机成功, 避免后续抬键触发invalid关机.
+    if (keytype == KEY_EVENT_LONG_2S && ctx->priv.is_power_on_timeout_detect == 1) {
         ctx->priv.is_power_on_timeout_detect = 0;
         if (!ctx->is_system_power_on()) {
             POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON,
@@ -194,7 +219,7 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
     }
 
     /// 进入关机状态. 不在工厂重置界面时才允许进入关机状态.(按键冲突)
-    if (keytype == KEY_EVENT_LONG_3S) {
+    if (keytype == KEY_EVENT_LONG_2S) {
         if (ctx->priv.allow_shutdown_or_standby) {
             window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
             /// 不在工厂重置界面时才允许进入关机状态.(按键冲突)
@@ -345,7 +370,7 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
     wm->dispatch_new_window_args(wm, &msg); 
 #else
     ctx->priv.allow_shutdown_or_standby = 0;
-    ctx->system_power_control(false);
+    system_power_control_off(ctx);
 #endif
     set_pm_state_progress(ctx, __func__, PM_WILL_POWER_OFF, 0);
     return 0;
@@ -464,7 +489,7 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
             return 0;
         }
 #endif
-        ctx->system_power_control(false);
+        system_power_control_off(ctx);
         return 0;
     }
     LOG_PM("key down, power on timeout: %d", timeout_ms);

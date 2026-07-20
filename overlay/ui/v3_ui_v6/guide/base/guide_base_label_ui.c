@@ -36,6 +36,26 @@
 #define GUIDE_LEVEL_BOTH_GUIDE_BODY_X               (0)
 #define GUIDE_LEVEL_BOTH_GUIDE_BODY_Y               (197)
 
+/// 双边力度调节（加档 / 减档共用 label）
+#define GUIDE_LEVEL_BOTH_ADJUST_LABEL_X             (GUIDE_LEVEL_GUIDE_LABEL_X)
+#define GUIDE_LEVEL_BOTH_ADJUST_LABEL_Y             (GUIDE_LEVEL_GUIDE_LABEL_Y)
+
+/// 双边力度调节-加档
+#define GUIDE_LEVEL_BOTH_INCREASE_HEADLINE_X           (0)
+#define GUIDE_LEVEL_BOTH_INCREASE_HEADLINE_Y           (172)
+#define GUIDE_LEVEL_BOTH_INCREASE_BODY_X               (137)
+#define GUIDE_LEVEL_BOTH_INCREASE_BODY_Y               (196)
+#define GUIDE_LEVEL_BOTH_INCREASE_KNOB_ICON_X          (108)
+#define GUIDE_LEVEL_BOTH_INCREASE_KNOB_ICON_Y          (192)
+
+/// 双边力度调节-减档
+#define GUIDE_LEVEL_BOTH_DECREASE_HEADLINE_X            (0)
+#define GUIDE_LEVEL_BOTH_DECREASE_HEADLINE_Y            (172)
+#define GUIDE_LEVEL_BOTH_DECREASE_BODY_X                (145)
+#define GUIDE_LEVEL_BOTH_DECREASE_BODY_Y                (196)
+#define GUIDE_LEVEL_BOTH_DECREASE_KNOB_ICON_X           (116)
+#define GUIDE_LEVEL_BOTH_DECREASE_KNOB_ICON_Y           (192)
+
 /// 单边力度引导
 #define GUIDE_LEVEL_GUIDE_LABEL_X                   (34)
 #if IS_SUPPORT_BASE_GUIDE_LABEL_TEXT_CMP
@@ -83,13 +103,14 @@
 #define GUIDE_PUMP_STOP_GUIDE_HINT_COLOR            (0xA0183B)
 #endif
 #define GUIDE_PUMP_STOP_GUIDE_TITLE_Y               (96)
-#define GUIDE_PUMP_STOP_GUIDE_LABEL_X               (GUIDE_LEVEL_GUIDE_LABEL_X)
-#define GUIDE_PUMP_STOP_GUIDE_LABEL_Y               (GUIDE_LEVEL_GUIDE_LABEL_Y + 12)
-#define GUIDE_PUMP_STOP_GUIDE_PRESS_X               (139)
-#define GUIDE_PUMP_STOP_GUIDE_PRESS_Y               (184)
-#define GUIDE_PUMP_STOP_GUIDE_HINT_Y                (210)
-#define GUIDE_PUMP_STOP_GUIDE_ICON_X                (193)
-#define GUIDE_PUMP_STOP_GUIDE_ICON_Y                (178)
+#define GUIDE_PUMP_STOP_GUIDE_LABEL_X               (34)
+#define GUIDE_PUMP_STOP_GUIDE_LABEL_Y               (128)
+#define GUIDE_PUMP_STOP_GUIDE_PRESS_X               (100)
+#define GUIDE_PUMP_STOP_GUIDE_PRESS_Y               (192)
+#define GUIDE_PUMP_STOP_GUIDE_HINT_X                (153)
+#define GUIDE_PUMP_STOP_GUIDE_HINT_Y                (192)
+#define GUIDE_PUMP_STOP_GUIDE_ICON_X                (237)
+#define GUIDE_PUMP_STOP_GUIDE_ICON_Y                (188)
 
 #if IS_SUPPORT_BASE_GUIDE_COMP_BG
 #define GUIDE_PAGE_NUM_CURRENT_COLOR                (0x00FF00)
@@ -111,6 +132,8 @@ typedef struct {
     int16_t body_y;
     uint8_t line_space;
     uint16_t button_icon_res_id;
+    int16_t icon_x;
+    int16_t icon_y;
 } guide_level_guide_page_cfg_t;
 
 /*
@@ -124,15 +147,25 @@ static const guide_level_guide_page_cfg_t guide_level_guide_page_cfgs[GUIDE_PAGE
         GUIDE_LEVEL_BOTH_LABEL_X, GUIDE_LEVEL_BOTH_LABEL_Y,
         GUIDE_LEVEL_BOTH_GUIDE_HEADLINE_X, GUIDE_LEVEL_BOTH_GUIDE_HEADLINE_Y,
         GUIDE_LEVEL_BOTH_GUIDE_BODY_X, GUIDE_LEVEL_BOTH_GUIDE_BODY_Y,
-        4, 0
+        4, 0, 0, 0
     },
-    [GUIDE_PAGE_LEVEL_BOTH] = {
-        "Rotate the knob", "Adjust suction levels\nfor both sides",
-        BASE_RES_ID_HOME_WIDTH_LABLE,
-        GUIDE_LEVEL_BOTH_LABEL_X, GUIDE_LEVEL_BOTH_LABEL_Y,
-        GUIDE_LEVEL_BOTH_GUIDE_HEADLINE_X, GUIDE_LEVEL_BOTH_GUIDE_HEADLINE_Y,
-        GUIDE_LEVEL_BOTH_GUIDE_BODY_X, GUIDE_LEVEL_BOTH_GUIDE_BODY_Y,
-        4, 0
+    [GUIDE_PAGE_LEVEL_BOTH_INCREASE] = {
+        "Rotate the knob", "right to level 5",
+        BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_BOTH_ADJUST_LABEL_X, GUIDE_LEVEL_BOTH_ADJUST_LABEL_Y,
+        GUIDE_LEVEL_BOTH_INCREASE_HEADLINE_X, GUIDE_LEVEL_BOTH_INCREASE_HEADLINE_Y,
+        GUIDE_LEVEL_BOTH_INCREASE_BODY_X, GUIDE_LEVEL_BOTH_INCREASE_BODY_Y,
+        4, BASE_RES_ID_RIGHT_KNOB_ICON,
+        GUIDE_LEVEL_BOTH_INCREASE_KNOB_ICON_X, GUIDE_LEVEL_BOTH_INCREASE_KNOB_ICON_Y
+    },
+    [GUIDE_PAGE_LEVEL_BOTH_DECREASE] = {
+        "Rotate the knob", "left to level 1",
+        BASE_RES_ID_GUIDE_LABLE,
+        GUIDE_LEVEL_BOTH_ADJUST_LABEL_X, GUIDE_LEVEL_BOTH_ADJUST_LABEL_Y,
+        GUIDE_LEVEL_BOTH_DECREASE_HEADLINE_X, GUIDE_LEVEL_BOTH_DECREASE_HEADLINE_Y,
+        GUIDE_LEVEL_BOTH_DECREASE_BODY_X, GUIDE_LEVEL_BOTH_DECREASE_BODY_Y,
+        4, BASE_RES_ID_LEFT_KNOB_ICON,
+        GUIDE_LEVEL_BOTH_DECREASE_KNOB_ICON_X, GUIDE_LEVEL_BOTH_DECREASE_KNOB_ICON_Y
     },
     [GUIDE_PAGE_LEVEL_LEFT_GUIDE] = {
         "Press       ", "Enter left adjustment",
@@ -142,6 +175,7 @@ static const guide_level_guide_page_cfg_t guide_level_guide_page_cfgs[GUIDE_PAGE
         GUIDE_LEVEL_GUIDE_BODY_X, GUIDE_LEVEL_GUIDE_BODY_Y,
         4,
         BASE_RES_ID_GUIDE_LEFT_BUTTON_ICON,
+        GUIDE_LEVEL_SIDE_BUTTON_ICON_X, GUIDE_LEVEL_SIDE_BUTTON_ICON_Y
     },
     [GUIDE_PAGE_LEVEL_LEFT] = {
         "Rotate the knob", "Adjust left level",
@@ -149,7 +183,7 @@ static const guide_level_guide_page_cfg_t guide_level_guide_page_cfgs[GUIDE_PAGE
         GUIDE_LEVEL_GUIDE_LABEL_X, GUIDE_LEVEL_GUIDE_LABEL_Y,
         GUIDE_LEVEL_ADJUST_HEADLINE_X, GUIDE_LEVEL_ADJUST_HEADLINE_Y,
         GUIDE_LEVEL_ADJUST_BODY_X, GUIDE_LEVEL_ADJUST_BODY_Y,
-        4, 0
+        4, 0, 0, 0
     },
     [GUIDE_PAGE_LEVEL_RIGHT_GUIDE] = {
         "Press       ", "Enter right adjustment",
@@ -159,6 +193,7 @@ static const guide_level_guide_page_cfg_t guide_level_guide_page_cfgs[GUIDE_PAGE
         GUIDE_LEVEL_GUIDE_BODY_X, GUIDE_LEVEL_GUIDE_BODY_Y,
         4,
         BASE_RES_ID_GUIDE_RIGHT_BUTTON_ICON,
+        GUIDE_LEVEL_SIDE_BUTTON_ICON_X, GUIDE_LEVEL_SIDE_BUTTON_ICON_Y
     },
     [GUIDE_PAGE_LEVEL_RIGHT] = {
         "Rotate the knob", "Adjust right level",
@@ -166,7 +201,7 @@ static const guide_level_guide_page_cfg_t guide_level_guide_page_cfgs[GUIDE_PAGE
         GUIDE_LEVEL_GUIDE_LABEL_X, GUIDE_LEVEL_GUIDE_LABEL_Y,
         GUIDE_LEVEL_ADJUST_HEADLINE_X, GUIDE_LEVEL_ADJUST_HEADLINE_Y,
         GUIDE_LEVEL_ADJUST_BODY_X, GUIDE_LEVEL_ADJUST_BODY_Y,
-        4, 0
+        4, 0, 0, 0
     },
 };
 
@@ -338,10 +373,13 @@ void guide_level_guide_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
         guide_level_guide_bg_create(info);
     }
 #endif
-    if (GUIDE_PAGE_IS_LEVEL_INTERACTIVE(page_index)) {
+    if (GUIDE_PAGE_SHOW_LEVEL_COUNTDOWN(page_index)) {
         guide_label_step_header_create(info, &info->level_guide.title,
             "Adjust to comfortable", GUIDE_LEVEL_TITLE_Y);
         guide_level_idle_countdown_ui_create(info);
+    } else if (GUIDE_PAGE_IS_LEVEL_INTERACTIVE(page_index)) {
+        guide_label_step_header_create(info, &info->level_guide.title,
+            "Adjust to comfortable", GUIDE_LEVEL_TITLE_Y);
     } else {
         guide_label_level_header_create(info, &info->level_guide.title);
     }
@@ -351,8 +389,7 @@ void guide_level_guide_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
         cfg->headline, cfg->body, cfg->headline_x, cfg->headline_y, cfg->body_x, cfg->body_y, cfg->line_space);
     if (cfg->button_icon_res_id != 0) {
         guide_label_inline_icon_create(info, &info->level_guide.button_icon,
-            cfg->button_icon_res_id, GUIDE_LEVEL_SIDE_BUTTON_ICON_X,
-            GUIDE_LEVEL_SIDE_BUTTON_ICON_Y);
+            cfg->button_icon_res_id, cfg->icon_x, cfg->icon_y);
     }
 }
 
@@ -362,11 +399,14 @@ void guide_level_idle_countdown_ui_update(guide_base_ui_info_t *info, ui_proc_gu
     char num_buf[8];
 
     EXCEPTION_CHECK_VOID(info && proc);
-    if (!GUIDE_PAGE_IS_LEVEL_INTERACTIVE(proc->page_index)) {
+    if (!GUIDE_PAGE_SHOW_LEVEL_COUNTDOWN(proc->page_index)) {
         return;
     }
     if (info->level_guide.countdown_num == NULL || !lv_obj_is_valid(info->level_guide.countdown_num)) {
-        return;
+        guide_level_idle_countdown_ui_create(info);
+        if (info->level_guide.countdown_num == NULL) {
+            return;
+        }
     }
 
     remain_sec = guide_pump_level_idle_remain_sec_get(proc);
@@ -376,11 +416,14 @@ void guide_level_idle_countdown_ui_update(guide_base_ui_info_t *info, ui_proc_gu
 
     if (remain_sec == 0) {
         lv_obj_add_flag(info->level_guide.countdown_num, LV_OBJ_FLAG_HIDDEN);
+        guide_page_num_ui_set_visible(info, true);
     } else {
+        guide_page_num_ui_set_visible(info, false);
         lv_snprintf(num_buf, sizeof(num_buf), "%us", remain_sec);
         lv_label_set_text(info->level_guide.countdown_num, num_buf);
         lv_obj_align(info->level_guide.countdown_num, LV_ALIGN_TOP_MID, 0, GUIDE_LEVEL_COUNTDOWN_Y);
         lv_obj_clear_flag(info->level_guide.countdown_num, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_foreground(info->level_guide.countdown_num);
     }
     info->level_guide.shown_countdown_sec = remain_sec;
 }
@@ -467,11 +510,11 @@ void guide_pump_stop_guide_ui_build(guide_base_ui_info_t *info)
     lv_obj_set_style_text_font(info->level_guide.text, &lv_font_aeonik_soft_18_regular, 0);
     lv_obj_set_style_text_align(info->level_guide.text, LV_TEXT_ALIGN_CENTER, 0);
     // lv_label_set_text(info->level_guide.text, "to stop pumping");
-    lv_label_set_text(info->level_guide.text, "Press & hold 3s");
-    lv_obj_align(info->level_guide.text, LV_ALIGN_TOP_MID, 0, GUIDE_PUMP_STOP_GUIDE_HINT_Y);
+    lv_label_set_text(info->level_guide.text, "& hold 3s");
+    lv_obj_align(info->level_guide.text, LV_ALIGN_TOP_LEFT, GUIDE_PUMP_STOP_GUIDE_HINT_X, GUIDE_PUMP_STOP_GUIDE_HINT_Y);
 
     guide_label_inline_icon_create(info, &info->level_guide.button_icon,
-        BASE_RES_ID_GUIDE_RETURN_BUTTON_ICON, GUIDE_PUMP_STOP_GUIDE_ICON_X,
+        BASE_RES_ID_GUIDE_RETURN_BUTTON_MIN_ICON, GUIDE_PUMP_STOP_GUIDE_ICON_X,
         GUIDE_PUMP_STOP_GUIDE_ICON_Y);
 }
 
@@ -482,11 +525,13 @@ void guide_page_num_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
     char total_buf[4];
     uint8_t page_num;
     lv_coord_t current_w;
-    lv_coord_t single_digit_w;
+    lv_coord_t suffix_w;
+    lv_coord_t total_w;
+    lv_coord_t group_w;
+    lv_coord_t parent_w;
     lv_coord_t current_x;
     lv_coord_t suffix_x;
     lv_coord_t total_x;
-    lv_point_t text_size;
 
     EXCEPTION_CHECK_VOID(info);
     info->page_num.current = NULL;
@@ -507,12 +552,8 @@ void guide_page_num_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
     lv_obj_set_style_text_color(info->page_num.current, lv_color_hex(GUIDE_PAGE_NUM_CURRENT_COLOR), 0);
     lv_obj_set_style_text_font(info->page_num.current, &lv_font_aeonik_soft_32_medium, 0);
     lv_label_set_text(info->page_num.current, cur_buf);
-    lv_text_get_size(&text_size, "1", &lv_font_aeonik_soft_32_medium, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-    single_digit_w = text_size.x;
     lv_obj_update_layout(info->page_num.current);
     current_w = lv_obj_get_width(info->page_num.current);
-    current_x = GUIDE_BASE_PAGE_NUM_CURRENT_X - (current_w - single_digit_w);
-    lv_obj_align(info->page_num.current, LV_ALIGN_TOP_LEFT, current_x, GUIDE_BASE_PAGE_NUM_CURRENT_Y);
 
     info->page_num.suffix = lv_label_create(parent);
     EXCEPTION_CHECK_VOID(info->page_num.suffix);
@@ -520,8 +561,7 @@ void guide_page_num_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
     lv_obj_set_style_text_font(info->page_num.suffix, &lv_font_aeonik_soft_32_medium, 0);
     lv_label_set_text(info->page_num.suffix, "/");
     lv_obj_update_layout(info->page_num.suffix);
-    suffix_x = current_x + current_w;
-    lv_obj_align(info->page_num.suffix, LV_ALIGN_TOP_LEFT, suffix_x, GUIDE_BASE_PAGE_NUM_SUFFIX_Y);
+    suffix_w = lv_obj_get_width(info->page_num.suffix);
 
     info->page_num.total = lv_label_create(parent);
     EXCEPTION_CHECK_VOID(info->page_num.total);
@@ -529,7 +569,16 @@ void guide_page_num_ui_build(guide_base_ui_info_t *info, uint8_t page_index)
     lv_obj_set_style_text_font(info->page_num.total, &lv_font_aeonik_soft_26_medium, 0);
     lv_label_set_text(info->page_num.total, total_buf);
     lv_obj_update_layout(info->page_num.total);
-    total_x = suffix_x + lv_obj_get_width(info->page_num.suffix);
+    total_w = lv_obj_get_width(info->page_num.total);
+
+    lv_obj_update_layout(parent);
+    parent_w = lv_obj_get_width(parent);
+    group_w = current_w + suffix_w + total_w;
+    current_x = (parent_w - group_w) / 2;
+    suffix_x = current_x + current_w;
+    total_x = suffix_x + suffix_w;
+    lv_obj_align(info->page_num.current, LV_ALIGN_TOP_LEFT, current_x, GUIDE_BASE_PAGE_NUM_CURRENT_Y);
+    lv_obj_align(info->page_num.suffix, LV_ALIGN_TOP_LEFT, suffix_x, GUIDE_BASE_PAGE_NUM_SUFFIX_Y);
     lv_obj_align(info->page_num.total, LV_ALIGN_TOP_LEFT, total_x, GUIDE_BASE_PAGE_NUM_TOTAL_Y);
 }
 

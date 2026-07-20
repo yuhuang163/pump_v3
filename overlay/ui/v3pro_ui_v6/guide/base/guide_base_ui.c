@@ -32,7 +32,10 @@ static PSRAM_NC_DATA_LOC uint8_t guide_bg_data[] = {
     // #include "comparison_png2txt/guide_base_p51_360x360.txt"
     // #include "comparison_png2txt/guide_base_p52_360x360.txt"
     // #include "comparison_png2txt/guide_base_p53_360x360.txt"
-    #include "comparison_png2txt/guide_base_p54_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p54_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p60_360x360.txt"
+    // #include "comparison_png2txt/guide_base_p61_360x360.txt"
+    #include "comparison_png2txt/guide_base_p62_360x360.txt"
 };
 #endif
 
@@ -51,7 +54,8 @@ void guide_base_blink_state_update(guide_base_ui_info_t *info, uint8_t page_inde
     EXCEPTION_CHECK_VOID(info);
 
     switch (page_index) {
-        case GUIDE_PAGE_LEVEL_BOTH:
+        case GUIDE_PAGE_LEVEL_BOTH_INCREASE:
+        case GUIDE_PAGE_LEVEL_BOTH_DECREASE:
             display_type = GUIDE_BASE_LEVEL_DISPLAY_BOTH_ADJUST;
             new_left_level_blink = 1;
             new_right_level_blink = 1;

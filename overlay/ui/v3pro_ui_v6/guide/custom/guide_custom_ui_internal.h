@@ -29,8 +29,7 @@ extern "C" {
 #define GUIDE_CUSTOM_LABEL_CARD_TEXT_COLOR         (0xA0183B)
 #endif
 
-/// 引导页页号坐标（X 相对屏幕左边，Y 相对顶部；CURRENT_X 为个位数 "1" 左边缘锚点）
-#define GUIDE_CUSTOM_PAGE_NUM_CURRENT_X                (156)
+/// 引导页页号坐标（Y 相对顶部；X 由 current/suffix/total 三者总宽度在父容器内水平居中）
 #define GUIDE_CUSTOM_PAGE_NUM_CURRENT_Y                (44)
 #define GUIDE_CUSTOM_PAGE_NUM_SUFFIX_Y                 (44)
 #define GUIDE_CUSTOM_PAGE_NUM_TOTAL_Y                  (49)
@@ -50,6 +49,7 @@ typedef struct {
     uint8_t value;
     uint8_t new_value;
     uint8_t adjust_active;
+    uint16_t shown_end_angle;
 } guide_custom_level_t;
 
 typedef struct {
@@ -244,6 +244,8 @@ void guide_custom_label_inline_icon_create(guide_custom_ui_info_t *info, lv_obj_
 
 void guide_custom_level_guide_ui_remove(guide_custom_ui_info_t *info);
 void guide_custom_level_guide_ui_build(guide_custom_ui_info_t *info, uint8_t page_index);
+void guide_custom_level_guide_ui_update(guide_custom_ui_info_t *info, uint8_t page_index);
+bool guide_custom_level_guide_same_shell(uint8_t old_page, uint8_t new_page);
 void guide_custom_level_idle_countdown_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc);
 void guide_custom_mode_select_guide_ui_build(guide_custom_ui_info_t *info);
 void guide_custom_rhythm_select_guide_ui_build(guide_custom_ui_info_t *info);
@@ -254,12 +256,10 @@ void guide_custom_page_num_ui_set_visible(guide_custom_ui_info_t *info, bool vis
 void guide_custom_mode_select_ui_remove(guide_custom_ui_info_t *info);
 void guide_custom_mode_select_ui_build(guide_custom_ui_info_t *info);
 void guide_custom_mode_select_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc);
-void guide_custom_mode_select_idle_countdown_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc);
 
 void guide_custom_rhythm_select_ui_remove(guide_custom_ui_info_t *info);
 void guide_custom_rhythm_select_ui_build(guide_custom_ui_info_t *info);
 void guide_custom_rhythm_select_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc);
-void guide_custom_rhythm_select_idle_countdown_ui_update(guide_custom_ui_info_t *info, ui_proc_guide_t *proc);
 
 void guide_custom_pump_level_ui_remove(guide_custom_ui_info_t *info);
 void guide_custom_pump_level_ui_build(guide_custom_ui_info_t *info);
