@@ -164,6 +164,20 @@
             "y_offset": 0
         },
         {
+            "resource_id": "CUSTOM_RES_ID_LEFT_KNOB_ICON",
+            "description": "左旋钮图标",
+            "file": "baj/icon_left_knob_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_RIGHT_KNOB_ICON",
+            "description": "右旋钮图标",
+            "file": "baj/icon_right_knob_24x24_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
             "resource_id": "CUSTOM_RES_ID_BATTERY_ICON",
             "description": "电池电量图标",
             "file": "baj/icon_battery_28x15_a8_q99_444.baj",
@@ -196,6 +210,48 @@
             "description": "电池低电量图标",
             "file": "baj/icon_battery_low_power_90x48_a8_q99_444.baj",
             "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_CHARGE_BATT_0_ICON",
+            "description": "电池容量0图标",
+            "file": "baj/icon_charge_battery_0_28x16_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_CHARGE_BATT_1_ICON",
+            "description": "电池容量20图标",
+            "file": "baj/icon_charge_battery_1_28x16_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_CHARGE_BATT_2_ICON",
+            "description": "电池容量40图标",
+            "file": "baj/icon_charge_battery_2_28x16_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_CHARGE_BATT_3_ICON",
+            "description": "电池容量60图标",
+            "file": "baj/icon_charge_battery_3_28x16_a8_q99_444.baj",    
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_CHARGE_BATT_4_ICON",
+            "description": "电池容量80图标",
+            "file": "baj/icon_charge_battery_4_28x16_a8_q99_444.baj",
+            "x_offset": 0,
+            "y_offset": 0
+        },
+        {
+            "resource_id": "CUSTOM_RES_ID_CHARGE_BATT_5_ICON",
+            "description": "电池容量100图标",
+            "file": "baj/icon_charge_battery_5_28x16_a8_q99_444.baj",
+            "x_offset": 0,  
             "y_offset": 0
         },
         {

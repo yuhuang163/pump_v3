@@ -27,12 +27,21 @@ typedef enum {
     BASE_RES_ID_MODE_BUTTON_ICON, /// 模式按钮图标
     BASE_RES_ID_PROGRAM_BUTTON_ICON, /// 程序按钮图标
     BASE_RES_ID_RETURN_BUTTON_24X24_ICON, /// 24x24返回按钮图标
+    BASE_RES_ID_LEFT_KNOB_ICON, /// 左旋钮图标
+    BASE_RES_ID_RIGHT_KNOB_ICON, /// 右旋钮图标
     BASE_RES_ID_BATTERY_ICON, /// 电池电量图标
     BASE_RES_ID_BATTERY_WARNING_ICON, /// 电池警告图标
     BASE_RES_ID_CHARGE_PAGE_ICON, /// 充电页面图标
     BASE_RES_ID_POWER_ECO_ICON, /// 电源节能图标
     BASE_RES_ID_BATTERY_LOW_POWER_ICON, /// 电池低电量图标
-  
+    BASE_RES_ID_CHARGE_BATT_0_ICON, /// 电池容量0图标
+    BASE_RES_ID_CHARGE_BATT_1_ICON, /// 电池容量20图标
+    BASE_RES_ID_CHARGE_BATT_2_ICON, /// 电池容量40图标
+    BASE_RES_ID_CHARGE_BATT_3_ICON, /// 电池容量60图标
+    BASE_RES_ID_CHARGE_BATT_4_ICON, /// 电池容量80图标
+    BASE_RES_ID_CHARGE_BATT_5_ICON, /// 电池容量100图标
+
+
     BASE_RES_ID_CLOCK_COLON_ICON = 99, /// 时钟冒号图标
     /* 主界面组 [99..150] */
     BASE_RES_ID_COMMON_BG = 100, /// 通用背景
