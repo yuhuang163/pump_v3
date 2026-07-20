@@ -164,6 +164,20 @@
       "y_offset": 0
     },
     {
+      "resource_id": "CUSTOM_RES_ID_LEFT_KNOB_ICON",
+      "description": "左旋钮图标",
+      "file": "baj/icon_left_knob_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "CUSTOM_RES_ID_RIGHT_KNOB_ICON",
+      "description": "右旋钮图标",
+      "file": "baj/icon_right_knob_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "CUSTOM_RES_ID_COMMON_BG",
       "description": "通用背景",
       "file": "png/bg_common_ui.png",
@@ -209,6 +223,20 @@
       "resource_id": "CUSTOM_RES_ID_GUIDE_LABLE",
       "description": "引导标签",
       "file": "baj/label_guide_280x136_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "CUSTOM_RES_ID_GUIDE_WIDTH_LABLE",
+      "description": "引导-宽度标签",
+      "file": "baj/label_guide_width_294x136_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "CUSTOM_RES_ID_GUIDE_HEIGHT_LABLE",
+      "description": "引导-高度标签",
+      "file": "baj/label_guide_hight_294x148_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
