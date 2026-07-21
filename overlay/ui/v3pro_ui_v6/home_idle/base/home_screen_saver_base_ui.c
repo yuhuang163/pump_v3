@@ -190,7 +190,7 @@ int home_screen_saver_base_ui_process(ui_manager_context_t *thiz)
     home_screen_saver_root_bg_update(thiz);
     battery_ui_update(thiz, saver_info->root, proc->battery, true);
     ble_ui_update(thiz, saver_info->root, proc->ble,
-        BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, NULL);
+        battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X), BASE_PUMP_HOME_BLE_UI_Y, NULL);
     home_screen_saver_ui_update(thiz, proc);
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

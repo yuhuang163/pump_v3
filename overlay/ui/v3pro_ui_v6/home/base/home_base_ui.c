@@ -249,7 +249,7 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     };
     battery_ui_update(thiz, home_info->root, proc->battery, true);
     ble_ui_update(thiz, home_info->root, proc->ble,
-        BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, &ble_sync);
+        battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X), BASE_PUMP_HOME_BLE_UI_Y, &ble_sync);
     #endif
 
     ui_popup_update(thiz, proc->popup_ui_type,
