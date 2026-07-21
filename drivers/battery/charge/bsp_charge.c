@@ -649,6 +649,7 @@ void charge_event_internal_cb(charge_event_e event)
         s_charge_adapter_mismatch = false;
         s_charge_status.charge_full = false;
         charge_power_control(true);
+        LOG_PBUS("charge plug in");
     } else if (event == CHARGE_EVENT_PLUG_OUT) {
         if (s_charge_status.plug_in == false) {
             return;

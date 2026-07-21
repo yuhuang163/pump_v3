@@ -13,11 +13,16 @@ extern "C" {
 #define BASE_BATTERY_UI_Y                                      (24)
 #define BASE_PUMP_HOME_BATTERY_UI_X                            (15)
 #define BASE_PUMP_HOME_BATTERY_UI_Y                            (23)
+#define BASE_PUMP_HOME_BATTERY_UI_ECO_X                        (0)
+#define BASE_PUMP_HOME_BLE_UI_ECO_SHIFT_X                      (16)
+#define BASE_PUMP_HOME_POWER_ECO_UI_X                          (202)
+#define BASE_PUMP_HOME_POWER_ECO_UI_Y                          (18)
 
 void battery_ui_init(ui_manager_context_t *thiz);
 void battery_ui_deinit(ui_manager_context_t *thiz);
 int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root,
     battery_manager_context_t *battery, uint8_t is_display_state);
+uint16_t battery_ui_ble_x_get(uint16_t default_x);
 
 #ifdef __cplusplus
 }

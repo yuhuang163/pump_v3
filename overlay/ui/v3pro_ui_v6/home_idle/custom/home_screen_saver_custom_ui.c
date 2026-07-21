@@ -162,7 +162,8 @@ int home_screen_saver_custom_ui_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(proc && proc->ble);
     home_screen_saver_root_bg_update(thiz);
     battery_ui_update(thiz, saver_info->root, proc->battery, true);
-    ble_ui_update(thiz, saver_info->root, proc->ble, CUSTOM_BLE_UI_X, CUSTOM_BLE_UI_Y, NULL);
+    ble_ui_update(thiz, saver_info->root, proc->ble,
+        battery_ui_ble_x_get(CUSTOM_BLE_UI_X), CUSTOM_BLE_UI_Y, NULL);
     home_screen_saver_ui_update(thiz, proc);
     saver_info->force_update = false;
     thiz->priv.fps_count++;

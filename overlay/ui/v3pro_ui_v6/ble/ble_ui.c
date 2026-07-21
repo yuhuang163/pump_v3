@@ -14,10 +14,12 @@
 typedef struct {
     lv_obj_t *ble_img;
     uint32_t fps_start_time;
+    uint16_t last_x;
+    uint16_t last_y;
     uint8_t is_show_ble;
     uint8_t is_connected;
     uint8_t force_update;
-    uint8_t rsv[14];
+    uint8_t rsv[12];
 } ble_ui_info_t;
 
 static ble_ui_info_t *ble_info;
@@ -81,6 +83,8 @@ static void ble_ui_resource_update(ui_manager_context_t *thiz, lv_obj_t *root,
         lv_obj_align(ble_info->ble_img, LV_ALIGN_TOP_LEFT, x, y);
     }
     ble_info->is_connected = is_connected;
+    ble_info->last_x = x;
+    ble_info->last_y = y;
     ble_info->force_update = false;
     ble_info->fps_start_time = time_ms;
 }
@@ -107,7 +111,8 @@ int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_contex
     const uint8_t is_connected = ble->ble_is_connected();
     const uint32_t time_ms = get_timestamp();
 
-    if (ble_info->is_connected == is_connected && ble_info->force_update == false) {
+    if (ble_info->is_connected == is_connected && ble_info->force_update == false &&
+        ble_info->last_x == x && ble_info->last_y == y) {
         return ble_ui_steady_update(time_ms, is_connected, sync);
     }
 

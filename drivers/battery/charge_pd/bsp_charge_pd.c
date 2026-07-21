@@ -229,7 +229,7 @@ void charge_pd_status_poll(bool plug_in_debounce)
 void bsp_charge_pd_init(void)
 {
     charge_pd_gpio_init();
-    msleep(10);
+    msleep(20);
     for (uint8_t i = 0; i < 3; i++) {
         charge_pd_status_poll(false); /// 插入开机无需去抖
         msleep(10);

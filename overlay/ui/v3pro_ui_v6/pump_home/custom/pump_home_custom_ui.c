@@ -231,7 +231,7 @@ int pump_home_custom_ui_process(ui_manager_context_t *thiz)
     };
     battery_ui_update(thiz, pump_info->root, proc->battery, true);
     ble_ui_update(thiz, pump_info->root, proc->ble,
-        CUSTOM_PUMP_HOME_BLE_UI_X, CUSTOM_PUMP_HOME_BLE_UI_Y, &ble_sync);
+        battery_ui_ble_x_get(CUSTOM_PUMP_HOME_BLE_UI_X), CUSTOM_PUMP_HOME_BLE_UI_Y, &ble_sync);
     ui_popup_update(thiz, proc->popup_ui_type,
         pump_info->root, &pump_info->popup_ui_index);
     pump_info->force_update = false;
