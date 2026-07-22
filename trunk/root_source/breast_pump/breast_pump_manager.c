@@ -284,6 +284,9 @@ static void set_breast_pump_status(int status, int is_report)
                     break;
                 case BREAST_PUMP_START:
                     reset_breast_pump_result();
+                    /// reset 清空 m_result 后回填当前模式，避免 setting_mode 为 0
+                    ///（与刺激模式同值）导致后续切模式无法检出、漏报 D0
+                    breast_pump_obj->priv.m_result.setting_mode = m_info->mode;
                     m_info->step_index = 0;
                     if (!m_info->do_work) {
                         m_info->do_work = 1;

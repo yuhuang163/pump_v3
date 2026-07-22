@@ -28,6 +28,12 @@ typedef struct {
 
 static data_bury_event_runtime_t s_event_rt;
 
+static uint16_t data_bury_event_get_firmware_version_packed(void)
+{
+    /// ROOT_FIRMWARE_VERSION = major*100 + minor；高字节标识主版本，低字节为次版本
+    return (uint16_t)(((ROOT_FIRMWARE_VERSION / 100) << 8) | (ROOT_FIRMWARE_VERSION % 100));
+}
+
 static void data_bury_session_mode_queue_reset(void)
 {
     s_event_rt.mode_queue_tracking = 0u;
@@ -223,7 +229,7 @@ static void data_bury_event_publish_pump_startup(data_bury_manager_context_t *ct
     evt.device_side = ctx->data_bury_get_device_side();
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
-    evt.firmware_version = (uint16_t)ROOT_FIRMWARE_VERSION;
+    evt.firmware_version = data_bury_event_get_firmware_version_packed();
     evt.battery_level_startup = data_bury_event_get_battery_percent();
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_STARTUP,
                                     &evt, (uint16_t)sizeof(evt), 100u);
@@ -718,11 +724,6 @@ static void data_bury_event_publish_charge_end(data_bury_manager_context_t *ctx,
              (int)evt.end_battery_temp, (int)evt.end_reason);
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BAT_CHARGE_END,
                                     &evt, (uint16_t)sizeof(evt), 0u);
-}
-
-static uint16_t data_bury_event_get_firmware_version_packed(void)
-{
-    return (uint16_t)(((ROOT_FIRMWARE_VERSION / 100) << 8) | (ROOT_FIRMWARE_VERSION % 100));
 }
 
 static void data_bury_event_ota_session_reset(void)
