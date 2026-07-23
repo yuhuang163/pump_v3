@@ -116,47 +116,83 @@ typedef enum{
   PRINT_FORMAT(letter, format), FORMAT_LOG_OUT_OBJ, TAG, __func__
 
 /*
-* 基础日志输出.
+* 基础日志输出 (编译期等级裁剪, 运行时仍受 g_log_level_set 控制).
 */
+#if US_LOG_COMPILE_LEVEL >= US_LOG_COMPILE_LEVEL_ERROR
 #define LOGE_TAG(TAG, format, args...) IS_LEVEL(US_LOG_LEVEL_ERROR)    { PRINT_LOG(PRINT_WRAPPER(E, format, TAG), ##args); }
+#else
+#define LOGE_TAG(TAG, format, args...) do { } while(0)
+#endif
+
+#if US_LOG_COMPILE_LEVEL >= US_LOG_COMPILE_LEVEL_WRAN
 #define LOGW_TAG(TAG, format, args...) IS_LEVEL(US_LOG_LEVEL_WRAN)     { PRINT_LOG(PRINT_WRAPPER(W, format, TAG), ##args); }
+#else
+#define LOGW_TAG(TAG, format, args...) do { } while(0)
+#endif
+
+#if US_LOG_COMPILE_LEVEL >= US_LOG_COMPILE_LEVEL_INFO
 #define LOGI_TAG(TAG, format, args...) IS_LEVEL(US_LOG_LEVEL_INFO)     { PRINT_LOG(PRINT_WRAPPER(I, format, TAG), ##args); }
+#else
+#define LOGI_TAG(TAG, format, args...) do { } while(0)
+#endif
+
+#if US_LOG_COMPILE_LEVEL >= US_LOG_COMPILE_LEVEL_DEBUG
 #define LOGD_TAG(TAG, format, args...) IS_LEVEL(US_LOG_LEVEL_DEBUG)    { PRINT_LOG(PRINT_WRAPPER(D, format, TAG), ##args); }
+#else
+#define LOGD_TAG(TAG, format, args...) do { } while(0)
+#endif
+
+#if US_LOG_COMPILE_LEVEL >= US_LOG_COMPILE_LEVEL_VERBOSE
 #define LOGV_TAG(TAG, format, args...) IS_LEVEL(US_LOG_LEVEL_VERBOSE)  { PRINT_LOG(PRINT_WRAPPER(V, format, TAG), ##args); }
 #define LOGK_TAG(TAG, format, args...) IS_LEVEL(US_LOG_LEVEL_VERBOSE)  { PRINT_LOG(PRINT_WRAPPER(K, format, TAG), ##args); }
+#else
+#define LOGV_TAG(TAG, format, args...) do { } while(0)
+#define LOGK_TAG(TAG, format, args...) do { } while(0)
+#endif
+
+#define LOG_MODULE_PRINT(letter, tag, filter, format, args...) \
+    do { IS_FILTER(filter) { PRINT_LOG(PRINT_WRAPPER(letter, format, tag), ##args); } } while(0)
+
+#define _LOG_MODULE_IF_0(letter, tag, filter, format, args...) do { } while(0)
+#define _LOG_MODULE_IF_1(letter, tag, filter, format, args...) LOG_MODULE_PRINT(letter, tag, filter, format, ##args)
+#define _LOG_MODULE_IF(cond, letter, tag, filter, format, args...) \
+    _LOG_MODULE_IF_##cond(letter, tag, filter, format, ##args)
+#define LOG_MODULE_IF(enabled, letter, tag, filter, format, args...) \
+    _LOG_MODULE_IF(enabled, letter, tag, filter, format, ##args)
+
 /*
-* 模块日志输出.
+* 模块日志输出 (独立编译期开关 + 运行时 filter + PRINT_WRAPPER).
 */
 #if IS_SUPPORT_LOG_OUT
-#define LOG_PM(...)         do { IS_FILTER(FILTER_PM)       { LOGW_TAG("LOG_PM", __VA_ARGS__); } } while(0)
-#define LOG_PBUS(...)       do { IS_FILTER(FILTER_PBUS)     { LOGI_TAG("LOG_PBUS", __VA_ARGS__); } } while(0)
-#define LOG_WM(...)         do { IS_FILTER(FILTER_WM)       { LOGI_TAG("LOG_WM", __VA_ARGS__); } } while(0)
-#define LOG_UI(...)         do { IS_FILTER(FILTER_UI)       { LOGD_TAG("LOG_UI", __VA_ARGS__); } } while(0)
-#define LOG_KEY(...)        do { IS_FILTER(FILTER_KEY)      { LOGW_TAG("LOG_KEY", __VA_ARGS__); } } while(0)
-#define LOG_RES(...)        do { IS_FILTER(FILTER_RES)      { LOGI_TAG("LOG_RES", __VA_ARGS__); } } while(0)
-#define LOG_MISC(...)       do { IS_FILTER(FILTER_MISC)     { LOGI_TAG("LOG_MISC", __VA_ARGS__); } } while(0)
-#define LOG_PMP(...)        do { IS_FILTER(FILTER_PMP)      { LOGI_TAG("LOG_PMP", __VA_ARGS__); } } while(0)
-#define LOG_MOTOR(...)      do { IS_FILTER(FILTER_MOTOR)    { LOGI_TAG("LOG_MOTOR", __VA_ARGS__); } } while(0)
-#define LOG_SENSOR(...)     do { IS_FILTER(FILTER_SENSOR)   { LOGI_TAG("LOG_SENSOR", __VA_ARGS__); } } while(0)
-#define LOG_DB(...)         do { IS_FILTER(FILTER_DB)       { LOGW_TAG("LOG_DB", __VA_ARGS__); } } while(0)
-#define LOG_BURY(...)       do { IS_FILTER(FILTER_BURY)     { LOGI_TAG("LOG_BURY", __VA_ARGS__); } } while(0)
-#define LOG_BCR(...)        do { IS_FILTER(FILTER_BCR)      { LOGI_TAG("LOG_BCR", __VA_ARGS__); } } while(0)
-#define LOG_HDR(...)        do { IS_FILTER(FILTER_HDR)      { LOGI_TAG("LOG_HDR", __VA_ARGS__); } } while(0)
-#define LOG_BLE(...)        do { IS_FILTER(FILTER_BLE)      { LOGW_TAG("LOG_BLE", __VA_ARGS__); } } while(0)
-#define LOG_OTA(...)        do { IS_FILTER(FILTER_OTA)      { LOGW_TAG("LOG_OTA", __VA_ARGS__); } } while(0)
-#define LOG_TIME(...)       do { IS_FILTER(FILTER_TIME)     { LOGI_TAG("LOG_TIME", __VA_ARGS__); } } while(0)
-#define LOG_ALGO(...)       do { IS_FILTER(FILTER_ALGO)     { LOGI_TAG("LOG_ALGO", __VA_ARGS__); } } while(0)
-#define LOG_PROTOCOL(...)   do { IS_FILTER(FILTER_PROTOCOL) { LOGI_TAG("LOG_PTCL", __VA_ARGS__); } } while(0)
-#define LOG_AUDIO(...)      do { IS_FILTER(FILTER_AUDIO)    { LOGI_TAG("LOG_AUDIO", __VA_ARGS__); } } while(0)
-#define LOG_AIR(...)        do { IS_FILTER(FILTER_AIR)      { LOGD_TAG("LOG_AIR", __VA_ARGS__); } } while(0)
-#define LOG_STORE(...)      do { IS_FILTER(FILTER_STORE)    { LOGW_TAG("LOG_STORE", __VA_ARGS__); } } while(0)
-#define LOG_HG(...)         do { IS_FILTER(FILTER_HG)       { LOGW_TAG("LOG_HG", __VA_ARGS__); } } while(0)
-#define LOG_SRV(...)        do { IS_FILTER(FILTER_SRV)      { LOGI_TAG("LOG_SRV", __VA_ARGS__); } } while(0)
-#define LOG_TEST(...)      do { IS_FILTER(FILTER_TEST)      { LOGI_TAG("LOG_TEST", __VA_ARGS__); } } while(0)
+#define LOG_PM(format, args...)         LOG_MODULE_IF(IS_SUPPORT_LOG_PM, W, "LOG_PM", FILTER_PM, format, ##args)
+#define LOG_PBUS(format, args...)       LOG_MODULE_IF(IS_SUPPORT_LOG_PBUS, I, "LOG_PBUS", FILTER_PBUS, format, ##args)
+#define LOG_WM(format, args...)         LOG_MODULE_IF(IS_SUPPORT_LOG_WM, I, "LOG_WM", FILTER_WM, format, ##args)
+#define LOG_UI(format, args...)         LOG_MODULE_IF(IS_SUPPORT_LOG_UI, D, "LOG_UI", FILTER_UI, format, ##args)
+#define LOG_KEY(format, args...)        LOG_MODULE_IF(IS_SUPPORT_LOG_KEY, W, "LOG_KEY", FILTER_KEY, format, ##args)
+#define LOG_RES(format, args...)        LOG_MODULE_IF(IS_SUPPORT_LOG_RES, I, "LOG_RES", FILTER_RES, format, ##args)
+#define LOG_MISC(format, args...)       LOG_MODULE_IF(IS_SUPPORT_LOG_MISC, I, "LOG_MISC", FILTER_MISC, format, ##args)
+#define LOG_PMP(format, args...)        LOG_MODULE_IF(IS_SUPPORT_LOG_PMP, I, "LOG_PMP", FILTER_PMP, format, ##args)
+#define LOG_MOTOR(format, args...)      LOG_MODULE_IF(IS_SUPPORT_LOG_MOTOR, I, "LOG_MOTOR", FILTER_MOTOR, format, ##args)
+#define LOG_SENSOR(format, args...)     LOG_MODULE_IF(IS_SUPPORT_LOG_SENSOR, I, "LOG_SENSOR", FILTER_SENSOR, format, ##args)
+#define LOG_DB(format, args...)         LOG_MODULE_IF(IS_SUPPORT_LOG_DB, W, "LOG_DB", FILTER_DB, format, ##args)
+#define LOG_BURY(format, args...)       LOG_MODULE_IF(IS_SUPPORT_LOG_BURY, I, "LOG_BURY", FILTER_BURY, format, ##args)
+#define LOG_BCR(format, args...)        LOG_MODULE_IF(IS_SUPPORT_LOG_BCR, I, "LOG_BCR", FILTER_BCR, format, ##args)
+#define LOG_HDR(format, args...)        LOG_MODULE_IF(IS_SUPPORT_LOG_HDR, I, "LOG_HDR", FILTER_HDR, format, ##args)
+#define LOG_BLE(format, args...)        LOG_MODULE_IF(IS_SUPPORT_LOG_BLE, W, "LOG_BLE", FILTER_BLE, format, ##args)
+#define LOG_OTA(format, args...)        LOG_MODULE_IF(IS_SUPPORT_LOG_OTA, W, "LOG_OTA", FILTER_OTA, format, ##args)
+#define LOG_TIME(format, args...)       LOG_MODULE_IF(IS_SUPPORT_LOG_TIME, I, "LOG_TIME", FILTER_TIME, format, ##args)
+#define LOG_ALGO(format, args...)       LOG_MODULE_IF(IS_SUPPORT_LOG_ALGO, I, "LOG_ALGO", FILTER_ALGO, format, ##args)
+#define LOG_PROTOCOL(format, args...)   LOG_MODULE_IF(IS_SUPPORT_LOG_PROTOCOL, I, "LOG_PTCL", FILTER_PROTOCOL, format, ##args)
+#define LOG_AUDIO(format, args...)      LOG_MODULE_IF(IS_SUPPORT_LOG_AUDIO, I, "LOG_AUDIO", FILTER_AUDIO, format, ##args)
+#define LOG_AIR(format, args...)        LOG_MODULE_IF(IS_SUPPORT_LOG_AIR, D, "LOG_AIR", FILTER_AIR, format, ##args)
+#define LOG_STORE(format, args...)      LOG_MODULE_IF(IS_SUPPORT_LOG_STORE, W, "LOG_STORE", FILTER_STORE, format, ##args)
+#define LOG_HG(format, args...)         LOG_MODULE_IF(IS_SUPPORT_LOG_HG, W, "LOG_HG", FILTER_HG, format, ##args)
+#define LOG_SRV(format, args...)        LOG_MODULE_IF(IS_SUPPORT_LOG_SRV, I, "LOG_SRV", FILTER_SRV, format, ##args)
+#define LOG_TEST(format, args...)       LOG_MODULE_IF(IS_SUPPORT_LOG_TEST, I, "LOG_TEST", FILTER_TEST, format, ##args)
 /*
 * 进度日志输出.
 */
-#define LOG_STEP(...)    do { IS_FILTER(FILTER_STEP)        { LOGW_TAG("LOG_STEP", __VA_ARGS__); } } while(0)
+#define LOG_STEP(format, args...)       LOG_MODULE_IF(IS_SUPPORT_LOG_STEP, W, "LOG_STEP", FILTER_STEP, format, ##args)
 
 /*
 * 通用日志输出.

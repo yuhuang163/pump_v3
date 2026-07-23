@@ -55,6 +55,9 @@ WERROR_ENABLE ?= 1
 # custom app switch
 CFG_CUSTOM_APP ?= 1
 
+# Debug build switch (1=TRACE可用, 0=Release仅REL_TRACE)
+DEBUG ?= 0
+
 # Release trace switch for both EXTRA_LIB and SDK build
 REL_TRACE_ENABLE ?= 1
 
