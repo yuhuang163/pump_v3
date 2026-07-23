@@ -18,10 +18,10 @@
 #else
 #define IS_PRINT_LVGL_MEM_MONITOR               0
 #endif
-#define UI_LVGL_MSG_QUEUE_NUM                   4
+#define UI_LVGL_MSG_QUEUE_NUM                   8
 
 #ifndef UI_THREAD_DBG_ENABLE
-#define UI_THREAD_DBG_ENABLE                    0
+#define UI_THREAD_DBG_ENABLE                    1
 #endif
 
 typedef enum {
@@ -407,6 +407,25 @@ static void ui_animation_overlay_init_on_ui_thread(struct ui_manager_context *th
     UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_INIT_EXIT);
 }
 
+static void ui_pm_suspend_on_ui_thread(struct ui_manager_context *thiz)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    if (thiz->priv.lv_timer != NULL) {
+        lv_timer_pause(thiz->priv.lv_timer);
+    }
+    LOG_UI("==>pm suspend, lv_timer paused");
+}
+
+static void ui_pm_resume_on_ui_thread(struct ui_manager_context *thiz)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    if (thiz->priv.lv_timer != NULL) {
+        lv_timer_resume(thiz->priv.lv_timer);
+        lv_timer_ready(thiz->priv.lv_timer);
+    }
+    LOG_UI("==>pm resume, lv_timer resumed");
+}
+
 static void ui_animation_overlay_deinit_on_ui_thread(struct ui_manager_context *thiz)
 {
     UI_DBG_SET_STEP(UI_DBG_STEP_OVERLAY_DEINIT_ENTER);
@@ -503,6 +522,10 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
                 break;
             case UI_LVGL_MSG_CMD_PM_SUSPEND:
                 UI_DBG_SET_STEP(UI_DBG_STEP_MSG_PM_SUSPEND);
+                ui_pm_suspend_on_ui_thread(thiz);
+                break;
+            case UI_LVGL_MSG_CMD_PM_RESUME:
+                ui_pm_resume_on_ui_thread(thiz);
                 break;
             default:
                 break;
@@ -698,6 +721,9 @@ static void on_ui_broadcast_receiver_route(broadcast_mask_id_t id, void *context
                 MSG_QUEUE_SEND(ui->priv.ui_hdr_thd.msg_id, &msg, 0);
             } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
                 set_backlight_level(ui, LCD_BACKLIGHT_LEVEL_MAX);
+                ui_lvgl_msg_t msg = {0};
+                msg.cmd = UI_LVGL_MSG_CMD_PM_RESUME;
+                MSG_QUEUE_SEND(ui->priv.ui_hdr_thd.msg_id, &msg, 0);
             }
             break;
         default:
