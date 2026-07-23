@@ -55,6 +55,9 @@ WERROR_ENABLE ?= 1
 # custom app switch
 CFG_CUSTOM_APP ?= 1
 
+# Debug build switch (1=TRACE可用, 0=Release仅REL_TRACE)
+DEBUG ?= 0
+
 # Release trace switch for both EXTRA_LIB and SDK build
 REL_TRACE_ENABLE ?= 1
 
@@ -415,7 +418,11 @@ SDK_LCD_INC_FLAGS := \
 SDK_JPEG_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/tests/hwtest/jpegdec \
 	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/jpeg \
-	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/graphic/gpu \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/platform/drivers/graphic/gpu
+
+# SDK GRABOX/BAJ 头文件
+SDK_GRABOX_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/trunk/platform_chip/bes/sdk/services/grabox/inc
 
 # Boards 头文件
 BOARDS_INC_FLAGS := \
@@ -626,9 +633,8 @@ INPUT_KEY_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/input_key \
 	-I$(PROJECT_ROOT)/trunk/root_source/key_input
 
-# UI 模块头文件
+# UI 模块头文件（ui_page_define.h / ui_img_define.h 位于各 UI_OVERLAY_DIR 根目录）
 UI_MODULE_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/overlay/ui \
 	-I$(PROJECT_ROOT)/trunk/root_source/ui \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/ui/
 UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_FLAGS)
@@ -649,17 +655,16 @@ else
 FONT_V2_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16 \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_18 \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_20 \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_22 \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_24 \
 	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_12 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_14 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_16 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_20 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_24 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_72 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_96 \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_28 \
+	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_32 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_60 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_72 \
+	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_80 \
 	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 
 endif
 
@@ -793,6 +798,11 @@ LED_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/led \
 	-I$(PROJECT_ROOT)/trunk/root_source/led
 
+# 系统异常模块头文件
+ABNORMAL_MODULE_INC_FLAGS := \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/abnormal \
+	-I$(PROJECT_ROOT)/trunk/root_source/abnormal
+
 # 汇总所有 SDK 头文件路径
 SDK_INCLUDE_PATHS := \
 	$(SDK_CORE_INC_FLAGS) \
@@ -803,6 +813,7 @@ SDK_INCLUDE_PATHS := \
 	$(SDK_LVGL_INC_FLAGS) \
 	$(SDK_LCD_INC_FLAGS) \
 	$(SDK_JPEG_INC_FLAGS) \
+	$(SDK_GRABOX_INC_FLAGS) \
 	$(DRIVERS_INC_FLAGS) \
 	$(BASE_INC_FLAGS) \
 	$(EXTERNAL_INC_FLAGS) \
@@ -828,7 +839,8 @@ SDK_INCLUDE_PATHS := \
 	$(PRODUCT_TESTS_INC_FLAGS) \
 	$(DATA_BURY_MODULE_INC_FLAGS) \
 	$(RESOURCE_INC_FLAGS) \
-	$(LED_MODULE_INC_FLAGS) 
+	$(LED_MODULE_INC_FLAGS) \
+	$(ABNORMAL_MODULE_INC_FLAGS) 
 
 # 添加项目根目录和 SDK 头文件路径
 CPPFLAGS ?= -I$(PROJECT_ROOT) -I$(PROJECT_ROOT)/trunk $(SDK_INCLUDE_PATHS)
@@ -1284,16 +1296,17 @@ FONT_V2_SRCS := \
 else
 FONT_V2_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_18/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_20/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_22/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_24/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_12/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_14/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_16/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_20/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_24/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_72/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_96/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_28/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_32/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_60/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_72/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_80/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
 endif
 
@@ -1392,6 +1405,11 @@ LED_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/led/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/led/*.c)
 
+# 系统异常模块源码
+ABNORMAL_MODULE_SRCS := \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/abnormal/*.c) \
+	$(wildcard $(PROJECT_ROOT)/trunk/root_source/abnormal/*.c)
+
 # 汇总所有应用源码
 EXTRA_SRCS := \
 	$(OS_BASE_SRCS) \
@@ -1420,7 +1438,8 @@ EXTRA_SRCS := \
 	$(PRODUCT_TESTS_MODULE_SRCS) \
 	$(DATA_BURY_MODULE_SRCS) \
 	$(FRAMEWORK_HOOKS_BASE_SRCS) \
-	$(LED_MODULE_SRCS)
+	$(LED_MODULE_SRCS) \
+	$(ABNORMAL_MODULE_SRCS)
 
 CC := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)gcc,gcc)
 AR := $(if $(strip $(CROSS_COMPILE)),$(CROSS_COMPILE)ar,ar)
