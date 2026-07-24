@@ -669,6 +669,23 @@ void charge_event_internal_cb(charge_event_e event)
         s_charge_full_debounce = 0;
         charge_power_control(false);
     }
+    else if (event == CHARGE_EVENT_FORCE_PLUG_IN) { //主要用于适配器不适配时，强制触发充电
+    #if IS_SUPPORT_PD_CHARGE
+        int current = charge_pd_current_get();
+        LOG_PBUS("pd charge imax:%dmA", current);
+        if (current > BATT_INPUT_CURRENT_LIMIT || 0 == current) {
+            current = 3000; /// max-3A
+        }
+        s_charging_current_max = current;
+        #if IS_SUPPORT_CHARGE_CURRENT_ADJUST
+        charge_ibat_config(current);
+        #endif
+    #endif 
+        s_charge_status.plug_in = true;      
+        s_charge_status.charge_full = false;
+        charge_power_control(true);
+        LOG_PBUS("charge plug in");
+    }
 #else
     if (event == CHARGE_EVENT_PLUG_IN || event == CHARGE_EVENT_PLUG_OUT) {   
         if (s_charge_adapter_mismatch == false) {
@@ -685,6 +702,9 @@ void charge_event_internal_cb(charge_event_e event)
     }
 #endif
     if (s_charge_event_callback) {
+        if (event == CHARGE_EVENT_FORCE_PLUG_IN) {
+            event = CHARGE_EVENT_PLUG_IN;
+        }
         s_charge_event_callback(event);
     } 
 }
