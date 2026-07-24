@@ -54,6 +54,7 @@ typedef enum {
     CHARGE_EVENT_UNCHARGE = 3,
     CHARGE_EVENT_ADAPTER_MISMATCH = 4, /// 适配器不匹配
     CHARGE_EVENT_TEMPERATURE_ERROR = 5, /// 温度异常
+    CHARGE_EVENT_FORCE_PLUG_IN = 6, /// 强制触发充电
     CHARGE_EVENT_MAX,
 } charge_event_e;
 
