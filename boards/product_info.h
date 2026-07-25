@@ -70,6 +70,9 @@ extern "C" {
 #elif (ROOT_UI_VERSION == ROOT_UI_V6)
 #define ROOT_RES_PATH                                  "V6" /// 资源路径
 #define ROOT_RES_VERSION                               (106)
+#elif (ROOT_UI_VERSION == ROOT_UI_V7)
+#define ROOT_RES_PATH                                  "V7" /// 资源路径
+#define ROOT_RES_VERSION                               (107)
 #else
 #define ROOT_RES_PATH                                  "V4" /// 资源路径
 #define ROOT_RES_VERSION                               (105)

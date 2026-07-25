@@ -45,7 +45,7 @@ const char *get_input_key_code_name(uint16_t keycode)
             return "@lactation";
         case KEY_CODE_MIX_MODE:
             return "@mix";    
-    #elif (V3_UX_VERSION == V3_UX_V2 || V3_UX_VERSION == V3_UX_V4 || V3_UX_VERSION == V3_UX_V5)
+    #elif (V3_UX_VERSION == V3_UX_V2 || V3_UX_VERSION == V3_UX_V4 || V3_UX_VERSION == V3_UX_V5 || V3_UX_VERSION == V3_UX_V6)
         case KEY_CODE_MODE:
             return "@mode";
         case KEY_CODE_BREASTFEEDING:

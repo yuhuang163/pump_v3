@@ -1,24 +1,28 @@
 #!/bin/bash
 
-# 检查是否提供了目录参数
-if [ -z "$1" ]; then
-    echo "Usage: $0 <directory>"
+# 检查参数个数是否为2
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <待转换目录> <YUV格式>"
+    echo "  YUV格式可选: YUV444 / YUV422 / YUV420"
     exit 1
 fi
 
-#!/bin/bash
-# 检查参数个数是否为2
-if [ $# -ne 2 ]; then
-    echo "此脚本需要恰好两个参数。"
-    exit 1
-else
-    echo "第一个参数为：$1"
-    echo "第二个参数为：$2"
-fi
+echo "第一个参数为：$1"
+echo "第二个参数为：$2"
 
 # 获取目录参数
 DIRECTORY=$1
 YUV_FORMAT=$2
+
+# jpgconv 与本脚本同目录（不依赖当前工作目录）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JPGCONV="$SCRIPT_DIR/jpgconv"
+
+if [ ! -x "$JPGCONV" ]; then
+    echo "Error: jpgconv not found or not executable: $JPGCONV"
+    echo "Try: chmod +x \"$JPGCONV\""
+    exit 1
+fi
 
 # 检查目录是否存在
 if [ ! -d "$DIRECTORY" ]; then
@@ -40,11 +44,9 @@ traverse_directory() {
             traverse_directory "$FILE"
         elif [ -f "$FILE" ]; then
             # 如果是文件，检查文件类型
-            if [[ "$FILE" =~ \.(jpg|jpeg)$  ]] ; then
-                echo "Found text file: $FILE"
-                # 在这里添加对文件的操作，例如：
-                ./jpgconv "$YUV_FORMAT" $FILE "$out_dir/$(basename "$FILE")" 
-                
+            if [[ "$FILE" =~ \.(jpg|jpeg)$ ]]; then
+                echo "Found jpg file: $FILE"
+                "$JPGCONV" "$YUV_FORMAT" "$FILE" "$out_dir/$(basename "$FILE")"
             fi
         fi
     done
