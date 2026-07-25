@@ -139,12 +139,14 @@ ROOT_UI_V3 ?= 0x03
 ROOT_UI_V4 ?= 0x04
 ROOT_UI_V5 ?= 0x05
 ROOT_UI_V6 ?= 0x06
+ROOT_UI_V7 ?= 0x07
 
 ROOT_UI_VERSION ?= $(ROOT_UI_V6)
 
 # 产品字库版本
 ROOT_FONT_V1 ?= 0x01
 ROOT_FONT_V2 ?= 0x02
+ROOT_FONT_V3 ?= 0x03
 
 # V3 UI版本
 V3_UI_V2 ?= 0x02
@@ -152,6 +154,7 @@ V3_UI_V3 ?= 0x03
 V3_UI_V4 ?= 0x04
 V3_UI_V5 ?= 0x05
 V3_UI_V6 ?= 0x06
+V3_UI_V7 ?= 0x07
 
 # V3PRO UI版本
 V3PRO_UI_V2 ?= 0x12
@@ -159,6 +162,7 @@ V3PRO_UI_V3 ?= 0x13
 V3PRO_UI_V4 ?= 0x14
 V3PRO_UI_V5 ?= 0x15
 V3PRO_UI_V6 ?= 0x16
+V3PRO_UI_V7 ?= 0x17
 
 # 产品UX版本
 V3_UX_V1 ?= 0x01
@@ -166,6 +170,7 @@ V3_UX_V2 ?= 0x02
 V3_UX_V3 ?= 0x03
 V3_UX_V4 ?= 0x04
 V3_UX_V5 ?= 0x05
+V3_UX_V6 ?= 0x06
 
 # 根据产品型号和UI版本确定V3/V3PRO UI版本
 ifeq ($(ROOT_PRODUCT_ID), $(ROOT_PRODUCT_V3PRO_ID))
@@ -194,6 +199,11 @@ V3_UI_VERSION ?= $(V3PRO_UI_V6)
 V3_UX_VERSION ?= $(V3_UX_V5)
 PUMP_RHYTHM_MODE_NUM := 3
 ROOT_FONT_VERSION := $(ROOT_FONT_V2)
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V7))
+V3_UI_VERSION ?= $(V3PRO_UI_V7)
+V3_UX_VERSION ?= $(V3_UX_V6)
+PUMP_RHYTHM_MODE_NUM := 3
+ROOT_FONT_VERSION := $(ROOT_FONT_V3)
 else 
 $(warning Invalid UI version)
 endif
@@ -225,6 +235,11 @@ V3_UI_VERSION ?= $(V3_UI_V6)
 V3_UX_VERSION ?= $(V3_UX_V5)
 PUMP_RHYTHM_MODE_NUM := 3
 ROOT_FONT_VERSION := $(ROOT_FONT_V2)
+else ifeq ($(ROOT_UI_VERSION), $(ROOT_UI_V7))
+V3_UI_VERSION ?= $(V3_UI_V7)
+V3_UX_VERSION ?= $(V3_UX_V6)
+PUMP_RHYTHM_MODE_NUM := 3
+ROOT_FONT_VERSION := $(ROOT_FONT_V3)
 else
 $(warning Invalid UI version)
 endif
@@ -258,6 +273,10 @@ else ifeq ($(V3_UI_VERSION), $(V3_UI_V6))
 UI_OVERLAY_SUBDIR := v3_ui_v6
 else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V6))
 UI_OVERLAY_SUBDIR := v3pro_ui_v6
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V7))
+UI_OVERLAY_SUBDIR := v3_ui_v7
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V7))
+UI_OVERLAY_SUBDIR := v3pro_ui_v7
 else
 $(warning Invalid UI version)
 endif
@@ -278,6 +297,8 @@ else ifeq ($(V3_UX_VERSION), $(V3_UX_V4))
 WINDOWS_OVERLAY_SUBDIR := windows_v4
 else ifeq ($(V3_UX_VERSION), $(V3_UX_V5))
 WINDOWS_OVERLAY_SUBDIR := windows_v5
+else ifeq ($(V3_UX_VERSION), $(V3_UX_V6))
+WINDOWS_OVERLAY_SUBDIR := windows_v6
 else
 $(warning Invalid UX version)
 endif
@@ -285,6 +306,22 @@ ifneq ($(WINDOWS_OVERLAY_SUBDIR),)
 WINDOWS_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/windows/$(WINDOWS_OVERLAY_SUBDIR)
 WINDOWS_UX_INC_FLAGS := $(patsubst %,-I%,$(shell find $(WINDOWS_OVERLAY_DIR) -type d))
 WINDOWS_UX_SRCS := $(call rwildcard,$(WINDOWS_OVERLAY_DIR))
+endif
+
+# font overlay：按 ROOT_FONT_VERSION 选定子目录（仅计算当前版本）
+ifeq ($(ROOT_FONT_VERSION), $(ROOT_FONT_V1))
+FONT_OVERLAY_SUBDIR := font_v1
+else ifeq ($(ROOT_FONT_VERSION), $(ROOT_FONT_V2))
+FONT_OVERLAY_SUBDIR := font_v2
+else ifeq ($(ROOT_FONT_VERSION), $(ROOT_FONT_V3))
+FONT_OVERLAY_SUBDIR := font_v3
+else
+$(warning Invalid FONT version)
+endif
+ifneq ($(FONT_OVERLAY_SUBDIR),)
+FONT_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/font/$(FONT_OVERLAY_SUBDIR)
+FONT_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(shell find $(FONT_OVERLAY_DIR) -type d))
+FONT_DIRECT_SRCS := $(call rwildcard,$(FONT_OVERLAY_DIR))
 endif
 
 
@@ -639,38 +676,8 @@ UI_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/ui/
 UI_MODULE_INC_FLAGS += $(UI_INC_DIRECT_FLAGS)
 
-# 字体模块头文件
-ifeq ($(ROOT_FONT_VERSION), $(ROOT_FONT_V1))
-FONT_V2_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_12 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_14 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_16 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_20 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_24 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_72 \
-	-I$(PROJECT_ROOT)/overlay/font/font_oppo_sans_96 \
-	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
-	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 
-else
-FONT_V2_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16 \
-	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_18 \
-	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_20 \
-	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_22 \
-	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_24 \
-	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26 \
-	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_28 \
-	-I$(PROJECT_ROOT)/overlay/font/font_aeonik_soft_32 \
-	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_60 \
-	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_64 \
-	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_72 \
-	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_80 \
-	-I$(PROJECT_ROOT)/overlay/font/font_quicksand_96 
-endif
-
-FONT_INC_FLAGS := \
-	-I$(PROJECT_ROOT)/overlay/font
-FONT_INC_FLAGS += $(FONT_V2_INC_FLAGS)
+# 字体模块头文件（lv_user_font.h 位于各 FONT_OVERLAY_DIR 根目录）
+FONT_INC_FLAGS := $(FONT_INC_DIRECT_FLAGS)
 
 # 窗口模块头文件（windows_map_define 随 UX 版本位于 windows_v* 目录）
 WINDOWS_INC_FLAGS := \
@@ -771,6 +778,10 @@ else ifeq ($(V3_UI_VERSION), $(V3_UI_V6))
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v6
 else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V6))
 RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v6
+else ifeq ($(V3_UI_VERSION), $(V3_UI_V7))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3_res_v7
+else ifeq ($(V3_UI_VERSION), $(V3PRO_UI_V7))
+RESOURCE_INC_FLAGS += -I$(PROJECT_ROOT)/overlay/resources/v3pro_res_v7
 else
 $(warning Invalid UI version)
 endif
@@ -906,6 +917,12 @@ CPPFLAGS += -DV3_UI_V3=$(V3_UI_V3)
 CPPFLAGS += -DV3PRO_UI_V3=$(V3PRO_UI_V3)
 CPPFLAGS += -DV3_UI_V4=$(V3_UI_V4)
 CPPFLAGS += -DV3PRO_UI_V4=$(V3PRO_UI_V4)
+CPPFLAGS += -DV3_UI_V5=$(V3_UI_V5)
+CPPFLAGS += -DV3PRO_UI_V5=$(V3PRO_UI_V5)
+CPPFLAGS += -DV3_UI_V6=$(V3_UI_V6)
+CPPFLAGS += -DV3PRO_UI_V6=$(V3PRO_UI_V6)
+CPPFLAGS += -DV3_UI_V7=$(V3_UI_V7)
+CPPFLAGS += -DV3PRO_UI_V7=$(V3PRO_UI_V7)
 CPPFLAGS += -DPUMP_RHYTHM_MODE_NUM=$(PUMP_RHYTHM_MODE_NUM)
 
 CPPFLAGS += -DROOT_UI_VERSION=$(ROOT_UI_VERSION)
@@ -913,10 +930,13 @@ CPPFLAGS += -DROOT_UI_V2=$(ROOT_UI_V2)
 CPPFLAGS += -DROOT_UI_V3=$(ROOT_UI_V3)
 CPPFLAGS += -DROOT_UI_V4=$(ROOT_UI_V4)
 CPPFLAGS += -DROOT_UI_V5=$(ROOT_UI_V5)
+CPPFLAGS += -DROOT_UI_V6=$(ROOT_UI_V6)
+CPPFLAGS += -DROOT_UI_V7=$(ROOT_UI_V7)
 
 CPPFLAGS += -DROOT_FONT_VERSION=$(ROOT_FONT_VERSION)
 CPPFLAGS += -DROOT_FONT_V1=$(ROOT_FONT_V1)
 CPPFLAGS += -DROOT_FONT_V2=$(ROOT_FONT_V2)
+CPPFLAGS += -DROOT_FONT_V3=$(ROOT_FONT_V3)
 
 CPPFLAGS += -DV3_UX_VERSION=$(V3_UX_VERSION)
 CPPFLAGS += -DV3_UX_V1=$(V3_UX_V1)
@@ -924,6 +944,7 @@ CPPFLAGS += -DV3_UX_V2=$(V3_UX_V2)
 CPPFLAGS += -DV3_UX_V3=$(V3_UX_V3)
 CPPFLAGS += -DV3_UX_V4=$(V3_UX_V4)
 CPPFLAGS += -DV3_UX_V5=$(V3_UX_V5)
+CPPFLAGS += -DV3_UX_V6=$(V3_UX_V6)
 
 # 调试日志相关宏定义
 ifeq ($(REL_TRACE_ENABLE),1)
@@ -1281,38 +1302,8 @@ UI_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/ui/*.c) 
 UI_MODULE_SRCS += $(UI_LCD_DIRECT_SRCS)
 
-# 字体模块源码
-ifeq ($(ROOT_FONT_VERSION), $(ROOT_FONT_V1))
-FONT_V2_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_12/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_14/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_16/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_20/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_24/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_72/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_oppo_sans_96/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
-else
-FONT_V2_SRCS := \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_16/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_18/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_20/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_22/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_24/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_26/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_28/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_aeonik_soft_32/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_60/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_64/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_72/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_80/*.c) \
-	$(wildcard $(PROJECT_ROOT)/overlay/font/font_quicksand_96/*.c) 
-endif
-
-FONT_MODULE_SRCS := \
-   $(wildcard $(PROJECT_ROOT)/overlay/font/*.c)
-FONT_MODULE_SRCS += $(FONT_V2_SRCS)
+# 字体模块源码（含各 FONT 版本 lv_user_font 对应字库）
+FONT_MODULE_SRCS := $(FONT_DIRECT_SRCS)
 
 # 窗口模块源码（含各 UX 版本 windows_map_define.c）
 WINDOWS_MODULE_SRCS := \

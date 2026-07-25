@@ -1,0 +1,219 @@
+{
+  "meta": {
+    "version": "2.0",
+    "description": "资源包配置文件 - 映射资源ID到实际图片文件",
+    "resource_type": "IMG_RES_TYPE_UI",
+    "language": "IMG_RES_LANG_TYPE_ZH",
+    "compressed": false,
+    "config_hint": "base 主题资源 ID 区间 [0 .. 10000]。建议按 resource_id（数值ID）升序添加/维护 resources；打包脚本会根据头文件解析出的数值ID自动排序后再打包。动画资源可使用 resource_ranges 配置范围。"
+  },
+  "resource_ranges": [
+    {
+      "start_resource_id": "BASE_RES_ID_LONG_SUCTION_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_LONG_SUCTION_ANIM_END",
+      "description": "长吸动画",
+      "file_template": "animation/long_suction/baj/long_suction_{file_index:05d}_360x108_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1000,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1000"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_SHORT_SUCTION_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_SHORT_SUCTION_ANIM_END",
+      "description": "短吸动画",
+      "file_template": "animation/short_suction/baj/short_suction_{file_index:05d}_360x108_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1100,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1100"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_MIXED_SUCTION_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_MIXED_SUCTION_ANIM_END",
+      "description": "混合吸吮动画",
+      "file_template": "animation/mixed_suction/baj/mixed_suction_{file_index:05d}_360x108_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1200,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1300"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_RELAX_SUCTION_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_RELAX_SUCTION_ANIM_END",
+      "description": "放松吸吮动画",
+      "file_template": "animation/relax_suction/baj/relax_suction_{file_index:05d}_360x108_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1300,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1300"
+    }
+  ],
+  "resources": [
+    {
+      "resource_id": "BASE_RES_ID_CLOCK_COLON_ICON",
+      "description": "时钟冒号图标",
+      "file": "baj/icon_time_colon_13x53_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_BLE_DISCONNECT_ICON",
+      "description": "蓝牙断开图标",
+      "file": "baj/icon_ble_disconnect_26x26_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_SUCCESS_ICON",
+      "description": "成功图标",
+      "file": "baj/icon_success_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_PLAY_ICON",
+      "description": "播放图标",
+      "file": "baj/icon_play_82x82_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_PAUSE_ICON",
+      "description": "暂停图标",
+      "file": "baj/icon_pause_82x82_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_POWER_OFF_ICON",
+      "description": "电源图标",
+      "file": "baj/icon_power_off_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_POWER_KEY_ICON",
+      "description": "电源按键图标",
+      "file": "baj/icon_power_key_64x64_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_START_LOGO_ICON",
+      "description": "启动LOGO",
+      "file": "baj/icon_logo_start_163x28_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_HOME_TEXT_MASK",
+      "description": "主页文案蒙层",
+      "file": "png/mask_txt_anim.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_SIMULATION_MODE_BG",
+      "description": "刺激模式背景",
+      "file": "png/bg_simulation.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_EXPRESSION_MODE_BG",
+      "description": "吸吮模式背景",
+      "file": "png/bg_expression.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_MIXED_MODE_BG",
+      "description": "混合模式背景",
+      "file": "png/bg_mixed.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_PROGRAM_MODE_BG",
+      "description": "韵律模式背景",
+      "file": "png/bg_program.png",
+      "x_offset": 0,  
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_SIMULATION_ICON",
+      "description": "刺激模式图标",
+      "file": "png/icon_simulation.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_EXPRESSION_ICON",
+      "description": "吸吮模式图标",
+      "file": "png/icon_expression.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_MIXED_ICON",
+      "description": "混合模式图标",
+      "file": "png/icon_mixed.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_PROGRAM_ICON",
+      "description": "韵律模式图标",
+      "file": "png/icon_program.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_SPEED_ICON",
+      "description": "速度图标",
+      "file": "baj/icon_speed_26x26_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_STIMULATION_WAVE",
+      "description": "刺激波形",
+      "file": "baj/wave_simulation_314x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_LACTATION_WAVE",
+      "description": "泌乳波形",
+      "file": "baj/wave_expression_314x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_MIX_WAVE",
+      "description": "混合波形",
+      "file": "baj/wave_mixed_314x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_MILK_BOOST_WAVE",
+      "description": "2+8奶量提升波形",
+      "file": "baj/wave_milk_boost_314x34_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_POWER_PUMPING_WAVE",
+      "description": "泵奶模式波形",
+      "file": "baj/wave_power_pumping_315x34_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    }
+  ]
+}

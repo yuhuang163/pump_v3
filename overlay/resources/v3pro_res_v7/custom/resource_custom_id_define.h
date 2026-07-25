@@ -1,0 +1,112 @@
+#ifndef __RESOURCE_CUSTOM_ID_DEFINE_H__
+#define __RESOURCE_CUSTOM_ID_DEFINE_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/// custom 主题资源 ID 区间 [10000 .. 20000]
+#define CUSTOM_RES_ID_RANGE_MIN                   10000
+#define CUSTOM_RES_ID_RANGE_MAX                   20000
+
+typedef enum {
+    CUSTOM_RES_ID_NONE = 0, /// 无资源
+
+    /* 通用组 [10000..10099] */
+    CUSTOM_RES_ID_BLE_CONNECT_ICON = 10000, /// 蓝牙连接图标
+    CUSTOM_RES_ID_BLE_DISCONNECT_ICON, /// 蓝牙断开图标
+    CUSTOM_RES_ID_BLE_CONNECT_POPUP_ICON, /// 蓝牙连接弹窗图标
+    CUSTOM_RES_ID_BLE_DISCONNECT_POPUP_ICON, /// 蓝牙断开弹窗图标
+    CUSTOM_RES_ID_BIND_ICON, /// 绑定图标
+    CUSTOM_RES_ID_UNBIND_ICON, /// 解绑图标
+    CUSTOM_RES_ID_ALLOW_ICON, /// 允许图标
+    CUSTOM_RES_ID_BAN_ICON, /// 禁止图标
+    CUSTOM_RES_ID_WARNING_ICON, /// 警告图标
+    CUSTOM_RES_ID_START_BUTTON_ICON, /// 开始按钮指示图标
+    CUSTOM_RES_ID_RETURN_BUTTON_ICON, /// 返回按钮指示图标
+    CUSTOM_RES_ID_MODE_BUTTON_ICON, /// 模式按钮图标
+    CUSTOM_RES_ID_PROGRAM_BUTTON_ICON, /// 程序按钮图标
+    CUSTOM_RES_ID_RETURN_BUTTON_24X24_ICON, /// 24x24返回按钮图标
+    CUSTOM_RES_ID_LEFT_KNOB_ICON, /// 左旋钮图标
+    CUSTOM_RES_ID_RIGHT_KNOB_ICON, /// 右旋钮图标
+    CUSTOM_RES_ID_BATTERY_ICON, /// 电池电量图标
+    CUSTOM_RES_ID_BATTERY_WARNING_ICON, /// 电池警告图标
+    CUSTOM_RES_ID_CHARGE_PAGE_ICON, /// 充电页面图标
+    CUSTOM_RES_ID_POWER_ECO_ICON, /// 电源节能图标
+    CUSTOM_RES_ID_BATTERY_LOW_POWER_ICON, /// 电池低电量图标
+    CUSTOM_RES_ID_CHARGE_BATT_0_ICON, /// 电池容量0图标
+    CUSTOM_RES_ID_CHARGE_BATT_1_ICON, /// 电池容量20图标
+    CUSTOM_RES_ID_CHARGE_BATT_2_ICON, /// 电池容量40图标
+    CUSTOM_RES_ID_CHARGE_BATT_3_ICON, /// 电池容量60图标
+    CUSTOM_RES_ID_CHARGE_BATT_4_ICON, /// 电池容量80图标
+    CUSTOM_RES_ID_CHARGE_BATT_5_ICON, /// 电池容量100图标
+
+    CUSTOM_RES_ID_CLOCK_COLON_ICON = 10099, /// 时钟冒号图标
+    /* 主界面组 [10100..10150] */
+    CUSTOM_RES_ID_COMMON_BG = 10100, /// 通用背景
+    CUSTOM_RES_ID_START_LOGO_ICON, /// 启动LOGO
+    CUSTOM_RES_ID_HOME_WIDTH_LABLE, /// 主页宽标签
+    CUSTOM_RES_ID_HOME_BIG_LABLE, /// 主页大标签
+    CUSTOM_RES_ID_HOME_NARROW_LABLE, /// 主页窄标签
+    CUSTOM_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, /// 飞行模式解锁按钮图标
+    CUSTOM_RES_ID_GUIDE_LABLE, /// 引导标签
+    CUSTOM_RES_ID_GUIDE_WIDTH_LABLE, /// 引导-宽度标签
+    CUSTOM_RES_ID_GUIDE_HEIGHT_LABLE, /// 引导-高度标签
+
+    /* 引导组 [10150..10200] */
+    CUSTOM_RES_ID_SYS_THEME_IMG  = 10150, /// 系统主题引导背景
+    CUSTOM_RES_ID_IP_THEME_IMG, /// IP主题引导背景
+    CUSTOM_RES_ID_THEME_SELECT_ICON, /// 主题选择引导图标
+    CUSTOM_RES_ID_THEME_UNSELECT_ICON, /// 主题未选择引导图标
+    CUSTOM_RES_ID_GUIDE_BUTTON_BG, /// 引导按钮背景
+    CUSTOM_RES_ID_GUIDE_KNOB_BG, /// 引导旋钮背景
+    CUSTOM_RES_ID_GUIDE_LEFT_BUTTON_ICON, /// 引导-左按钮图片
+    CUSTOM_RES_ID_GUIDE_RIGHT_BUTTON_ICON, /// 引导-右按钮图片
+    CUSTOM_RES_ID_GUIDE_START_BUTTON_ICON, /// 引导-开始按钮图标
+    CUSTOM_RES_ID_GUIDE_START_BUTTON_MIN_ICON, /// 引导-开始按钮小图标
+    CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_ICON, /// 引导-返回按钮图标
+    CUSTOM_RES_ID_GUIDE_RETURN_BUTTON_MIN_ICON, /// 引导-返回按钮小图标
+    CUSTOM_RES_ID_GUIDE_BG, /// 引导背景
+    CUSTOM_RES_ID_GUIDE_ANIM_BG, /// 引导动画背景
+    CUSTOM_RES_ID_GUIDE_KNOB_PRESS_BG, /// 引导旋钮按下背景
+
+    /* 模式相关组 [10200..10300]（大图 + 小图标） */
+    CUSTOM_RES_ID_PUMP_LEVEL_SEPARATOR = 10200, /// 泵奶力度分割符
+    CUSTOM_RES_ID_PUMP_LEVEL_BG, /// 泵奶力度背景
+    CUSTOM_RES_ID_PUMP_LEVEL_BIG_BG, /// 泵奶力度大背景
+    CUSTOM_RES_ID_PUMP_LEVEL_INDICATOR, /// 泵奶力度指示符
+    CUSTOM_RES_ID_PUMP_LEVEL_BIG_INDICATOR, /// 泵奶力度大指示符
+    CUSTOM_RES_ID_PUMP_RHYTHM_ICON, /// 泵奶节奏图标
+    CUSTOM_RES_ID_PUMP_RHYTHM_WHITE_ICON, /// 泵奶节奏白色图标
+    CUSTOM_RES_ID_PUMP_RELAX_ICON, /// 泵奶放松图标
+
+    /* IP图标组 [10300..10399] */
+    CUSTOM_RES_ID_HOME_IDLE_IP = 10300, /// 空闲界面IP图标
+    CUSTOM_RES_ID_PUMP_FINISH_IP, /// 泵奶完成IP图标
+    CUSTOM_RES_ID_CHARGE_ADAPTER_IP, /// 充电适配器IP图标
+    CUSTOM_RES_ID_GUIDE_IP, /// 引导IP图标
+
+    /* 动画组 [11000..] */
+    CUSTOM_RES_ID_YAWN_ANIM_IP_START = 11100, /// 打哈欠动画-开始
+    CUSTOM_RES_ID_YAWN_ANIM_IP_END = 11180, /// 打哈欠动画-结束
+    CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_START = 11200, /// 摇奶瓶动画-开始
+    CUSTOM_RES_ID_SHAKE_BOTTLE_ANIM_IP_END = 11280, /// 摇奶瓶动画-结束
+    CUSTOM_RES_ID_SUCTION_ANIM_IP_START = 11300, /// 吸奶动画-开始
+    CUSTOM_RES_ID_SUCTION_ANIM_IP_END = 11326, /// 吸奶动画-结束
+    CUSTOM_RES_ID_HD_ANIM_IP_START = 11500, /// 首页默认动画-开始
+    CUSTOM_RES_ID_HD_ANIM_IP_END = 11619, /// 首页默认动画-结束
+    CUSTOM_RES_ID_GUIDE_IP_START = 11700, /// 引导IP图标-开始
+    CUSTOM_RES_ID_GUIDE_IP_END = 11768, /// 引导IP图标-结束
+
+    CUSTOM_RES_ID_TYPE_MAX
+} custom_res_id_type_e;
+
+/// 引导欢迎动画帧数
+#define CUSTOM_GUIDE_ANIM_NUM \
+    (CUSTOM_RES_ID_GUIDE_IP_END - CUSTOM_RES_ID_GUIDE_IP_START + 1)
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
