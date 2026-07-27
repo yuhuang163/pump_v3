@@ -95,7 +95,7 @@ static theme_guide_ui_info_t *theme_info = NULL;
 
 static const theme_guide_text_cfg_t theme_guide_title_cfg = {
     .text = "System settings",
-    .font = &lv_font_aeonik_soft_24_semibold,
+    .font = &lv_font_aeonik_soft_19_medium,
     .color = THEME_GUIDE_TITLE_COLOR,
     .y = THEME_GUIDE_TITLE_Y,
     .line_space = 0,
@@ -227,7 +227,7 @@ static void theme_guide_desc_update(ui_manager_context_t *thiz)
         THEME_GUIDE_DESC_CONFIRM_TEXT : THEME_GUIDE_DESC_SELECT_TEXT;
     theme_guide_text_cfg_t desc_cfg = {
         .text = desc_text,
-        .font = &lv_font_aeonik_soft_20_medium,
+        .font = &lv_font_aeonik_soft_19_medium,
         .color = THEME_GUIDE_DESC_COLOR,
         .y = THEME_GUIDE_DESC_Y,
         .line_space = 0,
@@ -296,7 +296,7 @@ static void theme_guide_option_label_update(uint8_t index)
         theme_info->label[index] = lv_label_create(theme_info->root);
         EXCEPTION_CHECK_VOID(theme_info->label[index]);
         lv_label_set_text(theme_info->label[index], theme_guide_option_labels[index]);
-        lv_obj_set_style_text_font(theme_info->label[index], &lv_font_aeonik_soft_18_medium, 0);
+        lv_obj_set_style_text_font(theme_info->label[index], &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_align(theme_info->label[index], LV_TEXT_ALIGN_LEFT, 0);
     }
 

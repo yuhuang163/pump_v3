@@ -18,17 +18,17 @@
 */
 const static popup_window_text_info_t ble_connect_infos[POPUP_WINDOW_TEXT_COUNT] = {
     {"Device connected", 0, POPUP_WINDOW_BLE_TEXT_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
 };
 
 const static popup_window_text_info_t ble_disconnect_infos[POPUP_WINDOW_TEXT_COUNT] = {
     {"Device disconnected", 0, POPUP_WINDOW_BLE_TEXT_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
 };
 
 const static popup_window_text_info_t ble_connecting_infos[POPUP_WINDOW_TEXT_COUNT] = {
     {"Connecting", 0, POPUP_WINDOW_BLE_TEXT_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
 };
 
 /*

@@ -60,14 +60,14 @@ static const factory_reset_confirm_text_cfg_t factory_reset_confirm_texts[] = {
     {
         .text = "Reset settings",
         .color = FACTORY_RESET_CONFIRM_FIRST_TEXT_COLOR,
-        .font = &lv_font_aeonik_soft_24_medium,
+        .font = &lv_font_aeonik_soft_19_medium,
         .y = FACTORY_RESET_CONFIRM_TITLE_Y,
         .line_space = 0,
     },
     {
         .text = "Press and hold\nthe knob for 3s",
         .color = FACTORY_RESET_CONFIRM_TEXT_COLOR,
-        .font = &lv_font_aeonik_soft_28_medium,
+        .font = &lv_font_aeonik_soft_19_medium,
         .y = FACTORY_RESET_CONFIRM_HINT_Y,
         .line_space = 6,
     },

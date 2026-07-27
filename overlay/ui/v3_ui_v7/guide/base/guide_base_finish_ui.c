@@ -67,7 +67,7 @@ void guide_finish_ui_build(guide_base_ui_info_t *info)
     info->finish.title = lv_label_create(guide_page_parent_get(info));
     EXCEPTION_CHECK_VOID(info->finish.title);
     lv_obj_set_style_text_color(info->finish.title, lv_color_hex(GUIDE_FINISH_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->finish.title, &lv_font_aeonik_soft_28_semibold, 0);
+    lv_obj_set_style_text_font(info->finish.title, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(info->finish.title, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->finish.title, "Guide complete");
     lv_obj_align(info->finish.title, LV_ALIGN_TOP_MID, 0, GUIDE_FINISH_TITLE_Y);
@@ -75,7 +75,7 @@ void guide_finish_ui_build(guide_base_ui_info_t *info)
     info->finish.hint = lv_label_create(guide_page_parent_get(info));
     EXCEPTION_CHECK_VOID(info->finish.hint);
     lv_obj_set_style_text_color(info->finish.hint, lv_color_hex(GUIDE_FINISH_HINT_COLOR), 0);
-    lv_obj_set_style_text_font(info->finish.hint, &lv_font_aeonik_soft_24_medium, 0);
+    lv_obj_set_style_text_font(info->finish.hint, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(info->finish.hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->finish.hint, "Happy pumping !");
     lv_obj_align(info->finish.hint, LV_ALIGN_TOP_MID, 0, GUIDE_FINISH_HINT_Y);

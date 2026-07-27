@@ -159,7 +159,7 @@ typedef struct {
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     /// 泵奶信息
     uint8_t pump_will_finish; /// 泵奶即将完成标志.
-    ui_pump_info_t info; /// 当前泵奶信息.
+    // ui_pump_info_t info; /// 当前泵奶信息.
     breast_pump_result_t pump_result; /// 泵奶结果.
     uint8_t pump_status; /// 泵奶状态.
     /// 模式相关
@@ -172,6 +172,10 @@ typedef struct {
     uint8_t pump_level_display_type; /// 当前泵奶档位调节类型
     uint32_t level_adjust_time; /// 档位调节显示时间
     pump_setting_t setting; /// 当前泵奶设置信息.
+    /// 速度相关
+    uint8_t pump_speed; /// 当前泵奶速度.
+    uint8_t pump_speed_display_type; /// 当前泵奶速度显示类型.
+    uint32_t speed_adjust_time; /// 速度调节显示时间.
     /// 灯光相关
     uint8_t pump_light_status; /// 泵奶灯光状态.
     uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.

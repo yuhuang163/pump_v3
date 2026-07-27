@@ -19,9 +19,9 @@
 */
 const static popup_window_text_info_t pump_pause_settle_infos[POPUP_WINDOW_TEXT_COUNT] = {
     {"Stop pumping...", 0, PUMP_PAUSE_SETTLE_TITLE_Y,
-        &lv_font_aeonik_soft_28_medium, LV_OPA_100, PUMP_PAUSE_SETTLE_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, PUMP_PAUSE_SETTLE_TITLE_COLOR, 4},
     {"Inactive for 15 minutes", 0, PUMP_PAUSE_SETTLE_DESC_Y,
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, PUMP_PAUSE_SETTLE_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, PUMP_PAUSE_SETTLE_TEXT_COLOR, 4},
 };
 
 /*

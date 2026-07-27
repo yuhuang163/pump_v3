@@ -39,7 +39,7 @@ static void guide_key_guide_title_create(guide_base_ui_info_t *info)
     info->key_guide.title = lv_label_create(guide_page_parent_get(info));
     EXCEPTION_CHECK_VOID(info->key_guide.title);
     lv_obj_set_style_text_color(info->key_guide.title, lv_color_hex(GUIDE_KEY_GUIDE_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->key_guide.title, &lv_font_aeonik_soft_24_semibold, 0);
+    lv_obj_set_style_text_font(info->key_guide.title, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(info->key_guide.title, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->key_guide.title, "Controls");
     lv_obj_align(info->key_guide.title, LV_ALIGN_TOP_MID, 0, GUIDE_KEY_GUIDE_TITLE_Y);
@@ -50,7 +50,7 @@ static void guide_key_guide_hint_create(guide_base_ui_info_t *info)
     info->key_guide.hint = lv_label_create(guide_page_parent_get(info));
     EXCEPTION_CHECK_VOID(info->key_guide.hint);
     lv_obj_set_style_text_color(info->key_guide.hint, lv_color_hex(GUIDE_KEY_GUIDE_HINT_COLOR), 0);
-    lv_obj_set_style_text_font(info->key_guide.hint, &lv_font_aeonik_soft_20_medium, 0);
+    lv_obj_set_style_text_font(info->key_guide.hint, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(info->key_guide.hint, LV_TEXT_ALIGN_CENTER, 0);
     // lv_label_set_text(info->key_guide.hint, "Press the right flashing button");
     lv_label_set_text(info->key_guide.hint, "Press any button on the right");

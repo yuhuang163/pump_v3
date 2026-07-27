@@ -300,7 +300,7 @@ void ui_popup_num_update(ui_manager_context_t *thiz, int16_t y_offset)
     snprintf(num_buf, sizeof(num_buf), "%d", show_num == 0 ? 1 : show_num);
     lv_label_set_text(info->countdown.label, num_buf);
     lv_obj_set_style_text_color(info->countdown.label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(info->countdown.label, &lv_font_quicksand_96_bold, 0);
+    lv_obj_set_style_text_font(info->countdown.label, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(info->countdown.label, LV_TEXT_ALIGN_CENTER, 0);
     if (y_offset == 0) {
         lv_obj_align(info->countdown.label, LV_ALIGN_CENTER, 0, 0);

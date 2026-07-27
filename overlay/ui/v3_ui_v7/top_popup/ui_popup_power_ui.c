@@ -23,12 +23,12 @@
 */
 const static popup_window_text_info_t low_power_infos[POPUP_WINDOW_TEXT_COUNT] = {
     {"Powering off in", 0, LOW_POWER_TITLE_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, POWER_OFF_TEXT_COLOR, 0},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POWER_OFF_TEXT_COLOR, 0},
 };
 
 const static popup_window_text_info_t will_power_off_infos[POPUP_WINDOW_TEXT_COUNT] = {
     {"Shut down soon", 0, POWER_OFF_TITLE_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, POWER_OFF_TEXT_COLOR, 0},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POWER_OFF_TEXT_COLOR, 0},
 };
 
 /*

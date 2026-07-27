@@ -59,25 +59,25 @@ static sys_abnormal_disp_info_t *s_abnormal_info;
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 const static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "System error", SYS_ABNORMAL_TITLE_X_SYS_ERROR, SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_26_semibold, SYS_ABNORMAL_TITLE_COLOR},
+        &lv_font_aeonik_soft_19_medium, SYS_ABNORMAL_TITLE_COLOR},
     { "Press and hold knob 10s\nto restart", SYS_ABNORMAL_CONTENT_X_SYS_ERROR, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_22_medium, SYS_ABNORMAL_CONTENT_COLOR},
+        &lv_font_aeonik_soft_19_medium, SYS_ABNORMAL_CONTENT_COLOR},
 };
 #else
 const static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "System error", SYS_ABNORMAL_TITLE_X_SYS_ERROR, SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_26_semibold, SYS_ABNORMAL_TITLE_COLOR},
+        &lv_font_aeonik_soft_19_medium, SYS_ABNORMAL_TITLE_COLOR},
     { "Unplug and replug to restart", SYS_ABNORMAL_CONTENT_X_SYS_ERROR, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_22_medium, SYS_ABNORMAL_CONTENT_COLOR},
+        &lv_font_aeonik_soft_19_medium, SYS_ABNORMAL_CONTENT_COLOR},
 };
 #endif
 
 /// 电池温度过高文本
 const static sys_abnormal_text_info_t temp_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "High battery temperature", SYS_ABNORMAL_TITLE_X_TEMP_ERROR, SYS_ABNORMAL_TITLE_Y_TEMP_ERROR,
-        &lv_font_aeonik_soft_26_semibold, SYS_ABNORMAL_TITLE_COLOR},
+        &lv_font_aeonik_soft_19_medium, SYS_ABNORMAL_TITLE_COLOR},
     { "Device suspended", SYS_ABNORMAL_CONTENT_X_TEMP_ERROR, SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR,
-        &lv_font_aeonik_soft_22_medium, SYS_ABNORMAL_CONTENT_COLOR},
+        &lv_font_aeonik_soft_19_medium, SYS_ABNORMAL_CONTENT_COLOR},
 };
 
 /*

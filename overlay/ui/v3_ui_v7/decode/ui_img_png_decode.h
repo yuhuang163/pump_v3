@@ -30,10 +30,28 @@ typedef enum {
     UI_IMG_PNG_DECODE_RGB888 = 0,
     /** 每像素 4 字节，`LV_COLOR_FORMAT_ARGB8888`（与 `lv_lodepng` 一致，含红蓝交换后的 LVGL 通道序） */
     UI_IMG_PNG_DECODE_RGBA8888,
+    /** 屏幕原生色深（`LV_COLOR_FORMAT_NATIVE`，无 alpha） */
+    UI_IMG_PNG_DECODE_NATIVE,
 } ui_img_png_decode_fmt_e;
 
 /** 释放 lv_image 上由 `ui_img_png_set_src` 设置的预解码 draw_buf */
 void ui_img_png_release_decoded_buf(lv_obj_t *obj);
+
+/**
+ * 将 PNG 解码为独立 draw_buf；成功时由调用方 `lv_draw_buf_destroy` 释放。
+ *
+ * @return 非 NULL 成功；NULL 失败
+ */
+lv_draw_buf_t *ui_img_png_decode_draw_buf(const uint8_t *png_data, size_t png_size,
+                                          ui_img_png_decode_fmt_e fmt);
+
+/**
+ * 从主题/基础资源加载 PNG 并解码为独立 draw_buf，随后 unload 压缩源。
+ *
+ * @return 非 NULL 成功；NULL 失败
+ */
+lv_draw_buf_t *ui_img_png_theme_decode_draw_buf(ui_manager_context_t *thiz, uint16_t resource_id,
+                                                res_theme_type_e theme_type, ui_img_png_decode_fmt_e fmt);
 
 /**
  * 将 PNG 解码后设到 lv_image；换图前自动释放旧的预解码缓存。

@@ -125,7 +125,7 @@ typedef struct {
 } pump_mode_steps_info_t;
 
 /// 泵奶模式
-typedef enum {
+typedef enum {   
 #if (PUMP_RHYTHM_MODE_NUM == 3)
     BREAST_PUMP_STIMULATION_MODE,             /// 刺激模式
     BREAST_PUMP_LACTATION_MODE,               /// 吸乳模式
@@ -140,7 +140,11 @@ typedef enum {
     BREAST_PUMP_EMPTYING_BOOST_MODE,          /// 追加排空模式（Emptying Boost）
     BREAST_PUMP_MODE_MAX,                     /// 模式最大模式
     BREAST_PUMP_NORMAL_MODE_LOWER = BREAST_PUMP_STIMULATION_MODE, /// 常规模式下限模式
+    #if (PUMP_MODE_NUM == 3)
     BREAST_PUMP_NORMAL_MODE_UPPER = BREAST_PUMP_MIX_MODE, /// 常规模式上限模式
+    #else
+    BREAST_PUMP_NORMAL_MODE_UPPER = BREAST_PUMP_LACTATION_MODE, /// 常规模式上限模式
+    #endif
     BREAST_PUMP_EXPERT_MODE_LOWER = BREAST_PUMP_MILK_BOOST_MODE, /// 专家模式下限模式
     BREAST_PUMP_EXPERT_MODE_UPPER = BREAST_PUMP_CUSTOM_MODE, /// 专家模式上限模式
     BREAST_PUMP_NORMAL_MODE_DEFAULT = BREAST_PUMP_STIMULATION_MODE, /// 默认常规模式

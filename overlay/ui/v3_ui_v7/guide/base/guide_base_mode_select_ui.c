@@ -67,7 +67,7 @@ static const guide_mode_select_content_cfg_t guide_mode_select_content_cfgs[] = 
     },
     [BREAST_PUMP_LACTATION_MODE] = {
         "Expression",
-        BASE_RES_ID_LACTATION_WAVE,
+        BASE_RES_ID_EXPRESSION_WAVE,
         // BASE_RES_ID_HOME_WIDTH_LABLE,
         0,
         GUIDE_MODE_SELECT_EXPRESSION_LABEL_Y,
@@ -147,9 +147,9 @@ static void guide_mode_select_title_style_apply(lv_obj_t *label, bool active)
         GUIDE_MODE_SELECT_TITLE_COLOR : GUIDE_MODE_SELECT_CAROUSEL_SIDE_COLOR), 0);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     if (active) {
-        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_26_bold, 0);
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_19_medium, 0);
     } else {
-        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_22_semibold, 0);
+        lv_obj_set_style_text_font(label, &lv_font_aeonik_soft_19_medium, 0);
     }
 }
 
@@ -273,7 +273,7 @@ static void guide_mode_select_desc_text_update(guide_base_ui_info_t *info, const
         info->label.text = lv_label_create(guide_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->label.text);
         lv_obj_set_style_text_color(info->label.text, lv_color_hex(GUIDE_BASE_LABEL_CARD_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(info->label.text, &lv_font_aeonik_soft_18_regular, 0);
+        lv_obj_set_style_text_font(info->label.text, &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_align(info->label.text, LV_TEXT_ALIGN_CENTER, 0);
     }
 

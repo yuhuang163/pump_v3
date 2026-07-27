@@ -275,6 +275,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
         }
+
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
             show_home_pump_result_ui(proc);
             return 0;
