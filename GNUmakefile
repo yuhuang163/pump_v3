@@ -111,7 +111,7 @@ endif
 CFG_CUSTOM_BLE_SERVICE ?= 1
 
 # BLE 发射功率: -1=SDK默认分级, 0-12=自定义统一功率(dBm)
-CFG_CUSTOM_BLE_RF_PWR ?= 0
+CFG_CUSTOM_BLE_RF_PWR ?= 8
 
 # OTA 事件回调开关
 CFG_OTA_EVENT_CALLBACK ?= 1
