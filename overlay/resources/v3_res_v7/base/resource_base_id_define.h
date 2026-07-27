@@ -17,13 +17,16 @@ typedef enum {
     BASE_RES_ID_BLE_DISCONNECT_ICON, /// 蓝牙断开图标
     BASE_RES_ID_SUCCESS_ICON, /// 成功图标
     BASE_RES_ID_PLAY_ICON, /// 播放图标
+    BASE_RES_ID_PLAY_MIN_ICON, /// 播放小图标
     BASE_RES_ID_PAUSE_ICON, /// 暂停图标
+    BASE_RES_ID_PAUSE_MIN_ICON, /// 暂停小图标
     BASE_RES_ID_POWER_OFF_ICON, /// 电源图标
     BASE_RES_ID_POWER_KEY_ICON, /// 电源按键图标
 
     /* 主界面组 [99..150] */
     BASE_RES_ID_START_LOGO_ICON, /// 启动LOGO图标
     BASE_RES_ID_HOME_TEXT_MASK, /// 主页文案蒙层
+    BASE_RES_ID_HOME_IDLE_ICON, /// 主页空闲图标
 
     /* 引导组 [150..200] */
 
@@ -38,10 +41,11 @@ typedef enum {
     BASE_RES_ID_MIXED_ICON, /// 混合模式图标
     BASE_RES_ID_PROGRAM_ICON, /// 韵律模式图标
     BASE_RES_ID_SPEED_ICON, /// 速度图标
+    BASE_RES_ID_PUMP_TIME_LABEL, /// 泵奶时间标签
 
     /* 波形组 [300..400] */
     BASE_RES_ID_STIMULATION_WAVE = 300, /// 刺激波形
-    BASE_RES_ID_LACTATION_WAVE, /// 泌乳波形
+    BASE_RES_ID_EXPRESSION_WAVE, /// 吸吮波形
     BASE_RES_ID_MIX_WAVE, /// 混合波形
     BASE_RES_ID_MILK_BOOST_WAVE, /// 2+8奶量提升波形
     BASE_RES_ID_POWER_PUMPING_WAVE, /// 泵奶模式波形
