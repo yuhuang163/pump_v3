@@ -25,7 +25,7 @@
 */
 const static ui_popup_text_info_t theme_reselect_infos[UI_POPUP_TEXT_COUNT] = {
     { "Restore factory settings\nto reselect", 0, THEME_RESELECT_TEXT_Y,
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, THEME_RESELECT_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_26_medium, LV_OPA_100, THEME_RESELECT_TEXT_COLOR, 4},
 };
 
 const static ui_popup_spin_arc_info_t theme_reselect_arc_cfg = {

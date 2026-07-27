@@ -102,51 +102,51 @@ static PSRAM_DATA_LOC uint8_t factory_reset_confirm_bg_data[] = {
 
 const static ota_text_info_t ota_res_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Theme setting", 
-        &lv_font_aeonik_soft_28_medium, OTA_TITL_TEXT_COLOR, OTA_RES_TITLE_Y},
+        &lv_font_aeonik_soft_19_medium, OTA_TITL_TEXT_COLOR, OTA_RES_TITLE_Y},
     {"Restore factory settings to\nreselect", 
-        &lv_font_aeonik_soft_24_medium, OTA_THEME_DESC_COLOR, OTA_RES_DESC_Y}
+        &lv_font_aeonik_soft_19_medium, OTA_THEME_DESC_COLOR, OTA_RES_DESC_Y}
 };
 
 const static ota_text_info_t ota_res_error_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Set failed", 
-        &lv_font_aeonik_soft_24_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
+        &lv_font_aeonik_soft_19_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
     {"", 
-        &lv_font_aeonik_soft_16_medium, 0, 0}
+        &lv_font_aeonik_soft_19_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_res_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Set successfully", 
-        &lv_font_aeonik_soft_24_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
+        &lv_font_aeonik_soft_19_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
     {"", 
-        &lv_font_aeonik_soft_16_medium, 0, 0}
+        &lv_font_aeonik_soft_19_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_app_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Firmware upgrading", 
-        &lv_font_aeonik_soft_28_medium, OTA_TITL_TEXT_COLOR, OTA_FIRMWARE_TITLE_Y},
+        &lv_font_aeonik_soft_19_medium, OTA_TITL_TEXT_COLOR, OTA_FIRMWARE_TITLE_Y},
     {"", 
-        &lv_font_aeonik_soft_16_medium, 0, 0}
+        &lv_font_aeonik_soft_19_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_hw_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Hardware upgrading", 
-        &lv_font_aeonik_soft_28_medium, OTA_TITL_TEXT_COLOR, OTA_HW_TITLE_Y},
+        &lv_font_aeonik_soft_19_medium, OTA_TITL_TEXT_COLOR, OTA_HW_TITLE_Y},
     {"", 
-        &lv_font_aeonik_soft_16_medium, 0, 0}
+        &lv_font_aeonik_soft_19_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_error_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Upgrade failed", 
-        &lv_font_aeonik_soft_24_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
+        &lv_font_aeonik_soft_19_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
     {"", 
-        &lv_font_aeonik_soft_16_medium, 0, 0}
+        &lv_font_aeonik_soft_19_medium, 0, 0}
 };
 
 const static ota_text_info_t ota_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
     {"Upgrade completed", 
-        &lv_font_aeonik_soft_24_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
+        &lv_font_aeonik_soft_19_medium, OTA_RESULT_TEXT_COLOR, OTA_RESULT_TEXT_Y},
     {"", 
-        &lv_font_aeonik_soft_16_medium, 0, 0}
+        &lv_font_aeonik_soft_19_medium, 0, 0}
 };
 
 /*
@@ -214,7 +214,7 @@ static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t progr
     if (ota_info->ota_percent == NULL || !lv_obj_is_valid(ota_info->ota_percent)) {
         ota_info->ota_percent = lv_label_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->ota_percent);
-        lv_obj_set_style_text_font(ota_info->ota_percent, &lv_font_aeonik_soft_16_medium, 0);
+        lv_obj_set_style_text_font(ota_info->ota_percent, &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_color(ota_info->ota_percent, lv_color_hex(OTA_PROGRESS_TEXT_COLOR), 0);
         lv_obj_align(ota_info->ota_percent, LV_ALIGN_TOP_LEFT, percent_x_offset, percent_y_offset);
         lv_obj_set_style_text_align(ota_info->ota_percent, LV_TEXT_ALIGN_LEFT, 0);
@@ -294,7 +294,7 @@ static void ui_ota_size_update(ui_manager_context_t *thiz, uint32_t total_size, 
     if (ota_info->ota_size == NULL || !lv_obj_is_valid(ota_info->ota_size)) {
         ota_info->ota_size = lv_label_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->ota_size);
-        lv_obj_set_style_text_font(ota_info->ota_size, &lv_font_aeonik_soft_16_medium, 0);
+        lv_obj_set_style_text_font(ota_info->ota_size, &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_color(ota_info->ota_size, lv_color_hex(OTA_PROGRESS_TEXT_COLOR), 0);
         lv_obj_set_style_text_align(ota_info->ota_size, LV_TEXT_ALIGN_LEFT, 0);  /// 设置文本居中对齐
     }

@@ -17,12 +17,12 @@
 */
 const static popup_window_text_info_t device_bind_infos[POPUP_WINDOW_TEXT_COUNT] = {
     { "Paired successfully", 0, 210, 
-        &lv_font_aeonik_soft_16_medium, LV_OPA_100, POPUP_WINDOW_DEVICE_TEXT_COLOR, 0},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_DEVICE_TEXT_COLOR, 0},
 };
 
 const static popup_window_text_info_t device_unbind_infos[POPUP_WINDOW_TEXT_COUNT] = {
     { "", 0, 0, 
-        &lv_font_aeonik_soft_20_medium, LV_OPA_100, POPUP_WINDOW_DEVICE_TEXT_COLOR, 0},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_DEVICE_TEXT_COLOR, 0},
 };
 
 /*

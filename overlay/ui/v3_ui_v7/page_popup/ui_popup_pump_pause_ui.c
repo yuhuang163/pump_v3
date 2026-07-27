@@ -30,21 +30,21 @@
 */
 const static ui_popup_text_info_t pump_pause_manual_infos[UI_POPUP_TEXT_COUNT] = {
     { "Pumping paused", 0, PUMP_PAUSE_MANUAL_TITLE_Y, 
-        &lv_font_aeonik_soft_28_semibold, LV_OPA_100, PUMP_PAUSE_MANUAL_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, PUMP_PAUSE_MANUAL_TITLE_COLOR, 4},
     { "Auto shutoff after 15\nminutes of inactivity", 0, PUMP_PAUSE_MANUAL_DESC_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, PUMP_PAUSE_MANUAL_DESC_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, PUMP_PAUSE_MANUAL_DESC_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_pause_timeout_infos[UI_POPUP_TEXT_COUNT] = {
     { "Pumping paused", 0, PUMP_PAUSE_TIMEOUT_TITLE_Y, 
-        &lv_font_aeonik_soft_28_semibold, LV_OPA_100, PUMP_PAUSE_TIMEOUT_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, PUMP_PAUSE_TIMEOUT_TITLE_COLOR, 4},
     { "Auto shutoff after 15\nminutes of inactivity", 0, PUMP_PAUSE_TIMEOUT_DESC_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, PUMP_PAUSE_TIMEOUT_DESC_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, PUMP_PAUSE_TIMEOUT_DESC_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_runing_30m_tip_infos[UI_POPUP_TEXT_COUNT] = {
     { "Pumping over 30 minutes\nplease take a short break", 0, PUMP_RUNING_30M_TIP_TITLE_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, PUMP_RUNING_30M_TIP_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, PUMP_RUNING_30M_TIP_TITLE_COLOR, 4},
 };
 
 /*

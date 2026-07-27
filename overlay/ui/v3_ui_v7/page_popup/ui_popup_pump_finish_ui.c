@@ -44,44 +44,44 @@
 */
 const static ui_popup_text_info_t pump_finish_manual_infos[UI_POPUP_TEXT_COUNT] = {
     {"Finish pumping", 0, FINISH_MANUAL_TITLE_Y, 
-        &lv_font_aeonik_soft_28_medium, LV_OPA_100, FINISH_MANUAL_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, FINISH_MANUAL_TITLE_COLOR, 4},
     // {"Press & hold 3s", 0, FINISH_MANUAL_TITLE_Y + 38, 
-    //     &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_MANUAL_TEXT_COLOR, 4},
+    //     &lv_font_aeonik_soft_19_medium, LV_OPA_100, FINISH_MANUAL_TEXT_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_will_finish_infos[UI_POPUP_TEXT_COUNT] = {
     {"Program ending soon", 0, WILL_FINISH_TIP_TITLE_Y, 
-        &lv_font_aeonik_soft_28_medium, LV_OPA_100, WILL_FINISH_TIP_TITLE_COLOR, 10},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, WILL_FINISH_TIP_TITLE_COLOR, 10},
     {"Continue pumping?", 0, WILL_FINISH_TIP_TITLE_Y + 38, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, WILL_FINISH_TIP_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, WILL_FINISH_TIP_TEXT_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_finish_timeout_infos[UI_POPUP_TEXT_COUNT] = {
     {"Pumping Timeout", 0, FINISH_TIMEOUT_TITLE_Y, 
-        &lv_font_aeonik_soft_28_medium, LV_OPA_100, FINISH_TIMEOUT_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, FINISH_TIMEOUT_TITLE_COLOR, 4},
     {"Auto-stoping...", 0, FINISH_TIMEOUT_TITLE_Y + 38, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_TIMEOUT_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, FINISH_TIMEOUT_TEXT_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_finish_charge_error_infos[UI_POPUP_TEXT_COUNT] = {
     {"Incompatible adapter", 0, FINISH_CHARGE_ERROR_TITLE_Y, 
-        &lv_font_aeonik_soft_28_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TITLE_COLOR, 4},
     {"Auto-stoping...", 0, FINISH_CHARGE_ERROR_TITLE_Y + 38, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, FINISH_CHARGE_ERROR_TEXT_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_finish_low_power_infos[UI_POPUP_TEXT_COUNT] = {
     {"Low power", 0, FINISH_LOW_POWER_TITLE_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, FINISH_LOW_POWER_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, FINISH_LOW_POWER_TITLE_COLOR, 4},
     {"Ending automatically", 0, FINISH_LOW_POWER_TITLE_Y + 36, 
-        &lv_font_aeonik_soft_20_medium, LV_OPA_100, FINISH_LOW_POWER_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, FINISH_LOW_POWER_TEXT_COLOR, 4},
 };
 
 const static ui_popup_text_info_t pump_pause_settle_infos[UI_POPUP_TEXT_COUNT] = {
     {"Stop pumping...", 0, PUMP_PAUSE_SETTLE_TITLE_Y, 
-        &lv_font_aeonik_soft_28_medium, LV_OPA_100, PUMP_PAUSE_SETTLE_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, PUMP_PAUSE_SETTLE_TITLE_COLOR, 4},
     {"Inactive for 15 minutes", 0, PUMP_PAUSE_SETTLE_DESC_Y, 
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, PUMP_PAUSE_SETTLE_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, PUMP_PAUSE_SETTLE_TEXT_COLOR, 4},
 };  
 
 /*

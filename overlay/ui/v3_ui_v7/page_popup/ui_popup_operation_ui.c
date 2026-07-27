@@ -16,11 +16,11 @@
 *****************************************************************************************
 */
 const static ui_popup_text_info_t operation_success_infos[UI_POPUP_TEXT_COUNT] = {
-    { "Success", 0, 212, &lv_font_aeonik_soft_20_medium, LV_OPA_100, UI_POPUP_TEXT_COLOR, 0},
+    { "Success", 0, 212, &lv_font_aeonik_soft_19_medium, LV_OPA_100, UI_POPUP_TEXT_COLOR, 0},
 };
 
 const static ui_popup_text_info_t operation_failed_infos[UI_POPUP_TEXT_COUNT] = {
-    { "Invalid operation", 0, 212, &lv_font_aeonik_soft_20_medium, LV_OPA_100, UI_POPUP_TEXT_COLOR, 0},
+    { "Invalid operation", 0, 212, &lv_font_aeonik_soft_19_medium, LV_OPA_100, UI_POPUP_TEXT_COLOR, 0},
 };
 
 /*

@@ -226,7 +226,7 @@ static void guide_custom_label_step_header_create(guide_custom_ui_info_t *info, 
     *title = lv_label_create(guide_custom_page_parent_get(info));
     EXCEPTION_CHECK_VOID(*title);
     lv_obj_set_style_text_color(*title, lv_color_hex(GUIDE_LEVEL_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(*title, &lv_font_aeonik_soft_24_semibold, 0);
+    lv_obj_set_style_text_font(*title, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(*title, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(*title, title_text);
     lv_obj_align(*title, LV_ALIGN_TOP_MID, 0, title_y);
@@ -292,7 +292,7 @@ static void guide_custom_label_instruction_headline_body_create(guide_custom_ui_
     *headline = lv_label_create(guide_custom_page_parent_get(info));
     EXCEPTION_CHECK_VOID(*headline);
     lv_obj_set_style_text_color(*headline, lv_color_hex(GUIDE_CUSTOM_LABEL_CARD_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(*headline, &lv_font_aeonik_soft_18_semibold, 0);
+    lv_obj_set_style_text_font(*headline, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(*headline, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(*headline, headline_text);
     if (headline_x == 0) {
@@ -304,7 +304,7 @@ static void guide_custom_label_instruction_headline_body_create(guide_custom_ui_
     *body = lv_label_create(guide_custom_page_parent_get(info));
     EXCEPTION_CHECK_VOID(*body);
     lv_obj_set_style_text_color(*body, lv_color_hex(GUIDE_CUSTOM_LABEL_CARD_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(*body, &lv_font_aeonik_soft_18_regular, 0);
+    lv_obj_set_style_text_font(*body, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(*body, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(*body, body_text);
     lv_obj_set_style_text_line_space(*body, line_space, 0);
@@ -324,7 +324,7 @@ static void guide_custom_level_idle_countdown_ui_create(guide_custom_ui_info_t *
     lv_obj_set_style_text_color(info->level_guide.countdown_num,
         lv_color_hex(GUIDE_LEVEL_COUNTDOWN_COLOR), 0);
     // lv_obj_set_style_text_font(info->level_guide.countdown_num, &lv_font_aeonik_soft_36_regular, 0);
-    lv_obj_set_style_text_font(info->level_guide.countdown_num, &lv_font_aeonik_soft_32_medium, 0);
+    lv_obj_set_style_text_font(info->level_guide.countdown_num, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(info->level_guide.countdown_num, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->level_guide.countdown_num, "3s");
     lv_obj_align(info->level_guide.countdown_num, LV_ALIGN_TOP_MID, 0, GUIDE_LEVEL_COUNTDOWN_Y);
@@ -370,7 +370,7 @@ void guide_custom_label_instruction_text_create(guide_custom_ui_info_t *info, lv
     *text = lv_label_create(guide_custom_page_parent_get(info));
     EXCEPTION_CHECK_VOID(*text);
     lv_obj_set_style_text_color(*text, lv_color_hex(GUIDE_CUSTOM_LABEL_CARD_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(*text, &lv_font_aeonik_soft_18_regular, 0);
+    lv_obj_set_style_text_font(*text, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(*text, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(*text, content);
     lv_obj_set_style_text_line_space(*text, line_space, 0);
@@ -610,7 +610,7 @@ void guide_custom_pump_stop_guide_ui_build(guide_custom_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info->level_guide.title);
     lv_obj_set_style_text_color(info->level_guide.title,
         lv_color_hex(GUIDE_PUMP_STOP_GUIDE_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->level_guide.title, &lv_font_aeonik_soft_24_semibold, 0);
+    lv_obj_set_style_text_font(info->level_guide.title, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(info->level_guide.title, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(info->level_guide.title, "Finish pumping");
     lv_obj_align(info->level_guide.title, LV_ALIGN_TOP_MID, 0, GUIDE_PUMP_STOP_GUIDE_TITLE_Y);
@@ -622,7 +622,7 @@ void guide_custom_pump_stop_guide_ui_build(guide_custom_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info->level_guide.step);
     lv_obj_set_style_text_color(info->level_guide.step,
         lv_color_hex(GUIDE_PUMP_STOP_GUIDE_HINT_COLOR), 0);
-    lv_obj_set_style_text_font(info->level_guide.step, &lv_font_aeonik_soft_18_semibold, 0);
+    lv_obj_set_style_text_font(info->level_guide.step, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(info->level_guide.step, LV_TEXT_ALIGN_LEFT, 0);
     lv_label_set_text(info->level_guide.step, "Press");
     lv_obj_align(info->level_guide.step, LV_ALIGN_TOP_LEFT, GUIDE_PUMP_STOP_GUIDE_PRESS_X,
@@ -632,7 +632,7 @@ void guide_custom_pump_stop_guide_ui_build(guide_custom_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info->level_guide.text);
     lv_obj_set_style_text_color(info->level_guide.text,
         lv_color_hex(GUIDE_PUMP_STOP_GUIDE_HINT_COLOR), 0);
-    lv_obj_set_style_text_font(info->level_guide.text, &lv_font_aeonik_soft_18_regular, 0);
+    lv_obj_set_style_text_font(info->level_guide.text, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(info->level_guide.text, LV_TEXT_ALIGN_CENTER, 0);
     // lv_label_set_text(info->level_guide.text, "to stop pumping");
     lv_label_set_text(info->level_guide.text, "& hold 3s");
@@ -683,7 +683,7 @@ void guide_custom_page_num_ui_build(guide_custom_ui_info_t *info, uint8_t page_i
     info->page_num.current = lv_label_create(parent);
     EXCEPTION_CHECK_VOID(info->page_num.current);
     lv_obj_set_style_text_color(info->page_num.current, lv_color_hex(GUIDE_PAGE_NUM_CURRENT_COLOR), 0);
-    lv_obj_set_style_text_font(info->page_num.current, &lv_font_aeonik_soft_32_medium, 0);
+    lv_obj_set_style_text_font(info->page_num.current, &lv_font_aeonik_soft_19_medium, 0);
     lv_label_set_text(info->page_num.current, cur_buf);
     lv_obj_update_layout(info->page_num.current);
     current_w = lv_obj_get_width(info->page_num.current);
@@ -691,7 +691,7 @@ void guide_custom_page_num_ui_build(guide_custom_ui_info_t *info, uint8_t page_i
     info->page_num.suffix = lv_label_create(parent);
     EXCEPTION_CHECK_VOID(info->page_num.suffix);
     lv_obj_set_style_text_color(info->page_num.suffix, lv_color_hex(GUIDE_PAGE_NUM_SUFFIX_COLOR), 0);
-    lv_obj_set_style_text_font(info->page_num.suffix, &lv_font_aeonik_soft_32_medium, 0);
+    lv_obj_set_style_text_font(info->page_num.suffix, &lv_font_aeonik_soft_19_medium, 0);
     lv_label_set_text(info->page_num.suffix, "/");
     lv_obj_update_layout(info->page_num.suffix);
     suffix_w = lv_obj_get_width(info->page_num.suffix);
@@ -699,7 +699,7 @@ void guide_custom_page_num_ui_build(guide_custom_ui_info_t *info, uint8_t page_i
     info->page_num.total = lv_label_create(parent);
     EXCEPTION_CHECK_VOID(info->page_num.total);
     lv_obj_set_style_text_color(info->page_num.total, lv_color_hex(GUIDE_PAGE_NUM_SUFFIX_COLOR), 0);
-    lv_obj_set_style_text_font(info->page_num.total, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(info->page_num.total, &lv_font_aeonik_soft_19_medium, 0);
     lv_label_set_text(info->page_num.total, total_buf);
     lv_obj_update_layout(info->page_num.total);
     total_w = lv_obj_get_width(info->page_num.total);

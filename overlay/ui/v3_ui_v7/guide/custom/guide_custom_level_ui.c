@@ -180,7 +180,7 @@ static void guide_level_progress_style_apply(guide_custom_ui_info_t *info, guide
     lv_obj_align(level->progress_bg, LV_ALIGN_TOP_LEFT, bg_x, bg_y);
     if (level->progress != NULL && lv_obj_is_valid(level->progress)) {
         lv_obj_set_style_text_font(level->progress, adjust ?
-            &lv_font_aeonik_soft_26_bold : &lv_font_aeonik_soft_20_semibold, 0);
+            &lv_font_aeonik_soft_19_medium : &lv_font_aeonik_soft_19_medium, 0);
     }
 }
 
@@ -233,7 +233,7 @@ static void guide_left_level_progress_update(guide_custom_ui_info_t *info, uint8
         level->progress = lv_label_create(level->progress_bg);
         EXCEPTION_CHECK_VOID(level->progress);
         lv_obj_set_style_text_color(level->progress, lv_color_hex(PUMP_LEVEL_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
+        lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 1);
     }
     guide_level_progress_style_apply(info, level, guide_level_left_bg_x_get(adjust),
@@ -300,7 +300,7 @@ static void guide_right_level_progress_update(guide_custom_ui_info_t *info, uint
         level->progress = lv_label_create(level->progress_bg);
         EXCEPTION_CHECK_VOID(level->progress);
         lv_obj_set_style_text_color(level->progress, lv_color_hex(PUMP_LEVEL_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_20_semibold, 0);
+        lv_obj_set_style_text_font(level->progress, &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_align(level->progress, LV_ALIGN_CENTER, -1, 1);
     }
     guide_level_progress_style_apply(info, level, guide_level_right_bg_x_get(adjust),

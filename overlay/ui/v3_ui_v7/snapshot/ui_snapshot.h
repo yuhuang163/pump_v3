@@ -24,6 +24,15 @@ typedef struct {
 } ui_snap_shot_info_t;
 
 lv_draw_buf_t *get_lvgl_snap_shot(ui_snap_shot_id_e snapshot_id);
+
+/**
+ * 获取预解码背景 draw_buf（`LV_COLOR_FORMAT_NATIVE`）。
+ * 支持：`BASE_RES_ID_SIMULATION_MODE_BG` / `BASE_RES_ID_EXPRESSION_MODE_BG` /
+ * `BASE_RES_ID_PROGRAM_MODE_BG`。
+ * 返回的缓冲由 snapshot 模块长期持有，页面侧勿 destroy。
+ */
+lv_draw_buf_t *get_predecoded_bg(uint16_t res_id);
+
 void ui_snap_shot_perpare(ui_manager_context_t *thiz);
 
 #ifdef __cplusplus

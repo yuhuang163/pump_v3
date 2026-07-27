@@ -29,9 +29,9 @@
 static pump_finish_custom_ui_info_t *finish_info;
 
 const static pump_finish_custom_text_info_t complete_tip_text_infos[PUMP_FINISH_CUSTOM_TIP_TEXT_COUNT] = {
-    { "Finish", PUMP_FINISH_TITLE_X, PUMP_FINISH_TITLE_Y, &lv_font_aeonik_soft_28_semibold, FINISH_TIP_TITLE_COLOR},
+    { "Finish", PUMP_FINISH_TITLE_X, PUMP_FINISH_TITLE_Y, &lv_font_aeonik_soft_19_medium, FINISH_TIP_TITLE_COLOR},
     { "Open the Momcozy app\nto track your milk output", PUMP_FINISH_CONTENT_X, PUMP_FINISH_CONTENT_Y,
-        &lv_font_aeonik_soft_22_medium, FINISH_TIP_CONTENT_COLOR},
+        &lv_font_aeonik_soft_19_medium, FINISH_TIP_CONTENT_COLOR},
 };
 
 #if IS_SUPPORT_PUMP_FINISH_COMP_BG

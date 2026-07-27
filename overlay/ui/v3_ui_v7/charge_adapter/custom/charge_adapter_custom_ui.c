@@ -36,9 +36,9 @@ static charge_adapter_custom_ui_info_t *adapter_info;
 
 static const charge_adapter_custom_text_info_t charge_adapter_text_infos[CHARGE_ADAPTER_CUSTOM_TEXT_COUNT] = {
     { "Incompatible adapter", CHARGE_ADAPTER_TITLE_Y,
-        &lv_font_aeonik_soft_28_semibold, CHARGE_ADAPTER_TITLE_COLOR, 0 },
+        &lv_font_aeonik_soft_19_medium, CHARGE_ADAPTER_TITLE_COLOR, 0 },
     { "Unable to charge", CHARGE_ADAPTER_SUBTITLE_Y,
-        &lv_font_aeonik_soft_24_medium, CHARGE_ADAPTER_SUBTITLE_COLOR, 4 },
+        &lv_font_aeonik_soft_19_medium, CHARGE_ADAPTER_SUBTITLE_COLOR, 4 },
 };
 
 /*

@@ -23,14 +23,14 @@
 */
 const static ui_popup_text_info_t guide_exit_confirm_infos[UI_POPUP_TEXT_COUNT] = {
     {"Exit guidance ?", 0, GUIDE_EXIT_CONFIRM_TITLE_Y,
-        &lv_font_aeonik_soft_28_medium, LV_OPA_100, GUIDE_EXIT_CONFIRM_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, GUIDE_EXIT_CONFIRM_TITLE_COLOR, 4},
     {"Press and hold for 3s", 0, GUIDE_EXIT_CONFIRM_TITLE_Y + 38,
-        &lv_font_aeonik_soft_24_medium, LV_OPA_100, GUIDE_EXIT_CONFIRM_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, GUIDE_EXIT_CONFIRM_TEXT_COLOR, 4},
 };
 
 const static ui_popup_text_info_t guide_exit_countdown_infos[UI_POPUP_TEXT_COUNT] = {
     {"Exit guidance", 0, GUIDE_EXIT_COUNTDOWN_TITLE_Y,
-        &lv_font_aeonik_soft_28_medium, LV_OPA_100, GUIDE_EXIT_COUNTDOWN_TITLE_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, LV_OPA_100, GUIDE_EXIT_COUNTDOWN_TITLE_COLOR, 4},
 };
 
 /*

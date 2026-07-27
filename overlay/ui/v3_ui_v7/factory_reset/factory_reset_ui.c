@@ -94,7 +94,7 @@ static void ui_factory_reset_update(ui_manager_context_t *thiz)
     }
     
     lv_label_set_text(ui_info->label_text, "Reset settings...");
-    lv_obj_set_style_text_font(ui_info->label_text, &lv_font_aeonik_soft_24_medium, 0);
+    lv_obj_set_style_text_font(ui_info->label_text, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_color(ui_info->label_text, lv_color_hex(FACTORY_RESET_TEXT_COLOR), 0);
     lv_obj_set_style_text_line_space(ui_info->label_text, 9, 0);  /* line height 24px (font ~13 + 11) */
     lv_obj_align_to(ui_info->label_text, ui_info->progress_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);

@@ -77,7 +77,7 @@ static void guide_animation_text_create(guide_custom_ui_info_t *info)
         info->animation.text = lv_label_create(guide_custom_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->animation.text);
         lv_obj_set_style_text_color(info->animation.text, lv_color_hex(GUIDE_ANIM_TEXT_COLOR), 0);
-        lv_obj_set_style_text_font(info->animation.text, &lv_font_aeonik_soft_26_semibold, 0);
+        lv_obj_set_style_text_font(info->animation.text, &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_align(info->animation.text, LV_TEXT_ALIGN_CENTER, 0);
         lv_label_set_text(info->animation.text, "Welcome to Momcozy");
         lv_obj_align(info->animation.text, LV_ALIGN_TOP_MID, 0, GUIDE_ANIM_TEXT_Y);

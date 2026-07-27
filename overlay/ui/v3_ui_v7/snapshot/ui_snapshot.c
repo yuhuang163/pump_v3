@@ -5,12 +5,14 @@
 #include "ui_snapshot.h" // IWYU pragma: keep
 #include "ui_img_define.h" // IWYU pragma: keep
 #include "ui_img_resource.h" // IWYU pragma: keep
+#include "ui_img_png_decode.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
+#define UI_PREDECODE_BG_COUNT  3
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -21,6 +23,15 @@ const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
     {UI_IMG_RES_ID_NONE, false},
 };
 
+/// 模式背景预解码（NATIVE），页面按资源 ID 直接取用
+static const uint16_t predecode_bg_ids[UI_PREDECODE_BG_COUNT] = {
+    BASE_RES_ID_SIMULATION_MODE_BG,
+    BASE_RES_ID_EXPRESSION_MODE_BG,
+    BASE_RES_ID_PROGRAM_MODE_BG,
+};
+
+static lv_draw_buf_t *lv_predecode_bg[UI_PREDECODE_BG_COUNT] = {NULL};
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -30,6 +41,18 @@ const static ui_snap_shot_info_t snap_shot_infos[UI_SNAP_SHOT_ID_MAX] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void ui_predecode_bg_prepare(ui_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+
+    for (uint8_t i = 0; i < UI_PREDECODE_BG_COUNT; i++) {
+        if (lv_predecode_bg[i] != NULL) {
+            continue;
+        }
+        lv_predecode_bg[i] = ui_img_png_theme_decode_draw_buf(thiz, predecode_bg_ids[i],
+            RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_NATIVE);
+    }
+}
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -41,6 +64,16 @@ lv_draw_buf_t *get_lvgl_snap_shot(ui_snap_shot_id_e snapshot_id)
         return NULL;
     }
     return lv_snap_shot[snapshot_id];
+}
+
+lv_draw_buf_t *get_predecoded_bg(uint16_t res_id)
+{
+    for (uint8_t i = 0; i < UI_PREDECODE_BG_COUNT; i++) {
+        if (predecode_bg_ids[i] == res_id) {
+            return lv_predecode_bg[i];
+        }
+    }
+    return NULL;
 }
 
 void ui_snap_shot_perpare(struct ui_manager_context *thiz)
@@ -69,4 +102,7 @@ void ui_snap_shot_perpare(struct ui_manager_context *thiz)
     }
     ui_img_resource_deinit(thiz, &snap_shot_info);
     LVGL_OBJ_DELETE(snap_shot_obj);
+
+    /// 三张模式背景：直接 PNG 预解码为 NATIVE，不走 snapshot
+    ui_predecode_bg_prepare(thiz);
 }

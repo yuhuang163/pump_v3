@@ -12,6 +12,8 @@ extern "C" {
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
+#include "ui_img_resource.h" // IWYU pragma: keep
+#include "ble_ui.h" // IWYU pragma: keep
 #include "pump_home_ui.h" // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
 
@@ -19,88 +21,20 @@ extern "C" {
 * DEFINES
 *****************************************************************************************
 */
-#define HOME_TIME_COLON_COUNT                      (2)
-#define PUMP_HOME_TIME_DIGIT_COUNT                 (2)
-
-#if PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
-
-#if PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
-#define PUMP_HOME_BASE_MODE_SELECT_CAPSULE_MEMBERS \
-    lv_obj_t *title_capsule; \
-    lv_obj_t *capsule_title; \
-    lv_obj_t *select_dots[3]; \
-    uint8_t select_dot_count;
-#else
-#define PUMP_HOME_BASE_MODE_SELECT_CAPSULE_MEMBERS
-#endif
-
-#if !PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE
-#define PUMP_HOME_BASE_MODE_SELECT_CAROUSEL_MEMBERS \
-    lv_obj_t *select_titles[3]; \
-    int16_t select_title_slide_offset; \
-    int8_t select_slide_dir;
-#else
-#define PUMP_HOME_BASE_MODE_SELECT_CAROUSEL_MEMBERS
-#endif
-
-#define PUMP_HOME_BASE_MODE_SELECT_COMMON_MEMBERS \
-    uint8_t display_type; \
-    uint8_t select_ui_active; \
-    uint8_t select_capsule_style; \
-    uint8_t custom_mode_active;
-
-#else
-
-#define PUMP_HOME_BASE_MODE_SELECT_CAPSULE_MEMBERS
-#define PUMP_HOME_BASE_MODE_SELECT_CAROUSEL_MEMBERS
-#define PUMP_HOME_BASE_MODE_SELECT_COMMON_MEMBERS
-
-#endif
-
-#define PUMP_HOME_BASE_MODE_SELECT_WAVE_OFFSET_MEMBER \
-    int16_t select_wave_y_offset;
-
-#define PUMP_HOME_BASE_MODE_SELECT_OFFSET_MEMBERS \
-    int16_t select_clock_y_offset; \
-    int16_t select_clock_2seg_y_offset; \
-    int16_t select_mode_y_offset; \
-    int16_t select_remain_y_offset;
+#define IS_SUPPORT_BASE_PUMP_HOME_COMP_BG           (0)
+#define PUMP_HOME_MAIN_TIME_DIGIT_COUNT             (2)
 
 typedef struct {
-    lv_obj_t *arc;
-    lv_obj_t *indicator;
-    lv_obj_t *progress;
-    lv_obj_t *progress_bg;
-    uint8_t value;
-    uint8_t new_value;
-    uint8_t adjust_active; /// 0: 默认样式, 1: 调节样式.
-} pump_home_base_level_t;
-
-typedef struct {
-    pump_home_base_level_t left;
-    pump_home_base_level_t right;
-    lv_obj_t *separator;
-    uint8_t left_blink_state; /// 左力度闪烁: 0: 不闪烁, 1: 闪烁.
-    uint8_t right_blink_state; /// 右力度闪烁: 0: 不闪烁, 1: 闪烁.
+    uint8_t left;  /// 左力度
+    uint8_t right; /// 右力度
 } pump_home_base_level_info_t;
 
 typedef struct {
-    lv_obj_t *title;
-    lv_obj_t *mode;
-    PUMP_HOME_BASE_MODE_SELECT_CAPSULE_MEMBERS
-    PUMP_HOME_BASE_MODE_SELECT_CAROUSEL_MEMBERS
-    uint8_t index;
-    uint8_t new_index;
-    uint8_t mode_type;
-    uint8_t new_mode_type;
-    PUMP_HOME_BASE_MODE_SELECT_COMMON_MEMBERS
-    PUMP_HOME_BASE_MODE_SELECT_WAVE_OFFSET_MEMBER
-    PUMP_HOME_BASE_MODE_SELECT_OFFSET_MEMBERS
-    uint16_t mode_name_x;
-    uint16_t mode_name_y;
-    uint8_t mode_blink_state; /// 模式闪烁状态: 0: 不闪烁, 1: 闪烁.
-    uint32_t custom_mode_id;
-    char custom_id_str[8]; /// 个性化模式ID字符串
+    uint8_t new_index; /// 当前泵奶模式
+    uint8_t new_mode_type; /// 当前运行韵律类型
+    uint8_t custom_mode_active; /// 个性化模式是否激活
+    uint32_t custom_mode_id; /// 个性化模式 ID
+    char custom_id_str[8]; /// 个性化模式 ID 字符串
 } pump_home_base_mode_info_t;
 
 typedef enum {
@@ -118,75 +52,95 @@ typedef struct {
     uint16_t frame_res_id; /// 当前帧资源ID
     uint16_t frame_end_res_id; /// 末帧资源ID
     uint16_t current_anim_start; /// 当前动画起始ID
-    uint16_t pending_anim_start; /// 转场待切换起始ID
-    uint16_t pending_anim_end; /// 转场待切换结束ID
     uint16_t shown_frame_res_id; /// 已显示帧资源ID
-    uint8_t anim_phase; /// 动画阶段
     uint8_t anim_play_state; /// 动画播放状态: 0: 播放, 1: 暂停.
-    uint32_t transition_start_ms; /// 转场开始时间
+    uint8_t paused_by_transition; /// 过渡期间暂停波形动画
     uint32_t last_frame_tick_ms; /// 上次切帧时间
 } pump_home_base_animation_info_t;
 
 typedef struct {
-    lv_obj_t *h[PUMP_HOME_TIME_DIGIT_COUNT];
-    lv_obj_t *m[PUMP_HOME_TIME_DIGIT_COUNT];
-    lv_obj_t *s[PUMP_HOME_TIME_DIGIT_COUNT];
-    lv_obj_t *colon[HOME_TIME_COLON_COUNT];
-    lv_obj_t *remain_minus;
-    lv_obj_t *remain_m[PUMP_HOME_TIME_DIGIT_COUNT];
-    lv_obj_t *remain_colon;
-    lv_obj_t *remain_s[PUMP_HOME_TIME_DIGIT_COUNT];
-    uint8_t hours;
-    uint8_t minutes;
-    uint8_t seconds;
-    uint8_t digit_size; /// 时数字体规格：PUMP_TIME_2SEG / PUMP_TIME_3SEG
-    int8_t y_offset;
-    uint8_t time_blink_state; /// 时间闪烁状态: 0: 不闪烁, 1: 闪烁.
-    uint32_t remain_time;
-    uint32_t remain_time_shown;
-    uint8_t force_realign;
-    int16_t applied_clock_y_offset;
-    int16_t applied_clock_2seg_y_offset;
-    int16_t applied_remain_y_offset;
-} pump_home_base_time_t;
+    lv_obj_t *page;
+    lv_obj_t *peer_page;
+    uint8_t page_index;
+    uint8_t shown_page_index;
+    uint8_t transitioning;
+    int8_t slide_dir;
+    int16_t progress;
+    uint32_t start_ms;
+} pump_home_base_page_info_t;
+
+typedef struct {
+    lv_obj_t *bg;                       /// 模式背景 PNG
+    lv_obj_t *mode_title;               /// 模式文案
+    lv_obj_t *time_m[PUMP_HOME_MAIN_TIME_DIGIT_COUNT];
+    lv_obj_t *time_s[PUMP_HOME_MAIN_TIME_DIGIT_COUNT];
+    lv_obj_t *time_colon;               /// 冒号 BAJ
+    lv_obj_t *play_icon;                /// 暂停态播放图标
+    lv_obj_t *hint_text;                /// Press to resume
+    lv_obj_t *hint_shine;               /// 扫光亮色文案（裁剪窗内）
+    lv_obj_t *hint_mask;                /// 扫光裁剪窗
+    lv_obj_t *speed_icon;
+    lv_obj_t *speed_value;
+    lv_obj_t *left_level;               /// Lx
+    lv_obj_t *right_level;              /// Rx
+    uint16_t shown_bg_id;
+    uint32_t shown_hint_color;
+    uint8_t shown_minutes;
+    uint8_t shown_seconds;
+    uint8_t shown_speed;
+    uint8_t shown_left_level;
+    uint8_t shown_right_level;
+    uint8_t shown_paused;               /// 当前是否显示暂停态
+    int16_t mask_x;
+    uint32_t mask_tick_ms;
+    char shown_title[24];
+} pump_home_base_main_page_info_t;
 
 typedef struct {
     lv_obj_t *root;
     lv_obj_t *background;
-    pump_home_base_mode_info_t mode;
     pump_home_base_level_info_t level;
-    pump_home_base_time_t time;
+    pump_home_base_mode_info_t mode;
+    pump_home_base_page_info_t page;
     pump_home_base_animation_info_t animation;
+    pump_home_base_main_page_info_t main;
     storage_manager_context_t *st;
     ui_manager_context_t *ui;
-    uint8_t force_update;
     uint8_t popup_ui_index;
+    uint8_t force_update;
 } pump_home_base_ui_info_t;
+
+static inline lv_obj_t *pump_home_page_parent_get(const pump_home_base_ui_info_t *info)
+{
+    if (info != NULL && info->page.page != NULL && lv_obj_is_valid(info->page.page)) {
+        return info->page.page;
+    }
+    return info != NULL ? info->root : NULL;
+}
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void pump_home_base_mode_ui_remove(pump_home_base_ui_info_t *info);
-void pump_home_base_mode_ui_update(pump_home_base_ui_info_t *info, bool blink_visible,
-    pump_mode_display_type_e display_type);
-void pump_home_base_select_offset_apply(pump_home_base_ui_info_t *info);
+void pump_home_page_ui_prepare(pump_home_base_ui_info_t *info);
+void pump_home_page_ui_remove(pump_home_base_ui_info_t *info);
+void pump_home_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc);
+bool pump_home_page_ui_is_transitioning(const pump_home_base_ui_info_t *info);
+void pump_home_page_ui_request_switch(pump_home_base_ui_info_t *info, pump_home_page_slide_dir_e dir);
 
-void pump_home_base_level_ui_remove(pump_home_base_ui_info_t *info);
-void pump_home_base_level_ui_update(pump_home_base_ui_info_t *info, bool blink_visible);
-
-void pump_home_base_time_ui_remove(pump_home_base_ui_info_t *info);
-void pump_home_base_time_ui_update(pump_home_base_ui_info_t *info, uint16_t hold_time, bool blink_visible);
-void pump_home_base_time_apply_select_offset(pump_home_base_ui_info_t *info);
+void pump_home_main_page_ui_build(pump_home_base_ui_info_t *info);
+void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc);
+void pump_home_main_page_ui_remove(pump_home_base_ui_info_t *info);
 
 void pump_home_base_animation_ui_remove(pump_home_base_ui_info_t *info);
 void pump_home_base_animation_ui_update(pump_home_base_ui_info_t *info);
-
-void pump_home_base_blink_state_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc);
+void pump_home_base_animation_pause(pump_home_base_ui_info_t *info);
+void pump_home_base_animation_resume(pump_home_base_ui_info_t *info);
 
 void pump_home_base_ui_prepare(ui_manager_context_t *thiz);
 void pump_home_base_ui_remove(ui_manager_context_t *thiz);
 int pump_home_base_ui_process(ui_manager_context_t *thiz);
+void pump_home_base_ui_page_switch(pump_home_page_slide_dir_e dir);
 
 #ifdef __cplusplus
 }

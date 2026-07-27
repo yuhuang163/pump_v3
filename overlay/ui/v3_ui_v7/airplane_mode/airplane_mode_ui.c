@@ -51,9 +51,9 @@ static airplane_mode_display_info_t *airplane_info;
 
 static const airplane_mode_text_info_t airplane_mode_text_infos[AIRPLANE_MODE_TEXT_COUNT] = {
     { "Device locked", 108, 
-        &lv_font_aeonik_soft_28_semibold, AIRPLANE_MODE_TITLE_COLOR, 0},
+        &lv_font_aeonik_soft_19_medium, AIRPLANE_MODE_TITLE_COLOR, 0},
     { "Press & hold for 5\nseconds to unlock", 146, 
-        &lv_font_aeonik_soft_24_medium, AIRPLANE_MODE_TEXT_COLOR, 4},
+        &lv_font_aeonik_soft_19_medium, AIRPLANE_MODE_TEXT_COLOR, 4},
 };
 
 /*
