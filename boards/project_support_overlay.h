@@ -188,6 +188,9 @@ extern "C" {
 /// 支持泵奶策略快速测试
 #define IS_SUPPORT_PUMP_MODE_FAST_TEST                   (0)
 
+/// 支持主题切换
+#define IS_SUPPORT_THEME_SWITCH                          (0)
+
 #ifdef __cplusplus
 }
 #endif

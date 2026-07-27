@@ -297,10 +297,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
 {
     ui_proc_pump_t *proc = CONTAINER_OF(thiz, ui_proc_pump_t, w_ctx);
     EXCEPTION_CHECK_INT(proc);
-    /// 获取泵奶控制类型
-    int control_type = 0;
-    READ_PUMP_LEVEL_CONTROL_TYPE(proc->pump, control_type);
-    proc->info.control_type = control_type;
     /// 处理窗口进入事件.
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
