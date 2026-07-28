@@ -18,7 +18,9 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_THEME_SWITCH
 static ui_page_ops_t s_ops = {0};
+#endif
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -36,6 +38,7 @@ static ui_page_ops_t s_ops = {0};
 */
 void ui_display_home_screen_saver_prepare(ui_manager_context_t *thiz)
 {
+#if IS_SUPPORT_THEME_SWITCH
     void (*prepare)(ui_manager_context_t *thiz) = NULL;
     int res_theme_type = RES_THEME_TYPE_BASE;
 
@@ -55,21 +58,34 @@ void ui_display_home_screen_saver_prepare(ui_manager_context_t *thiz)
     if (prepare) {
         prepare(thiz);
     }
+#else
+    home_screen_saver_base_ui_prepare(thiz);
+#endif
 }
 
 void ui_display_home_screen_saver_remove(ui_manager_context_t *thiz)
 {
+#if IS_SUPPORT_THEME_SWITCH
     if (s_ops.remove) {
         s_ops.remove(thiz);
     } else {
         LOGE("remove is null");
     }
+#else
+    home_screen_saver_base_ui_remove(thiz);
+#endif
 }
 
 int ui_display_home_screen_saver_process(ui_manager_context_t *thiz)
 {
+#if IS_SUPPORT_THEME_SWITCH
     if (s_ops.process) {
         return s_ops.process(thiz);
+    } else {
+        LOGE("process is null");
+        return 0;
     }
-    return 0;
+#else
+    return home_screen_saver_base_ui_process(thiz);
+#endif
 }

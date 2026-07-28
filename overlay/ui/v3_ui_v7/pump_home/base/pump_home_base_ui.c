@@ -160,8 +160,13 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
     (void)proc;
 #else
     pump_home_page_ui_update(pump_info, proc);
-    ble_ui_update(thiz, pump_info->root, proc->ble,
-        BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, NULL);
+    if (pump_info->page.shown_page_index == PUMP_HOME_PAGE_MAIN &&
+        !pump_home_page_ui_is_transitioning(pump_info)) {
+        ble_ui_update(thiz, pump_info->root, proc->ble,
+            BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, NULL);
+    } else {
+        ble_ui_hide();
+    }
 #endif
     ui_popup_update(thiz, proc->popup_ui_type, pump_info->root, &pump_info->popup_ui_index);
     pump_info->force_update = false;

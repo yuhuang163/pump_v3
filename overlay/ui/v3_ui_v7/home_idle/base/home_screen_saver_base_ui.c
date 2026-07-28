@@ -11,20 +11,14 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG                (0)
+#define IS_SUPPORT_HOME_SCREEN_SAVER_COMP_BG                (0)
 
-#define HOME_SCREEN_SAVER_MID_GRAY_RING_SIZE                     (248)
-#define HOME_SCREEN_SAVER_INNER_GRAY_RING_SIZE                   (160)
-#define HOME_SCREEN_SAVER_MID_GRAY_RING_COLOR                    (0x160B2A)
-#define HOME_SCREEN_SAVER_INNER_GRAY_RING_COLOR                  (0x291947)
 typedef struct {
     lv_obj_t * root;
-#if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
+#if IS_SUPPORT_HOME_SCREEN_SAVER_COMP_BG
     lv_obj_t * backgroud;
 #endif
     lv_obj_t * black_ring;
-    lv_obj_t * mid_gray_ring;
-    lv_obj_t * inner_gray_ring;
     lv_obj_t * saver_icon;
     uint8_t force_update;
     uint8_t rsv[15];
@@ -50,24 +44,6 @@ static PSRAM_DATA_LOC uint8_t home_screen_saver_bg_data[] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static lv_obj_t *home_screen_saver_circle_create(lv_obj_t *parent, lv_coord_t size, uint32_t color)
-{
-    lv_obj_t *circle = lv_obj_create(parent);
-
-    if (circle == NULL) {
-        return NULL;
-    }
-    lv_obj_remove_style_all(circle);
-    lv_obj_set_size(circle, size, size);
-    lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(circle, lv_color_hex(color), 0);
-    lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(circle, 0, 0);
-    lv_obj_clear_flag(circle, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_align(circle, LV_ALIGN_CENTER, 0, 0);
-    return circle;
-}
-
 static void home_screen_saver_root_init(void)
 {
     if (saver_info->root == NULL || !lv_obj_is_valid(saver_info->root)) {
@@ -81,20 +57,6 @@ static void home_screen_saver_root_init(void)
     lv_obj_align(saver_info->root, LV_ALIGN_CENTER, 0, 0);
     lv_obj_clear_flag(saver_info->root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(saver_info->root, LV_OBJ_FLAG_SCROLLABLE);
-}
-
-static void home_screen_saver_rings_init(void)
-{
-    if (saver_info->mid_gray_ring == NULL || !lv_obj_is_valid(saver_info->mid_gray_ring)) {
-        saver_info->mid_gray_ring = home_screen_saver_circle_create(saver_info->root,
-            HOME_SCREEN_SAVER_MID_GRAY_RING_SIZE, HOME_SCREEN_SAVER_MID_GRAY_RING_COLOR);
-        EXCEPTION_CHECK_VOID(saver_info->mid_gray_ring);
-    }
-    if (saver_info->inner_gray_ring == NULL || !lv_obj_is_valid(saver_info->inner_gray_ring)) {
-        saver_info->inner_gray_ring = home_screen_saver_circle_create(saver_info->root,
-            HOME_SCREEN_SAVER_INNER_GRAY_RING_SIZE, HOME_SCREEN_SAVER_INNER_GRAY_RING_COLOR);
-        EXCEPTION_CHECK_VOID(saver_info->inner_gray_ring);
-    }
 }
 
 #if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
@@ -135,7 +97,7 @@ static void home_screen_saver_icon_prepare(ui_manager_context_t *thiz)
         saver_info->saver_icon = lv_image_create(saver_info->root);
         EXCEPTION_CHECK_VOID(saver_info->saver_icon);
     }
-    ui_img_png_theme_set_src(thiz, saver_info->saver_icon, UI_IMG_RES_ID_NONE,
+    ui_img_png_theme_set_src(thiz, saver_info->saver_icon, BASE_RES_ID_HOME_IDLE_ICON,
         RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888);
     lv_obj_align(saver_info->saver_icon, LV_ALIGN_CENTER, 0, 0);
 }
@@ -163,7 +125,6 @@ void home_screen_saver_base_ui_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     home_screen_saver_root_init();
-    home_screen_saver_rings_init();
     ble_ui_init(thiz);
     saver_info->force_update = true;
     home_screen_saver_icon_prepare(thiz);

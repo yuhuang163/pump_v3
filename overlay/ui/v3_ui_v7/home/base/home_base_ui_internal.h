@@ -20,16 +20,108 @@ extern "C" {
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_BASE_HOME_COMP_BG            (0)
-#define HOME_MAIN_TIME_DIGIT_COUNT              (2)
-/** 扫光软边过渡：1 开启（蒙层 A8），0 关闭（硬边亮色扫光，默认） */
-#ifndef HOME_MAIN_HINT_SHINE_SOFT_ENABLE
-#define HOME_MAIN_HINT_SHINE_SOFT_ENABLE        (0)
+#define IS_SUPPORT_BASE_HOME_COMP_BG                 (0)
+#define HOME_BASE_MAIN_TIME_DIGIT_COUNT              (2)
+/** 主页提示扫光方式（三选一） */
+#define HOME_BASE_HINT_SHINE_HARD                    (0) /// 硬边裁切亮色文案
+#define HOME_BASE_HINT_SHINE_SOFT                    (1) /// A8 软边（PNG alpha × 抛物线）
+#define HOME_BASE_HINT_SHINE_OVERLAY                 (2) /// 图片蒙层（直接用 TEXT_SHINE_MASK alpha）
+#ifndef HOME_BASE_MAIN_HINT_SHINE_MODE
+#define HOME_BASE_MAIN_HINT_SHINE_MODE               HOME_BASE_HINT_SHINE_OVERLAY
+#endif
+#define HOME_BASE_MAIN_HINT_SHINE_IS_HARD \
+    (HOME_BASE_MAIN_HINT_SHINE_MODE == HOME_BASE_HINT_SHINE_HARD)
+#define HOME_BASE_MAIN_HINT_SHINE_IS_SOFT \
+    (HOME_BASE_MAIN_HINT_SHINE_MODE == HOME_BASE_HINT_SHINE_SOFT)
+#define HOME_BASE_MAIN_HINT_SHINE_IS_OVERLAY \
+    (HOME_BASE_MAIN_HINT_SHINE_MODE == HOME_BASE_HINT_SHINE_OVERLAY)
+/** SOFT/OVERLAY：使用 TEXT_SHINE_MASK 做 bitmap 蒙层 */
+#define HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK \
+    (HOME_BASE_MAIN_HINT_SHINE_IS_SOFT || HOME_BASE_MAIN_HINT_SHINE_IS_OVERLAY)
+/** 兼容旧宏：1=软边 A8，0=非软边 */
+#ifndef HOME_BASE_MAIN_HINT_SHINE_SOFT_ENABLE
+#define HOME_BASE_MAIN_HINT_SHINE_SOFT_ENABLE        HOME_BASE_MAIN_HINT_SHINE_IS_SOFT
+#endif
+/**
+ * 主页扫光宽度（像素）。改此宏即可控制光带宽窄。
+ * HARD 默认 80；SOFT/OVERLAY 默认 140（与 TEXT_SHINE_MASK 同宽，可小于资源图做居中裁切）。
+ */
+#ifndef HOME_BASE_MAIN_HINT_SHINE_W
+#if HOME_BASE_MAIN_HINT_SHINE_IS_HARD
+#define HOME_BASE_MAIN_HINT_SHINE_W                  (80)
+#else
+#define HOME_BASE_MAIN_HINT_SHINE_W                  (140)
+#endif
 #endif
 
-#if HOME_MAIN_HINT_SHINE_SOFT_ENABLE
-struct _lv_draw_buf_t;
-typedef struct _lv_draw_buf_t lv_draw_buf_t;
+/** 模式选择提示扫光方式（三选一，与主页共用 HARD/SOFT/OVERLAY 取值） */
+#ifndef HOME_BASE_MODE_TIP_SHINE_MODE
+#define HOME_BASE_MODE_TIP_SHINE_MODE                HOME_BASE_HINT_SHINE_OVERLAY
+#endif
+#define HOME_BASE_MODE_TIP_SHINE_IS_HARD \
+    (HOME_BASE_MODE_TIP_SHINE_MODE == HOME_BASE_HINT_SHINE_HARD)
+#define HOME_BASE_MODE_TIP_SHINE_IS_SOFT \
+    (HOME_BASE_MODE_TIP_SHINE_MODE == HOME_BASE_HINT_SHINE_SOFT)
+#define HOME_BASE_MODE_TIP_SHINE_IS_OVERLAY \
+    (HOME_BASE_MODE_TIP_SHINE_MODE == HOME_BASE_HINT_SHINE_OVERLAY)
+#define HOME_BASE_MODE_TIP_SHINE_USE_IMG_MASK \
+    (HOME_BASE_MODE_TIP_SHINE_IS_SOFT || HOME_BASE_MODE_TIP_SHINE_IS_OVERLAY)
+/** 兼容旧宏：1=软边 A8，0=硬边裁切 */
+#ifndef HOME_BASE_MODE_TIP_SHINE_SOFT_ENABLE
+#define HOME_BASE_MODE_TIP_SHINE_SOFT_ENABLE         HOME_BASE_MODE_TIP_SHINE_IS_SOFT
+#endif
+/**
+ * 模式页 tip 扫光宽度（像素）。改此宏即可控制光带宽窄。
+ * HARD 默认 80；SOFT/OVERLAY 默认 140。
+ */
+#ifndef HOME_BASE_MODE_TIP_SHINE_W
+#if HOME_BASE_MODE_TIP_SHINE_IS_HARD
+#define HOME_BASE_MODE_TIP_SHINE_W                   (80)
+#else
+#define HOME_BASE_MODE_TIP_SHINE_W                   (80)//(140)
+#endif
+#endif
+/** 模式选择提示图：1=内嵌 BAJ 代码段（默认），0=资源包 BASE_RES_ID_MODE_SELECT_TIP */
+#ifndef HOME_BASE_MODE_SELECT_TIP_FROM_CODE
+#define HOME_BASE_MODE_SELECT_TIP_FROM_CODE          (1)
+#endif
+
+/// 页间过渡动画参数（base 主题）
+#ifndef HOME_BASE_PAGE_TRANSITION_MS
+#define HOME_BASE_PAGE_TRANSITION_MS                 (400)
+#endif
+/// ICON 缩放 + 标题字号（36↔29）切换时长
+#ifndef HOME_BASE_PAGE_TRANSITION_HERO_MS
+#define HOME_BASE_PAGE_TRANSITION_HERO_MS            (120)
+#endif
+/// ICON 最小缩放（256=100%，218≈85%）
+#ifndef HOME_BASE_PAGE_TRANSITION_HERO_SCALE_MIN
+#define HOME_BASE_PAGE_TRANSITION_HERO_SCALE_MIN     ((256 * 85) / 100)
+#endif
+/// 位移阶段进度 /256；默认按总时长扣除 HERO_MS 推导
+#ifndef HOME_BASE_PAGE_TRANSITION_SLIDE_PROGRESS
+#if (HOME_BASE_PAGE_TRANSITION_MS > HOME_BASE_PAGE_TRANSITION_HERO_MS)
+#define HOME_BASE_PAGE_TRANSITION_SLIDE_PROGRESS \
+    (((HOME_BASE_PAGE_TRANSITION_MS - HOME_BASE_PAGE_TRANSITION_HERO_MS) * 256) / \
+     HOME_BASE_PAGE_TRANSITION_MS)
+#else
+#define HOME_BASE_PAGE_TRANSITION_SLIDE_PROGRESS     (0)
+#endif
+#endif
+#ifndef HOME_BASE_PAGE_TRANSITION_CIRCLE_SIZE
+#define HOME_BASE_PAGE_TRANSITION_CIRCLE_SIZE        (260)   /// 过渡圆直径
+#endif
+#ifndef HOME_BASE_PAGE_TRANSITION_CIRCLE_COLOR
+#define HOME_BASE_PAGE_TRANSITION_CIRCLE_COLOR       (0x181818)
+#endif
+#ifndef HOME_BASE_PAGE_TRANSITION_CIRCLE_GAP
+#define HOME_BASE_PAGE_TRANSITION_CIRCLE_GAP         (24)    /// 两圆边缘间距
+#endif
+#ifndef HOME_BASE_PAGE_TRANSITION_OPA_MIN
+#define HOME_BASE_PAGE_TRANSITION_OPA_MIN            (102)   /// ~40%
+#endif
+#ifndef HOME_BASE_PAGE_TRANSITION_MAIN_BG_FULL_SIZE
+#define HOME_BASE_PAGE_TRANSITION_MAIN_BG_FULL_SIZE  (360)   /// page0 全尺寸，过渡不缩放
 #endif
 
 typedef struct {
@@ -62,14 +154,14 @@ typedef struct {
 typedef struct {
     lv_obj_t *bg;                       /// 模式背景 PNG
     lv_obj_t *mode_title;               /// 模式文案
-    lv_obj_t *time_m[HOME_MAIN_TIME_DIGIT_COUNT];
-    lv_obj_t *time_s[HOME_MAIN_TIME_DIGIT_COUNT];
+    lv_obj_t *time_m[HOME_BASE_MAIN_TIME_DIGIT_COUNT];
+    lv_obj_t *time_s[HOME_BASE_MAIN_TIME_DIGIT_COUNT];
     lv_obj_t *time_colon;               /// 冒号 BAJ
     lv_obj_t *hint_text;                /// Press to start pumping
     lv_obj_t *hint_shine;               /// 扫光亮色文案（裁剪窗内）
     lv_obj_t *hint_mask;                /// 扫光裁剪窗
-#if HOME_MAIN_HINT_SHINE_SOFT_ENABLE
-    lv_draw_buf_t *hint_mask_a8;        /// 软边 A8（由蒙层 PNG alpha 生成）
+#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
+    lv_draw_buf_t *hint_mask_a8;        /// TEXT_SHINE_MASK → A8 蒙层
 #endif
     lv_obj_t *speed_icon;
     lv_obj_t *speed_value;
@@ -87,6 +179,37 @@ typedef struct {
     char shown_title[24];
 } home_base_main_page_info_t;
 
+/// 模式选择页固定层（挂 root，不参与切页位移动画）
+#define HOME_BASE_MODE_PAGE_DOT_MAX                      (6)
+
+typedef struct {
+    lv_obj_t *dots[HOME_BASE_MODE_PAGE_DOT_MAX];
+    lv_obj_t *tip_img;                  /// 提示文案（本模块预解码，勿释放）
+    lv_obj_t *tip_shine;                /// 扫光亮色图（裁剪窗内）
+    lv_obj_t *tip_mask;                 /// 扫光裁剪窗
+#if HOME_BASE_MODE_TIP_SHINE_USE_IMG_MASK
+    lv_draw_buf_t *tip_mask_a8;         /// TEXT_SHINE_MASK → A8 蒙层
+#endif
+    uint8_t tip_predecoded;
+    uint8_t dot_count;
+    uint8_t selected_dot;
+    uint8_t ready;
+    int16_t tip_mask_x;
+    uint32_t tip_mask_tick_ms;
+} home_base_mode_chrome_info_t;
+
+/// 模式/韵律选择页控件（挂在 page user_data，避免切页过渡覆盖）
+typedef struct {
+    lv_obj_t *circle_bg;                /// 切换动画圆背景（不缩放）
+    lv_obj_t *icon;
+    lv_obj_t *title;
+    uint8_t page_index;
+    uint8_t mode;
+    uint16_t icon_id;
+    uint8_t icon_predecoded;
+    char shown_title[24];
+} home_base_mode_page_ctx_t;
+
 typedef struct {
     lv_obj_t *root;
     lv_obj_t *background;
@@ -95,6 +218,7 @@ typedef struct {
     home_base_page_info_t page;
     home_base_animation_info_t animation;
     home_base_main_page_info_t main;
+    home_base_mode_chrome_info_t mode_chrome; /// 定位点 + 提示文案（root 固定层）
     storage_manager_context_t *st;
     ui_manager_context_t *ui;
     uint8_t popup_ui_index;
@@ -117,11 +241,23 @@ void home_page_ui_prepare(home_base_ui_info_t *info);
 void home_page_ui_remove(home_base_ui_info_t *info);
 void home_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc);
 bool home_page_ui_is_transitioning(const home_base_ui_info_t *info);
-void home_page_ui_request_switch(home_base_ui_info_t *info, home_page_slide_dir_e dir);
 
 void home_main_page_ui_build(home_base_ui_info_t *info);
 void home_main_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc);
 void home_main_page_ui_remove(home_base_ui_info_t *info);
+/// 切换动画：page0 不缩放仅位移；模式页由 circle + hero 处理
+void home_main_page_transition_apply(home_base_ui_info_t *info, int32_t hero_scale,
+    int32_t bg_scale, bool transitioning);
+
+void home_mode_page_ui_build(home_base_ui_info_t *info, uint8_t page_index);
+void home_mode_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc);
+void home_mode_page_ui_remove(home_base_ui_info_t *info);
+/// 切换动画：圆背景显隐 + ICON/模式名缩放（圆不参与缩放）
+void home_mode_page_transition_apply(lv_obj_t *page, int32_t hero_scale, bool transitioning);
+/// 定位点/提示文案固定层（root）：page0 隐藏提示；离 page0 动画起显示定位点
+void home_mode_chrome_prepare(home_base_ui_info_t *info);
+void home_mode_chrome_remove(home_base_ui_info_t *info);
+void home_mode_chrome_update(home_base_ui_info_t *info);
 
 void home_base_animation_remove(home_base_ui_info_t *info);
 void home_base_animation_pause(home_base_ui_info_t *info);
@@ -130,7 +266,6 @@ void home_base_animation_resume(home_base_ui_info_t *info);
 void home_base_ui_prepare(ui_manager_context_t *thiz);
 void home_base_ui_remove(ui_manager_context_t *thiz);
 int home_base_ui_process(ui_manager_context_t *thiz);
-void home_base_ui_page_switch(home_page_slide_dir_e dir);
 
 #ifdef __cplusplus
 }

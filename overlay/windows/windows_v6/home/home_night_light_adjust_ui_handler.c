@@ -53,8 +53,7 @@ static void home_night_light_adjust_ui_after_policy(ui_manager_context_t *ui, in
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     ui_display_home_night_light_adjust_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
-    if (proc->exit_current_ui || time_diff >= HOME_NIGHT_LIGHT_ADJUST_SYNC_TIMEOUT) {
-        proc->exit_current_ui = false;
+    if (time_diff >= HOME_NIGHT_LIGHT_ADJUST_SYNC_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("night light adjust ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(home_night_light_adjust_ui_display_completed_cb,
@@ -121,7 +120,6 @@ void show_home_night_light_adjust_ui(ui_proc_home_t *proc)
     };
     proc->current_ui_type = HOME_UI_TYPE_NIGHT_LIGHT_ADJUST;
     ui->hook->ui_animation_play_init(ui, play_info);
-    proc->exit_current_ui = false;
 }
 
 void switch_home_night_light_adjust(ui_proc_home_t *proc, bool is_increase)

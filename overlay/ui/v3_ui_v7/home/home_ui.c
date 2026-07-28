@@ -129,8 +129,3 @@ int ui_display_home_process(ui_manager_context_t *thiz)
 #endif
     return 0;
 }
-
-void ui_display_home_page_switch(home_page_slide_dir_e dir)
-{
-    home_base_ui_page_switch(dir);
-}
