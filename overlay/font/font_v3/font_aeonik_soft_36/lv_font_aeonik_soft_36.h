@@ -10,7 +10,7 @@ extern "C" {
 
 /// LVGL 字体声明 - Aeonik soft 36px
 /// 包含字符: 0-9, s
-extern const lv_font_t lv_font_aeonik_soft_36_regular;
+extern const lv_font_t lv_font_aeonik_soft_36_medium;
 #ifdef __cplusplus
 }
 #endif

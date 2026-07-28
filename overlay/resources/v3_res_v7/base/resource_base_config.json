@@ -57,21 +57,63 @@
     {
       "resource_id": "BASE_RES_ID_CLOCK_COLON_ICON",
       "description": "时钟冒号图标",
-      "file": "baj/icon_time_colon_13x53_a8_q99_444.baj",
+      "file": "baj/icon_time_colon_11x36_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_HOUR_COLON_ICON",
+      "description": "小时冒号图标",
+      "file": "baj/icon_hour_colon_10x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_BLE_CONNECT_TIP_ICON",
+      "description": "蓝牙连接提示图标",
+      "file": "baj/icon_ble_connected_tip_84x84_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_BLE_DISCONNECT_ICON",
       "description": "蓝牙断开图标",
-      "file": "baj/icon_ble_disconnect_26x26_a8_q99_444.baj",
+      "file": "baj/icon_ble_disconnect_24x24_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_BLE_DISCONNECT_TIP_ICON",
+      "description": "蓝牙断开提示图标",
+      "file": "baj/icon_ble_disconnect_tip_84x84_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_SUCCESS_ICON",
       "description": "成功图标",
-      "file": "baj/icon_success_85x85_a8_q99_444.baj",
+      "file": "baj/icon_success_85x84_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_ERROR_ICON",
+      "description": "错误图标",
+      "file": "baj/icon_error_84x84_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_QUANDARY_ICON",
+      "description": "疑问图标",
+      "file": "baj/icon_quandary_84x84_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_DOWNLOAD_ICON",
+      "description": "下载图标",
+      "file": "baj/icon_download_84x84_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -85,49 +127,42 @@
     {
       "resource_id": "BASE_RES_ID_PLAY_MIN_ICON",
       "description": "播放小图标",
-      "file": "baj/icon_play_min_26x26_a8_q99_444.baj",
+      "file": "baj/icon_play_min_18x19_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_PAUSE_ICON",
       "description": "暂停图标",
-      "file": "baj/icon_pause_82x82_a8_q99_444.baj",
+      "file": "baj/icon_pause_60x62_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_PAUSE_MIN_ICON",
       "description": "暂停小图标",
-      "file": "baj/icon_pause_min_26x26_a8_q99_444.baj",
+      "file": "baj/icon_pause_min_19x18_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_POWER_OFF_ICON",
       "description": "电源图标",
-      "file": "baj/icon_power_off_85x85_a8_q99_444.baj",
+      "file": "baj/icon_power_off_85x84_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_POWER_KEY_ICON",
       "description": "电源按键图标",
-      "file": "baj/icon_power_key_85x85_a8_q99_444.baj",
+      "file": "baj/icon_power_key_85x84_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "BASE_RES_ID_START_LOGO_ICON",
       "description": "启动LOGO",
-      "file": "baj/icon_logo_start_186x24_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_HOME_TEXT_MASK",
-      "description": "主页文案蒙层",
-      "file": "png/mask_txt_anim.png",
+      "file": "baj/icon_logo_start_186x25_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -197,7 +232,7 @@
     {
       "resource_id": "BASE_RES_ID_SPEED_ICON",
       "description": "速度图标",
-      "file": "baj/icon_speed_26x26_a8_q99_444.baj",
+      "file": "baj/icon_speed_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -209,37 +244,16 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_STIMULATION_WAVE",
-      "description": "刺激波形",
-      "file": "baj/wave_simulation_352x35_a8_q99_422.baj",
+      "resource_id": "BASE_RES_ID_MODE_SELECT_TIP",
+      "description": "模式选择页提示文案",
+      "file": "baj/mode_select_tip_212x50_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_EXPRESSION_WAVE",
-      "description": "泌乳波形",
-      "file": "baj/wave_expression_352x33_a8_q99_422.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_MIX_WAVE",
-      "description": "混合波形",
-      "file": "baj/wave_mixed_352x33_a8_q99_422.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_MILK_BOOST_WAVE",
-      "description": "2+8奶量提升波形",
-      "file": "baj/wave_milk_boost_352x33_a8_q99_422.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_POWER_PUMPING_WAVE",
-      "description": "泵奶模式波形",
-      "file": "baj/wave_power_pumping_352x33_a8_q99_422.baj",
+      "resource_id": "BASE_RES_ID_TEXT_SHINE_MASK",
+      "description": "文案扫光蒙层",
+      "file": "png/text_shine_mask.png",
       "x_offset": 0,
       "y_offset": 0
     }
