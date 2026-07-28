@@ -79,20 +79,7 @@ static void logo_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void logo_root_bg_update(ui_manager_context_t *thiz)
 {
-    #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
-    EXCEPTION_CHECK_VOID(background_snapshot);
-    #endif
-    if (logo_info->background == NULL || !lv_obj_is_valid(logo_info->background)) {
-        logo_info->background = lv_image_create(logo_info->root);
-        EXCEPTION_CHECK_VOID(logo_info->background);
-        lv_obj_align(logo_info->background, LV_ALIGN_CENTER, 0, 0);
-        #if LV_USE_SNAPSHOT
-        lv_image_set_src(logo_info->background, background_snapshot);
-        #else
-        lv_obj_add_flag(logo_info->background, LV_OBJ_FLAG_HIDDEN); /// 隐藏
-        #endif
-    }
+
 }
 #endif
 

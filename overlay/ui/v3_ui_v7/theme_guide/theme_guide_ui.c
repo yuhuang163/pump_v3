@@ -138,45 +138,6 @@ static void theme_guide_root_init(void)
 
 static void theme_guide_bg_update(ui_manager_context_t *thiz)
 {
-#if IS_SUPPORT_THEME_GUIDE_COMP_BG
-    static uint32_t start_time = 0;
-    static uint8_t status = 0;
-
-    if (theme_info->background == NULL || !lv_obj_is_valid(theme_info->background)) {
-        theme_info->background = lv_image_create(theme_info->root);
-        EXCEPTION_CHECK_VOID(theme_info->background);
-    }
-    lv_fs_path_ex_t bg_img_path;
-    if (status == 0) {
-        lv_obj_add_flag(theme_info->background, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_clear_flag(theme_info->background, LV_OBJ_FLAG_HIDDEN);
-        lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, theme_guide_bg_data,
-            sizeof(theme_guide_bg_data), "png");
-        lv_image_set_src(theme_info->background, (const void *)&bg_img_path);
-        lv_obj_align(theme_info->background, LV_ALIGN_CENTER, 0, 0);
-    }
-
-    if (get_timestamp() - start_time > 1000) {
-        start_time = get_timestamp();
-        status = (status == 0) ? 1 : 0;
-    }
-#else
-#if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
-    EXCEPTION_CHECK_VOID(background_snapshot);
-#endif
-    if (theme_info->background == NULL || !lv_obj_is_valid(theme_info->background)) {
-        theme_info->background = lv_image_create(theme_info->root);
-        EXCEPTION_CHECK_VOID(theme_info->background);
-        lv_obj_align(theme_info->background, LV_ALIGN_CENTER, 0, 0);
-#if LV_USE_SNAPSHOT
-        lv_image_set_src(theme_info->background, background_snapshot);
-#else
-        lv_obj_add_flag(theme_info->background, LV_OBJ_FLAG_HIDDEN);
-#endif
-    }
-#endif
     (void)thiz;
 }
 

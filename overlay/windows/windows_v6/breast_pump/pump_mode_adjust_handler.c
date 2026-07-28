@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "breast_pump_manager_api.h"
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_pump.h"
 
@@ -15,144 +14,190 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static uint8_t normalize_common_mode(int mode)
+static uint16_t pump_mode_page_index_max(int activate_status)
 {
-    return PUMP_IS_COMMON_MODE(mode) ? (uint8_t)mode : BREAST_PUMP_NORMAL_MODE_DEFAULT;
+    return activate_status > 0 ?
+            PUMP_MODE_PAGE_INDEX_CUSTOMIZE_SELECT :
+            PUMP_MODE_PAGE_INDEX_POWER_PUMPING_SELECT;
 }
 
-static uint8_t normalize_expert_mode(int mode, int activate_status)
+static uint8_t pump_mode_from_page_index(uint16_t page_index)
 {
-    if (!PUMP_IS_BREASTFEEDING_MODE(mode)) {
-        return BREAST_PUMP_EXPERT_MODE_DEFAULT;
+    switch (page_index) {
+        case PUMP_MODE_PAGE_INDEX_STIMULATION_SELECT:
+            return BREAST_PUMP_STIMULATION_MODE;
+        case PUMP_MODE_PAGE_INDEX_EXPRESSION_SELECT:
+            return BREAST_PUMP_LACTATION_MODE;
+        case PUMP_MODE_PAGE_INDEX_MILK_BOOST_SELECT:
+            return BREAST_PUMP_MILK_BOOST_MODE;
+        case PUMP_MODE_PAGE_INDEX_POWER_PUMPING_SELECT:
+            return BREAST_PUMP_PP_MILK_TRACK_MODE;
+        case PUMP_MODE_PAGE_INDEX_CUSTOMIZE_SELECT:
+            return BREAST_PUMP_CUSTOM_MODE;
+        default:
+            return BREAST_PUMP_STIMULATION_MODE;
     }
-    if (mode == BREAST_PUMP_CUSTOM_MODE && activate_status == 0) {
-        return BREAST_PUMP_EXPERT_MODE_DEFAULT;
-    }
-    return (uint8_t)mode;
 }
 
-static uint8_t next_common_mode(int mode)
+static bool pump_mode_is_program_target(uint8_t mode_index)
 {
-    uint8_t common = normalize_common_mode(mode);
-    return common < BREAST_PUMP_NORMAL_MODE_UPPER ?
-            (common + 1) : BREAST_PUMP_NORMAL_MODE_LOWER;
+    return mode_index == BREAST_PUMP_MILK_BOOST_MODE ||
+           mode_index == BREAST_PUMP_CUSTOM_MODE ||
+           mode_index == BREAST_PUMP_PP_MILK_TRACK_MODE;
 }
 
-static uint8_t next_expert_mode(int mode, int activate_status)
+static bool pump_mode_is_basic_current(uint8_t mode_index)
 {
-    if (!PUMP_IS_BREASTFEEDING_MODE(mode)) {
-        mode = BREAST_PUMP_EXPERT_MODE_DEFAULT;
-    }
-    if (mode == BREAST_PUMP_CUSTOM_MODE && activate_status == 0) {
-        return BREAST_PUMP_EXPERT_MODE_LOWER;
-    }
-    uint8_t upper = activate_status > 0 ?
-            BREAST_PUMP_CUSTOM_MODE : (BREAST_PUMP_CUSTOM_MODE - 1);
-    return (uint8_t)mode < upper ? (uint8_t)(mode + 1) : BREAST_PUMP_EXPERT_MODE_LOWER;
+    return mode_index == BREAST_PUMP_STIMULATION_MODE ||
+           mode_index == BREAST_PUMP_LACTATION_MODE;
 }
 
-static uint8_t enter_select_pump_mode(int work_mode, bool is_bf_mode,
-        int last_expert_mode, int last_common_mode, int activate_status)
+static void pump_mode_apply_page_index(ui_proc_pump_t *proc, uint16_t page_index)
 {
-    bool mode_matches_key = is_bf_mode ?
-            PUMP_IS_BREASTFEEDING_MODE(work_mode) : PUMP_IS_COMMON_MODE(work_mode);
-    if (mode_matches_key) {
-        return (uint8_t)work_mode;
-    }
-    return is_bf_mode ?
-            normalize_expert_mode(last_expert_mode, activate_status) :
-            normalize_common_mode(last_common_mode);
-}
-
-static uint8_t cycle_pump_mode(int work_mode, bool is_bf_mode,
-        int last_expert_mode, int last_common_mode, int activate_status)
-{
-    if (PUMP_IS_BREASTFEEDING_MODE(work_mode)) {
-        if (is_bf_mode) {
-            return next_expert_mode(last_expert_mode, activate_status);
-        }
-        return normalize_common_mode(last_common_mode);
+    if (proc->ui_mode_page_index == page_index) {
+        return;
     }
 
-    if (is_bf_mode) {
-        return normalize_expert_mode(last_expert_mode, activate_status);
+    proc->ui_mode_page_index = page_index;
+    if (page_index == PUMP_MODE_PAGE_INDEX_NONE) {
+        LOG_UI("pump page_index -> HOME");
+        return;
     }
-    return next_common_mode(last_common_mode);
+
+    LOG_UI("pump page_index -> %d (preview)", page_index);
 }
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_bf_mode)
+void pump_mode_page_index_clamp(ui_proc_pump_t *proc)
 {
-    EXCEPTION_CHECK_INT(proc && proc->pump);
-    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
-        show_pump_home_ui(proc); /// 显示泵奶主界面
-    }
+    int activate_status = 0;
+    uint16_t page_max;
 
-    pump_mode_display_type_e target_display_type = is_bf_mode ?
-            PUMP_MODE_DISPLAY_BF_MODE : PUMP_MODE_DISPLAY_NORMAL_MODE;
-    bool entering_select = (proc->pump_mode_display_type != target_display_type);
-    int work_mode = 0, last_expert_mode = 0, last_common_mode = 0, activate_status = 0;
-    if (entering_select) {
-        pump_level_adjust_exit_handler(proc);
-        proc->pump_mode_display_type = target_display_type;
-        proc->pump_mode_adjust_time = get_timestamp();
-        READ_PUMP_WORK_MODE(proc->pump, work_mode);
-        READ_PUMP_EXPERT_MODE(proc->pump, false, last_expert_mode);
-        READ_PUMP_COMMON_MODE(proc->pump, false, last_common_mode);
-        READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
-        proc->ui_mode_index = enter_select_pump_mode(work_mode, is_bf_mode,
-                last_expert_mode, last_common_mode, activate_status);
-    } else {
-        proc->pump_mode_adjust_time = get_timestamp();
-        READ_PUMP_WORK_MODE(proc->pump, work_mode);
-        READ_PUMP_EXPERT_MODE(proc->pump, false, last_expert_mode);
-        READ_PUMP_COMMON_MODE(proc->pump, false, last_common_mode);
-        READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
-        proc->ui_mode_index = cycle_pump_mode(work_mode, is_bf_mode,
-                last_expert_mode, last_common_mode, activate_status);
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
+    page_max = pump_mode_page_index_max(activate_status);
+    if (proc->ui_mode_page_index > page_max) {
+        pump_mode_apply_page_index(proc, page_max);
     }
-    if (work_mode != proc->ui_mode_index) {
+}
+
+int pump_mode_set_handler(ui_proc_pump_t *proc, uint8_t mode_index)
+{
+    char *mode_name = "unknow";
+    int work_mode = 0;
+
+    EXCEPTION_CHECK_INT(proc && proc->pump);
+    READ_PUMP_WORK_MODE(proc->pump, work_mode);
+    if (work_mode != mode_index) {
         data_bury_trigger_manual_adjust_t bury_adj = {
             .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
             .evt_type = DATA_BURY_ADJUST_PUMP_MODE,
             .adjust_from = work_mode,
-            .adjust_to = proc->ui_mode_index,
+            .adjust_to = mode_index,
         };
         DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
-        WRITE_PUMP_WORK_MODE(proc->pump, proc->ui_mode_index, true, 1);
-        char *mode_name = "unknow";
-        READ_PUMP_MODE_NAME(proc->pump, proc->ui_mode_index, &mode_name);
-        LOG_UI("switch %s mode: %d", mode_name, proc->ui_mode_index);
+        WRITE_PUMP_WORK_MODE(proc->pump, mode_index, true, 1);
     }
-    proc->exit_current_ui = false;
+    READ_PUMP_MODE_NAME(proc->pump, mode_index, &mode_name);
+    LOG_UI("pump set %s mode:%d", mode_name, mode_index);
     return 0;
 }
 
-void pump_mode_adjust_timeout_handler(ui_proc_pump_t *proc)
+int pump_mode_confirm_handler(ui_proc_pump_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc);
-    if (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_DEFAULT) {
-        return;
-    }
+    uint8_t mode_index;
 
-    if (get_timestamp_ms(proc->pump_mode_adjust_time) < PUMP_MODE_SELECT_DISPLAY_TIMEOUT) {
-        return;
-    }
-    proc->pump_mode_display_type = PUMP_MODE_DISPLAY_DEFAULT;
-    proc->pump_mode_adjust_time = get_timestamp();
-}
-
-int pump_mode_adjust_exit_handler(ui_proc_pump_t *proc)
-{
-    EXCEPTION_CHECK_INT(proc);
-    if (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_DEFAULT) {
+    EXCEPTION_CHECK_INT(proc && proc->pump);
+    if (proc->current_ui_type != PUMP_UI_TYPE_HOME &&
+        proc->current_ui_type != PUMP_UI_TYPE_RHYTHM_CONFIRM) {
         return -1;
     }
-    proc->pump_mode_display_type = PUMP_MODE_DISPLAY_DEFAULT;
-    proc->pump_mode_adjust_time = get_timestamp();
+    if (proc->ui_mode_page_index == PUMP_MODE_PAGE_INDEX_NONE) {
+        return -1;
+    }
+
+    mode_index = pump_mode_from_page_index(proc->ui_mode_page_index);
+    LOG_UI("pump confirm page_index:%d", proc->ui_mode_page_index);
+    return pump_mode_set_handler(proc, mode_index);
+}
+
+int pump_mode_rhythm_confirm_needed(ui_proc_pump_t *proc)
+{
+    uint8_t target_mode;
+    int work_mode = 0;
+
+    EXCEPTION_CHECK_INT(proc && proc->pump);
+    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
+        return -1;
+    }
+    if (proc->ui_mode_page_index == PUMP_MODE_PAGE_INDEX_NONE) {
+        return -1;
+    }
+
+    target_mode = pump_mode_from_page_index(proc->ui_mode_page_index);
+    if (!pump_mode_is_program_target(target_mode)) {
+        return -1;
+    }
+
+    READ_PUMP_WORK_MODE(proc->pump, work_mode);
+    if ((uint8_t)work_mode == target_mode) {
+        return -1;
+    }
+
+#if (PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME == PUMP_RHYTHM_CONFIRM_SCHEME_1)
+    /// 方案1：当前刺激/吸吮 → 韵律，且本次泵奶首次
+    if (!pump_mode_is_basic_current((uint8_t)work_mode)) {
+        return -1;
+    }
+    if (proc->rhythm_confirm_shown != 0) {
+        return -1;
+    }
+#elif (PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME == PUMP_RHYTHM_CONFIRM_SCHEME_2)
+    /// 方案2：目标为韵律模式即确认
+    (void)work_mode;
+#else
+#error "PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME must be PUMP_RHYTHM_CONFIRM_SCHEME_1 or _2"
+#endif
+
     return 0;
 }
 
+int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_left)
+{
+    int activate_status = 0;
+    uint16_t page_max;
+    uint16_t next_index;
+
+    EXCEPTION_CHECK_INT(proc && proc->pump);
+    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
+        return -1;
+    }
+
+    READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
+    page_max = pump_mode_page_index_max(activate_status);
+
+    /// 个性化失活时，若当前停在个性化页则先收束到右转边界
+    if (proc->ui_mode_page_index > page_max) {
+        pump_mode_apply_page_index(proc, page_max);
+        return 0;
+    }
+
+    if (is_left) {
+        /// page_index 为 0（主页）时不支持左旋
+        if (proc->ui_mode_page_index == PUMP_MODE_PAGE_INDEX_NONE) {
+            return -1;
+        }
+        next_index = (uint16_t)(proc->ui_mode_page_index - 1);
+    } else {
+        if (proc->ui_mode_page_index >= page_max) {
+            return -1;
+        }
+        next_index = (uint16_t)(proc->ui_mode_page_index + 1);
+    }
+    pump_mode_apply_page_index(proc, next_index);
+
+    return 0;
+}

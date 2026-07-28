@@ -42,7 +42,6 @@ static void home_pump_result_display_completed_cb(hdr_post_args_t *args)
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-    home_page_display_type_update(proc);
     start_home_ui_animation(proc);
 }
 
@@ -52,8 +51,7 @@ static void home_pump_result_ui_after_policy(ui_manager_context_t *ui, int index
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     ui_display_pump_complete_tip_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
-    if (proc->exit_current_ui || time_diff >= HOME_PUMP_RESULT_DISPLAY_TIMEOUT) {
-        proc->exit_current_ui = false;
+    if (time_diff >= HOME_PUMP_RESULT_DISPLAY_TIMEOUT) {
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("result ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(home_pump_result_display_completed_cb, proc, HOME_PUMP_RESULT_DISPLAY_TASK_NAME);
@@ -134,7 +132,6 @@ void show_home_pump_result_ui(ui_proc_home_t *proc)
     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
         proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
     }
-    proc->exit_current_ui = false;
     show_home_pump_result_loop(proc);
 }
 

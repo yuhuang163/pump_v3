@@ -17,12 +17,14 @@
 #define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP)
 #define PUMP_COMPLETE_TASK_NAME             "pump_complete"
 #define PUMP_BROADCAST_TASK_NAME            "pump_broadcast"
+#define PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME "pump_settings_success_display"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_COMPLETE_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_BROADCAST_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME); \
 } while (0)
 
 /*
@@ -74,6 +76,40 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
 }
 
 
+static void pump_mode_key_event_cb(ui_proc_pump_t *proc, uint8_t mode_index)
+{
+    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
+        LOG_WM("ignore mode key, ui_type:%d", proc->current_ui_type);
+        return;
+    }
+    show_pump_settings_success_ui(proc);
+    pump_mode_set_handler(proc, mode_index);
+}
+
+static void pump_knob_left_event_cb(ui_proc_pump_t *proc)
+{
+    if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
+        proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
+        show_pump_home_ui(proc);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
+        pump_mode_adjust_handler(proc, true);
+    }
+}
+
+static void pump_knob_right_event_cb(ui_proc_pump_t *proc)
+{
+    if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
+        proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
+        show_pump_home_ui(proc);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
+        pump_mode_adjust_handler(proc, false);
+    }
+}
+
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
     if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
@@ -83,29 +119,25 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
         return;
     }
 
-#if (IS_ALLLOW_PUMP_COMPLETE_BREAK == 0)
-    if (proc->current_ui_type == PUMP_UI_TYPE_RESULT) {
-        LOG_WM("pump result ui, ignore key event.");
+    /* 成功页/确认页仅限制 start，其它按键正常响应（与 home 一致） */
+    if ((proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
+         proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) &&
+        keycode == KEY_CODE_START) {
+        LOG_WM("settings/confirm ui, ignore start key.");
         return;
     }
-#endif
 
     LOG_WM("click keycode: %d, popup ui type:%d.", keycode, proc->popup_ui_type);
     switch (keycode) {
-        case KEY_CODE_MODE:
-            pump_mode_key_event_handler(proc);
+        case KEY_CODE_STIMULATION_MODE:
+            pump_mode_key_event_cb(proc, BREAST_PUMP_STIMULATION_MODE);
             break;
-        case KEY_CODE_BREASTFEEDING:
-            pump_breastfeeding_key_event_handler(proc);
+        case KEY_CODE_LACTATION_MODE:
+            pump_mode_key_event_cb(proc, BREAST_PUMP_LACTATION_MODE);
             break;
-        case KEY_CODE_CANCEL:
-            pump_cancel_key_event_handler(proc);
+        case KEY_CODE_FREQUENCY:
             break;
         case KEY_CODE_POWER:
-            if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
-                pump_finish_manual_popup_dismiss(proc);
-                break;
-            }
             pump_power_key_event_handler(proc);
             break;
         case KEY_CODE_START:
@@ -113,17 +145,14 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
             break;
         case KEY_CODE_RIGHT_CONTROL:
         case KEY_CODE_LEFT_CONTROL:
-            pump_level_control_key_event_handler(proc, keycode == KEY_CODE_LEFT_CONTROL);
             break;
         case KEY_CODE_KNOB_LEFT:
+            pump_knob_left_event_cb(proc);
+            break;
         case KEY_CODE_KNOB_RIGHT:
-            pump_knob_event_cb(proc, keycode == KEY_CODE_KNOB_LEFT);
+            pump_knob_right_event_cb(proc);
             break;
         default:
-            if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
-                pump_finish_manual_popup_dismiss(proc);
-                break;
-            }
             LOG_WM("unknow keycode: %d, ignore.", keycode);
             break;
     }
@@ -134,11 +163,7 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
-    if (keytype == KEY_EVENT_DOWN && keycode == KEY_CODE_CANCEL) {
-        pump_cancel_key_down_handler(proc);
-    } else if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_CANCEL) {
-        pump_cancel_key_up_handler(proc);
-    } else if (keytype == KEY_EVENT_CLICK) {
+    if (keytype == KEY_EVENT_CLICK) {
         pump_click_event_cb(proc, keycode);
     }
     return 0;

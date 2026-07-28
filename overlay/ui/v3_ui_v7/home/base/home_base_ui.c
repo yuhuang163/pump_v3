@@ -159,7 +159,13 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     // proc->popup_ui_type = ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR;
     #else
     home_page_ui_update(home_info, proc);
-    ble_ui_update(thiz, home_info->root, proc->ble, BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, NULL);
+    if (home_info->page.shown_page_index == HOME_PAGE_MAIN &&
+        !home_page_ui_is_transitioning(home_info)) {
+        ble_ui_update(thiz, home_info->root, proc->ble,
+            BASE_PUMP_HOME_BLE_UI_X, BASE_PUMP_HOME_BLE_UI_Y, NULL);
+    } else {
+        ble_ui_hide();
+    }
     #endif
     ui_popup_update(thiz, proc->popup_ui_type, home_info->root, &home_info->popup_ui_index);
     home_info->force_update = false;
@@ -170,12 +176,4 @@ int home_base_ui_process(ui_manager_context_t *thiz)
         thiz->priv.fps_count = 0;
     }
     return 0;
-}
-
-void home_base_ui_page_switch(home_page_slide_dir_e dir)
-{
-    if (home_info == NULL) {
-        return;
-    }
-    home_page_ui_request_switch(home_info, dir);
 }

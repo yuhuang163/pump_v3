@@ -3,7 +3,6 @@
 *****************************************************************************************
 */
 #include "input_key_code.h" // IWYU pragma: keep
-#include "root_common_api.h" // IWYU pragma: keep
 #include "windows_manager.h" 
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
@@ -67,10 +66,14 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
         return;
     }
 #endif
-    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
+    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
+        proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
         start_home_ui_animation(proc);
+        return;
     }
-    home_pump_level_adjust_handler(proc, false);
+    if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
+        home_mode_adjust_handler(proc, true);
+    }
 }
 
 static void home_knob_right_event_cb(ui_proc_home_t *proc)
@@ -82,14 +85,36 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
     }
 #endif
 
-    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
+    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
+        proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
         start_home_ui_animation(proc);
+        return;
     }
-    home_pump_level_adjust_handler(proc, true);
+    if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
+        home_mode_adjust_handler(proc, false);
+    }
+}
+
+static void home_mode_key_event_cb(ui_proc_home_t *proc, uint8_t mode_index)
+{
+    if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
+        LOG_WM("ignore mode key, ui_type:%d", proc->current_ui_type);
+        return;
+    }
+    show_home_settings_success_ui(proc);
+    home_mode_set_handler(proc, mode_index);
 }
 
 static void home_power_key_event_cb(ui_proc_home_t *proc)
 {
+    if (proc->current_ui_type == HOME_UI_TYPE_HOME &&
+        proc->ui_mode_page_index > HOME_MODE_PAGE_INDEX_NONE) {
+        if (home_mode_confirm_handler(proc) == 0) {
+            show_home_settings_success_ui(proc);
+        }
+        return;
+    }
+
 #if IS_SUPPORT_NIGHT_LIGHT
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         uint8_t battery_state = proc->battery->get_battery_state();
@@ -110,7 +135,8 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
     }
 #endif
 
-    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
+    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
+        proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
         start_home_ui_animation(proc);
         return;
     }
@@ -131,26 +157,20 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
-    if (keycode == KEY_CODE_CANCEL) {
-        home_cancel_key_event_handler(proc);
-        return 0;
-    }
-
-    /* 泵奶完成页仅限制 start，其它按键正常响应 */
-    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT &&
+    /* 泵奶完成页 / 设置成功页仅限制 start，其它按键正常响应 */
+    if ((proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
+         proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) &&
         keycode == KEY_CODE_START) {
-        LOG_WM("pump result, ignore start key.");
+        LOG_WM("result/success ui, ignore start key.");
         return 0;
     }
 
     switch (keycode) {
-        case KEY_CODE_MODE:
-            home_pump_mode_adjust_handler(proc, false);
+        case KEY_CODE_STIMULATION_MODE:
+            home_mode_key_event_cb(proc, BREAST_PUMP_STIMULATION_MODE);
             break;
-        case KEY_CODE_BREASTFEEDING:
-            #if IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT
-            home_pump_mode_adjust_handler(proc, true);
-            #endif
+        case KEY_CODE_LACTATION_MODE:
+            home_mode_key_event_cb(proc, BREAST_PUMP_LACTATION_MODE);
             break;
         case KEY_CODE_POWER:
             home_power_key_event_cb(proc);
@@ -165,10 +185,8 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             home_knob_right_event_cb(proc);
             break;
         case KEY_CODE_RIGHT_CONTROL:
-            home_pump_level_adjust_type_update(proc, false);
             break;
         case KEY_CODE_LEFT_CONTROL:
-            home_pump_level_adjust_type_update(proc, true);
             break;
         default:
             break;
@@ -198,7 +216,7 @@ static void home_broadcast_receive_ui_cb(hdr_post_args_t *args)
         case ID_BROADCAST_SYS_STATE_CHANGE:
             LOG_WM("system state: %d, %d", bcd_args->arg1, bcd_args->arg2);
             if (bcd_args->arg1 == SYSTEM_BROADCAST_UTC_TIME_CHANGE) {
-                // home_page_display_type_update(proc);
+                
             }
             break;
         default:
@@ -247,15 +265,8 @@ static void on_home_window_battery_state_change_cb(void *user_data, battery_stat
     if (info->battery_state == BATTERY_STATE_EMPTY || 
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
         info->battery_state == BATTERY_STATE_FORBID_START) {
-        if (proc->home_display_type != HOME_UI_DISPLAY_CLOCK_LOW_POWER &&
-            proc->home_display_type != HOME_UI_DISPLAY_LOW_POWER) {
-            // home_page_display_type_update(proc);
-        }
     } else {
-        if (proc->home_display_type == HOME_UI_DISPLAY_CLOCK_LOW_POWER ||
-            proc->home_display_type == HOME_UI_DISPLAY_LOW_POWER) {
-            // home_page_display_type_update(proc);
-        }
+
     }
 }
 
@@ -279,14 +290,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
             show_home_pump_result_ui(proc);
             return 0;
-        } else if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_MODE_UNSELECT) {
-            proc->home_display_type = HOME_UI_DISPLAY_DEFAULT;
-        } else if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_MODE_ADJUST) {
-            home_pump_mode_adjust_enter(proc, false);
-        } else if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RHYTHM_ADJUST) {
-            home_pump_mode_adjust_enter(proc, true);
-        } else {
-            home_page_display_type_update(proc);
         }
         start_home_ui_animation(proc);
     }

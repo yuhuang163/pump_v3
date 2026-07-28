@@ -86,6 +86,10 @@ static void ble_ui_resource_update(ui_manager_context_t *thiz, lv_obj_t *root,
         lv_obj_align(ble_info->ble_img, LV_ALIGN_TOP_LEFT, x, y);
     }
     ble_ui_icon_visible_set(ble_info->ble_img, is_connected == 0);
+    /* 切页会新建 page 容器盖住先创建的 BLE；hide 后 force_update 走此路径，需抬到最前 */
+    if (is_connected == 0) {
+        lv_obj_move_foreground(ble_info->ble_img);
+    }
     ble_info->is_connected = is_connected;
     ble_info->force_update = false;
     ble_info->fps_start_time = time_ms;
@@ -124,10 +128,10 @@ int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_contex
 
 void ble_ui_hide(void)
 {
-    if (ble_info == NULL || ble_info->ble_img == NULL ||
-        !lv_obj_is_valid(ble_info->ble_img)) {
+    if (ble_info == NULL || ble_info->ble_img == NULL || !lv_obj_is_valid(ble_info->ble_img)) {
         return;
     }
+    ble_info->force_update = true;
     ble_ui_icon_visible_set(ble_info->ble_img, false);
 }
 

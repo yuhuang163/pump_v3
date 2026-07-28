@@ -10,6 +10,7 @@
 *****************************************************************************************
 */
 #define HOME_MAIN_SCREEN_W                              (360)
+#define HOME_MAIN_SCALE_FULL                            (256)
 
 #define HOME_MAIN_MODE_TITLE_Y                          (64 + 4)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
@@ -20,11 +21,11 @@
 
 #define HOME_MAIN_TIME_SEG_WIDTH                        (88)
 #define HOME_MAIN_TIME_M_X                              (75 + 4)
-#define HOME_MAIN_TIME_M_Y                              (138 + 4)
+#define HOME_MAIN_TIME_M_Y                              (137 + 4)
 #define HOME_MAIN_TIME_S_X                              (189 + 4)
 #define HOME_MAIN_TIME_S_Y                              (HOME_MAIN_TIME_M_Y)
 #define HOME_MAIN_TIME_COLON_X                          (0)
-#define HOME_MAIN_TIME_COLON_Y                          (134 + 4)
+#define HOME_MAIN_TIME_COLON_Y                          (143 + 4)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_TIME_COLOR                            (0x00FF00)
 #else
@@ -43,14 +44,15 @@
 #define HOME_MAIN_HINT_SHINE_COLOR                      (0xFFFFFF)
 #endif
 
-#if HOME_MAIN_HINT_SHINE_SOFT_ENABLE
-#define HOME_MAIN_MASK_W                                (140)
-#define HOME_MAIN_MASK_H                                (80)
-#define HOME_MAIN_MASK_Y                                (HOME_MAIN_HINT_Y - 28)
-#else
-#define HOME_MAIN_MASK_W                                (80)
+#if HOME_BASE_MAIN_HINT_SHINE_IS_HARD
+#define HOME_MAIN_MASK_W                                (HOME_BASE_MAIN_HINT_SHINE_W)
 #define HOME_MAIN_MASK_H                                (40)
 #define HOME_MAIN_MASK_Y                                (HOME_MAIN_HINT_Y - 8)
+#else
+/** SOFT / OVERLAY：宽由 HOME_BASE_MAIN_HINT_SHINE_W 控制，高对齐 TEXT_SHINE_MASK */
+#define HOME_MAIN_MASK_W                                (HOME_BASE_MAIN_HINT_SHINE_W)
+#define HOME_MAIN_MASK_H                                (80)
+#define HOME_MAIN_MASK_Y                                (HOME_MAIN_HINT_Y - 28)
 #endif
 #define HOME_MAIN_MASK_X_MIN                            (-HOME_MAIN_MASK_W)
 #define HOME_MAIN_MASK_X_MAX                            (HOME_MAIN_SCREEN_W)
@@ -66,10 +68,10 @@
 #endif
 #define HOME_MAIN_SPEED_ICON_VALUE_GAP                  (6)
 
-#define HOME_MAIN_LEFT_LEVEL_X                          (72 + 4)
+#define HOME_MAIN_LEFT_LEVEL_X                          (68 + 4)
 #define HOME_MAIN_LEFT_LEVEL_Y                          (267 + 4)
 #define HOME_MAIN_LEFT_LEVEL_W                          (58)
-#define HOME_MAIN_RIGHT_LEVEL_X                         (222 + 4)
+#define HOME_MAIN_RIGHT_LEVEL_X                         (227 + 4)
 #define HOME_MAIN_RIGHT_LEVEL_Y                         (HOME_MAIN_LEFT_LEVEL_Y)
 #define HOME_MAIN_RIGHT_LEVEL_W                         (58)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
@@ -99,8 +101,7 @@ static uint16_t home_main_bg_res_id_get(uint8_t mode)
             return BASE_RES_ID_SIMULATION_MODE_BG;
         case BREAST_PUMP_LACTATION_MODE:
             return BASE_RES_ID_EXPRESSION_MODE_BG;
-        // case BREAST_PUMP_MIX_MODE:
-        //     return BASE_RES_ID_MIXED_MODE_BG;
+
         case BREAST_PUMP_MILK_BOOST_MODE:
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
         case BREAST_PUMP_CUSTOM_MODE:
@@ -129,6 +130,17 @@ static uint32_t home_main_hint_color_get(uint8_t mode)
             return HOME_MAIN_HINT_COLOR_STIMULATION;
     }
 #endif
+}
+
+static void home_main_obj_scale_set(lv_obj_t *obj, int32_t scale)
+{
+    if (obj == NULL || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    lv_obj_update_layout(obj);
+    lv_obj_set_style_transform_pivot_x(obj, lv_obj_get_width(obj) / 2, 0);
+    lv_obj_set_style_transform_pivot_y(obj, lv_obj_get_height(obj) / 2, 0);
+    lv_obj_set_style_transform_scale(obj, scale, 0);
 }
 
 static void home_main_mode_title_get(home_base_ui_info_t *info, uint8_t mode, char *buf, size_t buf_len)
@@ -214,7 +226,7 @@ static void home_main_mode_title_update(home_base_ui_info_t *info, uint8_t mode)
         lv_obj_set_style_text_color(info->main.mode_title, lv_color_hex(HOME_MAIN_MODE_TITLE_COLOR), 0);
         lv_obj_set_style_text_font(info->main.mode_title, &lv_font_aeonik_soft_26_medium, 0);
         lv_obj_set_style_text_align(info->main.mode_title, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_letter_space(info->main.mode_title, 1, 0); // Figma 2%: 26 * 0.02 ≈ 0.52 → 1px
+        lv_obj_set_style_text_letter_space(info->main.mode_title, 0, 0); // Figma 2%: 26 * 0.02 ≈ 0.52 → 1px
     }
 
     if (strncmp(info->main.shown_title, title, sizeof(info->main.shown_title)) == 0 &&
@@ -227,13 +239,13 @@ static void home_main_mode_title_update(home_base_ui_info_t *info, uint8_t mode)
     info->main.shown_title[sizeof(info->main.shown_title) - 1] = '\0';
 }
 
-static void home_main_time_pair_update(lv_obj_t *labels[HOME_MAIN_TIME_DIGIT_COUNT], lv_obj_t *parent,
+static void home_main_time_pair_update(lv_obj_t *labels[HOME_BASE_MAIN_TIME_DIGIT_COUNT], lv_obj_t *parent,
     uint8_t value, lv_coord_t seg_x, lv_coord_t seg_y)
 {
-    const lv_coord_t cell_w = HOME_MAIN_TIME_SEG_WIDTH / HOME_MAIN_TIME_DIGIT_COUNT;
+    const lv_coord_t cell_w = HOME_MAIN_TIME_SEG_WIDTH / HOME_BASE_MAIN_TIME_DIGIT_COUNT;
     char digit_text[2] = {0};
 
-    for (int i = 0; i < HOME_MAIN_TIME_DIGIT_COUNT; i++) {
+    for (int i = 0; i < HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
         if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
             labels[i] = lv_label_create(parent);
             EXCEPTION_CHECK_VOID(labels[i]);
@@ -317,16 +329,20 @@ static void home_main_hint_shine_sync(home_base_ui_info_t *info)
         text_x - info->main.mask_x, text_y - HOME_MAIN_MASK_Y);
 }
 
-#if HOME_MAIN_HINT_SHINE_SOFT_ENABLE
-static lv_draw_buf_t *home_main_hint_mask_a8_from_rgba(const lv_draw_buf_t *rgba)
+#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
+/** 从预解码 TEXT_SHINE_MASK 生成 A8；宽高不足时居中裁切 */
+static lv_draw_buf_t *home_main_hint_mask_a8_from_rgba(const lv_draw_buf_t *rgba,
+    uint32_t dst_w, uint32_t dst_h)
 {
     lv_draw_buf_t *a8;
-    uint32_t w;
-    uint32_t h;
+    uint32_t src_w;
+    uint32_t src_h;
     uint32_t y;
     uint32_t x;
+    uint32_t y0;
+    uint32_t x0;
 
-    if (rgba == NULL || rgba->data == NULL) {
+    if (rgba == NULL || rgba->data == NULL || dst_w == 0U || dst_h == 0U) {
         return NULL;
     }
     if (rgba->header.cf != LV_COLOR_FORMAT_ARGB8888 &&
@@ -334,9 +350,13 @@ static lv_draw_buf_t *home_main_hint_mask_a8_from_rgba(const lv_draw_buf_t *rgba
         return NULL;
     }
 
-    w = rgba->header.w;
-    h = rgba->header.h;
-    a8 = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
+    src_w = rgba->header.w;
+    src_h = rgba->header.h;
+    if (src_w == 0U || src_h == 0U) {
+        return NULL;
+    }
+
+    a8 = lv_draw_buf_create(dst_w, dst_h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
     if (a8 == NULL || a8->data == NULL) {
         if (a8 != NULL) {
             lv_draw_buf_destroy(a8);
@@ -344,20 +364,27 @@ static lv_draw_buf_t *home_main_hint_mask_a8_from_rgba(const lv_draw_buf_t *rgba
         return NULL;
     }
 
-    for (y = 0; y < h; y++) {
+    x0 = (src_w > dst_w) ? ((src_w - dst_w) / 2U) : 0U;
+    y0 = (src_h > dst_h) ? ((src_h - dst_h) / 2U) : 0U;
+
+    for (y = 0; y < dst_h; y++) {
+        uint32_t sy = (y0 + y < src_h) ? (y0 + y) : (src_h - 1U);
         const lv_color32_t *src =
-            (const lv_color32_t *)(rgba->data + y * rgba->header.stride);
+            (const lv_color32_t *)(rgba->data + sy * rgba->header.stride);
         uint8_t *dst = a8->data + y * a8->header.stride;
-        for (x = 0; x < w; x++) {
-            uint32_t a = src[x].alpha;
-            /* 抛物线压两端：两侧更透、中间更亮，软边更明显 */
-            uint32_t edge = (x * (w - 1U - x) * 4U * 255U) / (w * w);
+        for (x = 0; x < dst_w; x++) {
+            uint32_t sx = (x0 + x < src_w) ? (x0 + x) : (src_w - 1U);
+            uint32_t a = src[sx].alpha;
+#if HOME_BASE_MAIN_HINT_SHINE_IS_SOFT
+            /* SOFT：再叠加抛物线，两端更透 */
+            uint32_t edge = (x * (dst_w - 1U - x) * 4U * 255U) / (dst_w * dst_w);
             if (edge > 255U) {
                 edge = 255U;
             }
             a = (a * edge) / 255U;
-            /* 再平方一次，拉大两端与中心的对比 */
             a = (a * a) / 255U;
+#endif
+            /* OVERLAY：直接使用 TEXT_SHINE_MASK 的 alpha */
             dst[x] = (uint8_t)a;
         }
     }
@@ -376,32 +403,26 @@ static void home_main_hint_mask_a8_release(home_base_ui_info_t *info)
     info->main.hint_mask_a8 = NULL;
 }
 
-static void home_main_hint_mask_a8_prepare(home_base_ui_info_t *info, lv_obj_t *parent)
+static void home_main_hint_mask_a8_prepare(home_base_ui_info_t *info)
 {
-    lv_obj_t *tmp_img;
     const lv_draw_buf_t *rgba;
 
     if (info->main.hint_mask_a8 != NULL) {
+        if (info->main.hint_mask != NULL && lv_obj_is_valid(info->main.hint_mask)) {
+            lv_obj_set_style_bitmap_mask_src(info->main.hint_mask, info->main.hint_mask_a8, 0);
+        }
         return;
     }
 
-    tmp_img = lv_image_create(parent);
-    EXCEPTION_CHECK_VOID(tmp_img);
-    lv_obj_add_flag(tmp_img, LV_OBJ_FLAG_HIDDEN);
-    if (ui_img_png_theme_set_src(info->ui, tmp_img, BASE_RES_ID_HOME_TEXT_MASK,
-            RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888) == 0) {
-        rgba = (const lv_draw_buf_t *)lv_image_get_src(tmp_img);
-        info->main.hint_mask_a8 = home_main_hint_mask_a8_from_rgba(rgba);
-    }
-    ui_img_png_release_decoded_buf(tmp_img);
-    lv_obj_delete(tmp_img);
-
+    rgba = get_predecoded_text_shine_mask();
+    info->main.hint_mask_a8 = home_main_hint_mask_a8_from_rgba(rgba,
+        HOME_MAIN_MASK_W, HOME_MAIN_MASK_H);
     if (info->main.hint_mask_a8 != NULL && info->main.hint_mask != NULL &&
         lv_obj_is_valid(info->main.hint_mask)) {
         lv_obj_set_style_bitmap_mask_src(info->main.hint_mask, info->main.hint_mask_a8, 0);
     }
 }
-#endif /* HOME_MAIN_HINT_SHINE_SOFT_ENABLE */
+#endif /* HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK */
 
 static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode)
 {
@@ -417,7 +438,7 @@ static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode)
         EXCEPTION_CHECK_VOID(info->main.hint_text);
         lv_obj_set_style_text_font(info->main.hint_text, &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_align(info->main.hint_text, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_letter_space(info->main.hint_text, 1, 0); // Figma 2%: 19 * 0.02 ≈ 0.38 → 1px
+        lv_obj_set_style_text_letter_space(info->main.hint_text, 0, 0); // Figma 2%: 19 * 0.02 ≈ 0.38 → 1px
     }
     lv_obj_set_style_text_color(info->main.hint_text, lv_color_hex(color), 0);
     lv_label_set_text(info->main.hint_text, HOME_MAIN_HINT_TEXT);
@@ -425,6 +446,7 @@ static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode)
     info->main.shown_hint_color = color;
 }
 
+/** 裁剪窗内亮色文案扫光；SOFT/OVERLAY 再用 TEXT_SHINE_MASK 做 A8 蒙层 */
 static void home_main_hint_mask_update(home_base_ui_info_t *info)
 {
     lv_obj_t *parent = home_page_parent_get(info);
@@ -456,12 +478,12 @@ static void home_main_hint_mask_update(home_base_ui_info_t *info)
         lv_obj_set_style_text_color(info->main.hint_shine, lv_color_hex(HOME_MAIN_HINT_SHINE_COLOR), 0);
         lv_obj_set_style_text_font(info->main.hint_shine, &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_align(info->main.hint_shine, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_letter_space(info->main.hint_shine, 1, 0);
+        lv_obj_set_style_text_letter_space(info->main.hint_shine, 0, 0);
     }
     lv_label_set_text(info->main.hint_shine, HOME_MAIN_HINT_TEXT);
 
-#if HOME_MAIN_HINT_SHINE_SOFT_ENABLE
-    home_main_hint_mask_a8_prepare(info, parent);
+#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
+    home_main_hint_mask_a8_prepare(info);
 #endif
 
     lv_obj_align(info->main.hint_mask, LV_ALIGN_TOP_LEFT, info->main.mask_x, HOME_MAIN_MASK_Y);
@@ -558,7 +580,7 @@ static void home_main_level_label_update(lv_obj_t **label, lv_obj_t *parent, con
         lv_obj_set_style_text_color(*label, lv_color_hex(HOME_MAIN_LEVEL_COLOR), 0);
         lv_obj_set_style_text_font(*label, &lv_font_aeonik_soft_26_medium, 0);
         lv_obj_set_style_text_align(*label, align, 0);
-        lv_obj_set_style_text_letter_space(*label, 4, 0); // Figma 16%: 26 * 0.16 ≈ 4.16 → 4px
+        lv_obj_set_style_text_letter_space(*label, 3, 0); // Figma 16%: 26 * 0.16 ≈ 4.16 → 4px
     }
     if (*shown_level == level && force == false) {
         return;
@@ -575,8 +597,18 @@ static void home_main_level_label_update(lv_obj_t **label, lv_obj_t *parent, con
 */
 void home_main_page_ui_build(home_base_ui_info_t *info)
 {
+    lv_obj_t *parent;
+    const uint8_t mode = info->mode.new_index;
+#if IS_SUPPORT_BASE_HOME_COMP_BG
+    const uint8_t left_level = 9;
+    const uint8_t right_level = 13;
+#else
+    const uint8_t left_level = info->level.left;
+    const uint8_t right_level = info->level.right;
+#endif
+
     EXCEPTION_CHECK_VOID(info);
-#if HOME_MAIN_HINT_SHINE_SOFT_ENABLE
+#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
     home_main_hint_mask_a8_release(info);
 #endif
     memset(&info->main, 0, sizeof(info->main));
@@ -588,6 +620,23 @@ void home_main_page_ui_build(home_base_ui_info_t *info)
     info->main.shown_minutes = 0xFF;
     info->main.shown_seconds = 0xFF;
     info->animation.paused_by_transition = 0;
+
+    parent = home_page_parent_get(info);
+    EXCEPTION_CHECK_VOID(parent);
+    /* peer 入场页需一次铺齐主页控件，避免动画中只见背景/标题 */
+#if (IS_SUPPORT_BASE_HOME_COMP_BG == 0)
+    home_main_bg_update(info, mode);
+#endif
+    home_main_mode_title_update(info, mode);
+    home_main_time_update(info, 0, 0);
+    home_main_hint_update(info, mode);
+    home_main_speed_update(info, 0);
+    home_main_level_label_update(&info->main.left_level, parent, "L",
+        left_level, HOME_MAIN_LEFT_LEVEL_X, HOME_MAIN_LEFT_LEVEL_Y, HOME_MAIN_LEFT_LEVEL_W,
+        LV_TEXT_ALIGN_RIGHT, &info->main.shown_left_level, true);
+    home_main_level_label_update(&info->main.right_level, parent, "R",
+        right_level, HOME_MAIN_RIGHT_LEVEL_X, HOME_MAIN_RIGHT_LEVEL_Y, HOME_MAIN_RIGHT_LEVEL_W,
+        LV_TEXT_ALIGN_LEFT, &info->main.shown_right_level, true);
 }
 
 void home_main_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
@@ -605,6 +654,7 @@ void home_main_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
     pump_setting_t setting;
     READ_PUMP_SETTING_INFO(proc->pump, 0, setting);
     speed = setting.speed;
+
     #if (IS_SUPPORT_BASE_HOME_COMP_BG == 0)
     home_main_bg_update(info, mode);
     #endif
@@ -619,6 +669,10 @@ void home_main_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
     home_main_level_label_update(&info->main.right_level, home_page_parent_get(info), "R",
         right_level, HOME_MAIN_RIGHT_LEVEL_X, HOME_MAIN_RIGHT_LEVEL_Y, HOME_MAIN_RIGHT_LEVEL_W,
         LV_TEXT_ALIGN_LEFT, &info->main.shown_right_level, info->force_update != 0);
+
+    if (!home_page_ui_is_transitioning(info)) {
+        home_main_page_transition_apply(info, HOME_MAIN_SCALE_FULL, HOME_MAIN_SCALE_FULL, false);
+    }
 }
 
 void home_main_page_ui_remove(home_base_ui_info_t *info)
@@ -627,8 +681,32 @@ void home_main_page_ui_remove(home_base_ui_info_t *info)
     home_main_bg_detach(info);
     ui_img_baj_release_decoded_buf(info->main.time_colon);
     ui_img_baj_release_decoded_buf(info->main.speed_icon);
-#if HOME_MAIN_HINT_SHINE_SOFT_ENABLE
+#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
     home_main_hint_mask_a8_release(info);
 #endif
     memset(&info->main, 0, sizeof(info->main));
+}
+
+void home_main_page_transition_apply(home_base_ui_info_t *info, int32_t hero_scale,
+    int32_t bg_scale, bool transitioning)
+{
+    EXCEPTION_CHECK_VOID(info);
+    (void)hero_scale;
+    (void)bg_scale;
+    (void)transitioning;
+
+    /* page0 不缩放，仅随 page 容器位移；保持原背景与控件 */
+    if (info->main.bg != NULL && lv_obj_is_valid(info->main.bg)) {
+        lv_obj_clear_flag(info->main.bg, LV_OBJ_FLAG_HIDDEN);
+        home_main_obj_scale_set(info->main.bg, HOME_MAIN_SCALE_FULL);
+    }
+    home_main_obj_scale_set(info->main.mode_title, HOME_MAIN_SCALE_FULL);
+    {
+        uint8_t i;
+        for (i = 0; i < HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
+            home_main_obj_scale_set(info->main.time_m[i], HOME_MAIN_SCALE_FULL);
+            home_main_obj_scale_set(info->main.time_s[i], HOME_MAIN_SCALE_FULL);
+        }
+    }
+    home_main_obj_scale_set(info->main.time_colon, HOME_MAIN_SCALE_FULL);
 }

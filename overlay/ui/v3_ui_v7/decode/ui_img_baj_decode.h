@@ -52,6 +52,20 @@ int ui_img_baj_set_src(lv_obj_t *obj, const uint8_t *baj_data, size_t baj_size,
 int ui_img_baj_theme_set_src(ui_manager_context_t *thiz, lv_obj_t *obj, uint16_t resource_id,
                                       res_theme_type_e theme_type, ui_img_baj_decode_fmt_e fmt);
 
+/**
+ * 将 BAJ buffer 解码为 draw_buf（由调用方持有，长期缓存时勿 destroy）。
+ * 失败返回 NULL。
+ */
+lv_draw_buf_t *ui_img_baj_decode_draw_buf(const uint8_t *baj_data, size_t baj_size,
+    ui_img_baj_decode_fmt_e fmt);
+
+/**
+ * 从主题资源加载 BAJ 并解码为 draw_buf（由调用方持有，长期缓存时勿 destroy）。
+ * 失败返回 NULL。
+ */
+lv_draw_buf_t *ui_img_baj_theme_decode_draw_buf(ui_manager_context_t *thiz, uint16_t resource_id,
+    res_theme_type_e theme_type, ui_img_baj_decode_fmt_e fmt);
+
 #ifdef __cplusplus
 }
 #endif

@@ -208,20 +208,7 @@ static void system_abnormal_ui_bg_update(ui_manager_context_t *thiz)
 #else
 static void system_abnormal_ui_bg_update(ui_manager_context_t *thiz)
 {
-    #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
-    EXCEPTION_CHECK_VOID(background_snapshot);
-    #endif
-    if (s_abnormal_info->background == NULL || !lv_obj_is_valid(s_abnormal_info->background)) {
-        s_abnormal_info->background = lv_image_create(s_abnormal_info->root);
-        EXCEPTION_CHECK_VOID(s_abnormal_info->background);
-        lv_obj_align(s_abnormal_info->background, LV_ALIGN_CENTER, 0, 0);
-        #if LV_USE_SNAPSHOT
-        lv_image_set_src(s_abnormal_info->background, background_snapshot);
-        #else
-        lv_obj_add_flag(s_abnormal_info->background, LV_OBJ_FLAG_HIDDEN);
-        #endif
-    }
+
 }
 #endif
 

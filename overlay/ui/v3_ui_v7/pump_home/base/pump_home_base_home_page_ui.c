@@ -11,6 +11,7 @@
 *****************************************************************************************
 */
 #define PUMP_HOME_MAIN_SCREEN_W                         (360)
+#define PUMP_HOME_MAIN_SCALE_FULL                       (256)
 
 #define PUMP_HOME_MAIN_MODE_TITLE_Y                     (64 + 4)
 #if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
@@ -22,11 +23,11 @@
 /// 相对 home 主页时间上移 14
 #define PUMP_HOME_MAIN_TIME_SEG_WIDTH                   (88)
 #define PUMP_HOME_MAIN_TIME_M_X                         (75 + 4)
-#define PUMP_HOME_MAIN_TIME_M_Y                         (124 + 4)
+#define PUMP_HOME_MAIN_TIME_M_Y                         (122 + 4)
 #define PUMP_HOME_MAIN_TIME_S_X                         (189 + 4)
 #define PUMP_HOME_MAIN_TIME_S_Y                         (PUMP_HOME_MAIN_TIME_M_Y)
 #define PUMP_HOME_MAIN_TIME_COLON_X                     (0)
-#define PUMP_HOME_MAIN_TIME_COLON_Y                     (120 + 4)
+#define PUMP_HOME_MAIN_TIME_COLON_Y                     (128 + 4)
 #if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
 #define PUMP_HOME_MAIN_TIME_COLOR                       (0x00FF00)
 #else
@@ -43,10 +44,10 @@
 #endif
 #define PUMP_HOME_MAIN_SPEED_ICON_VALUE_GAP             (6)
 
-#define PUMP_HOME_MAIN_LEFT_LEVEL_X                     (72 + 4)
+#define PUMP_HOME_MAIN_LEFT_LEVEL_X                     (68 + 4)
 #define PUMP_HOME_MAIN_LEFT_LEVEL_Y                     (267 + 4)
 #define PUMP_HOME_MAIN_LEFT_LEVEL_W                     (58)
-#define PUMP_HOME_MAIN_RIGHT_LEVEL_X                    (222 + 4)
+#define PUMP_HOME_MAIN_RIGHT_LEVEL_X                    (227 + 4)
 #define PUMP_HOME_MAIN_RIGHT_LEVEL_Y                    (PUMP_HOME_MAIN_LEFT_LEVEL_Y)
 #define PUMP_HOME_MAIN_RIGHT_LEVEL_W                    (58)
 #if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
@@ -152,6 +153,17 @@ static void pump_home_main_obj_flag_set(lv_obj_t *obj, bool visible)
     }
 }
 
+static void pump_home_main_obj_scale_set(lv_obj_t *obj, int32_t scale)
+{
+    if (obj == NULL || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    lv_obj_update_layout(obj);
+    lv_obj_set_style_transform_pivot_x(obj, lv_obj_get_width(obj) / 2, 0);
+    lv_obj_set_style_transform_pivot_y(obj, lv_obj_get_height(obj) / 2, 0);
+    lv_obj_set_style_transform_scale(obj, scale, 0);
+}
+
 static void pump_home_main_bg_detach(pump_home_base_ui_info_t *info)
 {
     if (info->main.bg == NULL || !lv_obj_is_valid(info->main.bg)) {
@@ -208,7 +220,7 @@ static void pump_home_main_mode_title_update(pump_home_base_ui_info_t *info, uin
         lv_obj_set_style_text_color(info->main.mode_title, lv_color_hex(PUMP_HOME_MAIN_MODE_TITLE_COLOR), 0);
         lv_obj_set_style_text_font(info->main.mode_title, &lv_font_aeonik_soft_26_medium, 0);
         lv_obj_set_style_text_align(info->main.mode_title, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_letter_space(info->main.mode_title, 1, 0);
+        lv_obj_set_style_text_letter_space(info->main.mode_title, 0, 0);
     }
 
     if (strncmp(info->main.shown_title, title, sizeof(info->main.shown_title)) == 0 &&
@@ -221,13 +233,13 @@ static void pump_home_main_mode_title_update(pump_home_base_ui_info_t *info, uin
     info->main.shown_title[sizeof(info->main.shown_title) - 1] = '\0';
 }
 
-static void pump_home_main_time_pair_update(lv_obj_t *labels[PUMP_HOME_MAIN_TIME_DIGIT_COUNT],
+static void pump_home_main_time_pair_update(lv_obj_t *labels[PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT],
     lv_obj_t *parent, uint8_t value, lv_coord_t seg_x, lv_coord_t seg_y)
 {
-    const lv_coord_t cell_w = PUMP_HOME_MAIN_TIME_SEG_WIDTH / PUMP_HOME_MAIN_TIME_DIGIT_COUNT;
+    const lv_coord_t cell_w = PUMP_HOME_MAIN_TIME_SEG_WIDTH / PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT;
     char digit_text[2] = {0};
 
-    for (int i = 0; i < PUMP_HOME_MAIN_TIME_DIGIT_COUNT; i++) {
+    for (int i = 0; i < PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
         if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
             labels[i] = lv_label_create(parent);
             EXCEPTION_CHECK_VOID(labels[i]);
@@ -290,7 +302,7 @@ static void pump_home_main_time_visibility_set(pump_home_base_ui_info_t *info, b
 {
     int i;
 
-    for (i = 0; i < PUMP_HOME_MAIN_TIME_DIGIT_COUNT; i++) {
+    for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
         pump_home_main_obj_flag_set(info->main.time_m[i], visible);
         pump_home_main_obj_flag_set(info->main.time_s[i], visible);
     }
@@ -516,7 +528,7 @@ static void pump_home_main_level_label_update(lv_obj_t **label, lv_obj_t *parent
         lv_obj_set_style_text_color(*label, lv_color_hex(PUMP_HOME_MAIN_LEVEL_COLOR), 0);
         lv_obj_set_style_text_font(*label, &lv_font_aeonik_soft_26_medium, 0);
         lv_obj_set_style_text_align(*label, align, 0);
-        lv_obj_set_style_text_letter_space(*label, 4, 0);
+        lv_obj_set_style_text_letter_space(*label, 3, 0);
     }
     if (*shown_level == level && force == false) {
         return;
@@ -599,6 +611,11 @@ void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
         PUMP_HOME_MAIN_RIGHT_LEVEL_W, LV_TEXT_ALIGN_LEFT, &info->main.shown_right_level,
         info->force_update != 0);
     info->main.shown_paused = paused ? 1 : 0;
+
+    if (!pump_home_page_ui_is_transitioning(info)) {
+        pump_home_main_page_transition_apply(info, PUMP_HOME_MAIN_SCALE_FULL,
+            PUMP_HOME_MAIN_SCALE_FULL, false);
+    }
 }
 
 void pump_home_main_page_ui_remove(pump_home_base_ui_info_t *info)
@@ -609,4 +626,28 @@ void pump_home_main_page_ui_remove(pump_home_base_ui_info_t *info)
     ui_img_baj_release_decoded_buf(info->main.play_icon);
     ui_img_baj_release_decoded_buf(info->main.speed_icon);
     memset(&info->main, 0, sizeof(info->main));
+}
+
+void pump_home_main_page_transition_apply(pump_home_base_ui_info_t *info, int32_t hero_scale,
+    int32_t bg_scale, bool transitioning)
+{
+    EXCEPTION_CHECK_VOID(info);
+    (void)hero_scale;
+    (void)bg_scale;
+    (void)transitioning;
+
+    /* page0 不缩放，仅随 page 容器位移；保持原背景与控件 */
+    if (info->main.bg != NULL && lv_obj_is_valid(info->main.bg)) {
+        lv_obj_clear_flag(info->main.bg, LV_OBJ_FLAG_HIDDEN);
+        pump_home_main_obj_scale_set(info->main.bg, PUMP_HOME_MAIN_SCALE_FULL);
+    }
+    pump_home_main_obj_scale_set(info->main.mode_title, PUMP_HOME_MAIN_SCALE_FULL);
+    {
+        uint8_t i;
+        for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
+            pump_home_main_obj_scale_set(info->main.time_m[i], PUMP_HOME_MAIN_SCALE_FULL);
+            pump_home_main_obj_scale_set(info->main.time_s[i], PUMP_HOME_MAIN_SCALE_FULL);
+        }
+    }
+    pump_home_main_obj_scale_set(info->main.time_colon, PUMP_HOME_MAIN_SCALE_FULL);
 }
