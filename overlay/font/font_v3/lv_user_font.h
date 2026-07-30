@@ -16,8 +16,10 @@ extern "C" {
 #include "lv_font_aeonik_soft_28.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_29.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_32.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_33.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_36.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_48.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_56.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_69.h" // IWYU pragma: keep
 
 /* 字体包头 */
