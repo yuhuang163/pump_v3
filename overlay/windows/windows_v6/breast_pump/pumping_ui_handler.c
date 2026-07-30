@@ -41,11 +41,6 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 0);
             pump_complete_event_handler(proc);
             break;
-        case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
-            break;
-        case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
-            pump_complete_event_handler(proc);
-            break;
         default:
             break;
     }

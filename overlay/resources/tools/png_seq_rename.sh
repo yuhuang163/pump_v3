@@ -13,6 +13,14 @@
 #   PREFIX       新文件名前缀（如 X、C、S），生成格式: {PREFIX}_{5位序号}.{原扩展名}
 #   --dry-run    可选：仅预览，不实际改名
 
+# 禁止 source/. 执行：脚本内 exit / set -e 会关掉或污染当前交互 shell（表现为“闪退”）
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    echo "Error: 请用 bash 或 ./ 执行本脚本，不要用 source 或 '.'" >&2
+    echo "  正确: ./tools/png_seq_rename.sh <TARGET_DIR> <PREFIX> [--dry-run]" >&2
+    echo "  错误: . tools/png_seq_rename.sh ..." >&2
+    return 1
+fi
+
 set -euo pipefail
 
 usage() {
@@ -83,6 +91,13 @@ fi
 
 if [ ! -d "$TARGET_DIR" ]; then
     echo "Error: 目录不存在: $TARGET_DIR"
+    exit 1
+fi
+
+if [[ "$PREFIX" == */* ]]; then
+    echo "Error: 第二个参数是 PREFIX（如 S、X、C），不是输出目录"
+    echo "  本脚本在 TARGET_DIR 内原地改名，格式: {PREFIX}_00000.png"
+    echo "  示例: $0 v3_res_v7/base/animation/stimulation/png S"
     exit 1
 fi
 

@@ -12,6 +12,8 @@
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_RHYTHM_CONFIRM_COMP_BG               (0) /// 是否启用对比背景图
+
 #define RHYTHM_CONFIRM_ICON_Y                           (89)
 #define RHYTHM_CONFIRM_TITLE_Y                          (198)
 #define RHYTHM_CONFIRM_SUBTITLE_Y                       (239)
@@ -74,6 +76,9 @@
 
 typedef struct {
     lv_obj_t *root;
+#if IS_SUPPORT_RHYTHM_CONFIRM_COMP_BG
+    lv_obj_t *background;
+#endif
     lv_obj_t *icon;
     lv_obj_t *title;
     lv_obj_t *subtitle;
@@ -94,13 +99,13 @@ typedef struct {
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-static rhythm_confirm_ui_info_t *confirm_info;
-
-#if RHYTHM_CONFIRM_TIP_FROM_CODE
-static PSRAM_NC_DATA_LOC uint8_t rhythm_confirm_tip_data[] = {
-    #include "font_img/txt/mode_select_tip_212x50.txt"
+#if IS_SUPPORT_RHYTHM_CONFIRM_COMP_BG
+static PSRAM_NC_DATA_LOC uint8_t rhythm_confirm_bg_data[] = {
+    #include "comparison_png2txt/pump_home_22_352x352.txt"
 };
 #endif
+
+static rhythm_confirm_ui_info_t *confirm_info;
 
 /** 提示文案预解码缓存（本模块持有，页面侧勿 destroy） */
 static lv_draw_buf_t *s_rhythm_confirm_tip_predecoded = NULL;
@@ -123,6 +128,41 @@ static void rhythm_confirm_root_init(void)
     lv_obj_clear_flag(confirm_info->root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(confirm_info->root, LV_OBJ_FLAG_SCROLLABLE);
 }
+
+#if IS_SUPPORT_RHYTHM_CONFIRM_COMP_BG
+static void rhythm_confirm_bg_update(ui_manager_context_t *thiz)
+{
+    static uint32_t start_time = 0;
+    static uint8_t status = 0;
+
+    (void)thiz;
+    if (confirm_info->background == NULL || !lv_obj_is_valid(confirm_info->background)) {
+        confirm_info->background = lv_image_create(confirm_info->root);
+        EXCEPTION_CHECK_VOID(confirm_info->background);
+        lv_obj_move_background(confirm_info->background);
+    }
+    if (status == 0) {
+        lv_obj_add_flag(confirm_info->background, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_fs_path_ex_t bg_img_path;
+        lv_obj_clear_flag(confirm_info->background, LV_OBJ_FLAG_HIDDEN);
+        lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, rhythm_confirm_bg_data,
+            sizeof(rhythm_confirm_bg_data), "png");
+        lv_image_set_src(confirm_info->background, (const void *)&bg_img_path);
+        lv_obj_align(confirm_info->background, LV_ALIGN_CENTER, 0, 0);
+    }
+
+    if (get_timestamp() - start_time > 1000) {
+        start_time = get_timestamp();
+        status = (status == 0) ? 1 : 0;
+    }
+}
+#else
+static void rhythm_confirm_bg_update(ui_manager_context_t *thiz)
+{
+    (void)thiz;
+}
+#endif
 
 static void rhythm_confirm_icon_update(ui_manager_context_t *thiz)
 {
@@ -181,8 +221,14 @@ static lv_draw_buf_t *rhythm_confirm_tip_predecode(ui_manager_context_t *ui)
     }
 #if RHYTHM_CONFIRM_TIP_FROM_CODE
     (void)ui;
-    s_rhythm_confirm_tip_predecoded = ui_img_png_decode_draw_buf(rhythm_confirm_tip_data,
-        sizeof(rhythm_confirm_tip_data), UI_IMG_PNG_DECODE_RGBA8888);
+    {
+        const ui_img_data_t *tip = ui_font_img_mode_select_tip_get();
+        if (tip == NULL || tip->data == NULL || tip->size == 0U) {
+            return NULL;
+        }
+        s_rhythm_confirm_tip_predecoded = ui_img_png_decode_draw_buf(tip->data, tip->size,
+            UI_IMG_PNG_DECODE_RGBA8888);
+    }
 #else
     if (ui == NULL) {
         return NULL;
@@ -449,6 +495,7 @@ void ui_display_rhythm_confirm_remove(ui_manager_context_t *thiz)
 int ui_display_rhythm_confirm_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && confirm_info && confirm_info->root);
+    rhythm_confirm_bg_update(thiz);
     rhythm_confirm_icon_update(thiz);
     rhythm_confirm_title_update();
     rhythm_confirm_subtitle_update();

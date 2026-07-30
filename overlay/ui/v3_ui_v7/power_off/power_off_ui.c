@@ -11,14 +11,17 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_POWER_OFF_COMP_BG            (0)
-#define PROGRESS_ARC_SIZE                       (48)    /* 直径（原80缩小20%） */
-#define PROGRESS_ARC_WIDTH                      (4)    /* 圆弧线宽（原4加粗50%） */
-#define PROGRESS_ARC_BG_COLOR                   (0xFFFFFF)    /* 背景圆弧颜色：黑色 */
-#define PROGRESS_ARC_BG_OPA                     (38)        /* 背景圆弧透明度 15%（255*15/100≈38） */
-#define PROGRESS_ARC_COLOR                      (0xBD4060)    /* 圆弧颜色：粉色 */
+#define PROGRESS_ARC_SIZE                       (50)    /* 直径（原80缩小20%） */
+#define PROGRESS_ARC_WIDTH                      (5)    /* 圆弧线宽（原4加粗50%） */
+#define PROGRESS_ARC_BG_COLOR                   (0x262626)    /* 背景圆弧颜色：黑色 */
+#define PROGRESS_ARC_COLOR                      (0xFFFFFFF)    /* 圆弧颜色：粉色 */
 #define PROGRESS_ARC_LOOP_MS_PER_DEG            (3)    /* ms per degree，越小转得越快（原15约5.4s/圈，现约2.2s/圈） */
 #define PROGRESS_ARC_ANGLE_SPAN                 (90)   /* 25% of 360 */
-#define PROGRESS_ARC_TEXT_COLOR                 (0x767676)    /* 圆弧颜色：粉色 */
+#define PROGRESS_ARC_TEXT_COLOR                 (0xFFFFFF)    /* 圆弧颜色：粉色 */
+#define PROGRESS_ARC_TEXT_LINE_SPACE            (8)           /* 多行文案行间距 */
+
+#define POWER_OFF_TEXT_POWERING_OFF_STR         "Powering off..."
+#define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR        "Auto shut off in\nprogress"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -99,8 +102,17 @@ static void ui_power_off_bg_update(ui_manager_context_t *thiz)
 }
 #endif
 
-static void ui_power_off_update(ui_manager_context_t *thiz)
+static const char *ui_power_off_text_get(power_off_text_type_e text_type)
 {
+    if (text_type == POWER_OFF_TEXT_AUTO_SHUT_OFF) {
+        return POWER_OFF_TEXT_AUTO_SHUT_OFF_STR;
+    }
+    return POWER_OFF_TEXT_POWERING_OFF_STR;
+}
+
+static void ui_power_off_update(ui_manager_context_t *thiz, power_off_text_type_e text_type)
+{
+    (void)thiz;
     if (ui_info->progress_arc == NULL || !lv_obj_is_valid(ui_info->progress_arc)) {
         ui_info->progress_arc = lv_arc_create(ui_info->root);
         EXCEPTION_CHECK_VOID(ui_info->progress_arc);
@@ -110,11 +122,11 @@ static void ui_power_off_update(ui_manager_context_t *thiz)
     lv_arc_set_bg_angles(ui_info->progress_arc, 0, 360);
     lv_obj_set_style_arc_color(ui_info->progress_arc, lv_color_hex(PROGRESS_ARC_BG_COLOR), LV_PART_MAIN);
     lv_obj_set_style_arc_width(ui_info->progress_arc, PROGRESS_ARC_WIDTH, LV_PART_MAIN);
-    lv_obj_set_style_arc_opa(ui_info->progress_arc, PROGRESS_ARC_BG_OPA, LV_PART_MAIN);
+    lv_obj_set_style_arc_opa(ui_info->progress_arc, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_arc_color(ui_info->progress_arc, lv_color_hex(PROGRESS_ARC_COLOR), LV_PART_INDICATOR);
     lv_obj_set_style_arc_width(ui_info->progress_arc, PROGRESS_ARC_WIDTH, LV_PART_INDICATOR);
     lv_obj_set_style_arc_opa(ui_info->progress_arc, LV_OPA_COVER, LV_PART_INDICATOR);
-    lv_obj_align(ui_info->progress_arc, LV_ALIGN_TOP_MID, 0, 134);
+    lv_obj_align(ui_info->progress_arc, LV_ALIGN_TOP_MID, 0, 121);
     lv_obj_remove_style(ui_info->progress_arc, NULL, LV_PART_KNOB);
     if (ui_info->start_time == 0) {
         ui_info->start_time = get_timestamp();
@@ -124,12 +136,13 @@ static void ui_power_off_update(ui_manager_context_t *thiz)
         ui_info->label_text = lv_label_create(ui_info->root);
         EXCEPTION_CHECK_VOID(ui_info->label_text);
     }
-    
-    lv_label_set_text(ui_info->label_text, "Powering off...");
-    lv_obj_set_style_text_font(ui_info->label_text, &lv_font_aeonik_soft_19_medium, 0);
+
+    lv_label_set_text(ui_info->label_text, ui_power_off_text_get(text_type));
+    lv_obj_set_style_text_font(ui_info->label_text, &lv_font_aeonik_soft_29_medium, 0);
     lv_obj_set_style_text_color(ui_info->label_text, lv_color_hex(PROGRESS_ARC_TEXT_COLOR), 0);
-    lv_obj_set_style_text_line_space(ui_info->label_text, 9, 0);  /* line height 24px (font ~13 + 11) */
-    lv_obj_align_to(ui_info->label_text, ui_info->progress_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
+    lv_obj_set_style_text_align(ui_info->label_text, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_line_space(ui_info->label_text, PROGRESS_ARC_TEXT_LINE_SPACE, 0);
+    lv_obj_align_to(ui_info->label_text, ui_info->progress_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 24);
     uint32_t elapsed = get_timestamp() - ui_info->start_time;
     uint16_t start_angle = (uint16_t)((elapsed / PROGRESS_ARC_LOOP_MS_PER_DEG) % 360);
     uint16_t end_angle = start_angle + PROGRESS_ARC_ANGLE_SPAN;
@@ -163,13 +176,13 @@ void ui_display_power_off_remove(ui_manager_context_t *thiz)
     ui_info = NULL;
 }
 
-int ui_display_power_off_process(ui_manager_context_t *thiz)
+int ui_display_power_off_process(ui_manager_context_t *thiz, power_off_text_type_e text_type)
 {
     EXCEPTION_CHECK_INT(thiz);
     EXCEPTION_CHECK_INT(ui_info);
     EXCEPTION_CHECK_INT(ui_info->root);
     ui_power_off_bg_update(thiz);
-    ui_power_off_update(thiz);
+    ui_power_off_update(thiz, text_type);
     ui_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

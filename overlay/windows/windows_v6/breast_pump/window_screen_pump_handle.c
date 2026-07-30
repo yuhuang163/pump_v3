@@ -13,11 +13,13 @@
 */
 #define PAGE_STATIC_NAME                    pump
 #define PAGE_NAME_STR                       "pump"
-#define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE)
-#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP)
+/** 含 L+R 组合键（KEY_CODE_FACTORY_RESET）以进入双边力度调节 */
+#define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_FACTORY_RESET)
+#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
 #define PUMP_COMPLETE_TASK_NAME             "pump_complete"
 #define PUMP_BROADCAST_TASK_NAME            "pump_broadcast"
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME "pump_settings_success_display"
+#define PUMP_STOP_HOLD_COMPLETE_TASK_NAME   "pump_stop_hold_complete"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -25,6 +27,7 @@ do { \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_COMPLETE_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_BROADCAST_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_STOP_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -78,19 +81,36 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
 
 static void pump_mode_key_event_cb(ui_proc_pump_t *proc, uint8_t mode_index)
 {
-    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
-        LOG_WM("ignore mode key, ui_type:%d", proc->current_ui_type);
-        return;
-    }
+    // if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
+    //     LOG_WM("ignore mode key, ui_type:%d", proc->current_ui_type);
+    //     return;
+    // }
     show_pump_settings_success_ui(proc);
     pump_mode_set_handler(proc, mode_index);
 }
 
 static void pump_knob_left_event_cb(ui_proc_pump_t *proc)
 {
+    if (proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD) {
+        pump_stop_hold_dismiss(proc);
+        return;
+    }
     if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
-        proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
+        proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
+        proc->current_ui_type == PUMP_UI_TYPE_TIMEOUT) {
         show_pump_home_ui(proc);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_LEVEL_ADJUST) {
+        pump_level_adjust_handler(proc, false);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL_ADJUST) {
+        pump_both_level_adjust_handler(proc, false);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_SPEED_ADJUST) {
+        pump_speed_adjust_handler(proc, false);
         return;
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
@@ -100,9 +120,26 @@ static void pump_knob_left_event_cb(ui_proc_pump_t *proc)
 
 static void pump_knob_right_event_cb(ui_proc_pump_t *proc)
 {
+    if (proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD) {
+        pump_stop_hold_dismiss(proc);
+        return;
+    }
     if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
-        proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
+        proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
+        proc->current_ui_type == PUMP_UI_TYPE_TIMEOUT) {
         show_pump_home_ui(proc);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_LEVEL_ADJUST) {
+        pump_level_adjust_handler(proc, true);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL_ADJUST) {
+        pump_both_level_adjust_handler(proc, true);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_SPEED_ADJUST) {
+        pump_speed_adjust_handler(proc, true);
         return;
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
@@ -112,6 +149,11 @@ static void pump_knob_right_event_cb(ui_proc_pump_t *proc)
 
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
+    if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
+        LOG_WM("pump will finish ui, ignore key event.");
+        return;
+    }
+
     if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
         proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
         proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER) {
@@ -119,23 +161,37 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
         return;
     }
 
-    /* 成功页/确认页仅限制 start，其它按键正常响应（与 home 一致） */
+    /* 成功页/确认页/超时页/停止确认页/力度调节页/速度调节页仅限制 start，其它按键正常响应（与 home 一致） */
     if ((proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
-         proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) &&
+         proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
+         proc->current_ui_type == PUMP_UI_TYPE_TIMEOUT ||
+         proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ||
+         proc->current_ui_type == PUMP_UI_TYPE_LEVEL_ADJUST ||
+         proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL_ADJUST ||
+         proc->current_ui_type == PUMP_UI_TYPE_SPEED_ADJUST) &&
         keycode == KEY_CODE_START) {
-        LOG_WM("settings/confirm ui, ignore start key.");
+        LOG_WM("settings/confirm/timeout/stop-hold/level-adjust/speed-adjust ui, ignore start key.");
         return;
     }
 
     LOG_WM("click keycode: %d, popup ui type:%d.", keycode, proc->popup_ui_type);
     switch (keycode) {
         case KEY_CODE_STIMULATION_MODE:
+            if (proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD) {
+                pump_stop_hold_dismiss(proc);
+                break;
+            }
             pump_mode_key_event_cb(proc, BREAST_PUMP_STIMULATION_MODE);
             break;
         case KEY_CODE_LACTATION_MODE:
+            if (proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD) {
+                pump_stop_hold_dismiss(proc);
+                break;
+            }
             pump_mode_key_event_cb(proc, BREAST_PUMP_LACTATION_MODE);
             break;
         case KEY_CODE_FREQUENCY:
+            show_pump_speed_adjust_ui(proc);
             break;
         case KEY_CODE_POWER:
             pump_power_key_event_handler(proc);
@@ -144,7 +200,18 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
             pump_start_key_event_handler(proc);
             break;
         case KEY_CODE_RIGHT_CONTROL:
+            if (proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST) {
+                show_pump_level_adjust_ui(proc, false);
+            }
+            break;
         case KEY_CODE_LEFT_CONTROL:
+            if (proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST) {
+                show_pump_level_adjust_ui(proc, true);
+            }
+            break;
+        case KEY_CODE_FACTORY_RESET:
+            /* 同时短按 L+R → 双边力度调节 */
+            show_pump_both_level_adjust_ui(proc);
             break;
         case KEY_CODE_KNOB_LEFT:
             pump_knob_left_event_cb(proc);
@@ -163,7 +230,15 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
-    if (keytype == KEY_EVENT_CLICK) {
+    if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
+        LOG_WM("pump will finish ui, ignore key event. type:%d code:%d", keytype, keycode);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
+        pump_stop_hold_key_long_2s_handler(proc);
+    } else if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
+        pump_stop_hold_key_up_handler(proc);
+    } else if (keytype == KEY_EVENT_CLICK) {
         pump_click_event_cb(proc, keycode);
     }
     return 0;
@@ -222,11 +297,11 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
             } else if (state == BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST) {
                 pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_TIMEOUT);
             } else if (state == BREAST_PUMP_BROADCAST_RUNNING_30M_TIP) {
-                pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_RUNING_30M_TIP);
+                // show_pump_timeout_ui(proc);
             } else if (state == BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH_TIP) {
                 if (PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
-                    pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_WILL_FINISH_TIP);
-                    LOG_WM("pump will finish tip, post pump will finish tip task.");
+                    show_pump_will_finish_ui(proc);
+                    LOG_WM("pump will finish tip, show will finish ui.");
                 } else {
                     LOG_WM("pump will finish tip, not in breastfeeding mode, ignore.");
                 }

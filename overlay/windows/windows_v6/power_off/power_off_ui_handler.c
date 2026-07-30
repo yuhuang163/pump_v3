@@ -31,7 +31,7 @@ static void power_off_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_power_off_t *proc = (ui_proc_power_off_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
-    ui_display_power_off_process(ui);
+    ui_display_power_off_process(ui, POWER_OFF_TEXT_POWERING_OFF);
 }
 
 static void power_off_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)

@@ -23,7 +23,7 @@ abcdefghijklmnopqrstuvwxyz --format lvgl -o lv_font_aeonik_soft_36_medium.c
 
 
 #ifndef LV_FONT_AEONIK_SOFT_36_MEDIUM
-#define LV_FONT_AEONIK_SOFT_36_MEDIUM 1
+#define LV_FONT_AEONIK_SOFT_36_MEDIUM 0
 #endif
 
 #if LV_FONT_AEONIK_SOFT_36_MEDIUM

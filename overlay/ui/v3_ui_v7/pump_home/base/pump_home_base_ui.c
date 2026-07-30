@@ -21,8 +21,8 @@
 */
 #if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
 static PSRAM_NC_DATA_LOC uint8_t pump_home_bg_data[] = {
-    // #include "comparison_png2txt/pump_home_20_352x352.txt"
-    #include "comparison_png2txt/pump_home_21_352x352.txt"
+    #include "comparison_png2txt/pump_home_20_352x352.txt"
+    // #include "comparison_png2txt/pump_home_21_352x352.txt"
 };
 #endif
 
@@ -80,9 +80,6 @@ static void pump_home_root_bg_update(ui_manager_context_t *thiz)
 {
     /// 吸奶主页使用模式背景 PNG，root 保持黑底即可
     (void)thiz;
-    if (pump_info->background != NULL && lv_obj_is_valid(pump_info->background)) {
-        lv_obj_add_flag(pump_info->background, LV_OBJ_FLAG_HIDDEN);
-    }
 }
 #endif
 
@@ -176,6 +173,12 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
         LOG_UI("===> pump home fps: %d, mode:%d/%d", thiz->priv.fps_count, pump_mode,
             proc->popup_ui_type);
         thiz->priv.fps_count = 0;
+#if IS_SUPPORT_BASE_TIME_3SEG_TEST
+        pump_info->test_hours += 1;
+        if (pump_info->test_hours >= 59) {
+            pump_info->test_hours = 0;
+        }
+#endif
     }
     return 0;
 }

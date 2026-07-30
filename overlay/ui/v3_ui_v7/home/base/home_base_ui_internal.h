@@ -22,6 +22,7 @@ extern "C" {
 */
 #define IS_SUPPORT_BASE_HOME_COMP_BG                 (0)
 #define HOME_BASE_MAIN_TIME_DIGIT_COUNT              (2)
+#define HOME_BASE_MAIN_TIME_COLON_COUNT              (2)
 /** 主页提示扫光方式（三选一） */
 #define HOME_BASE_HINT_SHINE_HARD                    (0) /// 硬边裁切亮色文案
 #define HOME_BASE_HINT_SHINE_SOFT                    (1) /// A8 软边（PNG alpha × 抛物线）
@@ -154,9 +155,12 @@ typedef struct {
 typedef struct {
     lv_obj_t *bg;                       /// 模式背景 PNG
     lv_obj_t *mode_title;               /// 模式文案
+    lv_obj_t *time_h[HOME_BASE_MAIN_TIME_DIGIT_COUNT];
     lv_obj_t *time_m[HOME_BASE_MAIN_TIME_DIGIT_COUNT];
     lv_obj_t *time_s[HOME_BASE_MAIN_TIME_DIGIT_COUNT];
-    lv_obj_t *time_colon;               /// 冒号 BAJ
+    lv_obj_t *time_colon[HOME_BASE_MAIN_TIME_COLON_COUNT]; /// 三段：HH-MM / MM-SS 冒号 BAJ
+    lv_draw_buf_t *time_colon_buf;      /// HOUR_COLON 预解码（两冒号共用）
+    lv_obj_t *time_colon_2seg;          /// 两段：居中 CLOCK_COLON
     lv_obj_t *hint_text;                /// Press to start pumping
     lv_obj_t *hint_shine;               /// 扫光亮色文案（裁剪窗内）
     lv_obj_t *hint_mask;                /// 扫光裁剪窗
@@ -169,8 +173,10 @@ typedef struct {
     lv_obj_t *right_level;              /// Rx
     uint16_t shown_bg_id;
     uint32_t shown_hint_color;
+    uint8_t shown_hours;
     uint8_t shown_minutes;
     uint8_t shown_seconds;
+    uint8_t shown_digit_size;           /// 2=MM:SS / 3=HH:MM:SS
     uint8_t shown_speed;
     uint8_t shown_left_level;
     uint8_t shown_right_level;
@@ -203,11 +209,13 @@ typedef struct {
     lv_obj_t *circle_bg;                /// 切换动画圆背景（不缩放）
     lv_obj_t *icon;
     lv_obj_t *title;
+    lv_obj_t *duration;                 /// 韵律总时间（Milk Boost / Power Pumping / Custom）
     uint8_t page_index;
     uint8_t mode;
     uint16_t icon_id;
     uint8_t icon_predecoded;
     char shown_title[24];
+    char shown_duration[16];
 } home_base_mode_page_ctx_t;
 
 typedef struct {

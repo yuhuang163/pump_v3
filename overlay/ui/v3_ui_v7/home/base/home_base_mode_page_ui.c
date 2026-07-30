@@ -16,6 +16,8 @@
 #define HOME_MODE_PAGE_ICON_Y                       (100)
 #define HOME_MODE_PAGE_TITLE_Y                      (214)
 #define HOME_MODE_PAGE_TITLE_COLOR                  (0xFFFFFF)
+#define HOME_MODE_PAGE_DURATION_Y                   (246)
+#define HOME_MODE_PAGE_DURATION_COLOR               (0x999999)
 
 #define HOME_MODE_PAGE_TIP_W                        (212)
 #define HOME_MODE_PAGE_TIP_H                        (50)
@@ -50,13 +52,7 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if HOME_BASE_MODE_SELECT_TIP_FROM_CODE
-static PSRAM_NC_DATA_LOC uint8_t mode_select_tip_data[] = {
-    #include "font_img/txt/mode_select_tip_212x50.txt"
-};
-#endif
-
-/** 提示文案 BAJ 预解码缓存（本模块持有，页面侧勿 destroy） */
+/** 提示文案预解码缓存（本模块持有，页面侧勿 destroy） */
 static lv_draw_buf_t *s_mode_select_tip_predecoded = NULL;
 
 /*
@@ -293,8 +289,14 @@ static lv_draw_buf_t *home_mode_select_tip_predecode(ui_manager_context_t *ui)
     }
 #if HOME_BASE_MODE_SELECT_TIP_FROM_CODE
     (void)ui;
-    s_mode_select_tip_predecoded = ui_img_png_decode_draw_buf(mode_select_tip_data,
-        sizeof(mode_select_tip_data), UI_IMG_PNG_DECODE_RGBA8888);
+    {
+        const ui_img_data_t *tip = ui_font_img_mode_select_tip_get();
+        if (tip == NULL || tip->data == NULL || tip->size == 0U) {
+            return NULL;
+        }
+        s_mode_select_tip_predecoded = ui_img_png_decode_draw_buf(tip->data, tip->size,
+            UI_IMG_PNG_DECODE_RGBA8888);
+    }
 #else
     if (ui == NULL) {
         return NULL;
@@ -621,7 +623,7 @@ static void home_mode_page_title_build(home_base_ui_info_t *info, home_base_mode
         ctx->title = lv_label_create(parent);
         EXCEPTION_CHECK_VOID(ctx->title);
         lv_obj_set_style_text_color(ctx->title, lv_color_hex(HOME_MODE_PAGE_TITLE_COLOR), 0);
-        lv_obj_set_style_text_font(ctx->title, &lv_font_aeonik_soft_36_medium, 0);
+        lv_obj_set_style_text_font(ctx->title, &lv_font_aeonik_soft_33_medium, 0);
         lv_obj_set_style_text_align(ctx->title, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(ctx->title, 0, 0);
     }
@@ -629,6 +631,84 @@ static void home_mode_page_title_build(home_base_ui_info_t *info, home_base_mode
     lv_obj_align(ctx->title, LV_ALIGN_TOP_MID, 0, HOME_MODE_PAGE_TITLE_Y);
     strncpy(ctx->shown_title, title, sizeof(ctx->shown_title) - 1);
     ctx->shown_title[sizeof(ctx->shown_title) - 1] = '\0';
+}
+
+static bool home_mode_page_has_duration(uint8_t mode)
+{
+    return mode == BREAST_PUMP_MILK_BOOST_MODE ||
+           mode == BREAST_PUMP_PP_MILK_TRACK_MODE ||
+           mode == BREAST_PUMP_CUSTOM_MODE;
+}
+
+static void home_mode_page_duration_text_get(home_base_ui_info_t *info, uint8_t mode,
+    char *buf, size_t buf_len)
+{
+    int pump_time = 0;
+
+    if (buf == NULL || buf_len == 0) {
+        return;
+    }
+    buf[0] = '\0';
+    if (!home_mode_page_has_duration(mode)) {
+        return;
+    }
+    if (info != NULL && info->st != NULL) {
+        info->st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, mode, 0, &pump_time);
+    }
+    snprintf(buf, buf_len, "≈ %dmin", pump_time / 60);
+}
+
+static void home_mode_page_duration_build(home_base_ui_info_t *info, home_base_mode_page_ctx_t *ctx)
+{
+    char duration[16] = {0};
+    lv_obj_t *parent = home_page_parent_get(info);
+
+    if (!home_mode_page_has_duration(ctx->mode)) {
+        if (ctx->duration != NULL && lv_obj_is_valid(ctx->duration)) {
+            lv_obj_add_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
+        }
+        ctx->shown_duration[0] = '\0';
+        return;
+    }
+
+    home_mode_page_duration_text_get(info, ctx->mode, duration, sizeof(duration));
+
+    if (ctx->duration == NULL || !lv_obj_is_valid(ctx->duration)) {
+        ctx->duration = lv_label_create(parent);
+        EXCEPTION_CHECK_VOID(ctx->duration);
+        lv_obj_set_style_text_color(ctx->duration, lv_color_hex(HOME_MODE_PAGE_DURATION_COLOR), 0);
+        lv_obj_set_style_text_font(ctx->duration, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_align(ctx->duration, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_letter_space(ctx->duration, 0, 0);
+    }
+    lv_label_set_text(ctx->duration, duration);
+    lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, HOME_MODE_PAGE_DURATION_Y);
+    lv_obj_clear_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
+    strncpy(ctx->shown_duration, duration, sizeof(ctx->shown_duration) - 1);
+    ctx->shown_duration[sizeof(ctx->shown_duration) - 1] = '\0';
+}
+
+static void home_mode_page_duration_content_update(home_base_ui_info_t *info,
+    home_base_mode_page_ctx_t *ctx)
+{
+    char duration[16] = {0};
+
+    if (!home_mode_page_has_duration(ctx->mode)) {
+        return;
+    }
+    home_mode_page_duration_text_get(info, ctx->mode, duration, sizeof(duration));
+    if (strncmp(ctx->shown_duration, duration, sizeof(ctx->shown_duration)) == 0 &&
+        !info->force_update) {
+        return;
+    }
+    if (ctx->duration == NULL || !lv_obj_is_valid(ctx->duration)) {
+        home_mode_page_duration_build(info, ctx);
+        return;
+    }
+    lv_label_set_text(ctx->duration, duration);
+    lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, HOME_MODE_PAGE_DURATION_Y);
+    strncpy(ctx->shown_duration, duration, sizeof(ctx->shown_duration) - 1);
+    ctx->shown_duration[sizeof(ctx->shown_duration) - 1] = '\0';
 }
 
 /*
@@ -730,6 +810,7 @@ void home_mode_page_ui_build(home_base_ui_info_t *info, uint8_t page_index)
     ctx->circle_bg = home_mode_page_circle_bg_create(page);
     home_mode_page_icon_build(info, ctx);
     home_mode_page_title_build(info, ctx);
+    home_mode_page_duration_build(info, ctx);
     if (ctx->circle_bg != NULL && lv_obj_is_valid(ctx->circle_bg)) {
         lv_obj_move_background(ctx->circle_bg);
     }
@@ -759,6 +840,7 @@ void home_mode_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
             ctx->shown_title[sizeof(ctx->shown_title) - 1] = '\0';
         }
     }
+    home_mode_page_duration_content_update(info, ctx);
 
     if (!home_page_ui_is_transitioning(info)) {
         home_mode_page_transition_apply(home_page_parent_get(info),
@@ -816,10 +898,20 @@ void home_mode_page_transition_apply(lv_obj_t *page, int32_t hero_scale, bool tr
     home_mode_page_obj_scale_set(ctx->icon, hero_scale);
     if (ctx->title != NULL && lv_obj_is_valid(ctx->title)) {
         const lv_font_t *font = small ?
-            &lv_font_aeonik_soft_29_medium : &lv_font_aeonik_soft_36_medium;
+            &lv_font_aeonik_soft_29_medium : &lv_font_aeonik_soft_33_medium;
 
         home_mode_page_obj_scale_set(ctx->title, HOME_MODE_PAGE_SCALE_FULL);
         lv_obj_set_style_text_font(ctx->title, font, 0);
         lv_obj_align(ctx->title, LV_ALIGN_TOP_MID, 0, HOME_MODE_PAGE_TITLE_Y);
+    }
+
+    /* 总时间：圆背景消失后展示，圆背景出现时隐藏 */
+    if (ctx->duration != NULL && lv_obj_is_valid(ctx->duration)) {
+        if (!small && home_mode_page_has_duration(ctx->mode)) {
+            lv_obj_clear_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, HOME_MODE_PAGE_DURATION_Y);
+        } else {
+            lv_obj_add_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 }

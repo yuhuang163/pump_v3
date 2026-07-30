@@ -11,6 +11,8 @@
 * DEFINES
 *****************************************************************************************
 */
+#define IS_SUPPORT_SETTINGS_SUCCESS_COMP_BG             (0) /// 是否启用对比背景图
+
 #define SETTINGS_SUCCESS_ICON_Y                         (104)
 #define SETTINGS_SUCCESS_TITLE_Y                        (212)
 #define SETTINGS_SUCCESS_TITLE_COLOR                    (0xFFFFFF)
@@ -18,6 +20,9 @@
 
 typedef struct {
     lv_obj_t *root;
+#if IS_SUPPORT_SETTINGS_SUCCESS_COMP_BG
+    lv_obj_t *background;
+#endif
     lv_obj_t *icon;
     lv_obj_t *title;
     uint8_t force_update;
@@ -28,6 +33,12 @@ typedef struct {
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_SETTINGS_SUCCESS_COMP_BG
+static PSRAM_NC_DATA_LOC uint8_t settings_success_bg_data[] = {
+    #include "comparison_png2txt/home_base_42_352x352.txt"
+};
+#endif
+
 static settings_success_ui_info_t *success_info;
 
 /*
@@ -48,6 +59,41 @@ static void settings_success_root_init(void)
     lv_obj_clear_flag(success_info->root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(success_info->root, LV_OBJ_FLAG_SCROLLABLE);
 }
+
+#if IS_SUPPORT_SETTINGS_SUCCESS_COMP_BG
+static void settings_success_bg_update(ui_manager_context_t *thiz)
+{
+    static uint32_t start_time = 0;
+    static uint8_t status = 0;
+
+    (void)thiz;
+    if (success_info->background == NULL || !lv_obj_is_valid(success_info->background)) {
+        success_info->background = lv_image_create(success_info->root);
+        EXCEPTION_CHECK_VOID(success_info->background);
+        lv_obj_move_background(success_info->background);
+    }
+    if (status == 0) {
+        lv_obj_add_flag(success_info->background, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_fs_path_ex_t bg_img_path;
+        lv_obj_clear_flag(success_info->background, LV_OBJ_FLAG_HIDDEN);
+        lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, settings_success_bg_data,
+            sizeof(settings_success_bg_data), "png");
+        lv_image_set_src(success_info->background, (const void *)&bg_img_path);
+        lv_obj_align(success_info->background, LV_ALIGN_CENTER, 0, 0);
+    }
+
+    if (get_timestamp() - start_time > 1000) {
+        start_time = get_timestamp();
+        status = (status == 0) ? 1 : 0;
+    }
+}
+#else
+static void settings_success_bg_update(ui_manager_context_t *thiz)
+{
+    (void)thiz;
+}
+#endif
 
 static void settings_success_icon_update(ui_manager_context_t *thiz)
 {
@@ -76,7 +122,7 @@ static void settings_success_title_update(void)
     }
     lv_label_set_text(success_info->title, SETTINGS_SUCCESS_TITLE_TEXT);
     lv_obj_set_style_text_color(success_info->title, lv_color_hex(SETTINGS_SUCCESS_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(success_info->title, &lv_font_aeonik_soft_36_medium, 0);
+    lv_obj_set_style_text_font(success_info->title, &lv_font_aeonik_soft_33_medium, 0);
     lv_obj_set_style_text_align(success_info->title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(success_info->title, LV_ALIGN_TOP_MID, 0, SETTINGS_SUCCESS_TITLE_Y);
 }
@@ -110,6 +156,7 @@ void ui_display_settings_success_remove(ui_manager_context_t *thiz)
 int ui_display_settings_success_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && success_info && success_info->root);
+    settings_success_bg_update(thiz);
     settings_success_icon_update(thiz);
     settings_success_title_update();
     success_info->force_update = false;
