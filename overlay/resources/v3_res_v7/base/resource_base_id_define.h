@@ -30,11 +30,11 @@ typedef enum {
     BASE_RES_ID_PAUSE_MIN_ICON, /// 暂停小图标
     BASE_RES_ID_POWER_OFF_ICON, /// 电源图标
     BASE_RES_ID_POWER_KEY_ICON, /// 电源按键图标
+    BASE_RES_ID_TIMEOUT_ICON, /// 超时图标
 
     /* 主界面组 [99..150] */
     BASE_RES_ID_START_LOGO_ICON, /// 启动LOGO图标
     BASE_RES_ID_HOME_IDLE_ICON, /// 主页空闲图标
-
 
     /* 引导组 [150..200] */
 
@@ -54,17 +54,16 @@ typedef enum {
     BASE_RES_ID_TEXT_SHINE_MASK, /// 文案扫光蒙层
 
     /* 动画组 [1000..] */
-    BASE_RES_ID_LONG_SUCTION_ANIM_START = 1000, /// 长吸动画-开始
-    BASE_RES_ID_LONG_SUCTION_ANIM_END = 1059, /// 长吸动画-结束 
-    BASE_RES_ID_SHORT_SUCTION_ANIM_START = 1100, /// 短吸动画-开始
-    BASE_RES_ID_SHORT_SUCTION_ANIM_END = 1159, /// 短吸动画-结束 
-    BASE_RES_ID_MIXED_SUCTION_ANIM_START = 1200, /// 混合吸吮动画-开始
-    BASE_RES_ID_MIXED_SUCTION_ANIM_END = 1259, /// 混合吸吮动画-结束 
-    BASE_RES_ID_RELAX_SUCTION_ANIM_START = 1300, /// 放松吸吮动画-开始
-    BASE_RES_ID_RELAX_SUCTION_ANIM_END = 1359, /// 放松吸吮动画-结束 
-    BASE_RES_ID_GUIDE_ANIM_START = 1400, /// 引导动画-开始
-    BASE_RES_ID_GUIDE_ANIM_END = 1468, /// 引导动画-结束 
-
+    BASE_RES_ID_STIMULATION_ANIM_START = 1000, /// 刺激动画-开始
+    BASE_RES_ID_STIMULATION_ANIM_END = 1059, /// 刺激动画-结束 
+    BASE_RES_ID_EXPRESSION_ANIM_START = 1100, /// 吸吮动画-开始
+    BASE_RES_ID_EXPRESSION_ANIM_END = 1159, /// 吸吮动画-结束 
+    BASE_RES_ID_PROGRAM_STIMULATION_ANIM_START = 1200, /// 韵律刺激动画-开始
+    BASE_RES_ID_PROGRAM_STIMULATION_ANIM_END = 1259, /// 韵律刺激动画-结束 
+    BASE_RES_ID_PROGRAM_EXPRESSION_ANIM_START = 1300, /// 韵律吸吮动画-开始
+    BASE_RES_ID_PROGRAM_EXPRESSION_ANIM_END = 1359, /// 韵律吸吮动画-结束 
+    BASE_RES_ID_PROGRAM_RELAX_ANIM_START = 1400, /// 韵律放松动画-开始
+    BASE_RES_ID_PROGRAM_RELAX_ANIM_END = 1459, /// 韵律放松动画-结束 
     BASE_RES_ID_TYPE_MAX
 } base_res_id_type_e;
 
