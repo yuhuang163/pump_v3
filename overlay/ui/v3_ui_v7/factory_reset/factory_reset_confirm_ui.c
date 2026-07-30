@@ -6,72 +6,45 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
 #include "window_screen_factory_reset.h" // IWYU pragma: keep
+#include "ui_progress_arc_component.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_FACTORY_RESET_COMP_BG                  (0)
-#define IS_SUPPORT_RETURN_BTN                             (0)
+#define FACTORY_RESET_CONFIRM_ARC_DONE_COLOR          (0xF3F4FF)
 
-#define FACTORY_RESET_CONFIRM_FIRST_TEXT_COLOR            (0xA9A7A6)
-#define FACTORY_RESET_CONFIRM_TEXT_COLOR                  (0xFFFFFF)
+#define FACTORY_RESET_CONFIRM_ICON_Y                  (73)
+#define FACTORY_RESET_CONFIRM_TITLE_Y                 (179)
+#define FACTORY_RESET_CONFIRM_HINT_Y                  (221)
+#define FACTORY_RESET_CONFIRM_TITLE_COLOR             (0xFFFFFF)
+#define FACTORY_RESET_CONFIRM_HINT_COLOR              (0x999999)
+#define FACTORY_RESET_CONFIRM_TITLE_TEXT              "Reset settings"
+#define FACTORY_RESET_CONFIRM_HINT_TEXT               "Press and hold knob\nfor 3s,"
 
-#if IS_SUPPORT_RETURN_BTN
-#define FACTORY_RESET_CONFIRM_TITLE_Y                     (123)
-#define FACTORY_RESET_CONFIRM_HINT_Y                      (160)
-#define FACTORY_RESET_CONFIRM_RETURN_BTN_Y                (244)
-#else
-#define FACTORY_RESET_CONFIRM_TITLE_Y                     (132)
-#define FACTORY_RESET_CONFIRM_HINT_Y                      (168)
-#endif
-
-typedef struct {
-    const char *text;
-    uint32_t color;
-    const lv_font_t *font;
-    int16_t y;
-    int16_t line_space;
-} factory_reset_confirm_text_cfg_t;
+/** 长按倒计时（文案为 3s/2s/1s） */
+#define FACTORY_RESET_CONFIRM_DURATION_MS             (2000)
+#define FACTORY_RESET_CONFIRM_COUNTDOWN_MAX           (3)
 
 typedef struct {
-    lv_obj_t * root;
-#if IS_SUPPORT_FACTORY_RESET_COMP_BG
-    lv_obj_t * background;
-#endif
-    lv_obj_t * text[2];
-    lv_obj_t * return_icon;
+    lv_obj_t *root;
+    ui_progress_arc_info_t arc;
+    lv_obj_t *icon;
+    lv_obj_t *title;
+    lv_obj_t *hint;
+    lv_draw_buf_t *icon_buf;
+    uint32_t start_time;
     uint8_t force_update;
-    uint8_t popup_ui_index;
-} ui_factory_reset_confirm_info_t;    
+    uint8_t holding;
+    uint8_t completed;
+    uint8_t rsv[9];
+} ui_factory_reset_confirm_info_t;
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_FACTORY_RESET_COMP_BG
-static PSRAM_DATA_LOC uint8_t factory_reset_confirm_bg_data[] = {
-    #include "comparison_png2txt/factory_reset_popup_360x360.txt"
-};
-#endif
-
 static ui_factory_reset_confirm_info_t *ui_info;
-static const factory_reset_confirm_text_cfg_t factory_reset_confirm_texts[] = {
-    {
-        .text = "Reset settings",
-        .color = FACTORY_RESET_CONFIRM_FIRST_TEXT_COLOR,
-        .font = &lv_font_aeonik_soft_19_medium,
-        .y = FACTORY_RESET_CONFIRM_TITLE_Y,
-        .line_space = 0,
-    },
-    {
-        .text = "Press and hold\nthe knob for 3s",
-        .color = FACTORY_RESET_CONFIRM_TEXT_COLOR,
-        .font = &lv_font_aeonik_soft_19_medium,
-        .y = FACTORY_RESET_CONFIRM_HINT_Y,
-        .line_space = 6,
-    },
-};
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -92,20 +65,44 @@ static void ui_factory_reset_confirm_root_init(void)
     lv_obj_clear_flag(ui_info->root, LV_OBJ_FLAG_SCROLLABLE);
 }
 
-static void ui_factory_reset_confirm_label_update(lv_obj_t **label,
-    const factory_reset_confirm_text_cfg_t *cfg)
+static void ui_factory_reset_confirm_arc_update(void)
 {
-    if (*label == NULL || !lv_obj_is_valid(*label)) {
-        *label = lv_label_create(ui_info->root);
-        EXCEPTION_CHECK_VOID(*label);
+    ui_progress_arc_style_t style;
+
+    if (ui_info->holding == false) {
+        ui_progress_arc_hide(&ui_info->arc);
+        ui_progress_arc_countdown_hide(&ui_info->arc);
+        return;
     }
-    lv_label_set_text(*label, cfg->text);
-    lv_obj_set_style_text_align(*label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_line_space(*label, 4, 0);
-    lv_obj_set_style_text_color(*label, lv_color_hex(cfg->color), 0);
-    lv_obj_set_style_text_font(*label, cfg->font, 0);
-    lv_obj_set_style_text_line_space(*label, cfg->line_space, 0);
-    lv_obj_align(*label, LV_ALIGN_TOP_MID, 0, cfg->y);
+
+    ui_progress_arc_style_init(&style, FACTORY_RESET_CONFIRM_ARC_DONE_COLOR);
+    style.show_countdown = true;
+    ui_progress_arc_time_update(&ui_info->arc, ui_info->root, &style,
+        ui_info->start_time, FACTORY_RESET_CONFIRM_DURATION_MS,
+        FACTORY_RESET_CONFIRM_COUNTDOWN_MAX, ui_info->force_update);
+}
+
+static void ui_factory_reset_confirm_icon_update(ui_manager_context_t *thiz)
+{
+    if (ui_info->force_update == false) {
+        return;
+    }
+
+    if (ui_info->icon == NULL || !lv_obj_is_valid(ui_info->icon)) {
+        ui_info->icon = lv_image_create(ui_info->root);
+        EXCEPTION_CHECK_VOID(ui_info->icon);
+    }
+    if (ui_info->icon_buf == NULL) {
+        ui_info->icon_buf = ui_img_baj_theme_decode_draw_buf(thiz,
+            BASE_RES_ID_ROTARY_KEY_ICON, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+    if (ui_info->icon_buf != NULL) {
+        lv_image_set_src(ui_info->icon, ui_info->icon_buf);
+    } else {
+        ui_img_baj_theme_set_src(thiz, ui_info->icon, BASE_RES_ID_ROTARY_KEY_ICON,
+            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+    lv_obj_align(ui_info->icon, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_CONFIRM_ICON_Y);
 }
 
 static void ui_factory_reset_confirm_text_update(void)
@@ -114,75 +111,45 @@ static void ui_factory_reset_confirm_text_update(void)
         return;
     }
 
-    for (uint8_t i = 0; i < sizeof(factory_reset_confirm_texts) / sizeof(factory_reset_confirm_texts[0]); i++) {
-        ui_factory_reset_confirm_label_update(&ui_info->text[i], &factory_reset_confirm_texts[i]);
+    if (ui_info->title == NULL || !lv_obj_is_valid(ui_info->title)) {
+        ui_info->title = lv_label_create(ui_info->root);
+        EXCEPTION_CHECK_VOID(ui_info->title);
     }
+    lv_label_set_text(ui_info->title, FACTORY_RESET_CONFIRM_TITLE_TEXT);
+    lv_obj_set_style_text_color(ui_info->title,
+        lv_color_hex(FACTORY_RESET_CONFIRM_TITLE_COLOR), 0);
+    lv_obj_set_style_text_font(ui_info->title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_align(ui_info->title, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(ui_info->title, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_CONFIRM_TITLE_Y);
+
+    if (ui_info->hint == NULL || !lv_obj_is_valid(ui_info->hint)) {
+        ui_info->hint = lv_label_create(ui_info->root);
+        EXCEPTION_CHECK_VOID(ui_info->hint);
+    }
+    lv_label_set_text(ui_info->hint, FACTORY_RESET_CONFIRM_HINT_TEXT);
+    lv_obj_set_style_text_color(ui_info->hint,
+        lv_color_hex(FACTORY_RESET_CONFIRM_HINT_COLOR), 0);
+    lv_obj_set_style_text_font(ui_info->hint, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_align(ui_info->hint, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_line_space(ui_info->hint, 4, 0);
+    lv_obj_align(ui_info->hint, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_CONFIRM_HINT_Y);
 }
 
-#if IS_SUPPORT_RETURN_BTN
-static void ui_factory_reset_confirm_return_btn_update(ui_manager_context_t *thiz)
+static void ui_factory_reset_confirm_holding_sync(ui_proc_factory_reset_t *proc)
 {
-    if (ui_info->force_update == false) {
-        return;
-    }
+    uint8_t holding = (proc->popup_ui_type == ID_POPUP_UI_FACTORY_RESET_CONFIRM) ? 1 : 0;
 
-    if (ui_info->return_icon == NULL || !lv_obj_is_valid(ui_info->return_icon)) {
-        ui_info->return_icon = lv_image_create(ui_info->root);
-        EXCEPTION_CHECK_VOID(ui_info->return_icon);
+    if (holding && ui_info->holding == false) {
+        ui_info->start_time = get_timestamp();
+        ui_info->completed = false;
+        ui_info->force_update = true;
+        ui_progress_arc_reset(&ui_info->arc);
+    } else if (holding == false && ui_info->holding) {
+        ui_info->completed = false;
+        ui_progress_arc_reset(&ui_info->arc);
     }
-
-    ui_img_baj_theme_set_src(thiz, ui_info->return_icon, UI_IMG_RES_ID_NONE,
-        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-    lv_obj_align(ui_info->return_icon, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_CONFIRM_RETURN_BTN_Y);
+    ui_info->holding = holding;
 }
-#endif
-
-#if 0
-static void ui_factory_reset_confirm_return_btn_blink_apply(bool blink_visible)
-{
-    if (ui_info->return_icon == NULL || !lv_obj_is_valid(ui_info->return_icon)) {
-        return;
-    }
-    if (blink_visible) {
-        lv_obj_clear_flag(ui_info->return_icon, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(ui_info->return_icon, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-#endif
-
-#if IS_SUPPORT_FACTORY_RESET_COMP_BG
-static void ui_factory_reset_confirm_background_update(void)
-{
-    static uint32_t start_time = 0;
-    static uint8_t status = 0;
-
-    if (ui_info->background == NULL || !lv_obj_is_valid(ui_info->background)) {
-        ui_info->background = lv_image_create(ui_info->root);
-        EXCEPTION_CHECK_VOID(ui_info->background);
-    }
-
-    if (status == 0) {
-        lv_obj_add_flag(ui_info->background, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_fs_path_ex_t bg_img_path;
-        lv_obj_clear_flag(ui_info->background, LV_OBJ_FLAG_HIDDEN);
-        lv_fs_make_path_from_buffer(&bg_img_path, LV_FS_MEMFS_LETTER, factory_reset_confirm_bg_data,
-            sizeof(factory_reset_confirm_bg_data), "png");
-        lv_image_set_src(ui_info->background, (const void *)&bg_img_path);
-        lv_obj_align(ui_info->background, LV_ALIGN_CENTER, 0, 0);
-    }
-
-    if (get_timestamp() - start_time > 1000) {
-        start_time = get_timestamp();
-        status = (status == 0) ? 1 : 0;
-    }
-}
-#else
-static void ui_factory_reset_confirm_background_update(void)
-{
-}
-#endif
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -199,14 +166,23 @@ void ui_display_factory_reset_confirm_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_start_time = get_timestamp();
     ui_factory_reset_confirm_root_init();
     ui_info->force_update = true;
-    ui_info->popup_ui_index = ID_POPUP_UI_NONE;
+    ui_info->holding = false;
+    ui_info->completed = false;
+    ui_progress_arc_reset(&ui_info->arc);
 }
 
 void ui_display_factory_reset_confirm_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && ui_info);
-    ui_img_baj_release_decoded_buf(ui_info->return_icon);
-    ui_popup_remove(thiz);
+    if (ui_info->icon_buf != NULL) {
+        if (ui_info->icon != NULL && lv_obj_is_valid(ui_info->icon)) {
+            lv_image_set_src(ui_info->icon, NULL);
+        }
+        lv_draw_buf_destroy(ui_info->icon_buf);
+        ui_info->icon_buf = NULL;
+    } else {
+        ui_img_baj_release_decoded_buf(ui_info->icon);
+    }
     LVGL_OBJ_DELETE(ui_info->root);
     u_free(ui_info);
     ui_info = NULL;
@@ -214,19 +190,28 @@ void ui_display_factory_reset_confirm_remove(ui_manager_context_t *thiz)
 
 int ui_display_factory_reset_confirm_process(ui_manager_context_t *thiz, bool blink_visible)
 {
-    EXCEPTION_CHECK_INT(thiz && ui_info && ui_info->root);
-    ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc);
-    ui_factory_reset_confirm_background_update();
-    ui_factory_reset_confirm_text_update();
-#if IS_SUPPORT_RETURN_BTN
-    ui_factory_reset_confirm_return_btn_update(thiz);
-#endif
-    // ui_factory_reset_confirm_return_btn_blink_apply(blink_visible);
-    ui_popup_update(thiz, proc->popup_ui_type, ui_info->root, &ui_info->popup_ui_index);
-    ui_info->force_update = false;
-    thiz->priv.fps_count++;
+    ui_proc_factory_reset_t *proc;
 
+    (void)blink_visible;
+    EXCEPTION_CHECK_INT(thiz && ui_info && ui_info->root);
+    proc = (ui_proc_factory_reset_t *)thiz->priv.play_info.user_data;
+    EXCEPTION_CHECK_INT(proc);
+
+    ui_factory_reset_confirm_holding_sync(proc);
+    ui_factory_reset_confirm_arc_update();
+    ui_factory_reset_confirm_icon_update(thiz);
+    ui_factory_reset_confirm_text_update();
+    ui_info->force_update = false;
+
+    if (ui_info->holding && ui_info->completed == false &&
+        get_timestamp_ms(ui_info->start_time) >= FACTORY_RESET_CONFIRM_DURATION_MS) {
+        ui_info->completed = true;
+        if (thiz->priv.play_info.progress_cb) {
+            thiz->priv.play_info.progress_cb(thiz, 0, ANI_POPUP_DISPLAY_FINISH);
+        }
+    }
+
+    thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
         LOG_UI("===> factory reset confirm fps: %d", thiz->priv.fps_count);

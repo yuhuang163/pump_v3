@@ -8,6 +8,8 @@
 #include "home_speed_adjust_ui.h" // IWYU pragma: keep
 #include "home_level_adjust_ui.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
+#include "ui_shine_component.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -46,50 +48,10 @@
 
 /** 底部提示图：与模式选择页一致 */
 #define HOME_SPEED_TIP_W                            (212)
-#define HOME_SPEED_TIP_H                            (50)
+#define HOME_SPEED_TIP_H                            (49)
 #define HOME_SPEED_TIP_Y                            (PANLE_DISPLAY_H - HOME_SPEED_TIP_H - 8)
 
-/** 提示扫光方式（三选一，与 home 模式页取值一致） */
-#define HOME_SPEED_TIP_SHINE_HARD                   (0)
-#define HOME_SPEED_TIP_SHINE_SOFT                   (1)
-#define HOME_SPEED_TIP_SHINE_OVERLAY                (2)
-#ifndef HOME_SPEED_TIP_SHINE_MODE
-#define HOME_SPEED_TIP_SHINE_MODE                   HOME_SPEED_TIP_SHINE_OVERLAY
-#endif
-#define HOME_SPEED_TIP_SHINE_IS_HARD \
-    (HOME_SPEED_TIP_SHINE_MODE == HOME_SPEED_TIP_SHINE_HARD)
-#define HOME_SPEED_TIP_SHINE_IS_SOFT \
-    (HOME_SPEED_TIP_SHINE_MODE == HOME_SPEED_TIP_SHINE_SOFT)
-#define HOME_SPEED_TIP_SHINE_IS_OVERLAY \
-    (HOME_SPEED_TIP_SHINE_MODE == HOME_SPEED_TIP_SHINE_OVERLAY)
-#define HOME_SPEED_TIP_SHINE_USE_IMG_MASK \
-    (HOME_SPEED_TIP_SHINE_IS_SOFT || HOME_SPEED_TIP_SHINE_IS_OVERLAY)
-
-#ifndef HOME_SPEED_TIP_SHINE_W
-#if HOME_SPEED_TIP_SHINE_IS_HARD
-#define HOME_SPEED_TIP_SHINE_W                      (80)
-#else
-#define HOME_SPEED_TIP_SHINE_W                      (80)
-#endif
-#endif
-
-#if HOME_SPEED_TIP_SHINE_IS_HARD
-#define HOME_SPEED_TIP_MASK_W                       (HOME_SPEED_TIP_SHINE_W)
-#define HOME_SPEED_TIP_MASK_H                       (HOME_SPEED_TIP_H)
-#define HOME_SPEED_TIP_MASK_Y                       (HOME_SPEED_TIP_Y)
-#define HOME_SPEED_TIP_SHINE_RECOLOR_OPA            (LV_OPA_COVER)
-#define HOME_SPEED_TIP_BASE_OPA                     (LV_OPA_COVER)
-#else
-#define HOME_SPEED_TIP_MASK_W                       (HOME_SPEED_TIP_SHINE_W)
-#define HOME_SPEED_TIP_MASK_H                       (HOME_SPEED_TIP_H)
-#define HOME_SPEED_TIP_MASK_Y                       (HOME_SPEED_TIP_Y)
-#define HOME_SPEED_TIP_SHINE_RECOLOR_OPA            (LV_OPA_80)
 #define HOME_SPEED_TIP_BASE_OPA                     (LV_OPA_70)
-#endif
-#define HOME_SPEED_TIP_MASK_X_MIN                   (-HOME_SPEED_TIP_MASK_W)
-#define HOME_SPEED_TIP_MASK_X_MAX                   (PANLE_DISPLAY_W)
-#define HOME_SPEED_TIP_MASK_PERIOD_MS               (3200)
-#define HOME_SPEED_TIP_SHINE_COLOR                  (0xFFFFFF)
 
 typedef struct {
     lv_obj_t *root;
@@ -100,15 +62,9 @@ typedef struct {
     lv_obj_t *value_label;
     lv_obj_t *speed_label;
     lv_obj_t *tip_img;
-    lv_obj_t *tip_shine;
-    lv_obj_t *tip_mask;
-#if HOME_SPEED_TIP_SHINE_USE_IMG_MASK
-    lv_draw_buf_t *tip_mask_a8;
-#endif
+    ui_shine_info_t tip_shine;
     lv_draw_buf_t *tip_buf;
     uint8_t tip_predecoded;
-    int16_t tip_mask_x;
-    uint32_t tip_mask_tick_ms;
     uint8_t shown_speed;
     uint8_t shown_selected;
     uint8_t pump_mode;
@@ -294,117 +250,6 @@ static void home_speed_label_update(void)
     lv_obj_align(speed_info->speed_label, LV_ALIGN_TOP_MID, 0, HOME_SPEED_LABEL_Y);
 }
 
-static void home_speed_tip_shine_sync(void)
-{
-    lv_coord_t tip_x;
-    lv_coord_t tip_y;
-
-    if (speed_info->tip_img == NULL || !lv_obj_is_valid(speed_info->tip_img) ||
-        speed_info->tip_shine == NULL || !lv_obj_is_valid(speed_info->tip_shine) ||
-        speed_info->tip_mask == NULL || !lv_obj_is_valid(speed_info->tip_mask)) {
-        return;
-    }
-
-    lv_obj_update_layout(speed_info->tip_img);
-    tip_x = lv_obj_get_x(speed_info->tip_img);
-    tip_y = lv_obj_get_y(speed_info->tip_img);
-    lv_obj_set_pos(speed_info->tip_shine,
-        tip_x - speed_info->tip_mask_x, tip_y - HOME_SPEED_TIP_MASK_Y);
-}
-
-#if HOME_SPEED_TIP_SHINE_USE_IMG_MASK
-/** 从预解码 TEXT_SHINE_MASK 生成 A8；高度不足时垂直居中裁切 */
-static lv_draw_buf_t *home_speed_tip_mask_a8_from_rgba(const lv_draw_buf_t *rgba,
-    uint32_t dst_w, uint32_t dst_h)
-{
-    lv_draw_buf_t *a8;
-    uint32_t src_w;
-    uint32_t src_h;
-    uint32_t y;
-    uint32_t x;
-    uint32_t y0;
-    uint32_t x0;
-
-    if (rgba == NULL || rgba->data == NULL || dst_w == 0U || dst_h == 0U) {
-        return NULL;
-    }
-    if (rgba->header.cf != LV_COLOR_FORMAT_ARGB8888 &&
-        rgba->header.cf != LV_COLOR_FORMAT_ARGB8888_PREMULTIPLIED) {
-        return NULL;
-    }
-
-    src_w = rgba->header.w;
-    src_h = rgba->header.h;
-    if (src_w == 0U || src_h == 0U) {
-        return NULL;
-    }
-
-    a8 = lv_draw_buf_create(dst_w, dst_h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
-    if (a8 == NULL || a8->data == NULL) {
-        if (a8 != NULL) {
-            lv_draw_buf_destroy(a8);
-        }
-        return NULL;
-    }
-
-    x0 = (src_w > dst_w) ? ((src_w - dst_w) / 2U) : 0U;
-    y0 = (src_h > dst_h) ? ((src_h - dst_h) / 2U) : 0U;
-
-    for (y = 0; y < dst_h; y++) {
-        uint32_t sy = (y0 + y < src_h) ? (y0 + y) : (src_h - 1U);
-        const lv_color32_t *src =
-            (const lv_color32_t *)(rgba->data + sy * rgba->header.stride);
-        uint8_t *dst = a8->data + y * a8->header.stride;
-        for (x = 0; x < dst_w; x++) {
-            uint32_t sx = (x0 + x < src_w) ? (x0 + x) : (src_w - 1U);
-            uint32_t a = src[sx].alpha;
-#if HOME_SPEED_TIP_SHINE_IS_SOFT
-            uint32_t edge = (x * (dst_w - 1U - x) * 4U * 255U) / (dst_w * dst_w);
-            if (edge > 255U) {
-                edge = 255U;
-            }
-            a = (a * edge) / 255U;
-            a = (a * a) / 255U;
-#endif
-            dst[x] = (uint8_t)a;
-        }
-    }
-    return a8;
-}
-
-static void home_speed_tip_mask_a8_release(void)
-{
-    if (speed_info == NULL || speed_info->tip_mask_a8 == NULL) {
-        return;
-    }
-    if (speed_info->tip_mask != NULL && lv_obj_is_valid(speed_info->tip_mask)) {
-        lv_obj_set_style_bitmap_mask_src(speed_info->tip_mask, NULL, 0);
-    }
-    lv_draw_buf_destroy(speed_info->tip_mask_a8);
-    speed_info->tip_mask_a8 = NULL;
-}
-
-static void home_speed_tip_mask_a8_prepare(void)
-{
-    const lv_draw_buf_t *rgba;
-
-    if (speed_info->tip_mask_a8 != NULL) {
-        if (speed_info->tip_mask != NULL && lv_obj_is_valid(speed_info->tip_mask)) {
-            lv_obj_set_style_bitmap_mask_src(speed_info->tip_mask, speed_info->tip_mask_a8, 0);
-        }
-        return;
-    }
-
-    rgba = get_predecoded_text_shine_mask();
-    speed_info->tip_mask_a8 = home_speed_tip_mask_a8_from_rgba(rgba,
-        HOME_SPEED_TIP_MASK_W, HOME_SPEED_TIP_MASK_H);
-    if (speed_info->tip_mask_a8 != NULL && speed_info->tip_mask != NULL &&
-        lv_obj_is_valid(speed_info->tip_mask)) {
-        lv_obj_set_style_bitmap_mask_src(speed_info->tip_mask, speed_info->tip_mask_a8, 0);
-    }
-}
-#endif /* HOME_SPEED_TIP_SHINE_USE_IMG_MASK */
-
 static lv_draw_buf_t *home_speed_tip_predecode(void)
 {
     const ui_img_data_t *tip;
@@ -424,12 +269,12 @@ static lv_draw_buf_t *home_speed_tip_predecode(void)
 static void home_speed_tip_rebuild(void)
 {
     lv_draw_buf_t *predecoded;
+    ui_shine_style_t style;
 
     if (speed_info->tip_img != NULL && lv_obj_is_valid(speed_info->tip_img) &&
-        speed_info->tip_mask != NULL && lv_obj_is_valid(speed_info->tip_mask) &&
-        speed_info->tip_shine != NULL && lv_obj_is_valid(speed_info->tip_shine)) {
-        home_speed_tip_shine_sync();
-        return;
+        speed_info->tip_shine.mask != NULL && lv_obj_is_valid(speed_info->tip_shine.mask) &&
+        speed_info->tip_shine.shine != NULL && lv_obj_is_valid(speed_info->tip_shine.shine)) {
+        return; /* anim handles sync */
     }
 
     predecoded = home_speed_tip_predecode();
@@ -446,74 +291,27 @@ static void home_speed_tip_rebuild(void)
         lv_obj_align(speed_info->tip_img, LV_ALIGN_TOP_MID, 0, HOME_SPEED_TIP_Y);
     }
 
-    if (speed_info->tip_mask == NULL || !lv_obj_is_valid(speed_info->tip_mask)) {
-        speed_info->tip_mask = lv_obj_create(speed_info->root);
-        EXCEPTION_CHECK_VOID(speed_info->tip_mask);
-        lv_obj_remove_style_all(speed_info->tip_mask);
-        lv_obj_set_size(speed_info->tip_mask, HOME_SPEED_TIP_MASK_W, HOME_SPEED_TIP_MASK_H);
-        lv_obj_set_style_bg_opa(speed_info->tip_mask, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(speed_info->tip_mask, 0, 0);
-        lv_obj_set_style_pad_all(speed_info->tip_mask, 0, 0);
-        lv_obj_clear_flag(speed_info->tip_mask, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_clear_flag(speed_info->tip_mask, LV_OBJ_FLAG_CLICKABLE);
-        speed_info->tip_mask_x = HOME_SPEED_TIP_MASK_X_MIN;
-        speed_info->tip_mask_tick_ms = get_timestamp();
-    }
+    ui_shine_style_init(&style);
+    style.mask_y = HOME_SPEED_TIP_Y;
+    style.screen_w = PANLE_DISPLAY_W;
 
-    if (speed_info->tip_shine == NULL || !lv_obj_is_valid(speed_info->tip_shine)) {
-        speed_info->tip_shine = lv_image_create(speed_info->tip_mask);
-        EXCEPTION_CHECK_VOID(speed_info->tip_shine);
-        lv_obj_clear_flag(speed_info->tip_shine, LV_OBJ_FLAG_CLICKABLE);
-        if (predecoded != NULL) {
-            lv_image_set_src(speed_info->tip_shine, predecoded);
-        }
-        lv_obj_set_style_image_recolor(speed_info->tip_shine,
-            lv_color_hex(HOME_SPEED_TIP_SHINE_COLOR), 0);
-        lv_obj_set_style_image_recolor_opa(speed_info->tip_shine,
-            HOME_SPEED_TIP_SHINE_RECOLOR_OPA, 0);
-        lv_obj_set_style_blend_mode(speed_info->tip_shine, LV_BLEND_MODE_NORMAL, 0);
-    }
-
-#if HOME_SPEED_TIP_SHINE_USE_IMG_MASK
-    home_speed_tip_mask_a8_prepare();
-#endif
-    lv_obj_align(speed_info->tip_mask, LV_ALIGN_TOP_LEFT,
-        speed_info->tip_mask_x, HOME_SPEED_TIP_MASK_Y);
+    ui_shine_prepare_from_tip(&speed_info->tip_shine, &style, predecoded);
+    ui_shine_update(&speed_info->tip_shine, speed_info->root, &style, speed_info->tip_img, 1);
     lv_obj_move_foreground(speed_info->tip_img);
-    lv_obj_move_foreground(speed_info->tip_mask);
-    home_speed_tip_shine_sync();
-}
-
-static void home_speed_tip_mask_anim_update(void)
-{
-    uint32_t elapsed;
-    int32_t x;
-
-    if (speed_info->tip_mask == NULL || !lv_obj_is_valid(speed_info->tip_mask)) {
-        return;
-    }
-
-    elapsed = get_timestamp() - speed_info->tip_mask_tick_ms;
-    if (elapsed >= HOME_SPEED_TIP_MASK_PERIOD_MS) {
-        speed_info->tip_mask_tick_ms = get_timestamp();
-        elapsed = 0;
-    }
-    x = HOME_SPEED_TIP_MASK_X_MIN +
-        (int32_t)((HOME_SPEED_TIP_MASK_X_MAX - HOME_SPEED_TIP_MASK_X_MIN) * elapsed) /
-        HOME_SPEED_TIP_MASK_PERIOD_MS;
-    if (x != speed_info->tip_mask_x) {
-        speed_info->tip_mask_x = (int16_t)x;
-        lv_obj_set_x(speed_info->tip_mask, speed_info->tip_mask_x);
-        home_speed_tip_shine_sync();
-    }
+    ui_shine_show(&speed_info->tip_shine);
 }
 
 static void home_speed_tip_update(void)
 {
+    ui_shine_style_t style;
+
     if (speed_info->force_update) {
         home_speed_tip_rebuild();
     }
-    home_speed_tip_mask_anim_update();
+    ui_shine_style_init(&style);
+    style.mask_y = HOME_SPEED_TIP_Y;
+    style.screen_w = PANLE_DISPLAY_W;
+    ui_shine_anim_update(&speed_info->tip_shine, &style, speed_info->tip_img, 0);
 }
 
 /*
@@ -551,18 +349,7 @@ void ui_display_home_speed_adjust_prepare(ui_manager_context_t *thiz)
 void ui_display_home_speed_adjust_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && speed_info && speed_info->root);
-    if (speed_info->tip_shine != NULL && lv_obj_is_valid(speed_info->tip_shine)) {
-        lv_image_set_src(speed_info->tip_shine, NULL);
-        LVGL_OBJ_DELETE(speed_info->tip_shine);
-        speed_info->tip_shine = NULL;
-    }
-#if HOME_SPEED_TIP_SHINE_USE_IMG_MASK
-    home_speed_tip_mask_a8_release();
-#endif
-    if (speed_info->tip_mask != NULL && lv_obj_is_valid(speed_info->tip_mask)) {
-        LVGL_OBJ_DELETE(speed_info->tip_mask);
-        speed_info->tip_mask = NULL;
-    }
+    ui_shine_remove(&speed_info->tip_shine);
     if (speed_info->tip_img != NULL && lv_obj_is_valid(speed_info->tip_img)) {
         lv_image_set_src(speed_info->tip_img, NULL);
     }

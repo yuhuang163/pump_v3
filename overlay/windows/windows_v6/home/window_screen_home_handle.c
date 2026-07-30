@@ -120,11 +120,10 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
 
 static void home_mode_key_event_cb(ui_proc_home_t *proc, uint8_t mode_index)
 {
-    // if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
-    //     LOG_WM("ignore mode key, ui_type:%d", proc->current_ui_type);
-    //     return;
-    // }
-    show_home_settings_success_ui(proc);
+    if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
+        proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
+        start_home_ui_animation(proc);
+    }
     home_mode_set_handler(proc, mode_index);
 }
 

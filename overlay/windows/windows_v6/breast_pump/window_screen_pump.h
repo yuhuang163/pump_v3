@@ -42,6 +42,8 @@ extern "C" {
 #define PUMP_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 /// 模式切换成功页展示时长
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TIMEOUT  (1500) /// 1.5s
+/// 泵奶满 30 分钟休息轻提醒页展示时长
+#define PUMP_BREAK_TIP_DISPLAY_TIMEOUT         (10000) /// 10s
 /// 泵奶背光灯周期
 #define PUMP_BLINK_PERIOD                      (500)
 
@@ -62,8 +64,10 @@ typedef enum {
     PUMP_UI_TYPE_LEVEL_ADJUST, /// 单边力度调节
     PUMP_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
     PUMP_UI_TYPE_SPEED_ADJUST, /// 速度调节
-    PUMP_UI_TYPE_TIMEOUT, /// 吸乳运行超时提示
-    PUMP_UI_TYPE_WILL_FINISH, /// 泵奶即将结束提示
+    PUMP_UI_TYPE_BREAK_TIP, /// 泵奶满 30 分钟休息轻提醒
+    PUMP_UI_TYPE_BREAK_END, /// 休息提醒后自动结束
+    PUMP_UI_TYPE_FINISH_TIMEOUT, /// 泵奶超时结算
+    PUMP_UI_TYPE_WILL_FINISH, /// 韵律即将结束提示
     PUMP_UI_TYPE_MAX
 } pump_ui_type_e;
 
@@ -200,13 +204,22 @@ int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
 void pump_speed_adjust_ui_exit(ui_proc_pump_t *proc);
 void pump_speed_adjust_ui_dismiss(ui_proc_pump_t *proc);
 
-/// 吸乳运行超时提示页
-void show_pump_timeout_ui(ui_proc_pump_t *proc);
-void pump_timeout_ui_exit(ui_proc_pump_t *proc);
+/// 泵奶满 30 分钟休息轻提醒页
+void show_pump_break_tip_ui(ui_proc_pump_t *proc);
+void pump_break_tip_ui_exit(ui_proc_pump_t *proc);
 
-/// 泵奶即将结束提示页
+/// 休息提醒后自动结束页
+void show_pump_break_end_ui(ui_proc_pump_t *proc);
+void pump_break_end_ui_exit(ui_proc_pump_t *proc);
+
+/// 泵奶超时结算页
+void show_pump_finish_timeout_ui(ui_proc_pump_t *proc);
+void pump_finish_timeout_ui_exit(ui_proc_pump_t *proc);
+
+/// 韵律即将结束提示页
 void show_pump_will_finish_ui(ui_proc_pump_t *proc);
 void pump_will_finish_ui_exit(ui_proc_pump_t *proc);
+void pump_will_finish_ui_dismiss(ui_proc_pump_t *proc);
 
 #ifdef __cplusplus
 }

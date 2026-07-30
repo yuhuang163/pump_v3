@@ -7,6 +7,8 @@
 #include "ui_manager.h"   // IWYU pragma: keep
 #include "home_both_level_adjust_ui.h" // IWYU pragma: keep
 #include "home_level_adjust_ui.h" // IWYU pragma: keep
+#include "ui_shine_component.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
 
 /*
@@ -70,45 +72,10 @@
 
 /** 底部提示图：与速度调节一致 */
 #define HOME_BOTH_LEVEL_TIP_W                       (212)
-#define HOME_BOTH_LEVEL_TIP_H                       (50)
+#define HOME_BOTH_LEVEL_TIP_H                       (49)
 #define HOME_BOTH_LEVEL_TIP_Y                       (PANLE_DISPLAY_H - HOME_BOTH_LEVEL_TIP_H - 8)
 
-#define HOME_BOTH_LEVEL_TIP_SHINE_HARD              (0)
-#define HOME_BOTH_LEVEL_TIP_SHINE_SOFT              (1)
-#define HOME_BOTH_LEVEL_TIP_SHINE_OVERLAY           (2)
-#ifndef HOME_BOTH_LEVEL_TIP_SHINE_MODE
-#define HOME_BOTH_LEVEL_TIP_SHINE_MODE              HOME_BOTH_LEVEL_TIP_SHINE_OVERLAY
-#endif
-#define HOME_BOTH_LEVEL_TIP_SHINE_IS_HARD \
-    (HOME_BOTH_LEVEL_TIP_SHINE_MODE == HOME_BOTH_LEVEL_TIP_SHINE_HARD)
-#define HOME_BOTH_LEVEL_TIP_SHINE_IS_SOFT \
-    (HOME_BOTH_LEVEL_TIP_SHINE_MODE == HOME_BOTH_LEVEL_TIP_SHINE_SOFT)
-#define HOME_BOTH_LEVEL_TIP_SHINE_IS_OVERLAY \
-    (HOME_BOTH_LEVEL_TIP_SHINE_MODE == HOME_BOTH_LEVEL_TIP_SHINE_OVERLAY)
-#define HOME_BOTH_LEVEL_TIP_SHINE_USE_IMG_MASK \
-    (HOME_BOTH_LEVEL_TIP_SHINE_IS_SOFT || HOME_BOTH_LEVEL_TIP_SHINE_IS_OVERLAY)
-
-#ifndef HOME_BOTH_LEVEL_TIP_SHINE_W
-#define HOME_BOTH_LEVEL_TIP_SHINE_W                 (80)
-#endif
-
-#if HOME_BOTH_LEVEL_TIP_SHINE_IS_HARD
-#define HOME_BOTH_LEVEL_TIP_MASK_W                  (HOME_BOTH_LEVEL_TIP_SHINE_W)
-#define HOME_BOTH_LEVEL_TIP_MASK_H                  (HOME_BOTH_LEVEL_TIP_H)
-#define HOME_BOTH_LEVEL_TIP_MASK_Y                  (HOME_BOTH_LEVEL_TIP_Y)
-#define HOME_BOTH_LEVEL_TIP_SHINE_RECOLOR_OPA       (LV_OPA_COVER)
-#define HOME_BOTH_LEVEL_TIP_BASE_OPA                (LV_OPA_COVER)
-#else
-#define HOME_BOTH_LEVEL_TIP_MASK_W                  (HOME_BOTH_LEVEL_TIP_SHINE_W)
-#define HOME_BOTH_LEVEL_TIP_MASK_H                  (HOME_BOTH_LEVEL_TIP_H)
-#define HOME_BOTH_LEVEL_TIP_MASK_Y                  (HOME_BOTH_LEVEL_TIP_Y)
-#define HOME_BOTH_LEVEL_TIP_SHINE_RECOLOR_OPA       (LV_OPA_80)
 #define HOME_BOTH_LEVEL_TIP_BASE_OPA                (LV_OPA_70)
-#endif
-#define HOME_BOTH_LEVEL_TIP_MASK_X_MIN              (-HOME_BOTH_LEVEL_TIP_MASK_W)
-#define HOME_BOTH_LEVEL_TIP_MASK_X_MAX              (PANLE_DISPLAY_W)
-#define HOME_BOTH_LEVEL_TIP_MASK_PERIOD_MS          (3200)
-#define HOME_BOTH_LEVEL_TIP_SHINE_COLOR             (0xFFFFFF)
 
 #define HOME_BOTH_LEVEL_ARC_ANIM_MS                 (220)
 
@@ -135,15 +102,9 @@ typedef struct {
     lv_obj_t *over_limit_box;
     lv_obj_t *over_limit_label;
     lv_obj_t *tip_img;
-    lv_obj_t *tip_shine;
-    lv_obj_t *tip_mask;
-#if HOME_BOTH_LEVEL_TIP_SHINE_USE_IMG_MASK
-    lv_draw_buf_t *tip_mask_a8;
-#endif
+    ui_shine_info_t tip_shine;
     lv_draw_buf_t *tip_buf;
     uint8_t tip_predecoded;
-    int16_t tip_mask_x;
-    uint32_t tip_mask_tick_ms;
     uint8_t shown_level[2];
     uint8_t shown_over_limit;
     uint8_t pump_mode;
@@ -537,116 +498,6 @@ static void home_both_level_over_limit_update(ui_proc_home_t *proc, uint32_t col
     both_info->shown_over_limit_color = color;
 }
 
-static void home_both_level_tip_shine_sync(void)
-{
-    lv_coord_t tip_x;
-    lv_coord_t tip_y;
-
-    if (both_info->tip_img == NULL || !lv_obj_is_valid(both_info->tip_img) ||
-        both_info->tip_shine == NULL || !lv_obj_is_valid(both_info->tip_shine) ||
-        both_info->tip_mask == NULL || !lv_obj_is_valid(both_info->tip_mask)) {
-        return;
-    }
-
-    lv_obj_update_layout(both_info->tip_img);
-    tip_x = lv_obj_get_x(both_info->tip_img);
-    tip_y = lv_obj_get_y(both_info->tip_img);
-    lv_obj_set_pos(both_info->tip_shine,
-        tip_x - both_info->tip_mask_x, tip_y - HOME_BOTH_LEVEL_TIP_MASK_Y);
-}
-
-#if HOME_BOTH_LEVEL_TIP_SHINE_USE_IMG_MASK
-static lv_draw_buf_t *home_both_level_tip_mask_a8_from_rgba(const lv_draw_buf_t *rgba,
-    uint32_t dst_w, uint32_t dst_h)
-{
-    lv_draw_buf_t *a8;
-    uint32_t src_w;
-    uint32_t src_h;
-    uint32_t y;
-    uint32_t x;
-    uint32_t y0;
-    uint32_t x0;
-
-    if (rgba == NULL || rgba->data == NULL || dst_w == 0U || dst_h == 0U) {
-        return NULL;
-    }
-    if (rgba->header.cf != LV_COLOR_FORMAT_ARGB8888 &&
-        rgba->header.cf != LV_COLOR_FORMAT_ARGB8888_PREMULTIPLIED) {
-        return NULL;
-    }
-
-    src_w = rgba->header.w;
-    src_h = rgba->header.h;
-    if (src_w == 0U || src_h == 0U) {
-        return NULL;
-    }
-
-    a8 = lv_draw_buf_create(dst_w, dst_h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
-    if (a8 == NULL || a8->data == NULL) {
-        if (a8 != NULL) {
-            lv_draw_buf_destroy(a8);
-        }
-        return NULL;
-    }
-
-    x0 = (src_w > dst_w) ? ((src_w - dst_w) / 2U) : 0U;
-    y0 = (src_h > dst_h) ? ((src_h - dst_h) / 2U) : 0U;
-
-    for (y = 0; y < dst_h; y++) {
-        uint32_t sy = (y0 + y < src_h) ? (y0 + y) : (src_h - 1U);
-        const lv_color32_t *src =
-            (const lv_color32_t *)(rgba->data + sy * rgba->header.stride);
-        uint8_t *dst = a8->data + y * a8->header.stride;
-        for (x = 0; x < dst_w; x++) {
-            uint32_t sx = (x0 + x < src_w) ? (x0 + x) : (src_w - 1U);
-            uint32_t a = src[sx].alpha;
-#if HOME_BOTH_LEVEL_TIP_SHINE_IS_SOFT
-            uint32_t edge = (x * (dst_w - 1U - x) * 4U * 255U) / (dst_w * dst_w);
-            if (edge > 255U) {
-                edge = 255U;
-            }
-            a = (a * edge) / 255U;
-            a = (a * a) / 255U;
-#endif
-            dst[x] = (uint8_t)a;
-        }
-    }
-    return a8;
-}
-
-static void home_both_level_tip_mask_a8_release(void)
-{
-    if (both_info == NULL || both_info->tip_mask_a8 == NULL) {
-        return;
-    }
-    if (both_info->tip_mask != NULL && lv_obj_is_valid(both_info->tip_mask)) {
-        lv_obj_set_style_bitmap_mask_src(both_info->tip_mask, NULL, 0);
-    }
-    lv_draw_buf_destroy(both_info->tip_mask_a8);
-    both_info->tip_mask_a8 = NULL;
-}
-
-static void home_both_level_tip_mask_a8_prepare(void)
-{
-    const lv_draw_buf_t *rgba;
-
-    if (both_info->tip_mask_a8 != NULL) {
-        if (both_info->tip_mask != NULL && lv_obj_is_valid(both_info->tip_mask)) {
-            lv_obj_set_style_bitmap_mask_src(both_info->tip_mask, both_info->tip_mask_a8, 0);
-        }
-        return;
-    }
-
-    rgba = get_predecoded_text_shine_mask();
-    both_info->tip_mask_a8 = home_both_level_tip_mask_a8_from_rgba(rgba,
-        HOME_BOTH_LEVEL_TIP_MASK_W, HOME_BOTH_LEVEL_TIP_MASK_H);
-    if (both_info->tip_mask_a8 != NULL && both_info->tip_mask != NULL &&
-        lv_obj_is_valid(both_info->tip_mask)) {
-        lv_obj_set_style_bitmap_mask_src(both_info->tip_mask, both_info->tip_mask_a8, 0);
-    }
-}
-#endif /* HOME_BOTH_LEVEL_TIP_SHINE_USE_IMG_MASK */
-
 static lv_draw_buf_t *home_both_level_tip_predecode(void)
 {
     const ui_img_data_t *tip;
@@ -666,12 +517,12 @@ static lv_draw_buf_t *home_both_level_tip_predecode(void)
 static void home_both_level_tip_rebuild(void)
 {
     lv_draw_buf_t *predecoded;
+    ui_shine_style_t style;
 
     if (both_info->tip_img != NULL && lv_obj_is_valid(both_info->tip_img) &&
-        both_info->tip_mask != NULL && lv_obj_is_valid(both_info->tip_mask) &&
-        both_info->tip_shine != NULL && lv_obj_is_valid(both_info->tip_shine)) {
-        home_both_level_tip_shine_sync();
-        return;
+        both_info->tip_shine.mask != NULL && lv_obj_is_valid(both_info->tip_shine.mask) &&
+        both_info->tip_shine.shine != NULL && lv_obj_is_valid(both_info->tip_shine.shine)) {
+        return; /* anim handles sync */
     }
 
     predecoded = home_both_level_tip_predecode();
@@ -688,74 +539,27 @@ static void home_both_level_tip_rebuild(void)
         lv_obj_align(both_info->tip_img, LV_ALIGN_TOP_MID, 0, HOME_BOTH_LEVEL_TIP_Y);
     }
 
-    if (both_info->tip_mask == NULL || !lv_obj_is_valid(both_info->tip_mask)) {
-        both_info->tip_mask = lv_obj_create(both_info->root);
-        EXCEPTION_CHECK_VOID(both_info->tip_mask);
-        lv_obj_remove_style_all(both_info->tip_mask);
-        lv_obj_set_size(both_info->tip_mask, HOME_BOTH_LEVEL_TIP_MASK_W, HOME_BOTH_LEVEL_TIP_MASK_H);
-        lv_obj_set_style_bg_opa(both_info->tip_mask, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(both_info->tip_mask, 0, 0);
-        lv_obj_set_style_pad_all(both_info->tip_mask, 0, 0);
-        lv_obj_clear_flag(both_info->tip_mask, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_clear_flag(both_info->tip_mask, LV_OBJ_FLAG_CLICKABLE);
-        both_info->tip_mask_x = HOME_BOTH_LEVEL_TIP_MASK_X_MIN;
-        both_info->tip_mask_tick_ms = get_timestamp();
-    }
+    ui_shine_style_init(&style);
+    style.mask_y = HOME_BOTH_LEVEL_TIP_Y;
+    style.screen_w = PANLE_DISPLAY_W;
 
-    if (both_info->tip_shine == NULL || !lv_obj_is_valid(both_info->tip_shine)) {
-        both_info->tip_shine = lv_image_create(both_info->tip_mask);
-        EXCEPTION_CHECK_VOID(both_info->tip_shine);
-        lv_obj_clear_flag(both_info->tip_shine, LV_OBJ_FLAG_CLICKABLE);
-        if (predecoded != NULL) {
-            lv_image_set_src(both_info->tip_shine, predecoded);
-        }
-        lv_obj_set_style_image_recolor(both_info->tip_shine,
-            lv_color_hex(HOME_BOTH_LEVEL_TIP_SHINE_COLOR), 0);
-        lv_obj_set_style_image_recolor_opa(both_info->tip_shine,
-            HOME_BOTH_LEVEL_TIP_SHINE_RECOLOR_OPA, 0);
-        lv_obj_set_style_blend_mode(both_info->tip_shine, LV_BLEND_MODE_NORMAL, 0);
-    }
-
-#if HOME_BOTH_LEVEL_TIP_SHINE_USE_IMG_MASK
-    home_both_level_tip_mask_a8_prepare();
-#endif
-    lv_obj_align(both_info->tip_mask, LV_ALIGN_TOP_LEFT,
-        both_info->tip_mask_x, HOME_BOTH_LEVEL_TIP_MASK_Y);
+    ui_shine_prepare_from_tip(&both_info->tip_shine, &style, predecoded);
+    ui_shine_update(&both_info->tip_shine, both_info->root, &style, both_info->tip_img, 1);
     lv_obj_move_foreground(both_info->tip_img);
-    lv_obj_move_foreground(both_info->tip_mask);
-    home_both_level_tip_shine_sync();
-}
-
-static void home_both_level_tip_mask_anim_update(void)
-{
-    uint32_t elapsed;
-    int32_t x;
-
-    if (both_info->tip_mask == NULL || !lv_obj_is_valid(both_info->tip_mask)) {
-        return;
-    }
-
-    elapsed = get_timestamp() - both_info->tip_mask_tick_ms;
-    if (elapsed >= HOME_BOTH_LEVEL_TIP_MASK_PERIOD_MS) {
-        both_info->tip_mask_tick_ms = get_timestamp();
-        elapsed = 0;
-    }
-    x = HOME_BOTH_LEVEL_TIP_MASK_X_MIN +
-        (int32_t)((HOME_BOTH_LEVEL_TIP_MASK_X_MAX - HOME_BOTH_LEVEL_TIP_MASK_X_MIN) * elapsed) /
-        HOME_BOTH_LEVEL_TIP_MASK_PERIOD_MS;
-    if (x != both_info->tip_mask_x) {
-        both_info->tip_mask_x = (int16_t)x;
-        lv_obj_set_x(both_info->tip_mask, both_info->tip_mask_x);
-        home_both_level_tip_shine_sync();
-    }
+    ui_shine_show(&both_info->tip_shine);
 }
 
 static void home_both_level_tip_update(void)
 {
+    ui_shine_style_t style;
+
     if (both_info->force_update) {
         home_both_level_tip_rebuild();
     }
-    home_both_level_tip_mask_anim_update();
+    ui_shine_style_init(&style);
+    style.mask_y = HOME_BOTH_LEVEL_TIP_Y;
+    style.screen_w = PANLE_DISPLAY_W;
+    ui_shine_anim_update(&both_info->tip_shine, &style, both_info->tip_img, 0);
 }
 
 /*
@@ -823,18 +627,7 @@ void ui_display_home_both_level_adjust_prepare(ui_manager_context_t *thiz)
 void ui_display_home_both_level_adjust_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && both_info && both_info->root);
-    if (both_info->tip_shine != NULL && lv_obj_is_valid(both_info->tip_shine)) {
-        lv_image_set_src(both_info->tip_shine, NULL);
-        LVGL_OBJ_DELETE(both_info->tip_shine);
-        both_info->tip_shine = NULL;
-    }
-#if HOME_BOTH_LEVEL_TIP_SHINE_USE_IMG_MASK
-    home_both_level_tip_mask_a8_release();
-#endif
-    if (both_info->tip_mask != NULL && lv_obj_is_valid(both_info->tip_mask)) {
-        LVGL_OBJ_DELETE(both_info->tip_mask);
-        both_info->tip_mask = NULL;
-    }
+    ui_shine_remove(&both_info->tip_shine);
     if (both_info->tip_img != NULL && lv_obj_is_valid(both_info->tip_img)) {
         lv_image_set_src(both_info->tip_img, NULL);
     }

@@ -33,8 +33,10 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc)
 {
     pump_rhythm_confirm_ui_exit(proc);
     pump_settings_success_ui_exit(proc);
-    pump_timeout_ui_exit(proc);
+    pump_break_tip_ui_exit(proc);
+    pump_break_end_ui_exit(proc);
     pump_stop_hold_ui_exit(proc);
+    pump_finish_timeout_ui_exit(proc);
     pump_will_finish_ui_exit(proc);
     pump_level_adjust_ui_exit(proc);
     pump_both_level_adjust_ui_exit(proc);
@@ -56,11 +58,17 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
         case PUMP_UI_TYPE_SETTINGS_SUCCESS:
             pump_settings_success_ui_exit(proc);
             break;
-        case PUMP_UI_TYPE_TIMEOUT:
-            pump_timeout_ui_exit(proc);
+        case PUMP_UI_TYPE_BREAK_TIP:
+            pump_break_tip_ui_exit(proc);
+            break;
+        case PUMP_UI_TYPE_BREAK_END:
+            pump_break_end_ui_exit(proc);
             break;
         case PUMP_UI_TYPE_STOP_HOLD:
             pump_stop_hold_ui_exit(proc);
+            break;
+        case PUMP_UI_TYPE_FINISH_TIMEOUT:
+            pump_finish_timeout_ui_exit(proc);
             break;
         case PUMP_UI_TYPE_WILL_FINISH:
             pump_will_finish_ui_exit(proc);
@@ -134,9 +142,15 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
         return;
     }
 
-    /// 超时页：短按 power → 回泵奶首页
-    if (proc->current_ui_type == PUMP_UI_TYPE_TIMEOUT) {
+    /// 休息轻提醒页：短按 power → 回泵奶首页
+    if (proc->current_ui_type == PUMP_UI_TYPE_BREAK_TIP) {
         show_pump_home_ui(proc);
+        return;
+    }
+
+    /// 韵律即将结束提示：短按 power → 回泵奶首页
+    if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
+        pump_will_finish_ui_dismiss(proc);
         return;
     }
 
@@ -170,12 +184,13 @@ void pump_start_key_event_handler(ui_proc_pump_t *proc)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
         proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
-        proc->current_ui_type == PUMP_UI_TYPE_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_BREAK_TIP ||
+        proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH ||
         proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ||
         proc->current_ui_type == PUMP_UI_TYPE_LEVEL_ADJUST ||
         proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL_ADJUST ||
         proc->current_ui_type == PUMP_UI_TYPE_SPEED_ADJUST) {
-        LOG_WM("settings/confirm/timeout/stop-hold/level-adjust/speed-adjust ui, ignore start key.");
+        LOG_WM("settings/confirm/break-tip/will-finish/stop-hold/level-adjust/speed-adjust ui, ignore start key.");
         return;
     }
     switch_pump_status_ui(proc);

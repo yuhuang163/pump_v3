@@ -9,15 +9,15 @@
 *****************************************************************************************
 */
 static PSRAM_NC_DATA_LOC uint8_t s_mode_select_tip_png[] = {
-    #include "font_img/txt/mode_select_tip_212x50.txt"
+    #include "font_img/txt/mode_select_tip_212x49.txt"
 };
 
 static PSRAM_NC_DATA_LOC uint8_t s_level_adjust_tip_png[] = {
-    #include "font_img/txt/level_adjust_tip_216x51.txt"
+    #include "font_img/txt/level_adjust_tip_220x63.txt"
 };
 
-static PSRAM_NC_DATA_LOC uint8_t s_pump_timeout_tip_png[] = {
-    #include "font_img/txt/pump_timeout_tip_193x42.txt"
+static PSRAM_NC_DATA_LOC uint8_t s_pump_break_tip_png[] = {
+    #include "font_img/txt/pump_break_tip_220x63.txt"
 };
 
 static const ui_img_data_t s_mode_select_tip = {
@@ -30,9 +30,9 @@ static const ui_img_data_t s_level_adjust_tip = {
     .size = sizeof(s_level_adjust_tip_png),
 };
 
-static const ui_img_data_t s_pump_timeout_tip = {
-    .data = s_pump_timeout_tip_png,
-    .size = sizeof(s_pump_timeout_tip_png),
+static const ui_img_data_t s_pump_break_tip = {
+    .data = s_pump_break_tip_png,
+    .size = sizeof(s_pump_break_tip_png),
 };
 
 /*
@@ -49,7 +49,7 @@ const ui_img_data_t *ui_font_img_level_adjust_tip_get(void)
     return &s_level_adjust_tip;
 }
 
-const ui_img_data_t *ui_font_img_pump_timeout_tip_get(void)
+const ui_img_data_t *ui_font_img_pump_break_tip_get(void)
 {
-    return &s_pump_timeout_tip;
+    return &s_pump_break_tip;
 }

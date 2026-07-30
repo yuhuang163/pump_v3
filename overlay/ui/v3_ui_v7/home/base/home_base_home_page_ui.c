@@ -4,6 +4,7 @@
 */
 #include "home_base_ui_internal.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -48,27 +49,14 @@
 #define HOME_MAIN_HINT_TEXT                             "Press to start pumping"
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_HINT_COLOR                            (0x00FF00)
-#define HOME_MAIN_HINT_SHINE_COLOR                      (0x00FF00)
 #else
 #define HOME_MAIN_HINT_COLOR_STIMULATION                (0xAD7C89)
 #define HOME_MAIN_HINT_COLOR_LACTATION                  (0xB9D9FF)
 #define HOME_MAIN_HINT_COLOR_PROGRAM                    (0xB195DF)
-#define HOME_MAIN_HINT_SHINE_COLOR                      (0xFFFFFF)
 #endif
 
-#if HOME_BASE_MAIN_HINT_SHINE_IS_HARD
 #define HOME_MAIN_MASK_W                                (HOME_BASE_MAIN_HINT_SHINE_W)
-#define HOME_MAIN_MASK_H                                (40)
-#define HOME_MAIN_MASK_Y                                (HOME_MAIN_HINT_Y - 8)
-#else
-/** SOFT / OVERLAY：宽由 HOME_BASE_MAIN_HINT_SHINE_W 控制，高对齐 TEXT_SHINE_MASK */
-#define HOME_MAIN_MASK_W                                (HOME_BASE_MAIN_HINT_SHINE_W)
-#define HOME_MAIN_MASK_H                                (80)
-#define HOME_MAIN_MASK_Y                                (HOME_MAIN_HINT_Y - 28)
-#endif
-#define HOME_MAIN_MASK_X_MIN                            (-HOME_MAIN_MASK_W)
-#define HOME_MAIN_MASK_X_MAX                            (HOME_MAIN_SCREEN_W)
-#define HOME_MAIN_MASK_PERIOD_MS                        (3200)
+#define HOME_MAIN_MASK_Y                                (HOME_MAIN_HINT_Y)
 
 #define HOME_MAIN_SPEED_GROUP_WIDTH                     (47)
 #define HOME_MAIN_SPEED_ICON_Y                          (265 + 4)
@@ -439,118 +427,13 @@ static void home_main_time_update(home_base_ui_info_t *info, uint8_t hours, uint
     info->main.shown_digit_size = digit_size;
 }
 
-static void home_main_hint_shine_sync(home_base_ui_info_t *info)
+static void home_main_hint_style_get(ui_shine_style_t *style)
 {
-    lv_coord_t text_x;
-    lv_coord_t text_y;
-
-    if (info->main.hint_text == NULL || !lv_obj_is_valid(info->main.hint_text) ||
-        info->main.hint_shine == NULL || !lv_obj_is_valid(info->main.hint_shine) ||
-        info->main.hint_mask == NULL || !lv_obj_is_valid(info->main.hint_mask)) {
-        return;
-    }
-
-    lv_obj_update_layout(info->main.hint_text);
-    text_x = lv_obj_get_x(info->main.hint_text);
-    text_y = lv_obj_get_y(info->main.hint_text);
-    lv_obj_set_pos(info->main.hint_shine,
-        text_x - info->main.mask_x, text_y - HOME_MAIN_MASK_Y);
+    ui_shine_style_init(style);
+    style->mask_w = HOME_MAIN_MASK_W;
+    style->mask_y = HOME_MAIN_MASK_Y;
+    style->screen_w = HOME_MAIN_SCREEN_W;
 }
-
-#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
-/** 从预解码 TEXT_SHINE_MASK 生成 A8；宽高不足时居中裁切 */
-static lv_draw_buf_t *home_main_hint_mask_a8_from_rgba(const lv_draw_buf_t *rgba,
-    uint32_t dst_w, uint32_t dst_h)
-{
-    lv_draw_buf_t *a8;
-    uint32_t src_w;
-    uint32_t src_h;
-    uint32_t y;
-    uint32_t x;
-    uint32_t y0;
-    uint32_t x0;
-
-    if (rgba == NULL || rgba->data == NULL || dst_w == 0U || dst_h == 0U) {
-        return NULL;
-    }
-    if (rgba->header.cf != LV_COLOR_FORMAT_ARGB8888 &&
-        rgba->header.cf != LV_COLOR_FORMAT_ARGB8888_PREMULTIPLIED) {
-        return NULL;
-    }
-
-    src_w = rgba->header.w;
-    src_h = rgba->header.h;
-    if (src_w == 0U || src_h == 0U) {
-        return NULL;
-    }
-
-    a8 = lv_draw_buf_create(dst_w, dst_h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
-    if (a8 == NULL || a8->data == NULL) {
-        if (a8 != NULL) {
-            lv_draw_buf_destroy(a8);
-        }
-        return NULL;
-    }
-
-    x0 = (src_w > dst_w) ? ((src_w - dst_w) / 2U) : 0U;
-    y0 = (src_h > dst_h) ? ((src_h - dst_h) / 2U) : 0U;
-
-    for (y = 0; y < dst_h; y++) {
-        uint32_t sy = (y0 + y < src_h) ? (y0 + y) : (src_h - 1U);
-        const lv_color32_t *src =
-            (const lv_color32_t *)(rgba->data + sy * rgba->header.stride);
-        uint8_t *dst = a8->data + y * a8->header.stride;
-        for (x = 0; x < dst_w; x++) {
-            uint32_t sx = (x0 + x < src_w) ? (x0 + x) : (src_w - 1U);
-            uint32_t a = src[sx].alpha;
-#if HOME_BASE_MAIN_HINT_SHINE_IS_SOFT
-            /* SOFT：再叠加抛物线，两端更透 */
-            uint32_t edge = (x * (dst_w - 1U - x) * 4U * 255U) / (dst_w * dst_w);
-            if (edge > 255U) {
-                edge = 255U;
-            }
-            a = (a * edge) / 255U;
-            a = (a * a) / 255U;
-#endif
-            /* OVERLAY：直接使用 TEXT_SHINE_MASK 的 alpha */
-            dst[x] = (uint8_t)a;
-        }
-    }
-    return a8;
-}
-
-static void home_main_hint_mask_a8_release(home_base_ui_info_t *info)
-{
-    if (info == NULL || info->main.hint_mask_a8 == NULL) {
-        return;
-    }
-    if (info->main.hint_mask != NULL && lv_obj_is_valid(info->main.hint_mask)) {
-        lv_obj_set_style_bitmap_mask_src(info->main.hint_mask, NULL, 0);
-    }
-    lv_draw_buf_destroy(info->main.hint_mask_a8);
-    info->main.hint_mask_a8 = NULL;
-}
-
-static void home_main_hint_mask_a8_prepare(home_base_ui_info_t *info)
-{
-    const lv_draw_buf_t *rgba;
-
-    if (info->main.hint_mask_a8 != NULL) {
-        if (info->main.hint_mask != NULL && lv_obj_is_valid(info->main.hint_mask)) {
-            lv_obj_set_style_bitmap_mask_src(info->main.hint_mask, info->main.hint_mask_a8, 0);
-        }
-        return;
-    }
-
-    rgba = get_predecoded_text_shine_mask();
-    info->main.hint_mask_a8 = home_main_hint_mask_a8_from_rgba(rgba,
-        HOME_MAIN_MASK_W, HOME_MAIN_MASK_H);
-    if (info->main.hint_mask_a8 != NULL && info->main.hint_mask != NULL &&
-        lv_obj_is_valid(info->main.hint_mask)) {
-        lv_obj_set_style_bitmap_mask_src(info->main.hint_mask, info->main.hint_mask_a8, 0);
-    }
-}
-#endif /* HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK */
 
 static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode)
 {
@@ -574,49 +457,22 @@ static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode)
     info->main.shown_hint_color = color;
 }
 
-/** 裁剪窗内亮色文案扫光；SOFT/OVERLAY 再用 TEXT_SHINE_MASK 做 A8 蒙层 */
+/** 裁剪窗内亮色扫光：字库栅格 + TEXT_SHINE_MASK 剖面烘焙软边 */
 static void home_main_hint_mask_update(home_base_ui_info_t *info)
 {
     lv_obj_t *parent = home_page_parent_get(info);
+    ui_shine_style_t style;
 
-    if (info->main.hint_mask != NULL && lv_obj_is_valid(info->main.hint_mask) &&
-        info->main.hint_shine != NULL && lv_obj_is_valid(info->main.hint_shine) &&
+    if (info->main.hint_shine.mask != NULL && lv_obj_is_valid(info->main.hint_shine.mask) &&
+        info->main.hint_shine.shine != NULL && lv_obj_is_valid(info->main.hint_shine.shine) &&
         info->force_update == false) {
-        home_main_hint_shine_sync(info);
         return;
     }
 
-    if (info->main.hint_mask == NULL || !lv_obj_is_valid(info->main.hint_mask)) {
-        info->main.hint_mask = lv_obj_create(parent);
-        EXCEPTION_CHECK_VOID(info->main.hint_mask);
-        lv_obj_remove_style_all(info->main.hint_mask);
-        lv_obj_set_size(info->main.hint_mask, HOME_MAIN_MASK_W, HOME_MAIN_MASK_H);
-        lv_obj_set_style_bg_opa(info->main.hint_mask, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(info->main.hint_mask, 0, 0);
-        lv_obj_set_style_pad_all(info->main.hint_mask, 0, 0);
-        lv_obj_clear_flag(info->main.hint_mask, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_clear_flag(info->main.hint_mask, LV_OBJ_FLAG_CLICKABLE);
-        info->main.mask_x = HOME_MAIN_MASK_X_MIN;
-        info->main.mask_tick_ms = get_timestamp();
-    }
-
-    if (info->main.hint_shine == NULL || !lv_obj_is_valid(info->main.hint_shine)) {
-        info->main.hint_shine = lv_label_create(info->main.hint_mask);
-        EXCEPTION_CHECK_VOID(info->main.hint_shine);
-        lv_obj_set_style_text_color(info->main.hint_shine, lv_color_hex(HOME_MAIN_HINT_SHINE_COLOR), 0);
-        lv_obj_set_style_text_font(info->main.hint_shine, &lv_font_aeonik_soft_19_medium, 0);
-        lv_obj_set_style_text_align(info->main.hint_shine, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_letter_space(info->main.hint_shine, 0, 0);
-    }
-    lv_label_set_text(info->main.hint_shine, HOME_MAIN_HINT_TEXT);
-
-#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
-    home_main_hint_mask_a8_prepare(info);
-#endif
-
-    lv_obj_align(info->main.hint_mask, LV_ALIGN_TOP_LEFT, info->main.mask_x, HOME_MAIN_MASK_Y);
-    lv_obj_move_foreground(info->main.hint_mask);
-    home_main_hint_shine_sync(info);
+    home_main_hint_style_get(&style);
+    ui_shine_prepare_from_text(&info->main.hint_shine, &style,
+        HOME_MAIN_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0);
+    ui_shine_update(&info->main.hint_shine, parent, &style, info->main.hint_text, 1);
 }
 
 static void home_main_hint_update(home_base_ui_info_t *info, uint8_t mode)
@@ -625,30 +481,14 @@ static void home_main_hint_update(home_base_ui_info_t *info, uint8_t mode)
     home_main_hint_mask_update(info);
 }
 
-static void home_main_mask_anim_update(home_base_ui_info_t *info)
+static void home_main_hint_shine_anim_update(home_base_ui_info_t *info)
 {
-    uint32_t elapsed;
-    int32_t x;
+    ui_shine_style_t style;
+    uint8_t paused;
 
-    if (info->main.hint_mask == NULL || !lv_obj_is_valid(info->main.hint_mask)) {
-        return;
-    }
-    if (info->animation.paused_by_transition) {
-        return;
-    }
-
-    elapsed = get_timestamp() - info->main.mask_tick_ms;
-    if (elapsed >= HOME_MAIN_MASK_PERIOD_MS) {
-        info->main.mask_tick_ms = get_timestamp();
-        elapsed = 0;
-    }
-    x = HOME_MAIN_MASK_X_MIN +
-        (int32_t)((HOME_MAIN_MASK_X_MAX - HOME_MAIN_MASK_X_MIN) * elapsed) / HOME_MAIN_MASK_PERIOD_MS;
-    if (x != info->main.mask_x) {
-        info->main.mask_x = (int16_t)x;
-        lv_obj_set_x(info->main.hint_mask, info->main.mask_x);
-        home_main_hint_shine_sync(info);
-    }
+    home_main_hint_style_get(&style);
+    paused = info->animation.paused_by_transition ? 1 : 0;
+    ui_shine_anim_update(&info->main.hint_shine, &style, info->main.hint_text, paused);
 }
 
 static void home_main_speed_update(home_base_ui_info_t *info, uint8_t speed)
@@ -736,9 +576,7 @@ void home_main_page_ui_build(home_base_ui_info_t *info)
 #endif
 
     EXCEPTION_CHECK_VOID(info);
-#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
-    home_main_hint_mask_a8_release(info);
-#endif
+    ui_shine_remove(&info->main.hint_shine);
     home_main_time_colon_release(info);
     memset(&info->main, 0, sizeof(info->main));
     info->main.shown_bg_id = 0;
@@ -792,7 +630,7 @@ void home_main_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
     home_main_mode_title_update(info, mode);
     home_main_time_update(info, 0, 0, 0);
     home_main_hint_update(info, mode);
-    home_main_mask_anim_update(info);
+    home_main_hint_shine_anim_update(info);
     home_main_speed_update(info, speed);
     home_main_level_label_update(&info->main.left_level, home_page_parent_get(info), "L",
         left_level, HOME_MAIN_LEFT_LEVEL_X, HOME_MAIN_LEFT_LEVEL_Y, HOME_MAIN_LEFT_LEVEL_W,
@@ -800,10 +638,7 @@ void home_main_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
     home_main_level_label_update(&info->main.right_level, home_page_parent_get(info), "R",
         right_level, HOME_MAIN_RIGHT_LEVEL_X, HOME_MAIN_RIGHT_LEVEL_Y, HOME_MAIN_RIGHT_LEVEL_W,
         LV_TEXT_ALIGN_LEFT, &info->main.shown_right_level, info->force_update != 0);
-
-    if (!home_page_ui_is_transitioning(info)) {
-        home_main_page_transition_apply(info, HOME_MAIN_SCALE_FULL, HOME_MAIN_SCALE_FULL, false);
-    }
+    /* 缩放复位只在切页过渡里 apply；稳态每帧设 FULL 会反复 update_layout，拖帧率 */
 }
 
 void home_main_page_ui_remove(home_base_ui_info_t *info)
@@ -812,9 +647,7 @@ void home_main_page_ui_remove(home_base_ui_info_t *info)
     home_main_bg_detach(info);
     home_main_time_colon_release(info);
     ui_img_baj_release_decoded_buf(info->main.speed_icon);
-#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
-    home_main_hint_mask_a8_release(info);
-#endif
+    ui_shine_remove(&info->main.hint_shine);
     memset(&info->main, 0, sizeof(info->main));
 }
 

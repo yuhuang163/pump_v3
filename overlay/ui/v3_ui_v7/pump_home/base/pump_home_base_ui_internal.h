@@ -16,6 +16,7 @@ extern "C" {
 #include "ble_ui.h" // IWYU pragma: keep
 #include "pump_home_ui.h" // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
+#include "ui_shine_component.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -28,6 +29,9 @@ extern "C" {
 #define PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT             (2)
 #define PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT             (2)
 #define PUMP_HOME_BASE_MODE_TIME_COLON_COUNT             (2)
+
+/** 主页提示扫光宽度（像素，CPU 软边剖面） */
+#define PUMP_HOME_BASE_MAIN_HINT_SHINE_W                 (140)
 
 /// 页间过渡动画参数（与 home base 一致）
 #ifndef PUMP_HOME_BASE_PAGE_TRANSITION_MS
@@ -125,8 +129,7 @@ typedef struct {
     lv_obj_t *time_colon_2seg;          /// 两段：居中 CLOCK_COLON
     lv_obj_t *play_icon;                /// 暂停态播放图标
     lv_obj_t *hint_text;                /// Press to resume
-    lv_obj_t *hint_shine;               /// 扫光亮色文案（裁剪窗内）
-    lv_obj_t *hint_mask;                /// 扫光裁剪窗
+    ui_shine_info_t hint_shine;         /// 扫光（字库文案软边）
     lv_obj_t *speed_icon;
     lv_obj_t *speed_value;
     lv_obj_t *left_level;               /// Lx
@@ -141,8 +144,6 @@ typedef struct {
     uint8_t shown_left_level;
     uint8_t shown_right_level;
     uint8_t shown_paused;               /// 当前是否显示暂停态
-    int16_t mask_x;
-    uint32_t mask_tick_ms;
     char shown_title[24];
 } pump_home_base_main_page_info_t;
 

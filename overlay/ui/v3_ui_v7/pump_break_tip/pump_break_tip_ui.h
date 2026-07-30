@@ -1,5 +1,5 @@
-#ifndef __PUMP_TIMEOUT_UI_H__
-#define __PUMP_TIMEOUT_UI_H__
+#ifndef __PUMP_BREAK_TIP_UI_H__
+#define __PUMP_BREAK_TIP_UI_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,11 +15,11 @@ extern "C" {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-void ui_display_pump_timeout_prepare(ui_manager_context_t *thiz);
-void ui_display_pump_timeout_remove(ui_manager_context_t *thiz);
-int ui_display_pump_timeout_process(ui_manager_context_t *thiz);
+void ui_display_pump_break_tip_prepare(ui_manager_context_t *thiz);
+void ui_display_pump_break_tip_remove(ui_manager_context_t *thiz);
+int ui_display_pump_break_tip_process(ui_manager_context_t *thiz);
 
 #ifdef __cplusplus
 }
 #endif
-#endif // __PUMP_TIMEOUT_UI_H__
+#endif // __PUMP_BREAK_TIP_UI_H__

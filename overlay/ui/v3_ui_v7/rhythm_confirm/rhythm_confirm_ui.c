@@ -6,6 +6,7 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
 #include "ui_snapshot.h" // IWYU pragma: keep
+#include "ui_shine_component.h" // IWYU pragma: keep
 #include "rhythm_confirm_ui.h" // IWYU pragma: keep
 
 /*
@@ -23,51 +24,11 @@
 #define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "Timer will restart"
 
 #define RHYTHM_CONFIRM_TIP_W                            (212)
-#define RHYTHM_CONFIRM_TIP_H                            (50)
+#define RHYTHM_CONFIRM_TIP_H                            (49)
 /** 底部提示图 Y：贴底留边（与 home 模式选择页一致） */
 #define RHYTHM_CONFIRM_TIP_Y                            (PANLE_DISPLAY_H - RHYTHM_CONFIRM_TIP_H - 8)
 
-/** 提示扫光方式（三选一，与 home 模式页取值一致） */
-#define RHYTHM_CONFIRM_TIP_SHINE_HARD                   (0)
-#define RHYTHM_CONFIRM_TIP_SHINE_SOFT                   (1)
-#define RHYTHM_CONFIRM_TIP_SHINE_OVERLAY                (2)
-#ifndef RHYTHM_CONFIRM_TIP_SHINE_MODE
-#define RHYTHM_CONFIRM_TIP_SHINE_MODE                   RHYTHM_CONFIRM_TIP_SHINE_OVERLAY
-#endif
-#define RHYTHM_CONFIRM_TIP_SHINE_IS_HARD \
-    (RHYTHM_CONFIRM_TIP_SHINE_MODE == RHYTHM_CONFIRM_TIP_SHINE_HARD)
-#define RHYTHM_CONFIRM_TIP_SHINE_IS_SOFT \
-    (RHYTHM_CONFIRM_TIP_SHINE_MODE == RHYTHM_CONFIRM_TIP_SHINE_SOFT)
-#define RHYTHM_CONFIRM_TIP_SHINE_IS_OVERLAY \
-    (RHYTHM_CONFIRM_TIP_SHINE_MODE == RHYTHM_CONFIRM_TIP_SHINE_OVERLAY)
-#define RHYTHM_CONFIRM_TIP_SHINE_USE_IMG_MASK \
-    (RHYTHM_CONFIRM_TIP_SHINE_IS_SOFT || RHYTHM_CONFIRM_TIP_SHINE_IS_OVERLAY)
-
-#ifndef RHYTHM_CONFIRM_TIP_SHINE_W
-#if RHYTHM_CONFIRM_TIP_SHINE_IS_HARD
-#define RHYTHM_CONFIRM_TIP_SHINE_W                      (80)
-#else
-#define RHYTHM_CONFIRM_TIP_SHINE_W                      (80)
-#endif
-#endif
-
-#if RHYTHM_CONFIRM_TIP_SHINE_IS_HARD
-#define RHYTHM_CONFIRM_TIP_MASK_W                       (RHYTHM_CONFIRM_TIP_SHINE_W)
-#define RHYTHM_CONFIRM_TIP_MASK_H                       (RHYTHM_CONFIRM_TIP_H)
-#define RHYTHM_CONFIRM_TIP_MASK_Y                       (RHYTHM_CONFIRM_TIP_Y)
-#define RHYTHM_CONFIRM_TIP_SHINE_RECOLOR_OPA            (LV_OPA_COVER)
-#define RHYTHM_CONFIRM_TIP_BASE_OPA                     (LV_OPA_COVER)
-#else
-#define RHYTHM_CONFIRM_TIP_MASK_W                       (RHYTHM_CONFIRM_TIP_SHINE_W)
-#define RHYTHM_CONFIRM_TIP_MASK_H                       (RHYTHM_CONFIRM_TIP_H)
-#define RHYTHM_CONFIRM_TIP_MASK_Y                       (RHYTHM_CONFIRM_TIP_Y)
-#define RHYTHM_CONFIRM_TIP_SHINE_RECOLOR_OPA            (LV_OPA_80)
 #define RHYTHM_CONFIRM_TIP_BASE_OPA                     (LV_OPA_70)
-#endif
-#define RHYTHM_CONFIRM_TIP_MASK_X_MIN                   (-RHYTHM_CONFIRM_TIP_MASK_W)
-#define RHYTHM_CONFIRM_TIP_MASK_X_MAX                   (PANLE_DISPLAY_W)
-#define RHYTHM_CONFIRM_TIP_MASK_PERIOD_MS               (3200)
-#define RHYTHM_CONFIRM_TIP_SHINE_COLOR                  (0xFFFFFF)
 
 /** 提示文案：1=内嵌图片代码段（默认），0=资源包 BASE_RES_ID_MODE_SELECT_TIP */
 #ifndef RHYTHM_CONFIRM_TIP_FROM_CODE
@@ -83,14 +44,8 @@ typedef struct {
     lv_obj_t *title;
     lv_obj_t *subtitle;
     lv_obj_t *tip_img;
-    lv_obj_t *tip_shine;
-    lv_obj_t *tip_mask;
-#if RHYTHM_CONFIRM_TIP_SHINE_USE_IMG_MASK
-    lv_draw_buf_t *tip_mask_a8;
-#endif
+    ui_shine_info_t tip_shine;
     uint8_t tip_predecoded;
-    int16_t tip_mask_x;
-    uint32_t tip_mask_tick_ms;
     uint8_t force_update;
     uint8_t rsv[7];
 } rhythm_confirm_ui_info_t;
@@ -239,126 +194,15 @@ static lv_draw_buf_t *rhythm_confirm_tip_predecode(ui_manager_context_t *ui)
     return s_rhythm_confirm_tip_predecoded;
 }
 
-static void rhythm_confirm_tip_shine_sync(void)
-{
-    lv_coord_t tip_x;
-    lv_coord_t tip_y;
-
-    if (confirm_info->tip_img == NULL || !lv_obj_is_valid(confirm_info->tip_img) ||
-        confirm_info->tip_shine == NULL || !lv_obj_is_valid(confirm_info->tip_shine) ||
-        confirm_info->tip_mask == NULL || !lv_obj_is_valid(confirm_info->tip_mask)) {
-        return;
-    }
-
-    lv_obj_update_layout(confirm_info->tip_img);
-    tip_x = lv_obj_get_x(confirm_info->tip_img);
-    tip_y = lv_obj_get_y(confirm_info->tip_img);
-    lv_obj_set_pos(confirm_info->tip_shine,
-        tip_x - confirm_info->tip_mask_x, tip_y - RHYTHM_CONFIRM_TIP_MASK_Y);
-}
-
-#if RHYTHM_CONFIRM_TIP_SHINE_USE_IMG_MASK
-/** 从预解码 TEXT_SHINE_MASK 生成 A8；高度不足时垂直居中裁切 */
-static lv_draw_buf_t *rhythm_confirm_tip_mask_a8_from_rgba(const lv_draw_buf_t *rgba,
-    uint32_t dst_w, uint32_t dst_h)
-{
-    lv_draw_buf_t *a8;
-    uint32_t src_w;
-    uint32_t src_h;
-    uint32_t y;
-    uint32_t x;
-    uint32_t y0;
-    uint32_t x0;
-
-    if (rgba == NULL || rgba->data == NULL || dst_w == 0U || dst_h == 0U) {
-        return NULL;
-    }
-    if (rgba->header.cf != LV_COLOR_FORMAT_ARGB8888 &&
-        rgba->header.cf != LV_COLOR_FORMAT_ARGB8888_PREMULTIPLIED) {
-        return NULL;
-    }
-
-    src_w = rgba->header.w;
-    src_h = rgba->header.h;
-    if (src_w == 0U || src_h == 0U) {
-        return NULL;
-    }
-
-    a8 = lv_draw_buf_create(dst_w, dst_h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
-    if (a8 == NULL || a8->data == NULL) {
-        if (a8 != NULL) {
-            lv_draw_buf_destroy(a8);
-        }
-        return NULL;
-    }
-
-    x0 = (src_w > dst_w) ? ((src_w - dst_w) / 2U) : 0U;
-    y0 = (src_h > dst_h) ? ((src_h - dst_h) / 2U) : 0U;
-
-    for (y = 0; y < dst_h; y++) {
-        uint32_t sy = (y0 + y < src_h) ? (y0 + y) : (src_h - 1U);
-        const lv_color32_t *src =
-            (const lv_color32_t *)(rgba->data + sy * rgba->header.stride);
-        uint8_t *dst = a8->data + y * a8->header.stride;
-        for (x = 0; x < dst_w; x++) {
-            uint32_t sx = (x0 + x < src_w) ? (x0 + x) : (src_w - 1U);
-            uint32_t a = src[sx].alpha;
-#if RHYTHM_CONFIRM_TIP_SHINE_IS_SOFT
-            uint32_t edge = (x * (dst_w - 1U - x) * 4U * 255U) / (dst_w * dst_w);
-            if (edge > 255U) {
-                edge = 255U;
-            }
-            a = (a * edge) / 255U;
-            a = (a * a) / 255U;
-#endif
-            dst[x] = (uint8_t)a;
-        }
-    }
-    return a8;
-}
-
-static void rhythm_confirm_tip_mask_a8_release(void)
-{
-    if (confirm_info == NULL || confirm_info->tip_mask_a8 == NULL) {
-        return;
-    }
-    if (confirm_info->tip_mask != NULL && lv_obj_is_valid(confirm_info->tip_mask)) {
-        lv_obj_set_style_bitmap_mask_src(confirm_info->tip_mask, NULL, 0);
-    }
-    lv_draw_buf_destroy(confirm_info->tip_mask_a8);
-    confirm_info->tip_mask_a8 = NULL;
-}
-
-static void rhythm_confirm_tip_mask_a8_prepare(void)
-{
-    const lv_draw_buf_t *rgba;
-
-    if (confirm_info->tip_mask_a8 != NULL) {
-        if (confirm_info->tip_mask != NULL && lv_obj_is_valid(confirm_info->tip_mask)) {
-            lv_obj_set_style_bitmap_mask_src(confirm_info->tip_mask, confirm_info->tip_mask_a8, 0);
-        }
-        return;
-    }
-
-    rgba = get_predecoded_text_shine_mask();
-    confirm_info->tip_mask_a8 = rhythm_confirm_tip_mask_a8_from_rgba(rgba,
-        RHYTHM_CONFIRM_TIP_MASK_W, RHYTHM_CONFIRM_TIP_MASK_H);
-    if (confirm_info->tip_mask_a8 != NULL && confirm_info->tip_mask != NULL &&
-        lv_obj_is_valid(confirm_info->tip_mask)) {
-        lv_obj_set_style_bitmap_mask_src(confirm_info->tip_mask, confirm_info->tip_mask_a8, 0);
-    }
-}
-#endif /* RHYTHM_CONFIRM_TIP_SHINE_USE_IMG_MASK */
-
 static void rhythm_confirm_tip_rebuild(ui_manager_context_t *thiz)
 {
     lv_draw_buf_t *predecoded;
+    ui_shine_style_t style;
 
     if (confirm_info->tip_img != NULL && lv_obj_is_valid(confirm_info->tip_img) &&
-        confirm_info->tip_mask != NULL && lv_obj_is_valid(confirm_info->tip_mask) &&
-        confirm_info->tip_shine != NULL && lv_obj_is_valid(confirm_info->tip_shine)) {
-        rhythm_confirm_tip_shine_sync();
-        return;
+        confirm_info->tip_shine.mask != NULL && lv_obj_is_valid(confirm_info->tip_shine.mask) &&
+        confirm_info->tip_shine.shine != NULL && lv_obj_is_valid(confirm_info->tip_shine.shine)) {
+        return; /* anim handles sync */
     }
 
     predecoded = rhythm_confirm_tip_predecode(thiz);
@@ -375,74 +219,27 @@ static void rhythm_confirm_tip_rebuild(ui_manager_context_t *thiz)
         lv_obj_align(confirm_info->tip_img, LV_ALIGN_TOP_MID, 0, RHYTHM_CONFIRM_TIP_Y);
     }
 
-    if (confirm_info->tip_mask == NULL || !lv_obj_is_valid(confirm_info->tip_mask)) {
-        confirm_info->tip_mask = lv_obj_create(confirm_info->root);
-        EXCEPTION_CHECK_VOID(confirm_info->tip_mask);
-        lv_obj_remove_style_all(confirm_info->tip_mask);
-        lv_obj_set_size(confirm_info->tip_mask, RHYTHM_CONFIRM_TIP_MASK_W, RHYTHM_CONFIRM_TIP_MASK_H);
-        lv_obj_set_style_bg_opa(confirm_info->tip_mask, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(confirm_info->tip_mask, 0, 0);
-        lv_obj_set_style_pad_all(confirm_info->tip_mask, 0, 0);
-        lv_obj_clear_flag(confirm_info->tip_mask, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_clear_flag(confirm_info->tip_mask, LV_OBJ_FLAG_CLICKABLE);
-        confirm_info->tip_mask_x = RHYTHM_CONFIRM_TIP_MASK_X_MIN;
-        confirm_info->tip_mask_tick_ms = get_timestamp();
-    }
+    ui_shine_style_init(&style);
+    style.mask_y = RHYTHM_CONFIRM_TIP_Y;
+    style.screen_w = PANLE_DISPLAY_W;
 
-    if (confirm_info->tip_shine == NULL || !lv_obj_is_valid(confirm_info->tip_shine)) {
-        confirm_info->tip_shine = lv_image_create(confirm_info->tip_mask);
-        EXCEPTION_CHECK_VOID(confirm_info->tip_shine);
-        lv_obj_clear_flag(confirm_info->tip_shine, LV_OBJ_FLAG_CLICKABLE);
-        if (predecoded != NULL) {
-            lv_image_set_src(confirm_info->tip_shine, predecoded);
-        }
-        lv_obj_set_style_image_recolor(confirm_info->tip_shine,
-            lv_color_hex(RHYTHM_CONFIRM_TIP_SHINE_COLOR), 0);
-        lv_obj_set_style_image_recolor_opa(confirm_info->tip_shine,
-            RHYTHM_CONFIRM_TIP_SHINE_RECOLOR_OPA, 0);
-        lv_obj_set_style_blend_mode(confirm_info->tip_shine, LV_BLEND_MODE_NORMAL, 0);
-    }
-
-#if RHYTHM_CONFIRM_TIP_SHINE_USE_IMG_MASK
-    rhythm_confirm_tip_mask_a8_prepare();
-#endif
-    lv_obj_align(confirm_info->tip_mask, LV_ALIGN_TOP_LEFT,
-        confirm_info->tip_mask_x, RHYTHM_CONFIRM_TIP_MASK_Y);
+    ui_shine_prepare_from_tip(&confirm_info->tip_shine, &style, predecoded);
+    ui_shine_update(&confirm_info->tip_shine, confirm_info->root, &style, confirm_info->tip_img, 1);
     lv_obj_move_foreground(confirm_info->tip_img);
-    lv_obj_move_foreground(confirm_info->tip_mask);
-    rhythm_confirm_tip_shine_sync();
-}
-
-static void rhythm_confirm_tip_mask_anim_update(void)
-{
-    uint32_t elapsed;
-    int32_t x;
-
-    if (confirm_info->tip_mask == NULL || !lv_obj_is_valid(confirm_info->tip_mask)) {
-        return;
-    }
-
-    elapsed = get_timestamp() - confirm_info->tip_mask_tick_ms;
-    if (elapsed >= RHYTHM_CONFIRM_TIP_MASK_PERIOD_MS) {
-        confirm_info->tip_mask_tick_ms = get_timestamp();
-        elapsed = 0;
-    }
-    x = RHYTHM_CONFIRM_TIP_MASK_X_MIN +
-        (int32_t)((RHYTHM_CONFIRM_TIP_MASK_X_MAX - RHYTHM_CONFIRM_TIP_MASK_X_MIN) * elapsed) /
-        RHYTHM_CONFIRM_TIP_MASK_PERIOD_MS;
-    if (x != confirm_info->tip_mask_x) {
-        confirm_info->tip_mask_x = (int16_t)x;
-        lv_obj_set_x(confirm_info->tip_mask, confirm_info->tip_mask_x);
-        rhythm_confirm_tip_shine_sync();
-    }
+    ui_shine_show(&confirm_info->tip_shine);
 }
 
 static void rhythm_confirm_tip_update(ui_manager_context_t *thiz)
 {
+    ui_shine_style_t style;
+
     if (confirm_info->force_update) {
         rhythm_confirm_tip_rebuild(thiz);
     }
-    rhythm_confirm_tip_mask_anim_update();
+    ui_shine_style_init(&style);
+    style.mask_y = RHYTHM_CONFIRM_TIP_Y;
+    style.screen_w = PANLE_DISPLAY_W;
+    ui_shine_anim_update(&confirm_info->tip_shine, &style, confirm_info->tip_img, 0);
 }
 
 /*
@@ -466,18 +263,7 @@ void ui_display_rhythm_confirm_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && confirm_info && confirm_info->root);
     ui_img_baj_release_decoded_buf(confirm_info->icon);
-    if (confirm_info->tip_shine != NULL && lv_obj_is_valid(confirm_info->tip_shine)) {
-        lv_image_set_src(confirm_info->tip_shine, NULL);
-        LVGL_OBJ_DELETE(confirm_info->tip_shine);
-        confirm_info->tip_shine = NULL;
-    }
-#if RHYTHM_CONFIRM_TIP_SHINE_USE_IMG_MASK
-    rhythm_confirm_tip_mask_a8_release();
-#endif
-    if (confirm_info->tip_mask != NULL && lv_obj_is_valid(confirm_info->tip_mask)) {
-        LVGL_OBJ_DELETE(confirm_info->tip_mask);
-        confirm_info->tip_mask = NULL;
-    }
+    ui_shine_remove(&confirm_info->tip_shine);
     if (confirm_info->tip_img != NULL && lv_obj_is_valid(confirm_info->tip_img)) {
         if (confirm_info->tip_predecoded) {
             lv_image_set_src(confirm_info->tip_img, NULL);
