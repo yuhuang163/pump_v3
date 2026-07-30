@@ -4,6 +4,8 @@
 */
 #include "home_base_ui_internal.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
+#include "ui_shine_component.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -20,28 +22,10 @@
 #define HOME_MODE_PAGE_DURATION_COLOR               (0x999999)
 
 #define HOME_MODE_PAGE_TIP_W                        (212)
-#define HOME_MODE_PAGE_TIP_H                        (50)
+#define HOME_MODE_PAGE_TIP_H                        (49)
 /** 底部提示图 Y：贴底留边 */
 #define HOME_MODE_PAGE_TIP_Y                        (PANLE_DISPLAY_H - HOME_MODE_PAGE_TIP_H - 8)
-#if HOME_BASE_MODE_TIP_SHINE_IS_HARD
-/** 提示硬扫光：硬边裁切窗 */
-#define HOME_MODE_PAGE_TIP_MASK_W                   (HOME_BASE_MODE_TIP_SHINE_W)
-#define HOME_MODE_PAGE_TIP_MASK_H                   (HOME_MODE_PAGE_TIP_H)
-#define HOME_MODE_PAGE_TIP_MASK_Y                   (HOME_MODE_PAGE_TIP_Y)
-#define HOME_MODE_PAGE_TIP_SHINE_RECOLOR_OPA        (LV_OPA_COVER)
-#define HOME_MODE_PAGE_TIP_BASE_OPA                 (LV_OPA_COVER)
-#else
-/** SOFT / OVERLAY：宽由 HOME_BASE_MODE_TIP_SHINE_W 控制，高贴 tip */
-#define HOME_MODE_PAGE_TIP_MASK_W                   (HOME_BASE_MODE_TIP_SHINE_W)
-#define HOME_MODE_PAGE_TIP_MASK_H                   (HOME_MODE_PAGE_TIP_H)
-#define HOME_MODE_PAGE_TIP_MASK_Y                   (HOME_MODE_PAGE_TIP_Y)
-#define HOME_MODE_PAGE_TIP_SHINE_RECOLOR_OPA        (LV_OPA_80)
 #define HOME_MODE_PAGE_TIP_BASE_OPA                 (LV_OPA_70)
-#endif
-#define HOME_MODE_PAGE_TIP_MASK_X_MIN               (-HOME_MODE_PAGE_TIP_MASK_W)
-#define HOME_MODE_PAGE_TIP_MASK_X_MAX               (PANLE_DISPLAY_W)
-#define HOME_MODE_PAGE_TIP_MASK_PERIOD_MS           (3200)
-#define HOME_MODE_PAGE_TIP_SHINE_COLOR              (0xFFFFFF)
 
 #define HOME_MODE_PAGE_SCALE_FULL                   (256)
 /** 5 点布局第 3 点 X 居中：(屏宽 - 直径) / 2 */
@@ -307,139 +291,18 @@ static lv_draw_buf_t *home_mode_select_tip_predecode(ui_manager_context_t *ui)
     return s_mode_select_tip_predecoded;
 }
 
-static void home_mode_chrome_tip_shine_sync(home_base_ui_info_t *info)
-{
-    home_base_mode_chrome_info_t *chrome = &info->mode_chrome;
-    lv_coord_t tip_x;
-    lv_coord_t tip_y;
-
-    if (chrome->tip_img == NULL || !lv_obj_is_valid(chrome->tip_img) ||
-        chrome->tip_shine == NULL || !lv_obj_is_valid(chrome->tip_shine) ||
-        chrome->tip_mask == NULL || !lv_obj_is_valid(chrome->tip_mask)) {
-        return;
-    }
-
-    lv_obj_update_layout(chrome->tip_img);
-    tip_x = lv_obj_get_x(chrome->tip_img);
-    tip_y = lv_obj_get_y(chrome->tip_img);
-    lv_obj_set_pos(chrome->tip_shine,
-        tip_x - chrome->tip_mask_x, tip_y - HOME_MODE_PAGE_TIP_MASK_Y);
-}
-
-#if HOME_BASE_MODE_TIP_SHINE_USE_IMG_MASK
-/** 从预解码 TEXT_SHINE_MASK 生成 A8；高度不足时垂直居中裁切 */
-static lv_draw_buf_t *home_mode_tip_mask_a8_from_rgba(const lv_draw_buf_t *rgba,
-    uint32_t dst_w, uint32_t dst_h)
-{
-    lv_draw_buf_t *a8;
-    uint32_t src_w;
-    uint32_t src_h;
-    uint32_t y;
-    uint32_t x;
-    uint32_t y0;
-    uint32_t x0;
-
-    if (rgba == NULL || rgba->data == NULL || dst_w == 0U || dst_h == 0U) {
-        return NULL;
-    }
-    if (rgba->header.cf != LV_COLOR_FORMAT_ARGB8888 &&
-        rgba->header.cf != LV_COLOR_FORMAT_ARGB8888_PREMULTIPLIED) {
-        return NULL;
-    }
-
-    src_w = rgba->header.w;
-    src_h = rgba->header.h;
-    if (src_w == 0U || src_h == 0U) {
-        return NULL;
-    }
-
-    a8 = lv_draw_buf_create(dst_w, dst_h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
-    if (a8 == NULL || a8->data == NULL) {
-        if (a8 != NULL) {
-            lv_draw_buf_destroy(a8);
-        }
-        return NULL;
-    }
-
-    x0 = (src_w > dst_w) ? ((src_w - dst_w) / 2U) : 0U;
-    y0 = (src_h > dst_h) ? ((src_h - dst_h) / 2U) : 0U;
-
-    for (y = 0; y < dst_h; y++) {
-        uint32_t sy = (y0 + y < src_h) ? (y0 + y) : (src_h - 1U);
-        const lv_color32_t *src =
-            (const lv_color32_t *)(rgba->data + sy * rgba->header.stride);
-        uint8_t *dst = a8->data + y * a8->header.stride;
-        for (x = 0; x < dst_w; x++) {
-            uint32_t sx = (x0 + x < src_w) ? (x0 + x) : (src_w - 1U);
-            uint32_t a = src[sx].alpha;
-#if HOME_BASE_MODE_TIP_SHINE_IS_SOFT
-            /* SOFT：再叠加抛物线，两端更透 */
-            uint32_t edge = (x * (dst_w - 1U - x) * 4U * 255U) / (dst_w * dst_w);
-            if (edge > 255U) {
-                edge = 255U;
-            }
-            a = (a * edge) / 255U;
-            a = (a * a) / 255U;
-#endif
-            /* OVERLAY：直接使用 TEXT_SHINE_MASK 的 alpha */
-            dst[x] = (uint8_t)a;
-        }
-    }
-    return a8;
-}
-
-static void home_mode_chrome_tip_mask_a8_release(home_base_ui_info_t *info)
-{
-    home_base_mode_chrome_info_t *chrome;
-
-    if (info == NULL) {
-        return;
-    }
-    chrome = &info->mode_chrome;
-    if (chrome->tip_mask_a8 == NULL) {
-        return;
-    }
-    if (chrome->tip_mask != NULL && lv_obj_is_valid(chrome->tip_mask)) {
-        lv_obj_set_style_bitmap_mask_src(chrome->tip_mask, NULL, 0);
-    }
-    lv_draw_buf_destroy(chrome->tip_mask_a8);
-    chrome->tip_mask_a8 = NULL;
-}
-
-static void home_mode_chrome_tip_mask_a8_prepare(home_base_ui_info_t *info)
-{
-    home_base_mode_chrome_info_t *chrome = &info->mode_chrome;
-    const lv_draw_buf_t *rgba;
-
-    if (chrome->tip_mask_a8 != NULL) {
-        if (chrome->tip_mask != NULL && lv_obj_is_valid(chrome->tip_mask)) {
-            lv_obj_set_style_bitmap_mask_src(chrome->tip_mask, chrome->tip_mask_a8, 0);
-        }
-        return;
-    }
-
-    rgba = get_predecoded_text_shine_mask();
-    chrome->tip_mask_a8 = home_mode_tip_mask_a8_from_rgba(rgba,
-        HOME_MODE_PAGE_TIP_MASK_W, HOME_MODE_PAGE_TIP_MASK_H);
-    if (chrome->tip_mask_a8 != NULL && chrome->tip_mask != NULL &&
-        lv_obj_is_valid(chrome->tip_mask)) {
-        lv_obj_set_style_bitmap_mask_src(chrome->tip_mask, chrome->tip_mask_a8, 0);
-    }
-}
-#endif /* HOME_BASE_MODE_TIP_SHINE_USE_IMG_MASK */
-
 static void home_mode_chrome_tip_rebuild(home_base_ui_info_t *info)
 {
     home_base_mode_chrome_info_t *chrome = &info->mode_chrome;
     lv_obj_t *root = info->root;
     lv_draw_buf_t *predecoded;
+    ui_shine_style_t style;
 
     EXCEPTION_CHECK_VOID(root);
     if (chrome->tip_img != NULL && lv_obj_is_valid(chrome->tip_img) &&
-        chrome->tip_mask != NULL && lv_obj_is_valid(chrome->tip_mask) &&
-        chrome->tip_shine != NULL && lv_obj_is_valid(chrome->tip_shine)) {
-        home_mode_chrome_tip_shine_sync(info);
-        return;
+        chrome->tip_shine.mask != NULL && lv_obj_is_valid(chrome->tip_shine.mask) &&
+        chrome->tip_shine.shine != NULL && lv_obj_is_valid(chrome->tip_shine.shine)) {
+        return; /* anim handles sync */
     }
 
     predecoded = home_mode_select_tip_predecode(info->ui);
@@ -456,69 +319,35 @@ static void home_mode_chrome_tip_rebuild(home_base_ui_info_t *info)
         lv_obj_align(chrome->tip_img, LV_ALIGN_TOP_MID, 0, HOME_MODE_PAGE_TIP_Y);
     }
 
-    if (chrome->tip_mask == NULL || !lv_obj_is_valid(chrome->tip_mask)) {
-        chrome->tip_mask = lv_obj_create(root);
-        EXCEPTION_CHECK_VOID(chrome->tip_mask);
-        lv_obj_remove_style_all(chrome->tip_mask);
-        lv_obj_set_size(chrome->tip_mask, HOME_MODE_PAGE_TIP_MASK_W, HOME_MODE_PAGE_TIP_MASK_H);
-        lv_obj_set_style_bg_opa(chrome->tip_mask, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(chrome->tip_mask, 0, 0);
-        lv_obj_set_style_pad_all(chrome->tip_mask, 0, 0);
-        lv_obj_clear_flag(chrome->tip_mask, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_clear_flag(chrome->tip_mask, LV_OBJ_FLAG_CLICKABLE);
-        chrome->tip_mask_x = HOME_MODE_PAGE_TIP_MASK_X_MIN;
-        chrome->tip_mask_tick_ms = get_timestamp();
-    }
+    ui_shine_style_init(&style);
+    style.mask_y = HOME_MODE_PAGE_TIP_Y;
+    style.screen_w = PANLE_DISPLAY_W;
 
-    if (chrome->tip_shine == NULL || !lv_obj_is_valid(chrome->tip_shine)) {
-        chrome->tip_shine = lv_image_create(chrome->tip_mask);
-        EXCEPTION_CHECK_VOID(chrome->tip_shine);
-        lv_obj_clear_flag(chrome->tip_shine, LV_OBJ_FLAG_CLICKABLE);
-        if (predecoded != NULL) {
-            lv_image_set_src(chrome->tip_shine, predecoded);
-        }
-        lv_obj_set_style_image_recolor(chrome->tip_shine,
-            lv_color_hex(HOME_MODE_PAGE_TIP_SHINE_COLOR), 0);
-        lv_obj_set_style_image_recolor_opa(chrome->tip_shine,
-            HOME_MODE_PAGE_TIP_SHINE_RECOLOR_OPA, 0);
-        lv_obj_set_style_blend_mode(chrome->tip_shine, LV_BLEND_MODE_NORMAL, 0);
-    }
-
-#if HOME_BASE_MODE_TIP_SHINE_USE_IMG_MASK
-    home_mode_chrome_tip_mask_a8_prepare(info);
-#endif
-    lv_obj_align(chrome->tip_mask, LV_ALIGN_TOP_LEFT, chrome->tip_mask_x, HOME_MODE_PAGE_TIP_MASK_Y);
+    ui_shine_prepare_from_tip(&chrome->tip_shine, &style, predecoded);
+    ui_shine_update(&chrome->tip_shine, root, &style, chrome->tip_img, 1);
     lv_obj_move_foreground(chrome->tip_img);
-    lv_obj_move_foreground(chrome->tip_mask);
-    home_mode_chrome_tip_shine_sync(info);
+    ui_shine_show(&chrome->tip_shine);
 }
 
-static void home_mode_chrome_tip_mask_anim_update(home_base_ui_info_t *info)
+static void home_mode_chrome_tip_update(home_base_ui_info_t *info)
 {
     home_base_mode_chrome_info_t *chrome = &info->mode_chrome;
-    uint32_t elapsed;
-    int32_t x;
+    ui_shine_style_t style;
+    uint8_t paused = 0;
 
-    if (chrome->tip_mask == NULL || !lv_obj_is_valid(chrome->tip_mask)) {
-        return;
-    }
-    if (lv_obj_has_flag(chrome->tip_mask, LV_OBJ_FLAG_HIDDEN)) {
-        return;
+    if (info->force_update) {
+        home_mode_chrome_tip_rebuild(info);
     }
 
-    elapsed = get_timestamp() - chrome->tip_mask_tick_ms;
-    if (elapsed >= HOME_MODE_PAGE_TIP_MASK_PERIOD_MS) {
-        chrome->tip_mask_tick_ms = get_timestamp();
-        elapsed = 0;
+    if (chrome->tip_shine.mask != NULL && lv_obj_is_valid(chrome->tip_shine.mask) &&
+        lv_obj_has_flag(chrome->tip_shine.mask, LV_OBJ_FLAG_HIDDEN)) {
+        paused = 1;
     }
-    x = HOME_MODE_PAGE_TIP_MASK_X_MIN +
-        (int32_t)((HOME_MODE_PAGE_TIP_MASK_X_MAX - HOME_MODE_PAGE_TIP_MASK_X_MIN) * elapsed) /
-        HOME_MODE_PAGE_TIP_MASK_PERIOD_MS;
-    if (x != chrome->tip_mask_x) {
-        chrome->tip_mask_x = (int16_t)x;
-        lv_obj_set_x(chrome->tip_mask, chrome->tip_mask_x);
-        home_mode_chrome_tip_shine_sync(info);
-    }
+
+    ui_shine_style_init(&style);
+    style.mask_y = HOME_MODE_PAGE_TIP_Y;
+    style.screen_w = PANLE_DISPLAY_W;
+    ui_shine_anim_update(&chrome->tip_shine, &style, chrome->tip_img, paused);
 }
 
 static void home_mode_chrome_visibility_apply(home_base_ui_info_t *info)
@@ -556,13 +385,11 @@ static void home_mode_chrome_visibility_apply(home_base_ui_info_t *info)
             lv_obj_add_flag(chrome->tip_img, LV_OBJ_FLAG_HIDDEN);
         }
     }
-    if (chrome->tip_mask != NULL && lv_obj_is_valid(chrome->tip_mask)) {
+    if (chrome->tip_shine.mask != NULL && lv_obj_is_valid(chrome->tip_shine.mask)) {
         if (tip_show) {
-            lv_obj_clear_flag(chrome->tip_mask, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_move_foreground(chrome->tip_mask);
-            home_mode_chrome_tip_shine_sync(info);
+            ui_shine_show(&chrome->tip_shine);
         } else {
-            lv_obj_add_flag(chrome->tip_mask, LV_OBJ_FLAG_HIDDEN);
+            ui_shine_hide(&chrome->tip_shine);
         }
     }
 }
@@ -738,18 +565,7 @@ void home_mode_chrome_remove(home_base_ui_info_t *info)
         info->mode_chrome.dots[i] = NULL;
     }
     /* 预解码 tip 由本模块静态持有，仅删控件、不 destroy draw_buf */
-    if (info->mode_chrome.tip_shine != NULL && lv_obj_is_valid(info->mode_chrome.tip_shine)) {
-        lv_image_set_src(info->mode_chrome.tip_shine, NULL);
-        LVGL_OBJ_DELETE(info->mode_chrome.tip_shine);
-        info->mode_chrome.tip_shine = NULL;
-    }
-#if HOME_BASE_MODE_TIP_SHINE_USE_IMG_MASK
-    home_mode_chrome_tip_mask_a8_release(info);
-#endif
-    if (info->mode_chrome.tip_mask != NULL && lv_obj_is_valid(info->mode_chrome.tip_mask)) {
-        LVGL_OBJ_DELETE(info->mode_chrome.tip_mask);
-        info->mode_chrome.tip_mask = NULL;
-    }
+    ui_shine_remove(&info->mode_chrome.tip_shine);
     if (info->mode_chrome.tip_img != NULL && lv_obj_is_valid(info->mode_chrome.tip_img)) {
         if (info->mode_chrome.tip_predecoded) {
             lv_image_set_src(info->mode_chrome.tip_img, NULL);
@@ -787,7 +603,7 @@ void home_mode_chrome_update(home_base_ui_info_t *info)
         }
     }
     home_mode_chrome_visibility_apply(info);
-    home_mode_chrome_tip_mask_anim_update(info);
+    home_mode_chrome_tip_update(info);
 }
 
 void home_mode_page_ui_build(home_base_ui_info_t *info, uint8_t page_index)
@@ -841,11 +657,7 @@ void home_mode_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
         }
     }
     home_mode_page_duration_content_update(info, ctx);
-
-    if (!home_page_ui_is_transitioning(info)) {
-        home_mode_page_transition_apply(home_page_parent_get(info),
-            HOME_MODE_PAGE_SCALE_FULL, false);
-    }
+    /* 缩放复位只在切页过渡里 apply；稳态每帧设 FULL 会反复 update_layout */
 }
 
 void home_mode_page_ui_remove(home_base_ui_info_t *info)

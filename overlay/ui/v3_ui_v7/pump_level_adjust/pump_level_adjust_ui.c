@@ -8,6 +8,7 @@
 #include "ui_img_resource.h" // IWYU pragma: keep
 #include "pump_level_adjust_ui.h" // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
+#include "ui_progress_arc_component.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -16,20 +17,11 @@
 #define IS_SUPPORT_PUMP_LEVEL_ADJUST_COMP_BG        (0) /// 是否启用对比背景图
 #define IS_SUPPORT_PUMP_LEVEL_TIME_3SEG_TEST        (0)
 
-/** 圆弧参数与 HOME 单边力度调节一致 */
-#define PUMP_LEVEL_ARC_SIZE                         (352)
-#define PUMP_LEVEL_ARC_WIDTH                        (11)
 #if IS_SUPPORT_PUMP_LEVEL_ADJUST_COMP_BG
 #define PUMP_LEVEL_ARC_REMAIN_COLOR                 (0xFFFFFF)
 #else
-#define PUMP_LEVEL_ARC_REMAIN_COLOR                 (0x252525)
+#define PUMP_LEVEL_ARC_REMAIN_COLOR                 (UI_PROGRESS_ARC_REMAIN_COLOR_DEFAULT)
 #endif
-#define PUMP_LEVEL_ARC_BOTTOM_GAP_DEG               (100)
-#define PUMP_LEVEL_ARC_SEG_GAP_DEG                  (12)
-#define PUMP_LEVEL_ARC_TRACK_DEG \
-    (360 - PUMP_LEVEL_ARC_BOTTOM_GAP_DEG)
-#define PUMP_LEVEL_ARC_ROTATION \
-    (90 + (PUMP_LEVEL_ARC_BOTTOM_GAP_DEG / 2))
 
 #define PUMP_LEVEL_VALUE_Y                          (127)
 #define PUMP_LEVEL_VALUE_COLOR                      (0xFFFFFF)
@@ -63,8 +55,7 @@ typedef struct {
     lv_obj_t *background;
 #endif
     ui_manager_context_t *ui;
-    lv_obj_t *done_arc;
-    lv_obj_t *remain_arc;
+    ui_progress_arc_info_t arc;
     lv_obj_t *value_label;
     lv_obj_t *dir_label;
     lv_obj_t *time_label;
@@ -90,11 +81,9 @@ typedef struct {
     uint8_t level_max; /// 当前模式力度上限
     uint16_t shown_status_icon_id;
     uint32_t accent_color; /// 圆弧/过大提示强调色
-    uint32_t shown_accent_color;
     uint32_t shown_dir_color;
     uint16_t anim_from_sweep;
     uint16_t anim_to_sweep;
-    uint16_t anim_visual_sweep;
     uint32_t anim_start_time;
 } pump_level_adjust_ui_info_t;
 
@@ -164,20 +153,6 @@ static void pump_level_adjust_bg_update(ui_manager_context_t *thiz)
 }
 #endif
 
-static uint16_t pump_level_arc_sweep_from_level(uint8_t level, uint8_t level_max)
-{
-    uint16_t split_track;
-
-    if (level_max == 0 || level == 0) {
-        return 0;
-    }
-    if (level >= level_max) {
-        return PUMP_LEVEL_ARC_TRACK_DEG;
-    }
-    split_track = PUMP_LEVEL_ARC_TRACK_DEG - PUMP_LEVEL_ARC_SEG_GAP_DEG;
-    return (uint16_t)((split_track * level) / level_max);
-}
-
 static uint16_t pump_level_arc_visual_sweep_get(void)
 {
     uint32_t elapsed;
@@ -202,12 +177,11 @@ static uint16_t pump_level_arc_visual_sweep_get(void)
 
 static void pump_level_arc_anim_sync(uint8_t target_level, uint8_t level_max, bool snap)
 {
-    uint16_t target_sweep = pump_level_arc_sweep_from_level(target_level, level_max);
+    uint16_t target_sweep = ui_progress_arc_sweep_from_progress(target_level, level_max);
 
     if (level_info->force_update || snap) {
         level_info->anim_from_sweep = target_sweep;
         level_info->anim_to_sweep = target_sweep;
-        level_info->anim_visual_sweep = target_sweep;
         level_info->anim_to_level = target_level;
         level_info->anim_start_time = get_timestamp();
         return;
@@ -224,97 +198,23 @@ static void pump_level_arc_anim_sync(uint8_t target_level, uint8_t level_max, bo
     level_info->anim_start_time = get_timestamp();
 }
 
-static void pump_level_arc_style_init(lv_obj_t *arc, uint32_t color)
-{
-    lv_obj_set_size(arc, PUMP_LEVEL_ARC_SIZE, PUMP_LEVEL_ARC_SIZE);
-    lv_obj_center(arc);
-    lv_arc_set_rotation(arc, PUMP_LEVEL_ARC_ROTATION);
-    lv_arc_set_bg_angles(arc, 0, 0);
-    lv_obj_set_style_arc_width(arc, PUMP_LEVEL_ARC_WIDTH, LV_PART_MAIN);
-    lv_obj_set_style_arc_opa(arc, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_arc_color(arc, lv_color_hex(color), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(arc, PUMP_LEVEL_ARC_WIDTH, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_opa(arc, LV_OPA_COVER, LV_PART_INDICATOR);
-    lv_obj_remove_style(arc, NULL, LV_PART_KNOB);
-    lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-}
-
 static void pump_level_arc_update(ui_proc_pump_t *proc, uint8_t level_max, uint32_t accent_color)
 {
+    ui_progress_arc_style_t style;
     uint16_t done_sweep;
-    uint16_t remain_sweep;
-    uint16_t remain_start;
     bool side_changed;
-    bool color_changed;
-
-    if (level_info->done_arc == NULL || !lv_obj_is_valid(level_info->done_arc)) {
-        level_info->done_arc = lv_arc_create(level_info->root);
-        EXCEPTION_CHECK_VOID(level_info->done_arc);
-        pump_level_arc_style_init(level_info->done_arc, accent_color);
-        level_info->shown_accent_color = accent_color;
-    }
-    if (level_info->remain_arc == NULL || !lv_obj_is_valid(level_info->remain_arc)) {
-        level_info->remain_arc = lv_arc_create(level_info->root);
-        EXCEPTION_CHECK_VOID(level_info->remain_arc);
-        pump_level_arc_style_init(level_info->remain_arc, PUMP_LEVEL_ARC_REMAIN_COLOR);
-    }
-
-    color_changed = (level_info->shown_accent_color != accent_color);
-    if (color_changed || level_info->force_update) {
-        lv_obj_set_style_arc_color(level_info->done_arc, lv_color_hex(accent_color), LV_PART_INDICATOR);
-        level_info->shown_accent_color = accent_color;
-    }
 
     side_changed = (level_info->shown_side != 0xFF &&
         level_info->shown_side != proc->level_adjust_side);
     pump_level_arc_anim_sync(proc->level_arc_level, level_max, side_changed);
     done_sweep = pump_level_arc_visual_sweep_get();
-    if (level_info->force_update == false &&
-        color_changed == false &&
-        level_info->anim_visual_sweep == done_sweep) {
-        return;
-    }
-    level_info->anim_visual_sweep = done_sweep;
 
-    if (done_sweep >= PUMP_LEVEL_ARC_TRACK_DEG) {
-        done_sweep = PUMP_LEVEL_ARC_TRACK_DEG;
-        remain_sweep = 0;
-    } else if (done_sweep == 0) {
-        remain_sweep = PUMP_LEVEL_ARC_TRACK_DEG;
-    } else {
-        uint16_t split_track = PUMP_LEVEL_ARC_TRACK_DEG - PUMP_LEVEL_ARC_SEG_GAP_DEG;
-        if (done_sweep > split_track) {
-            done_sweep = split_track;
-        }
-        remain_sweep = split_track - done_sweep;
-    }
-
-    if (done_sweep > 0) {
-        lv_arc_set_angles(level_info->done_arc, 0, done_sweep);
-        lv_obj_clear_flag(level_info->done_arc, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_arc_set_angles(level_info->done_arc, 0, 0);
-        lv_obj_add_flag(level_info->done_arc, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    if (remain_sweep > 0) {
-        if (done_sweep > 0) {
-            remain_start = done_sweep + PUMP_LEVEL_ARC_SEG_GAP_DEG;
-        } else {
-            remain_start = 0;
-            remain_sweep = PUMP_LEVEL_ARC_TRACK_DEG;
-        }
-        lv_arc_set_angles(level_info->remain_arc, remain_start, remain_start + remain_sweep);
-        lv_obj_clear_flag(level_info->remain_arc, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_arc_set_angles(level_info->remain_arc, 0, 0);
-        lv_obj_add_flag(level_info->remain_arc, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    lv_obj_invalidate(level_info->done_arc);
-    lv_obj_invalidate(level_info->remain_arc);
+    ui_progress_arc_style_init(&style, accent_color);
+    style.remain_color = PUMP_LEVEL_ARC_REMAIN_COLOR;
+    style.show_countdown = false;
+    ui_progress_arc_update(&level_info->arc, level_info->root, &style,
+        done_sweep, level_info->force_update);
 }
-
 static void pump_level_value_update(ui_proc_pump_t *proc)
 {
     char num_buf[8] = {0};
@@ -646,7 +546,6 @@ void ui_display_pump_level_adjust_prepare(ui_manager_context_t *thiz)
     level_info->shown_level = 0xFF;
     level_info->shown_side = 0xFF;
     level_info->shown_over_limit = 0xFF;
-    level_info->shown_accent_color = 0;
     level_info->shown_dir_color = 0;
     level_info->shown_hours = 0xFF;
     level_info->shown_minutes = 0xFF;
@@ -654,6 +553,7 @@ void ui_display_pump_level_adjust_prepare(ui_manager_context_t *thiz)
     level_info->shown_digit_size = 0;
     level_info->shown_paused = 0xFF;
     level_info->shown_status_icon_id = 0;
+    ui_progress_arc_reset(&level_info->arc);
     pump_level_adjust_root_init();
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();

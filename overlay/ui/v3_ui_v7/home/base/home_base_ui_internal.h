@@ -15,6 +15,7 @@ extern "C" {
 #include "ui_img_resource.h" // IWYU pragma: keep
 #include "ble_ui.h" // IWYU pragma: keep
 #include "home_ui.h" // IWYU pragma: keep
+#include "ui_shine_component.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -23,65 +24,10 @@ extern "C" {
 #define IS_SUPPORT_BASE_HOME_COMP_BG                 (0)
 #define HOME_BASE_MAIN_TIME_DIGIT_COUNT              (2)
 #define HOME_BASE_MAIN_TIME_COLON_COUNT              (2)
-/** 主页提示扫光方式（三选一） */
-#define HOME_BASE_HINT_SHINE_HARD                    (0) /// 硬边裁切亮色文案
-#define HOME_BASE_HINT_SHINE_SOFT                    (1) /// A8 软边（PNG alpha × 抛物线）
-#define HOME_BASE_HINT_SHINE_OVERLAY                 (2) /// 图片蒙层（直接用 TEXT_SHINE_MASK alpha）
-#ifndef HOME_BASE_MAIN_HINT_SHINE_MODE
-#define HOME_BASE_MAIN_HINT_SHINE_MODE               HOME_BASE_HINT_SHINE_OVERLAY
-#endif
-#define HOME_BASE_MAIN_HINT_SHINE_IS_HARD \
-    (HOME_BASE_MAIN_HINT_SHINE_MODE == HOME_BASE_HINT_SHINE_HARD)
-#define HOME_BASE_MAIN_HINT_SHINE_IS_SOFT \
-    (HOME_BASE_MAIN_HINT_SHINE_MODE == HOME_BASE_HINT_SHINE_SOFT)
-#define HOME_BASE_MAIN_HINT_SHINE_IS_OVERLAY \
-    (HOME_BASE_MAIN_HINT_SHINE_MODE == HOME_BASE_HINT_SHINE_OVERLAY)
-/** SOFT/OVERLAY：使用 TEXT_SHINE_MASK 做 bitmap 蒙层 */
-#define HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK \
-    (HOME_BASE_MAIN_HINT_SHINE_IS_SOFT || HOME_BASE_MAIN_HINT_SHINE_IS_OVERLAY)
-/** 兼容旧宏：1=软边 A8，0=非软边 */
-#ifndef HOME_BASE_MAIN_HINT_SHINE_SOFT_ENABLE
-#define HOME_BASE_MAIN_HINT_SHINE_SOFT_ENABLE        HOME_BASE_MAIN_HINT_SHINE_IS_SOFT
-#endif
-/**
- * 主页扫光宽度（像素）。改此宏即可控制光带宽窄。
- * HARD 默认 80；SOFT/OVERLAY 默认 140（与 TEXT_SHINE_MASK 同宽，可小于资源图做居中裁切）。
- */
-#ifndef HOME_BASE_MAIN_HINT_SHINE_W
-#if HOME_BASE_MAIN_HINT_SHINE_IS_HARD
-#define HOME_BASE_MAIN_HINT_SHINE_W                  (80)
-#else
+/** 主页提示扫光宽度（像素，CPU 软边剖面） */
 #define HOME_BASE_MAIN_HINT_SHINE_W                  (140)
-#endif
-#endif
-
-/** 模式选择提示扫光方式（三选一，与主页共用 HARD/SOFT/OVERLAY 取值） */
-#ifndef HOME_BASE_MODE_TIP_SHINE_MODE
-#define HOME_BASE_MODE_TIP_SHINE_MODE                HOME_BASE_HINT_SHINE_OVERLAY
-#endif
-#define HOME_BASE_MODE_TIP_SHINE_IS_HARD \
-    (HOME_BASE_MODE_TIP_SHINE_MODE == HOME_BASE_HINT_SHINE_HARD)
-#define HOME_BASE_MODE_TIP_SHINE_IS_SOFT \
-    (HOME_BASE_MODE_TIP_SHINE_MODE == HOME_BASE_HINT_SHINE_SOFT)
-#define HOME_BASE_MODE_TIP_SHINE_IS_OVERLAY \
-    (HOME_BASE_MODE_TIP_SHINE_MODE == HOME_BASE_HINT_SHINE_OVERLAY)
-#define HOME_BASE_MODE_TIP_SHINE_USE_IMG_MASK \
-    (HOME_BASE_MODE_TIP_SHINE_IS_SOFT || HOME_BASE_MODE_TIP_SHINE_IS_OVERLAY)
-/** 兼容旧宏：1=软边 A8，0=硬边裁切 */
-#ifndef HOME_BASE_MODE_TIP_SHINE_SOFT_ENABLE
-#define HOME_BASE_MODE_TIP_SHINE_SOFT_ENABLE         HOME_BASE_MODE_TIP_SHINE_IS_SOFT
-#endif
-/**
- * 模式页 tip 扫光宽度（像素）。改此宏即可控制光带宽窄。
- * HARD 默认 80；SOFT/OVERLAY 默认 140。
- */
-#ifndef HOME_BASE_MODE_TIP_SHINE_W
-#if HOME_BASE_MODE_TIP_SHINE_IS_HARD
-#define HOME_BASE_MODE_TIP_SHINE_W                   (80)
-#else
-#define HOME_BASE_MODE_TIP_SHINE_W                   (80)//(140)
-#endif
-#endif
+/** 模式选择提示扫光宽度（像素，CPU 软边剖面） */
+#define HOME_BASE_MODE_TIP_SHINE_W                   (140)
 /** 模式选择提示图：1=内嵌 BAJ 代码段（默认），0=资源包 BASE_RES_ID_MODE_SELECT_TIP */
 #ifndef HOME_BASE_MODE_SELECT_TIP_FROM_CODE
 #define HOME_BASE_MODE_SELECT_TIP_FROM_CODE          (1)
@@ -162,11 +108,7 @@ typedef struct {
     lv_draw_buf_t *time_colon_buf;      /// HOUR_COLON 预解码（两冒号共用）
     lv_obj_t *time_colon_2seg;          /// 两段：居中 CLOCK_COLON
     lv_obj_t *hint_text;                /// Press to start pumping
-    lv_obj_t *hint_shine;               /// 扫光亮色文案（裁剪窗内）
-    lv_obj_t *hint_mask;                /// 扫光裁剪窗
-#if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
-    lv_draw_buf_t *hint_mask_a8;        /// TEXT_SHINE_MASK → A8 蒙层
-#endif
+    ui_shine_info_t hint_shine;         /// 扫光（字库文案软边）
     lv_obj_t *speed_icon;
     lv_obj_t *speed_value;
     lv_obj_t *left_level;               /// Lx
@@ -180,8 +122,6 @@ typedef struct {
     uint8_t shown_speed;
     uint8_t shown_left_level;
     uint8_t shown_right_level;
-    int16_t mask_x;
-    uint32_t mask_tick_ms;
     char shown_title[24];
 } home_base_main_page_info_t;
 
@@ -191,17 +131,11 @@ typedef struct {
 typedef struct {
     lv_obj_t *dots[HOME_BASE_MODE_PAGE_DOT_MAX];
     lv_obj_t *tip_img;                  /// 提示文案（本模块预解码，勿释放）
-    lv_obj_t *tip_shine;                /// 扫光亮色图（裁剪窗内）
-    lv_obj_t *tip_mask;                 /// 扫光裁剪窗
-#if HOME_BASE_MODE_TIP_SHINE_USE_IMG_MASK
-    lv_draw_buf_t *tip_mask_a8;         /// TEXT_SHINE_MASK → A8 蒙层
-#endif
+    ui_shine_info_t tip_shine;          /// 扫光（tip PNG 软边）
     uint8_t tip_predecoded;
     uint8_t dot_count;
     uint8_t selected_dot;
     uint8_t ready;
-    int16_t tip_mask_x;
-    uint32_t tip_mask_tick_ms;
 } home_base_mode_chrome_info_t;
 
 /// 模式/韵律选择页控件（挂在 page user_data，避免切页过渡覆盖）

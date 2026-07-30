@@ -18,8 +18,8 @@ extern "C" {
 const ui_img_data_t *ui_font_img_mode_select_tip_get(void);
 /** 单边力度调节提示图，全工程只保留一份 PNG 数据 */
 const ui_img_data_t *ui_font_img_level_adjust_tip_get(void);
-/** 吸乳超时页底部提示图，全工程只保留一份 PNG 数据 */
-const ui_img_data_t *ui_font_img_pump_timeout_tip_get(void);
+/** 泵奶休息轻提醒页底部提示图，全工程只保留一份 PNG 数据 */
+const ui_img_data_t *ui_font_img_pump_break_tip_get(void);
 
 #ifdef __cplusplus
 }

@@ -794,11 +794,7 @@ void pump_home_mode_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
         }
     }
     pump_mode_page_duration_content_update(info, ctx);
-
-    if (!pump_home_page_ui_is_transitioning(info)) {
-        pump_home_mode_page_transition_apply(pump_home_page_parent_get(info),
-            PUMP_MODE_PAGE_SCALE_FULL, false);
-    }
+    /* 缩放复位只在切页过渡里 apply；稳态每帧设 FULL 会反复 update_layout */
 }
 
 void pump_home_mode_page_ui_remove(pump_home_base_ui_info_t *info)

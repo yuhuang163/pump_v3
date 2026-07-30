@@ -72,19 +72,13 @@
 #define PUMP_HOME_MAIN_HINT_TEXT                        "Press to resume"
 #if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
 #define PUMP_HOME_MAIN_HINT_COLOR                       (0x00FF00)
-#define PUMP_HOME_MAIN_HINT_SHINE_COLOR                 (0x00FF00)
 #else
 #define PUMP_HOME_MAIN_HINT_COLOR_STIMULATION           (0xAD7C89)
 #define PUMP_HOME_MAIN_HINT_COLOR_LACTATION             (0xB9D9FF)
 #define PUMP_HOME_MAIN_HINT_COLOR_PROGRAM               (0xB195DF)
-#define PUMP_HOME_MAIN_HINT_SHINE_COLOR                 (0xFFFFFF)
 #endif
-#define PUMP_HOME_MAIN_MASK_W                           (80)
-#define PUMP_HOME_MAIN_MASK_H                           (40)
-#define PUMP_HOME_MAIN_MASK_Y                           (PUMP_HOME_MAIN_HINT_Y - 8)
-#define PUMP_HOME_MAIN_MASK_X_MIN                       (-PUMP_HOME_MAIN_MASK_W)
-#define PUMP_HOME_MAIN_MASK_X_MAX                       (PUMP_HOME_MAIN_SCREEN_W)
-#define PUMP_HOME_MAIN_MASK_PERIOD_MS                   (3200)
+#define PUMP_HOME_MAIN_MASK_W                           (PUMP_HOME_BASE_MAIN_HINT_SHINE_W)
+#define PUMP_HOME_MAIN_MASK_Y                           (PUMP_HOME_MAIN_HINT_Y)
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -465,22 +459,12 @@ static void pump_home_main_play_icon_update(pump_home_base_ui_info_t *info, bool
     pump_home_main_obj_flag_set(info->main.play_icon, true);
 }
 
-static void pump_home_main_hint_shine_sync(pump_home_base_ui_info_t *info)
+static void pump_home_main_hint_style_get(ui_shine_style_t *style)
 {
-    lv_coord_t text_x;
-    lv_coord_t text_y;
-
-    if (info->main.hint_text == NULL || !lv_obj_is_valid(info->main.hint_text) ||
-        info->main.hint_shine == NULL || !lv_obj_is_valid(info->main.hint_shine) ||
-        info->main.hint_mask == NULL || !lv_obj_is_valid(info->main.hint_mask)) {
-        return;
-    }
-
-    lv_obj_update_layout(info->main.hint_text);
-    text_x = lv_obj_get_x(info->main.hint_text);
-    text_y = lv_obj_get_y(info->main.hint_text);
-    lv_obj_set_pos(info->main.hint_shine,
-        text_x - info->main.mask_x, text_y - PUMP_HOME_MAIN_MASK_Y);
+    ui_shine_style_init(style);
+    style->mask_w = PUMP_HOME_MAIN_MASK_W;
+    style->mask_y = PUMP_HOME_MAIN_MASK_Y;
+    style->screen_w = PUMP_HOME_MAIN_SCREEN_W;
 }
 
 static void pump_home_main_hint_text_update(pump_home_base_ui_info_t *info, uint8_t mode,
@@ -517,50 +501,29 @@ static void pump_home_main_hint_text_update(pump_home_base_ui_info_t *info, uint
 static void pump_home_main_hint_mask_update(pump_home_base_ui_info_t *info, bool paused)
 {
     lv_obj_t *parent = pump_home_page_parent_get(info);
+    ui_shine_style_t style;
 
     if (!paused) {
-        pump_home_main_obj_flag_set(info->main.hint_mask, false);
+        ui_shine_hide(&info->main.hint_shine);
         return;
     }
 
-    if (info->main.hint_mask != NULL && lv_obj_is_valid(info->main.hint_mask) &&
-        info->main.hint_shine != NULL && lv_obj_is_valid(info->main.hint_shine) &&
+    if (info->main.hint_shine.mask != NULL && lv_obj_is_valid(info->main.hint_shine.mask) &&
+        info->main.hint_shine.shine != NULL && lv_obj_is_valid(info->main.hint_shine.shine) &&
         info->force_update == false && info->main.shown_paused != 0) {
-        pump_home_main_obj_flag_set(info->main.hint_mask, true);
-        pump_home_main_hint_shine_sync(info);
+        ui_shine_show(&info->main.hint_shine);
         return;
     }
 
-    if (info->main.hint_mask == NULL || !lv_obj_is_valid(info->main.hint_mask)) {
-        info->main.hint_mask = lv_obj_create(parent);
-        EXCEPTION_CHECK_VOID(info->main.hint_mask);
-        lv_obj_remove_style_all(info->main.hint_mask);
-        lv_obj_set_size(info->main.hint_mask, PUMP_HOME_MAIN_MASK_W, PUMP_HOME_MAIN_MASK_H);
-        lv_obj_set_style_bg_opa(info->main.hint_mask, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(info->main.hint_mask, 0, 0);
-        lv_obj_set_style_pad_all(info->main.hint_mask, 0, 0);
-        lv_obj_clear_flag(info->main.hint_mask, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_clear_flag(info->main.hint_mask, LV_OBJ_FLAG_CLICKABLE);
-    }
+    pump_home_main_hint_style_get(&style);
     if (info->main.shown_paused != 1) {
-        info->main.mask_x = PUMP_HOME_MAIN_MASK_X_MIN;
-        info->main.mask_tick_ms = get_timestamp();
+        info->main.hint_shine.mask_x = (int16_t)(-(int16_t)style.mask_w);
+        info->main.hint_shine.mask_tick_ms = get_timestamp();
     }
-
-    if (info->main.hint_shine == NULL || !lv_obj_is_valid(info->main.hint_shine)) {
-        info->main.hint_shine = lv_label_create(info->main.hint_mask);
-        EXCEPTION_CHECK_VOID(info->main.hint_shine);
-        lv_obj_set_style_text_color(info->main.hint_shine,
-            lv_color_hex(PUMP_HOME_MAIN_HINT_SHINE_COLOR), 0);
-        lv_obj_set_style_text_font(info->main.hint_shine, &lv_font_aeonik_soft_19_medium, 0);
-        lv_obj_set_style_text_align(info->main.hint_shine, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_letter_space(info->main.hint_shine, 0, 0);
-    }
-    lv_label_set_text(info->main.hint_shine, PUMP_HOME_MAIN_HINT_TEXT);
-    lv_obj_align(info->main.hint_mask, LV_ALIGN_TOP_LEFT, info->main.mask_x, PUMP_HOME_MAIN_MASK_Y);
-    lv_obj_move_foreground(info->main.hint_mask);
-    pump_home_main_obj_flag_set(info->main.hint_mask, true);
-    pump_home_main_hint_shine_sync(info);
+    ui_shine_prepare_from_text(&info->main.hint_shine, &style,
+        PUMP_HOME_MAIN_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0);
+    ui_shine_update(&info->main.hint_shine, parent, &style, info->main.hint_text, 1);
+    ui_shine_show(&info->main.hint_shine);
 }
 
 static void pump_home_main_hint_update(pump_home_base_ui_info_t *info, uint8_t mode, bool paused)
@@ -569,34 +532,18 @@ static void pump_home_main_hint_update(pump_home_base_ui_info_t *info, uint8_t m
     pump_home_main_hint_mask_update(info, paused);
 }
 
-static void pump_home_main_mask_anim_update(pump_home_base_ui_info_t *info, bool paused)
+static void pump_home_main_hint_shine_anim_update(pump_home_base_ui_info_t *info, bool paused)
 {
-    uint32_t elapsed;
-    int32_t x;
+    ui_shine_style_t style;
+    uint8_t anim_paused;
 
     if (!paused) {
         return;
     }
-    if (info->main.hint_mask == NULL || !lv_obj_is_valid(info->main.hint_mask)) {
-        return;
-    }
-    if (info->animation.paused_by_transition) {
-        return;
-    }
 
-    elapsed = get_timestamp() - info->main.mask_tick_ms;
-    if (elapsed >= PUMP_HOME_MAIN_MASK_PERIOD_MS) {
-        info->main.mask_tick_ms = get_timestamp();
-        elapsed = 0;
-    }
-    x = PUMP_HOME_MAIN_MASK_X_MIN +
-        (int32_t)((PUMP_HOME_MAIN_MASK_X_MAX - PUMP_HOME_MAIN_MASK_X_MIN) * elapsed) /
-        PUMP_HOME_MAIN_MASK_PERIOD_MS;
-    if (x != info->main.mask_x) {
-        info->main.mask_x = (int16_t)x;
-        lv_obj_set_x(info->main.hint_mask, info->main.mask_x);
-        pump_home_main_hint_shine_sync(info);
-    }
+    pump_home_main_hint_style_get(&style);
+    anim_paused = info->animation.paused_by_transition ? 1 : 0;
+    ui_shine_anim_update(&info->main.hint_shine, &style, info->main.hint_text, anim_paused);
 }
 
 static void pump_home_main_speed_update(pump_home_base_ui_info_t *info, uint8_t speed)
@@ -674,6 +621,7 @@ static void pump_home_main_level_label_update(lv_obj_t **label, lv_obj_t *parent
 void pump_home_main_page_ui_build(pump_home_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
+    ui_shine_remove(&info->main.hint_shine);
     pump_home_main_time_colon_release(info);
     memset(&info->main, 0, sizeof(info->main));
     info->main.shown_bg_id = 0;
@@ -739,7 +687,7 @@ void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
     pump_home_base_animation_ui_update(info);
     pump_home_main_play_icon_update(info, paused);
     pump_home_main_hint_update(info, mode, paused);
-    pump_home_main_mask_anim_update(info, paused);
+    pump_home_main_hint_shine_anim_update(info, paused);
     pump_home_main_speed_update(info, speed);
     pump_home_main_level_label_update(&info->main.left_level, pump_home_page_parent_get(info), "L",
         left_level, PUMP_HOME_MAIN_LEFT_LEVEL_X, PUMP_HOME_MAIN_LEFT_LEVEL_Y,
@@ -750,11 +698,7 @@ void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
         PUMP_HOME_MAIN_RIGHT_LEVEL_W, LV_TEXT_ALIGN_LEFT, &info->main.shown_right_level,
         info->force_update != 0);
     info->main.shown_paused = paused ? 1 : 0;
-
-    if (!pump_home_page_ui_is_transitioning(info)) {
-        pump_home_main_page_transition_apply(info, PUMP_HOME_MAIN_SCALE_FULL,
-            PUMP_HOME_MAIN_SCALE_FULL, false);
-    }
+    /* 缩放复位只在切页过渡里 apply；稳态每帧设 FULL 会反复 update_layout */
 }
 
 void pump_home_main_page_ui_remove(pump_home_base_ui_info_t *info)
@@ -764,6 +708,7 @@ void pump_home_main_page_ui_remove(pump_home_base_ui_info_t *info)
     pump_home_main_time_colon_release(info);
     ui_img_baj_release_decoded_buf(info->main.play_icon);
     ui_img_baj_release_decoded_buf(info->main.speed_icon);
+    ui_shine_remove(&info->main.hint_shine);
     memset(&info->main, 0, sizeof(info->main));
 }
 

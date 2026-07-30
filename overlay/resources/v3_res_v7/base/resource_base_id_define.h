@@ -31,12 +31,16 @@ typedef enum {
     BASE_RES_ID_POWER_OFF_ICON, /// 电源图标
     BASE_RES_ID_POWER_KEY_ICON, /// 电源按键图标
     BASE_RES_ID_TIMEOUT_ICON, /// 超时图标
+    BASE_RES_ID_ROTARY_KEY_ICON, /// 旋钮按键图标
+    BASE_RES_ID_TRAVEL_LOCK_ICON, /// 旅行锁锁定图标
+    BASE_RES_ID_CHARGE_ERROR_ICON, /// 充电错误图标
+    BASE_RES_ID_ADD_ICON, /// 加号图标
+    BASE_RES_ID_STIMULATION_KEY_ICON, /// 刺激按键图标
+    BASE_RES_ID_EXPRESSION_KEY_ICON, /// 吸吮按键图标
 
-    /* 主界面组 [99..150] */
-    BASE_RES_ID_START_LOGO_ICON, /// 启动LOGO图标
+    /* 主界面组 [150..200] */
+    BASE_RES_ID_START_LOGO_ICON = 150, /// 启动LOGO图标
     BASE_RES_ID_HOME_IDLE_ICON, /// 主页空闲图标
-
-    /* 引导组 [150..200] */
 
     /* 模式相关组 [200..300] */
     BASE_RES_ID_SIMULATION_MODE_BG = 200, /// 刺激模式背景

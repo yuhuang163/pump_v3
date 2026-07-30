@@ -26,6 +26,6 @@ void home_base_animation_resume(home_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info);
     if (info->animation.paused_by_transition) {
         info->animation.paused_by_transition = 0;
-        info->main.mask_tick_ms = get_timestamp();
+        info->main.hint_shine.mask_tick_ms = get_timestamp();
     }
 }
