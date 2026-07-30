@@ -11,6 +11,7 @@ extern "C" {
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 #include "root_algo.h" // IWYU pragma: keep
+#include "motor_policy.h" // IWYU pragma: keep
 
 #define ROOT_WRITE_INFO_LEN                         64
 #define ROOT_BREAST_PUMP_TIME_VALID                 30000   /// 30s
@@ -229,11 +230,16 @@ typedef enum {
     BREAST_PUMP_LEVEL_DEFAULT = BREAST_PUMP_LEVEL_1,
 } breast_pump_level_e;
 
-/// 泵奶控制类型
+/// 泵奶速度，与 suction_speed_e 保持一致
+/// 泵奶速度，与 suction_speed_e 保持一致
 typedef enum {
     BREAST_PUMP_SPEED_LOW = 0,
     BREAST_PUMP_SPEED_MID = 1,
     BREAST_PUMP_SPEED_HIGH = 2,
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    BREAST_PUMP_SPEED_HIGH_2 = 3,
+    BREAST_PUMP_SPEED_HIGH_3 = 4,
+#endif
     BREAST_PUMP_SPEED_MAX,
     BREAST_PUMP_SPEED_INVALID = 0xFF,
     BREAST_PUMP_SPEED_DEFAULT = BREAST_PUMP_SPEED_MID,
@@ -400,10 +406,17 @@ typedef struct {
 } sec_sys_ver_t;
 
 typedef struct {
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    suction_parameters_t short_suction_table[BREAST_PUMP_LEVEL_MAX][SHORT_SUCTION_SPEED_MAX];
+    suction_parameters_t long_suction_table[BREAST_PUMP_LEVEL_MAX][PUMP_LONG_SUCTION_SPEED_MAX];
+    uint16_t long_pump_freq_table[PUMP_LONG_SUCTION_SPEED_MAX];
+    uint16_t short_suction_freq_table[SHORT_SUCTION_SPEED_MAX];
+#else
     suction_parameters_t short_suction_table[SUCTION_LEVEL_MAX];
     suction_parameters_t long_suction_table[SUCTION_LEVEL_MAX];
     uint16_t long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_MAX];
-} factory_suction_para_t;  
+#endif
+} factory_suction_para_t;
 
 /// 工厂校准数据结构, 恢复出厂不擦除.
 typedef struct factory_data_store {

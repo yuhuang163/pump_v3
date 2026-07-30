@@ -37,7 +37,14 @@ typedef struct {
     uint8_t display_direction;
     uint8_t level_base;
     int8_t level_change;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    uint8_t level_max;
+    uint8_t level_render_max;
+    uint8_t range_render_max;
+    uint8_t rsv[10];
+#else
     uint8_t rsv[12];
+#endif
 } level_display_info_t;
 
 typedef enum {
@@ -247,7 +254,17 @@ static int pump_level_progress_update(ui_manager_context_t *thiz, uint8_t level)
         return 0;
     }
     lv_obj_clear_flag(level_info->level_progress, LV_OBJ_FLAG_HIDDEN);
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    uint8_t level_index = level * PUMP_LEVEL_MAX / level_info->level_max;
+    if (level_index == 0) {
+        level_index = 1;
+    } else if (level_index > PUMP_LEVEL_MAX) {
+        level_index = PUMP_LEVEL_MAX;
+    }
+    common_ui_img_resource_init(thiz, (BASE_RES_ID_PUMP_LEVEL_START + level_index - 1), &level_info->level_progress_info);
+#else
     common_ui_img_resource_init(thiz, (BASE_RES_ID_PUMP_LEVEL_START + level - 1), &level_info->level_progress_info);
+#endif
     EXCEPTION_CHECK_INT(level_info->level_progress_info.data);
     lv_fs_path_ex_t level_progress_path;
     lv_fs_make_path_from_buffer(&level_progress_path, LV_FS_MEMFS_LETTER, 
@@ -277,16 +294,29 @@ static int pump_level_text_update(ui_manager_context_t *thiz, uint8_t level)
 
 static void pump_level_update(ui_manager_context_t *thiz, uint8_t level, int8_t level_change)
 {
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    if (level_info->force_update == false && level_info->level_change == level_change &&
+        level_info->level_base == level && level_info->level_render_max == level_info->level_max) {
+        return;
+    }
+#else
     if (level_info->force_update == false && level_info->level_change == level_change &&
         level_info->level_base == level) {
         return;
     }
-     
+#endif
+
     if (level_change >= 0) {
         level = level + level_change;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        if (level > level_info->level_max) {
+            level = level_info->level_max;
+        }
+#else
         if (level > PUMP_LEVEL_MAX) {
             level = PUMP_LEVEL_MAX;
         }
+#endif
     } else {
         uint8_t abs_level_change = abs(level_change);
         level = level < abs_level_change ? 0 : level - abs_level_change;
@@ -301,14 +331,28 @@ static void pump_level_update(ui_manager_context_t *thiz, uint8_t level, int8_t 
     }
     level_info->level_change = level_change;
     level_info->level_base = level;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    level_info->level_render_max = level_info->level_max;
+#endif
 }
+
+#if IS_USE_SPECTRA_SUCTION_CURVE
+void common_pump_level_ui_sync_level_max(uint8_t level_max)
+{
+    if (level_info == NULL) {
+        return;
+    }
+    if (level_info->level_max != level_max) {
+        level_info->level_max = level_max;
+        level_info->level_render_max = 0;
+        level_info->range_render_max = 0;
+        level_info->force_update = true;
+    }
+}
+#endif
 
 static void pump_level_range_text_update(ui_manager_context_t *thiz)
 {
-    if (level_info->force_update == false) {
-        return;
-    }
-
     if (level_info->level_range_text == NULL || !lv_obj_is_valid(level_info->level_range_text)) {
         level_info->level_range_text = lv_label_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->level_range_text);
@@ -320,14 +364,31 @@ static void pump_level_range_text_update(ui_manager_context_t *thiz)
         lv_obj_set_style_text_align(level_info->level_range_text, LV_TEXT_ALIGN_CENTER, 0); /// 居中对齐
         lv_obj_align(level_info->level_range_text, LV_ALIGN_CENTER, 82, 30);
         lv_label_set_text(level_info->level_range_text, "/15");
-    }  
+    }
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    char level_range_text[8] = {0};
+    if (level_info->range_render_max == level_info->level_max) {
+        return;
+    }
+    snprintf(level_range_text, sizeof(level_range_text), "/%d", level_info->level_max);
+    lv_label_set_text(level_info->level_range_text, level_range_text);
+    level_info->range_render_max = level_info->level_max;
+#else
+    if (level_info->force_update == false) {
+        return;
+    }
+#endif
 }
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_USE_SPECTRA_SUCTION_CURVE
+void common_pump_level_ui_prepare(ui_manager_context_t *thiz, uint8_t level_max)
+#else
 void common_pump_level_ui_prepare(ui_manager_context_t *thiz)
+#endif
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (level_info == NULL) {
@@ -339,6 +400,11 @@ void common_pump_level_ui_prepare(ui_manager_context_t *thiz)
     level_info->popup_ui_index = ID_POPUP_UI_NONE;
     level_info->animation_status = LEVEL_ANIMATION_TYPE_NONE;
     level_info->animation_start_time = 0;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    level_info->level_max = level_max;
+    level_info->level_render_max = 0;
+    level_info->range_render_max = 0;
+#endif
 }
 
 void common_pump_level_ui_remove(ui_manager_context_t *thiz)

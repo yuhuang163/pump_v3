@@ -61,7 +61,12 @@ typedef struct {
     int8_t right_level_change;
     int8_t level_change;
     uint8_t symbol_status; /// 符号状态
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    uint8_t level_max;
+    uint8_t rsv[9];
+#else
     uint8_t rsv[10];
+#endif
 } level_display_info_t;
 
 /*
@@ -272,14 +277,31 @@ static void pump_left_level_update(ui_manager_context_t *thiz, uint8_t level, in
     }
     if (level_change >= 0) {
         level = level + level_change;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        if (level > level_info->level_max) {
+            level = level_info->level_max;
+        }
+#else
         if (level > PUMP_LEVEL_MAX) {
             level = PUMP_LEVEL_MAX;
         }
+#endif
     } else {
         uint8_t abs_level_change = abs(level_change);
         level = level < abs_level_change ? 0 : level - abs_level_change;
     }
     uint16_t end_angle = 0;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    if (level > level_info->level_max) {
+        end_angle = PUMP_LEFT_ARC_END_ANGLE;
+        level = level_info->level_max;
+    } else if (level == 0) {
+        end_angle = PUMP_LEFT_ARC_START_ANGLE;
+    } else {
+        end_angle = ((PUMP_LEFT_ARC_END_ANGLE - PUMP_LEFT_ARC_START_ANGLE) * level / level_info->level_max) +
+                PUMP_LEFT_ARC_START_ANGLE;
+    }
+#else
     if (level > PUMP_LEVEL_MAX) {
         end_angle = PUMP_LEFT_ARC_END_ANGLE;
         level = PUMP_LEVEL_MAX;
@@ -289,6 +311,7 @@ static void pump_left_level_update(ui_manager_context_t *thiz, uint8_t level, in
         end_angle = ((PUMP_LEFT_ARC_END_ANGLE - PUMP_LEFT_ARC_START_ANGLE) * level / PUMP_LEVEL_MAX) +
                 PUMP_LEFT_ARC_START_ANGLE;
     }
+#endif
 
     if (pump_left_level_arc_update(thiz, end_angle) != 0) {
         return;
@@ -369,14 +392,31 @@ static void pump_right_level_update(ui_manager_context_t *thiz, uint8_t level, i
 
     if (level_change >= 0) {
         level = level + level_change;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        if (level > level_info->level_max) {
+            level = level_info->level_max;
+        }
+#else
         if (level > PUMP_LEVEL_MAX) {
             level = PUMP_LEVEL_MAX;
         }
+#endif
     } else {
         uint8_t abs_level_change = abs(level_change);
         level = level < abs_level_change ? 0 : level - abs_level_change;
     }
     uint16_t end_angle = 0;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    if (level > level_info->level_max) {
+        end_angle = PUMP_RIGHT_ARC_START_ANGLE;
+        level = level_info->level_max;
+    } else if (level == 0) {
+        end_angle = PUMP_RIGHT_ARC_END_ANGLE;
+    } else {
+        end_angle = ((PUMP_RIGHT_ARC_END_ANGLE - PUMP_RIGHT_ARC_START_ANGLE) *
+            (level_info->level_max - level) / level_info->level_max) + PUMP_RIGHT_ARC_START_ANGLE;
+    }
+#else
     if (level > PUMP_LEVEL_MAX) {
         end_angle = PUMP_RIGHT_ARC_START_ANGLE;
         level = PUMP_LEVEL_MAX;
@@ -386,6 +426,7 @@ static void pump_right_level_update(ui_manager_context_t *thiz, uint8_t level, i
         end_angle = ((PUMP_RIGHT_ARC_END_ANGLE - PUMP_RIGHT_ARC_START_ANGLE) *
             (PUMP_LEVEL_MAX - level) / PUMP_LEVEL_MAX) + PUMP_RIGHT_ARC_START_ANGLE;
     }
+#endif
 
     if (pump_right_level_arc_update(thiz, end_angle) != 0) {
         return;
@@ -428,7 +469,11 @@ static void pump_both_level_offset_text_update(ui_manager_context_t *thiz, int8_
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_USE_SPECTRA_SUCTION_CURVE
+void common_pump_both_level_ui_prepare(ui_manager_context_t *thiz, uint8_t level_max)
+#else
 void common_pump_both_level_ui_prepare(ui_manager_context_t *thiz)
+#endif
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (level_info == NULL) {
@@ -438,7 +483,23 @@ void common_pump_both_level_ui_prepare(ui_manager_context_t *thiz)
     pump_both_level_root_init();
     level_info->force_update = true;
     level_info->popup_ui_index = ID_POPUP_UI_NONE;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    level_info->level_max = level_max;
+#endif
 }
+
+#if IS_USE_SPECTRA_SUCTION_CURVE
+void common_pump_both_level_ui_sync_level_max(uint8_t level_max)
+{
+    if (level_info == NULL) {
+        return;
+    }
+    if (level_info->level_max != level_max) {
+        level_info->level_max = level_max;
+        level_info->force_update = true;
+    }
+}
+#endif
 
 void common_pump_both_level_ui_remove(ui_manager_context_t *thiz)
 {

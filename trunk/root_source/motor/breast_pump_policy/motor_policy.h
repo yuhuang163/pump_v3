@@ -74,13 +74,31 @@ typedef enum {
     SUCTION_SPEED_LOW = 0,
     SUCTION_SPEED_MID,
     SUCTION_SPEED_HIGH,
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    SUCTION_SPEED_HIGH_2,
+    SUCTION_SPEED_HIGH_3,
+#endif
     SUCTION_SPEED_MAX
 } suction_speed_e;
+
+#if IS_USE_SPECTRA_SUCTION_CURVE
+#define SHORT_SUCTION_SPEED_MAX        5  /// 短吸(刺激)模式速度档位数
+#define PUMP_LONG_SUCTION_SPEED_MAX    5  /// 长吸(吸乳)吸力参数表速度档位数
+
+static inline uint8_t get_suction_speed_max_by_mode(uint8_t mode_type)
+{
+    if (mode_type == SUCTION_MODE_SHORT || mode_type == SUCTION_MODE_MIX_SHORT) {
+        return SHORT_SUCTION_SPEED_MAX;
+    }
+    return PUMP_LONG_SUCTION_SPEED_MAX;
+}
+#endif
 
 /// 吸力等级
 #define SUCTION_DEFAULT_LEVEL_VALUE   5  /// 默认吸力等级，默认5KPA为初始值
 typedef enum {
     SUCTION_LEVEL_0KPA = 0,
+    SUCTION_LEVEL_5KPA,
     SUCTION_LEVEL_6KPA,
     SUCTION_LEVEL_7KPA,
     SUCTION_LEVEL_8KPA,
@@ -131,6 +149,7 @@ typedef struct {
     uint8_t  pump_level;    /// 泵力度
     uint16_t pumping_time;  /// 抽气时间
     uint16_t valve_on_time; /// 电磁阀动作时间
+    uint16_t hold_time;     /// 吸力保持时间，单位ms
 } suction_parameters_t;
 
 typedef struct {

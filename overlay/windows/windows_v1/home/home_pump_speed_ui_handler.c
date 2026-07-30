@@ -139,7 +139,7 @@ void switch_home_pump_speed(ui_proc_home_t *proc, bool is_increase)
 {
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     if (is_increase) {
-        if (proc->setting.speed < BREAST_PUMP_SPEED_HIGH) {
+        if (proc->setting.speed < (BREAST_PUMP_SPEED_MAX - 1)) {
             proc->setting.speed++;
         } else {
             proc->setting.speed = BREAST_PUMP_SPEED_LOW;
@@ -148,7 +148,7 @@ void switch_home_pump_speed(ui_proc_home_t *proc, bool is_increase)
         if (proc->setting.speed > BREAST_PUMP_SPEED_LOW) {
             proc->setting.speed--;
         } else {
-            proc->setting.speed = BREAST_PUMP_SPEED_HIGH;
+            proc->setting.speed = (BREAST_PUMP_SPEED_MAX - 1);
         }
     }
     proc->speed_sync_flag = true;

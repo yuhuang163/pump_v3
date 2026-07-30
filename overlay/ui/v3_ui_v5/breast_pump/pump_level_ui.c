@@ -30,7 +30,17 @@
 */
 void ui_display_pump_level_prepare(ui_manager_context_t *thiz)
 {
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
+    int pump_mode = BREAST_PUMP_STIMULATION_MODE;
+    if (proc && proc->pump) {
+        READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    }
+    uint8_t level_max = pump_mode == BREAST_PUMP_STIMULATION_MODE ? BREAST_PUMP_LEVEL_5 : BREAST_PUMP_LEVEL_15;
+    common_pump_level_ui_prepare(thiz, level_max);
+#else
    common_pump_level_ui_prepare(thiz);
+#endif
    thiz->priv.fps_count = 0;
    thiz->priv.fps_start_time = get_timestamp();
 }
@@ -45,8 +55,17 @@ int ui_display_pump_level_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(thiz);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    int pump_mode = BREAST_PUMP_STIMULATION_MODE;
+    if (proc->pump) {
+        READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    }
+    uint8_t level_max = pump_mode == BREAST_PUMP_STIMULATION_MODE ?
+        BREAST_PUMP_LEVEL_5 : BREAST_PUMP_LEVEL_15;
+    common_pump_level_ui_sync_level_max(level_max);
+#endif
     if (proc->info.control_type == BREAST_PUMP_CONTROL_TYPE_LEFT) {
-        common_pump_level_ui_process(thiz, proc->setting.level[0], 
+        common_pump_level_ui_process(thiz, proc->setting.level[0],
             proc->level_change, true, proc->popup_ui_type);
     } else {
         common_pump_level_ui_process(thiz, proc->setting.level[1],
@@ -58,6 +77,6 @@ int ui_display_pump_level_process(ui_manager_context_t *thiz)
         thiz->priv.fps_start_time = get_timestamp();
         thiz->priv.fps_count = 0;
     }
-    
+
     return 0;
 }

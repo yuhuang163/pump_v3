@@ -179,7 +179,7 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
         }
     } else {
 #if IS_SUPPORT_PUMP_SYNC
-        runtime->freq_sync_flag = true;   
+        runtime->freq_sync_flag = true;
         #if 0
         /// 同频同步
         for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
