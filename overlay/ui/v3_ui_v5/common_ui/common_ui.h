@@ -59,13 +59,23 @@ void ui_common_operation_tip_update(ui_manager_context_t *thiz,
     popup_ui_id_e type, lv_obj_t *parent, uint8_t *ui_index);
 
 /// 泵奶档位调节界面
+#if IS_USE_SPECTRA_SUCTION_CURVE
+void common_pump_both_level_ui_prepare(ui_manager_context_t *thiz, uint8_t level_max);
+void common_pump_both_level_ui_sync_level_max(uint8_t level_max);
+#else
 void common_pump_both_level_ui_prepare(ui_manager_context_t *thiz);
+#endif
 void common_pump_both_level_ui_remove(ui_manager_context_t *thiz);
 int common_pump_both_level_ui_process(ui_manager_context_t *thiz, uint8_t *level,
     int8_t level_change, uint16_t popup_ui_type);
 
 /// 泵奶档位调节界面
+#if IS_USE_SPECTRA_SUCTION_CURVE
+void common_pump_level_ui_prepare(ui_manager_context_t *thiz, uint8_t level_max);
+void common_pump_level_ui_sync_level_max(uint8_t level_max);
+#else
 void common_pump_level_ui_prepare(ui_manager_context_t *thiz);
+#endif
 void common_pump_level_ui_remove(ui_manager_context_t *thiz);
 int common_pump_level_ui_process(ui_manager_context_t *thiz, uint8_t level,
     int8_t level_change, bool is_left, uint8_t popup_ui_type);

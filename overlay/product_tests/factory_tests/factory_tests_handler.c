@@ -132,11 +132,21 @@ static int factory_tests_aging_test_enter_mode1(void)
 
     //吸乳模式15档，速度中，参数
     int pump_level = 0, pumping_time = 0, valve_on_time = 0, sleep_time = 0, hold_time = 0;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    const suction_parameters_t *factory_para =
+        &suction_para->long_suction_table[BREAST_PUMP_LEVEL_15][SUCTION_SPEED_MID];
+    pump_level   = factory_para->pump_level;
+    pumping_time = factory_para->pumping_time;
+    valve_on_time = factory_para->valve_on_time;
+    hold_time    = factory_para->hold_time;
+    uint16_t total_time = ONE_MIN_TIME_MS / suction_para->long_pump_freq_table[SUCTION_SPEED_MID];
+#else
     pump_level = suction_para->long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].pump_level;
     pumping_time = suction_para->long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].pumping_time;
     valve_on_time = suction_para->long_suction_table[long_level_table[BREAST_PUMP_LEVEL_15]].valve_on_time;
     hold_time = LONG_SUCTION_HOLD_TIME;
     uint16_t total_time = ONE_MIN_TIME_MS / suction_para->long_pump_freq_table[BREAST_PUMP_LEVEL_15][SUCTION_SPEED_MID];
+#endif
     sleep_time = total_time - pumping_time - valve_on_time - hold_time;
     if (sleep_time < PUMP_SLEEP_TIME_MIN || sleep_time > PUMP_SLEEP_TIME_MAX) {
         sleep_time = PUMP_SLEEP_TIME_MIN;

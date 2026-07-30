@@ -97,6 +97,11 @@ typedef struct {
     uint8_t mode;
     uint8_t label_ui_type;
     uint8_t label_force_update;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    uint8_t level_max;
+    uint8_t left_level_render_max;
+    uint8_t right_level_render_max;
+#endif
     char custom_name[24]; /// 个性化模式名称
     uint32_t custom_mode_id;
     uint8_t rsv[10];
@@ -490,12 +495,30 @@ static int home_pump_left_level_circle_update(ui_manager_context_t *thiz, uint16
 
 static void home_pump_left_level_update(ui_manager_context_t *thiz, uint8_t level)
 {
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    if (home_info->left_level == level && home_info->force_update == false &&
+        home_info->left_level_render_max == home_info->level_max) {
+        return;
+    }
+#else
     if (home_info->left_level == level && home_info->force_update == false) {
         return;
     }
+#endif
 
     int ret = 0;
     uint16_t end_angle = 0;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    if (level > home_info->level_max) {
+        end_angle = PUMP_LEFT_ARC_END_ANGLE;
+        level = home_info->level_max;
+    } else if (level == 0) {
+        end_angle = PUMP_LEFT_ARC_START_ANGLE;
+    } else {
+        end_angle = ((PUMP_LEFT_ARC_END_ANGLE - PUMP_LEFT_ARC_START_ANGLE) * level / home_info->level_max) +
+                PUMP_LEFT_ARC_START_ANGLE;
+    }
+#else
     if (level > PUMP_LEVEL_MAX) {
         end_angle = PUMP_LEFT_ARC_END_ANGLE;
         level = PUMP_LEVEL_MAX;
@@ -505,6 +528,7 @@ static void home_pump_left_level_update(ui_manager_context_t *thiz, uint8_t leve
         end_angle = ((PUMP_LEFT_ARC_END_ANGLE - PUMP_LEFT_ARC_START_ANGLE) * level / PUMP_LEVEL_MAX) +
                 PUMP_LEFT_ARC_START_ANGLE;
     }
+#endif
     
     ret = home_pump_left_level_text_update(thiz, level, end_angle);
     if (ret != 0) {
@@ -521,6 +545,9 @@ static void home_pump_left_level_update(ui_manager_context_t *thiz, uint8_t leve
         return;
     }
     home_info->left_level = level;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    home_info->left_level_render_max = home_info->level_max;
+#endif
 }
 
 
@@ -585,11 +612,29 @@ static int home_pump_right_level_circle_update(ui_manager_context_t *thiz, uint1
 
 static void home_pump_right_level_update(ui_manager_context_t *thiz, uint8_t level)
 {
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    if (home_info->right_level == level && home_info->force_update == false &&
+        home_info->right_level_render_max == home_info->level_max) {
+        return;
+    }
+#else
     if (home_info->right_level == level && home_info->force_update == false) {
         return;
     }
+#endif
     int ret = 0;
     uint16_t end_angle = 0;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    if (level > home_info->level_max) {
+        end_angle = PUMP_RIGHT_ARC_START_ANGLE;
+        level = home_info->level_max;
+    } else if (level == 0) {
+        end_angle = PUMP_RIGHT_ARC_END_ANGLE;
+    } else {
+        end_angle = ((PUMP_RIGHT_ARC_END_ANGLE - PUMP_RIGHT_ARC_START_ANGLE) *
+            (home_info->level_max - level) / home_info->level_max) + PUMP_RIGHT_ARC_START_ANGLE;
+    }
+#else
     if (level > PUMP_LEVEL_MAX) {
         end_angle = PUMP_RIGHT_ARC_START_ANGLE;
         level = PUMP_LEVEL_MAX;
@@ -599,6 +644,7 @@ static void home_pump_right_level_update(ui_manager_context_t *thiz, uint8_t lev
         end_angle = ((PUMP_RIGHT_ARC_END_ANGLE - PUMP_RIGHT_ARC_START_ANGLE) *
             (PUMP_LEVEL_MAX - level) / PUMP_LEVEL_MAX) + PUMP_RIGHT_ARC_START_ANGLE;
     }
+#endif
 
     ret = home_pump_right_level_text_update(thiz, level, end_angle);
     if (ret != 0) {
@@ -615,6 +661,9 @@ static void home_pump_right_level_update(ui_manager_context_t *thiz, uint8_t lev
         return;
     }
     home_info->right_level = level;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    home_info->right_level_render_max = home_info->level_max;
+#endif
 }
 
 
@@ -725,6 +774,9 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
     int pump_mode = 0;
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     home_info->mode = pump_mode;
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    home_info->level_max = pump_mode == BREAST_PUMP_STIMULATION_MODE ? BREAST_PUMP_LEVEL_5 : BREAST_PUMP_LEVEL_15;
+#endif
     memset(home_info->custom_name, 0, sizeof(home_info->custom_name));
     sprintf(home_info->custom_name, "Customize");
     home_info->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
@@ -766,7 +818,15 @@ int ui_display_home_process(ui_manager_context_t *thiz)
             home_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
                 sizeof(home_info->custom_name), home_info->custom_name);
         }
-    } 
+    }
+#if IS_USE_SPECTRA_SUCTION_CURVE
+    uint8_t level_max = pump_mode == BREAST_PUMP_STIMULATION_MODE ?
+        BREAST_PUMP_LEVEL_5 : BREAST_PUMP_LEVEL_15;
+    if (home_info->level_max != level_max) {
+        home_info->level_max = level_max;
+        home_info->force_update = true;
+    }
+#endif
     home_root_bg_update(thiz);
     ble_ui_update(thiz, home_info->root, proc->ble, PUMP_HOME_BLE_UI_X, PUMP_HOME_BLE_UI_Y);
     home_pump_left_level_update(thiz, setting.level[0]);

@@ -191,6 +191,10 @@ extern "C" {
 /// 支持主题切换
 #define IS_SUPPORT_THEME_SWITCH                          (0)
 
+/// 使用新的Spectra兼容吸力曲线参数表 // 0 不使用 1 使用
+#ifndef IS_USE_SPECTRA_SUCTION_CURVE
+#define IS_USE_SPECTRA_SUCTION_CURVE                     (1)
+#endif
 #ifdef __cplusplus
 }
 #endif

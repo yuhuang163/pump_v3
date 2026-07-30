@@ -1314,7 +1314,15 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
         }
         mode_type = cab[n + 1];
         level = cab[n + 2] >= BREAST_PUMP_LEVEL_MAX ? BREAST_PUMP_LEVEL_15 : cab[n + 2];
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ?
+            (BREAST_PUMP_SPEED_MAX - 1) : (cab[n + 3] - 1);
+        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT && level > BREAST_PUMP_LEVEL_5) {
+            level = BREAST_PUMP_LEVEL_5;
+        }
+#else
         speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ? BREAST_PUMP_SPEED_HIGH : (cab[n + 3] - 1);
+#endif
         time_policy_duration = cab[n + 4] << 8 | cab[n + 5];
         if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
@@ -1463,7 +1471,15 @@ void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
         }
         mode_type = cab[n + 1];
         level = cab[n + 2] >= BREAST_PUMP_LEVEL_MAX ? BREAST_PUMP_LEVEL_15 : cab[n + 2];
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ?
+            (BREAST_PUMP_SPEED_MAX - 1) : (cab[n + 3] - 1);
+        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT && level > BREAST_PUMP_LEVEL_5) {
+            level = BREAST_PUMP_LEVEL_5;
+        }
+#else
         speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ? BREAST_PUMP_SPEED_HIGH : (cab[n + 3] - 1);
+#endif
         time_policy_duration = cab[n + 4] << 8 | cab[n + 5];
         if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT) {
                 if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {

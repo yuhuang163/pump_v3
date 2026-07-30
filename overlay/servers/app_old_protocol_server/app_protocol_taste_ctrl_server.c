@@ -73,9 +73,15 @@ uint8_t app_old_comm_handle_ctrl_taste_dev_ctrl(app_old_comm_pump_taste_ctrl *ta
         /// 设置用户区体验模式参数，用于启动体验模式时使用
         taste_setting_t taste_setting;
         taste_setting.speed = taste_ctrl_date->taste_pump_speed - 1; //频次（1-低 2-中 3-高 需要减1）
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        if (taste_setting.speed >= BREAST_PUMP_SPEED_MAX) {
+            taste_setting.speed = BREAST_PUMP_SPEED_MAX - 1;
+        }
+#else
         if (taste_setting.speed > BREAST_PUMP_SPEED_HIGH) {
             taste_setting.speed = BREAST_PUMP_SPEED_HIGH;
         }
+#endif
         for (uint8_t j = 0; j < BREAST_PUMP_NUM; j++) {
             taste_setting.level[j] = taste_ctrl_date->taste_pump_level;
             if (taste_setting.level[j] > BREAST_PUMP_LEVEL_15) {

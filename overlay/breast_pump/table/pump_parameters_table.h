@@ -18,216 +18,469 @@ extern "C" {
 #define PUMP_SLEEP_TIME_MAX                2000  /// 最大休眠时间，单位ms
 #define PUMP_SLEEP_TIME_MIN                2  /// 最小休眠时间，单位ms
 #define IS_USE_NEW_SUCTION                 0 /// 默认参数是否使用新的时光泵吸力参数表 // 0 不使用 1 使用
+
+#if IS_USE_SPECTRA_SUCTION_CURVE
+#define SHORT_SUCTION_DEFAULT_FREQ         80
+#define LONG_SUCTION_DEFAULT_FREQ          40
+#define IS_USE_NEW_PUMP_BOTTLE_SUCTION     0 /// 是否使用新的奶瓶吸力参数表 // 0 奶碗 1 奶瓶
+#else
 #define SHORT_SUCTION_DEFAULT_FREQ         90
 #define LONG_SUCTION_DEFAULT_FREQ          40
+#endif
+
+#if IS_USE_SPECTRA_SUCTION_CURVE
+///时光泵参数 没有调
+/// 吸力参数表（单位kpa）//泌乳力表 [力度][速度]
+static const suction_parameters_t pump1_long_suction_table[BREAST_PUMP_LEVEL_MAX][PUMP_LONG_SUCTION_SPEED_MAX] = {
+    /// speed 0 ~ 4
+    {{0, 60, 100,   LONG_SUCTION_HOLD_TIME}, {0, 60, 100,   LONG_SUCTION_HOLD_TIME}, {0, 60, 100,   LONG_SUCTION_HOLD_TIME}, {0, 60, 100,   LONG_SUCTION_HOLD_TIME}, {0, 60, 100, LONG_SUCTION_HOLD_TIME}}, /// level  0, 0KPA
+    {{29, 340, 100, LONG_SUCTION_HOLD_TIME}, {29, 340, 100, 150}, {29, 340, 100, LONG_SUCTION_HOLD_TIME}, {29, 340, 100, LONG_SUCTION_HOLD_TIME}, {29, 340, 100, LONG_SUCTION_HOLD_TIME}}, /// level  1, 6KPA
+    {{34, 406, 100, LONG_SUCTION_HOLD_TIME}, {34, 406, 100, 130}, {34, 406, 100, LONG_SUCTION_HOLD_TIME}, {34, 406, 100, LONG_SUCTION_HOLD_TIME}, {34, 406, 100, LONG_SUCTION_HOLD_TIME}}, /// level  2, 10KPA
+    {{38, 452, 120, LONG_SUCTION_HOLD_TIME}, {38, 452, 120, 120}, {38, 452, 120, LONG_SUCTION_HOLD_TIME}, {38, 452, 120, LONG_SUCTION_HOLD_TIME}, {38, 452, 120, LONG_SUCTION_HOLD_TIME}}, /// level  3, 13KPA
+    {{43, 472, 120, LONG_SUCTION_HOLD_TIME}, {43, 472, 120, 0}, {43, 472, 120, LONG_SUCTION_HOLD_TIME}, {43, 472, 120, LONG_SUCTION_HOLD_TIME}, {43, 472, 120, LONG_SUCTION_HOLD_TIME}}, /// level  4, 15KPA
+    {{48, 492, 140, LONG_SUCTION_HOLD_TIME}, {48, 492, 140, 100}, {48, 492, 140, LONG_SUCTION_HOLD_TIME}, {48, 492, 140, LONG_SUCTION_HOLD_TIME}, {48, 492, 140, LONG_SUCTION_HOLD_TIME}}, /// level  5, 18KPA
+    {{50, 528, 140, LONG_SUCTION_HOLD_TIME}, {50, 528, 140, 90}, {50, 528, 140, LONG_SUCTION_HOLD_TIME}, {50, 528, 140, LONG_SUCTION_HOLD_TIME}, {50, 528, 140, LONG_SUCTION_HOLD_TIME}}, /// level  6, 20KPA
+    {{53, 560, 180, LONG_SUCTION_HOLD_TIME}, {53, 560, 180, 80}, {53, 560, 180, LONG_SUCTION_HOLD_TIME}, {53, 560, 180, LONG_SUCTION_HOLD_TIME}, {53, 560, 180, LONG_SUCTION_HOLD_TIME}}, /// level  7, 22KPA
+    {{54, 622, 200, LONG_SUCTION_HOLD_TIME}, {54, 622, 200, 70}, {54, 622, 200, LONG_SUCTION_HOLD_TIME}, {54, 622, 200, LONG_SUCTION_HOLD_TIME}, {54, 622, 200, LONG_SUCTION_HOLD_TIME}}, /// level  8, 24KPA
+    {{58, 632, 220, LONG_SUCTION_HOLD_TIME}, {58, 632, 220, 0}, {58, 632, 220, LONG_SUCTION_HOLD_TIME}, {58, 632, 220, LONG_SUCTION_HOLD_TIME}, {58, 632, 220, LONG_SUCTION_HOLD_TIME}}, /// level  9, 26KPA
+    {{60, 660, 220, LONG_SUCTION_HOLD_TIME}, {60, 660, 220, 50}, {60, 660, 220, LONG_SUCTION_HOLD_TIME}, {60, 660, 220, LONG_SUCTION_HOLD_TIME}, {60, 660, 220, LONG_SUCTION_HOLD_TIME}}, /// level 10, 28KPA
+    {{65, 647, 250, LONG_SUCTION_HOLD_TIME}, {65, 647, 250, 40}, {65, 647, 250, LONG_SUCTION_HOLD_TIME}, {65, 647, 250, LONG_SUCTION_HOLD_TIME}, {65, 647, 250, LONG_SUCTION_HOLD_TIME}}, /// level 11, 30KPA
+    {{66, 705, 260, LONG_SUCTION_HOLD_TIME}, {66, 705, 260, 30}, {66, 705, 260, LONG_SUCTION_HOLD_TIME}, {66, 705, 260, LONG_SUCTION_HOLD_TIME}, {66, 705, 260, LONG_SUCTION_HOLD_TIME}}, /// level 12, 31KPA
+    {{71, 684, 280, LONG_SUCTION_HOLD_TIME}, {71, 684, 280, 0}, {71, 684, 280, LONG_SUCTION_HOLD_TIME}, {71, 684, 280, LONG_SUCTION_HOLD_TIME}, {71, 684, 280, LONG_SUCTION_HOLD_TIME}}, /// level 13, 33KPA
+    {{72, 718, 320, LONG_SUCTION_HOLD_TIME}, {72, 718, 320, 15}, {72, 718, 320, LONG_SUCTION_HOLD_TIME}, {72, 718, 320, LONG_SUCTION_HOLD_TIME}, {72, 718, 320, LONG_SUCTION_HOLD_TIME}}, /// level 14, 35KPA
+    {{76, 708, 330, LONG_SUCTION_HOLD_TIME}, {76, 708, 330, 10}, {76, 708, 330, LONG_SUCTION_HOLD_TIME}, {76, 708, 330, LONG_SUCTION_HOLD_TIME}, {76, 708, 330, LONG_SUCTION_HOLD_TIME}}, /// level 15, 36KPA
+};
+
+/// 吸力参数表（单位kpa）//按摩力表 [力度][速度]
+static const suction_parameters_t pump1_short_suction_table[BREAST_PUMP_LEVEL_MAX][SHORT_SUCTION_SPEED_MAX] = {
+    /// speed 0 ~ 4
+    {{ 0,  60, 100, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 100, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 100, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 100, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 100, SHORT_SUCTION_HOLD_TIME}}, /// level  0, 0KPA
+    {{34, 220, 130, SHORT_SUCTION_HOLD_TIME}, {34, 220, 130, SHORT_SUCTION_HOLD_TIME}, {34, 220, 130, SHORT_SUCTION_HOLD_TIME}, {34, 220, 130, SHORT_SUCTION_HOLD_TIME}, {34, 220, 130, SHORT_SUCTION_HOLD_TIME}}, /// level  1, 6KPA
+    {{38, 230, 130, SHORT_SUCTION_HOLD_TIME}, {38, 230, 130, SHORT_SUCTION_HOLD_TIME}, {38, 230, 130, SHORT_SUCTION_HOLD_TIME}, {38, 230, 130, SHORT_SUCTION_HOLD_TIME}, {38, 230, 130, SHORT_SUCTION_HOLD_TIME}}, /// level  2, 7KPA
+    {{45, 230, 145, SHORT_SUCTION_HOLD_TIME}, {45, 230, 145, SHORT_SUCTION_HOLD_TIME}, {45, 230, 145, SHORT_SUCTION_HOLD_TIME}, {45, 230, 145, SHORT_SUCTION_HOLD_TIME}, {45, 230, 145, SHORT_SUCTION_HOLD_TIME}}, /// level  3, 9KPA
+    {{50, 240, 140, SHORT_SUCTION_HOLD_TIME}, {50, 240, 140, SHORT_SUCTION_HOLD_TIME}, {50, 240, 140, SHORT_SUCTION_HOLD_TIME}, {50, 240, 140, SHORT_SUCTION_HOLD_TIME}, {50, 240, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  4, 10KPA
+    {{55, 245, 150, SHORT_SUCTION_HOLD_TIME}, {55, 245, 150, SHORT_SUCTION_HOLD_TIME}, {55, 245, 150, SHORT_SUCTION_HOLD_TIME}, {55, 245, 150, SHORT_SUCTION_HOLD_TIME}, {55, 245, 150, SHORT_SUCTION_HOLD_TIME}}, /// level  5, 12KPA
+    {{56, 270, 150, SHORT_SUCTION_HOLD_TIME}, {56, 270, 150, SHORT_SUCTION_HOLD_TIME}, {56, 270, 150, SHORT_SUCTION_HOLD_TIME}, {56, 270, 150, SHORT_SUCTION_HOLD_TIME}, {56, 270, 150, SHORT_SUCTION_HOLD_TIME}}, /// level  6, 13KPA
+    {{63, 264, 150, SHORT_SUCTION_HOLD_TIME}, {63, 264, 150, SHORT_SUCTION_HOLD_TIME}, {63, 264, 150, SHORT_SUCTION_HOLD_TIME}, {63, 264, 150, SHORT_SUCTION_HOLD_TIME}, {63, 264, 150, SHORT_SUCTION_HOLD_TIME}}, /// level  7, 14KPA
+    {{64, 287, 170, SHORT_SUCTION_HOLD_TIME}, {64, 287, 170, SHORT_SUCTION_HOLD_TIME}, {64, 287, 170, SHORT_SUCTION_HOLD_TIME}, {64, 287, 170, SHORT_SUCTION_HOLD_TIME}, {64, 287, 170, SHORT_SUCTION_HOLD_TIME}}, /// level  8, 15KPA
+    {{60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}}, /// level  9, 16KPA
+    {{72, 272, 155, SHORT_SUCTION_HOLD_TIME}, {72, 272, 155, SHORT_SUCTION_HOLD_TIME}, {72, 272, 155, SHORT_SUCTION_HOLD_TIME}, {72, 272, 155, SHORT_SUCTION_HOLD_TIME}, {72, 272, 155, SHORT_SUCTION_HOLD_TIME}}, /// level 10, 17KPA
+    {{80, 291, 160, SHORT_SUCTION_HOLD_TIME}, {80, 291, 160, SHORT_SUCTION_HOLD_TIME}, {80, 291, 160, SHORT_SUCTION_HOLD_TIME}, {80, 291, 160, SHORT_SUCTION_HOLD_TIME}, {80, 291, 160, SHORT_SUCTION_HOLD_TIME}}, /// level 11, 18KPA
+    {{76, 300, 145, SHORT_SUCTION_HOLD_TIME}, {76, 300, 145, SHORT_SUCTION_HOLD_TIME}, {76, 300, 145, SHORT_SUCTION_HOLD_TIME}, {76, 300, 145, SHORT_SUCTION_HOLD_TIME}, {76, 300, 145, SHORT_SUCTION_HOLD_TIME}}, /// level 12, 19KPA
+    {{85, 314, 160, SHORT_SUCTION_HOLD_TIME}, {85, 314, 160, SHORT_SUCTION_HOLD_TIME}, {85, 314, 160, SHORT_SUCTION_HOLD_TIME}, {85, 314, 160, SHORT_SUCTION_HOLD_TIME}, {85, 314, 160, SHORT_SUCTION_HOLD_TIME}}, /// level 13, 21KPA
+    {{89, 328, 160, SHORT_SUCTION_HOLD_TIME}, {89, 328, 160, SHORT_SUCTION_HOLD_TIME}, {89, 328, 160, SHORT_SUCTION_HOLD_TIME}, {89, 328, 160, SHORT_SUCTION_HOLD_TIME}, {89, 328, 160, SHORT_SUCTION_HOLD_TIME}}, /// level 14, 23KPA
+    {{75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}}, /// level 15, 27KPA
+};
+
+/// 长吸泵频次表 (泵频次 1分/次) [速度]
+static const uint16_t pump1_long_pump_freq_table[PUMP_LONG_SUCTION_SPEED_MAX] = {
+    38, 40, 45, 50, 55, /// speed 0 ~ 4
+};
+
+/// 短吸泵频次表 [速度]
+static const uint16_t pump1_short_suction_freq_table[SHORT_SUCTION_SPEED_MAX] = {
+    70, 80, 90, 100, 105,
+};
+#if IS_USE_NEW_PUMP_BOTTLE_SUCTION
+///龙一泵参数（泌乳-奶瓶-类Spectra，20260722）
+/// 吸力参数表：{泵力度, 抽气时间ms, 阀时间ms, 保压时间ms}，间歇时间由频次表运行时计算 [力度][速度]
+static const suction_parameters_t pump2_long_suction_table[BREAST_PUMP_LEVEL_MAX][PUMP_LONG_SUCTION_SPEED_MAX] = {
+    /// speed 0 ~ 4（速度1~5：38/42/46/50/54 次/分；速度5的13~15档参数单独调整）
+    {{0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}}, /// level  0, 0KPA
+    {{25, 340, 114, 255}, {25, 340, 114, 255}, {25, 340, 114, 255}, {25, 340, 114, 255}, {25, 340, 114, 255}}, /// level  1, 5KPA
+    {{27, 532, 135, 149}, {27, 532, 135, 149}, {27, 532, 135, 149}, {27, 532, 135, 149}, {27, 532, 135, 149}}, /// level  2, 10KPA
+    {{35, 660, 180,  85}, {35, 660, 180,  85}, {35, 660, 180,  85}, {35, 660, 180,  85}, {35, 660, 180,  85}}, /// level  3, 15KPA
+    {{41, 660, 190,  85}, {41, 660, 190,  85}, {41, 660, 190,  85}, {41, 660, 190,  85}, {41, 660, 190,  85}}, /// level  4, 18KPA
+    {{43, 723, 210,  21}, {43, 723, 210,  21}, {43, 723, 210,  21}, {43, 723, 210,  21}, {43, 723, 210,  21}}, /// level  5, 21KPA
+    {{58, 745, 230,   0}, {58, 745, 230,   0}, {58, 745, 230,   0}, {58, 745, 230,   0}, {58, 745, 230,   0}}, /// level  6, 24KPA
+    {{61, 681, 240,   0}, {61, 681, 240,   0}, {61, 681, 240,   0}, {61, 681, 240,   0}, {61, 681, 240,   0}}, /// level  7, 26KPA
+    {{70, 723, 250,   0}, {70, 723, 250,   0}, {70, 723, 250,   0}, {70, 723, 250,   0}, {70, 723, 250,   0}}, /// level  8, 28KPA
+    {{77, 702, 260,   0}, {77, 702, 260,   0}, {77, 702, 260,   0}, {77, 702, 260,   0}, {77, 702, 260,   0}}, /// level  9, 30KPA
+    {{80, 723, 270,   0}, {80, 723, 270,   0}, {80, 723, 270,   0}, {80, 723, 270,   0}, {80, 723, 270,   0}}, /// level 10, 32KPA
+    {{90, 723, 280,   0}, {90, 723, 280,   0}, {90, 723, 280,   0}, {90, 723, 280,   0}, {90, 723, 280,   0}}, /// level 11, 34KPA
+    {{90, 780, 290,   0}, {90, 780, 290,   0}, {90, 780, 290,   0}, {90, 780, 290,   0}, {90, 780, 290,   0}}, /// level 12, 36KPA
+    {{90, 820, 290,   0}, {90, 820, 290,   0}, {90, 820, 290,   0}, {90, 820, 290,   0}, {91, 810, 290,   0}}, /// level 13, 38KPA
+    {{91, 840, 300,   0}, {91, 840, 300,   0}, {91, 840, 300,   0}, {91, 840, 300,   0}, {91, 816, 285,   0}}, /// level 14, 39KPA
+    {{92, 850, 300,   0}, {92, 850, 300,   0}, {92, 850, 300,   0}, {92, 850, 300,   0}, {92, 816, 285,   0}}, /// level 15, 40KPA
+};
+
+///龙一泵参数（按摩-奶瓶-类Spectra，20260722）
+/// 吸力参数表：{泵力度, 抽气时间ms, 阀时间ms, 保压时间ms}，间歇时间由频次表运行时计算 [力度][速度] 只用到0-5档
+static const suction_parameters_t pump2_short_suction_table[BREAST_PUMP_LEVEL_MAX][SHORT_SUCTION_SPEED_MAX] = {
+    /// speed 0 ~ 4（速度1~5：70/80/90/100/105 次/分）
+    {{ 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}}, /// level  0, 0KPA
+    {{27, 360, 132, SHORT_SUCTION_HOLD_TIME}, {35, 292, 132, SHORT_SUCTION_HOLD_TIME}, {35, 270, 132, SHORT_SUCTION_HOLD_TIME}, {63, 157, 132, SHORT_SUCTION_HOLD_TIME}, {49, 202, 132, SHORT_SUCTION_HOLD_TIME}}, /// level  1, 6KPA
+    {{45, 404, 152, SHORT_SUCTION_HOLD_TIME}, {48, 382, 152, SHORT_SUCTION_HOLD_TIME}, {75, 247, 152, SHORT_SUCTION_HOLD_TIME}, {90, 202, 152, SHORT_SUCTION_HOLD_TIME}, {90, 202, 152, SHORT_SUCTION_HOLD_TIME}}, /// level  2, 12KPA
+    {{70, 382, 172, SHORT_SUCTION_HOLD_TIME}, {81, 337, 172, SHORT_SUCTION_HOLD_TIME}, {81, 337, 172, SHORT_SUCTION_HOLD_TIME}, {90, 321, 172, SHORT_SUCTION_HOLD_TIME}, {90, 321, 172, SHORT_SUCTION_HOLD_TIME}}, /// level  3, 18KPA
+    {{85, 427, 187, SHORT_SUCTION_HOLD_TIME}, {90, 375, 187, SHORT_SUCTION_HOLD_TIME}, {90, 375, 187, SHORT_SUCTION_HOLD_TIME}, {90, 375, 187, SHORT_SUCTION_HOLD_TIME}, {90, 375, 187, SHORT_SUCTION_HOLD_TIME}}, /// level  4, 23KPA
+    {{90, 445, 205, SHORT_SUCTION_HOLD_TIME}, {90, 445, 206, SHORT_SUCTION_HOLD_TIME}, {90, 445, 202, SHORT_SUCTION_HOLD_TIME}, {92, 390, 200, SHORT_SUCTION_HOLD_TIME}, {92, 368, 190, SHORT_SUCTION_HOLD_TIME}}, /// level  5, 24KPA（最大负压约-21）
+    {{38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  6, 13KPA
+    {{46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  7, 14KPA
+    {{47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  8, 15KPA
+    {{60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}}, /// level  9, 16KPA
+    {{56, 285, 150, SHORT_SUCTION_HOLD_TIME}, {56, 285, 150, SHORT_SUCTION_HOLD_TIME}, {56, 285, 150, SHORT_SUCTION_HOLD_TIME}, {56, 285, 150, SHORT_SUCTION_HOLD_TIME}, {56, 285, 150, SHORT_SUCTION_HOLD_TIME}}, /// level 10, 17KPA
+    {{55, 305, 150, SHORT_SUCTION_HOLD_TIME}, {55, 305, 150, SHORT_SUCTION_HOLD_TIME}, {55, 305, 150, SHORT_SUCTION_HOLD_TIME}, {55, 305, 150, SHORT_SUCTION_HOLD_TIME}, {55, 305, 150, SHORT_SUCTION_HOLD_TIME}}, /// level 11, 18KPA
+    {{66, 285, 170, SHORT_SUCTION_HOLD_TIME}, {66, 285, 170, SHORT_SUCTION_HOLD_TIME}, {66, 285, 170, SHORT_SUCTION_HOLD_TIME}, {66, 285, 170, SHORT_SUCTION_HOLD_TIME}, {66, 285, 170, SHORT_SUCTION_HOLD_TIME}}, /// level 12, 19KPA
+    {{69, 313, 190, SHORT_SUCTION_HOLD_TIME}, {69, 313, 190, SHORT_SUCTION_HOLD_TIME}, {69, 313, 190, SHORT_SUCTION_HOLD_TIME}, {69, 313, 190, SHORT_SUCTION_HOLD_TIME}, {69, 313, 190, SHORT_SUCTION_HOLD_TIME}}, /// level 13, 21KPA
+    {{75, 322, 200, SHORT_SUCTION_HOLD_TIME}, {75, 322, 200, SHORT_SUCTION_HOLD_TIME}, {75, 322, 200, SHORT_SUCTION_HOLD_TIME}, {75, 322, 200, SHORT_SUCTION_HOLD_TIME}, {75, 322, 200, SHORT_SUCTION_HOLD_TIME}}, /// level 14, 23KPA
+    {{75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}}, /// level 15, 27KPA
+};
+
+/// 长吸泵频次表 (泵频次 1分/次) [速度]
+static const uint16_t pump2_long_pump_freq_table[PUMP_LONG_SUCTION_SPEED_MAX] = {
+    38, 42, 46, 50, 54, /// speed 0 ~ 4，对应速度1~5
+};
+
+/// 短吸泵频次表[速度]
+static const uint16_t pump2_short_suction_freq_table[SHORT_SUCTION_SPEED_MAX] = {
+    70, 80, 90, 100, 105, /// speed 0 ~ 4，对应速度1~5
+};
+
+
+/// 短吸力度表 //按摩力表（奶瓶 Spectra：6/12/18/23/24 KPA）
+static const uint16_t short_level_table[BREAST_PUMP_LEVEL_MAX] = {
+    SUCTION_LEVEL_0KPA,  /// 0KPA
+    SUCTION_LEVEL_6KPA,  /// 6KPA
+    SUCTION_LEVEL_12KPA, /// 12KPA
+    SUCTION_LEVEL_18KPA, /// 18KPA
+    SUCTION_LEVEL_23KPA, /// 23KPA
+    SUCTION_LEVEL_24KPA, /// 24KPA
+    SUCTION_LEVEL_13KPA, /// 12.8KPA
+    SUCTION_LEVEL_14KPA, /// 14.1KPA
+    SUCTION_LEVEL_15KPA, /// 15.3KPA
+    SUCTION_LEVEL_17KPA, /// 16.5KPA
+    SUCTION_LEVEL_18KPA, /// 17.7KPA
+    SUCTION_LEVEL_19KPA, /// 18.8KPA
+    SUCTION_LEVEL_20KPA, /// 19.9KPA
+    SUCTION_LEVEL_21KPA, /// 21KPA
+    SUCTION_LEVEL_22KPA, /// 22KPA
+    SUCTION_LEVEL_23KPA, /// 23KPA
+};
+
+/// 长吸力度表 //泌乳力表（奶瓶 Spectra 龙一：5~40 KPA）
+static const uint16_t long_level_table[BREAST_PUMP_LEVEL_MAX] = {
+    SUCTION_LEVEL_0KPA,  /// 0KPA
+    SUCTION_LEVEL_5KPA,  /// 5KPA
+    SUCTION_LEVEL_10KPA, /// 10KPA
+    SUCTION_LEVEL_15KPA, /// 15KPA
+    SUCTION_LEVEL_18KPA, /// 18KPA
+    SUCTION_LEVEL_21KPA, /// 21KPA
+    SUCTION_LEVEL_24KPA, /// 24KPA
+    SUCTION_LEVEL_26KPA, /// 26KPA
+    SUCTION_LEVEL_28KPA, /// 28KPA
+    SUCTION_LEVEL_30KPA, /// 30KPA
+    SUCTION_LEVEL_32KPA, /// 32KPA
+    SUCTION_LEVEL_34KPA, /// 34KPA
+    SUCTION_LEVEL_36KPA, /// 36KPA
+    SUCTION_LEVEL_38KPA, /// 38KPA
+    SUCTION_LEVEL_39KPA, /// 39KPA
+    SUCTION_LEVEL_40KPA, /// 40KPA
+};
+#else
+///龙一泵参数（泌乳-奶碗-类Spectra，20260529）
+/// 吸力参数表：{泵力度, 抽气时间ms, 阀时间ms, 保压时间ms}，间歇时间由频次表运行时计算 [力度][速度]
+static const suction_parameters_t pump2_long_suction_table[BREAST_PUMP_LEVEL_MAX][PUMP_LONG_SUCTION_SPEED_MAX] = {
+    /// speed 0 ~ 4（速度1~5，各档泵/阀/保压相同，仅频次不同）
+    {{0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}}, /// level  0, 0KPA
+    {{20, 300, 120, 280}, {20, 300, 120, 280}, {20, 300, 120, 280}, {20, 300, 120, 280}, {20, 300, 120, 280}}, /// level  1, 5KPA
+    {{25, 430, 150, 135}, {25, 430, 150, 135}, {25, 430, 150, 135}, {25, 430, 150, 135}, {25, 430, 150, 135}}, /// level  2, 10KPA
+    {{30, 520, 111,  65}, {30, 520, 111,  65}, {30, 520, 111,  65}, {30, 520, 111,  65}, {30, 520, 111,  65}}, /// level  3, 15KPA
+    {{35, 540, 151,  30}, {35, 540, 151,  30}, {35, 540, 151,  30}, {35, 540, 151,  30}, {35, 540, 151,  30}}, /// level  4, 18KPA
+    {{40, 553, 185,  22}, {40, 553, 185,  22}, {40, 553, 185,  22}, {40, 553, 185,  22}, {40, 553, 185,  22}}, /// level  5, 21KPA
+    {{42, 638, 189,   0}, {42, 638, 189,   0}, {42, 638, 189,   0}, {42, 638, 189,   0}, {42, 638, 189,   0}}, /// level  6, 24KPA
+    {{46, 639, 189,   0}, {46, 639, 189,   0}, {46, 639, 189,   0}, {46, 639, 189,   0}, {46, 639, 189,   0}}, /// level  7, 26KPA
+    {{52, 636, 204,   0}, {52, 636, 204,   0}, {52, 636, 204,   0}, {52, 636, 204,   0}, {52, 636, 204,   0}}, /// level  8, 28KPA
+    {{56, 638, 219,   0}, {56, 638, 219,   0}, {56, 638, 219,   0}, {56, 638, 219,   0}, {56, 638, 219,   0}}, /// level  9, 30KPA
+    {{60, 645, 215,   0}, {60, 645, 215,   0}, {60, 645, 215,   0}, {60, 645, 215,   0}, {60, 645, 215,   0}}, /// level 10, 32KPA
+    {{66, 648, 219,   0}, {66, 648, 219,   0}, {66, 648, 219,   0}, {66, 648, 219,   0}, {66, 648, 219,   0}}, /// level 11, 34KPA
+    {{73, 646, 233,   0}, {73, 646, 233,   0}, {73, 646, 233,   0}, {73, 646, 233,   0}, {73, 646, 233,   0}}, /// level 12, 36KPA
+    {{78, 644, 236,   0}, {78, 644, 236,   0}, {78, 644, 236,   0}, {78, 644, 236,   0}, {78, 644, 236,   0}}, /// level 13, 38KPA
+    {{83, 635, 243,   0}, {83, 635, 243,   0}, {83, 635, 243,   0}, {83, 635, 243,   0}, {83, 635, 243,   0}}, /// level 14, 39KPA
+    {{87, 638, 248,   0}, {87, 638, 248,   0}, {87, 638, 248,   0}, {87, 638, 248,   0}, {87, 638, 248,   0}}, /// level 15, 40KPA
+};
+
+/// 吸力参数表（按摩-奶碗-类Spectra，20260710）//按摩力表 [力度][速度] 只用到0-5档
+static const suction_parameters_t pump2_short_suction_table[BREAST_PUMP_LEVEL_MAX][SHORT_SUCTION_SPEED_MAX] = {
+    /// speed 0 ~ 4（速度1~5：70/80/90/100/105 次/分）
+    {{ 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}}, /// level  0, 0KPA
+    {{22, 320, 132, SHORT_SUCTION_HOLD_TIME}, {24, 292, 132, SHORT_SUCTION_HOLD_TIME}, {25, 270, 132, SHORT_SUCTION_HOLD_TIME}, {31, 202, 132, SHORT_SUCTION_HOLD_TIME}, {31, 202, 132, SHORT_SUCTION_HOLD_TIME}}, /// level  1, 6KPA
+    {{30, 400, 152, SHORT_SUCTION_HOLD_TIME}, {32, 382, 142, SHORT_SUCTION_HOLD_TIME}, {50, 240, 142, SHORT_SUCTION_HOLD_TIME}, {68, 202, 142, SHORT_SUCTION_HOLD_TIME}, {68, 202, 142, SHORT_SUCTION_HOLD_TIME}}, /// level  2, 12KPA
+    {{49, 382, 172, SHORT_SUCTION_HOLD_TIME}, {55, 337, 172, SHORT_SUCTION_HOLD_TIME}, {55, 337, 172, SHORT_SUCTION_HOLD_TIME}, {71, 270, 172, SHORT_SUCTION_HOLD_TIME}, {71, 270, 172, SHORT_SUCTION_HOLD_TIME}}, /// level  3, 18KPA
+    {{60, 426, 182, SHORT_SUCTION_HOLD_TIME}, {72, 360, 182, SHORT_SUCTION_HOLD_TIME}, {73, 340, 182, SHORT_SUCTION_HOLD_TIME}, {79, 320, 182, SHORT_SUCTION_HOLD_TIME}, {85, 320, 182, SHORT_SUCTION_HOLD_TIME}}, /// level  4, 23KPA
+    {{69, 444, 205, SHORT_SUCTION_HOLD_TIME}, {81, 390, 206, SHORT_SUCTION_HOLD_TIME}, {83, 365, 202, SHORT_SUCTION_HOLD_TIME}, {85, 360, 188, SHORT_SUCTION_HOLD_TIME}, {85, 360, 189, SHORT_SUCTION_HOLD_TIME}}, /// level  5, 26KPA
+    {{38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  6, 13KPA
+    {{46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  7, 14KPA
+    {{47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  8, 15KPA
+    {{60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}, {60, 200, 120, SHORT_SUCTION_HOLD_TIME}}, /// level  9, 16KPA
+    {{56, 285, 150, SHORT_SUCTION_HOLD_TIME}, {56, 285, 150, SHORT_SUCTION_HOLD_TIME}, {56, 285, 150, SHORT_SUCTION_HOLD_TIME}, {56, 285, 150, SHORT_SUCTION_HOLD_TIME}, {56, 285, 150, SHORT_SUCTION_HOLD_TIME}}, /// level 10, 17KPA
+    {{55, 305, 150, SHORT_SUCTION_HOLD_TIME}, {55, 305, 150, SHORT_SUCTION_HOLD_TIME}, {55, 305, 150, SHORT_SUCTION_HOLD_TIME}, {55, 305, 150, SHORT_SUCTION_HOLD_TIME}, {55, 305, 150, SHORT_SUCTION_HOLD_TIME}}, /// level 11, 18KPA
+    {{66, 285, 170, SHORT_SUCTION_HOLD_TIME}, {66, 285, 170, SHORT_SUCTION_HOLD_TIME}, {66, 285, 170, SHORT_SUCTION_HOLD_TIME}, {66, 285, 170, SHORT_SUCTION_HOLD_TIME}, {66, 285, 170, SHORT_SUCTION_HOLD_TIME}}, /// level 12, 19KPA
+    {{69, 313, 190, SHORT_SUCTION_HOLD_TIME}, {69, 313, 190, SHORT_SUCTION_HOLD_TIME}, {69, 313, 190, SHORT_SUCTION_HOLD_TIME}, {69, 313, 190, SHORT_SUCTION_HOLD_TIME}, {69, 313, 190, SHORT_SUCTION_HOLD_TIME}}, /// level 13, 21KPA
+    {{75, 322, 200, SHORT_SUCTION_HOLD_TIME}, {75, 322, 200, SHORT_SUCTION_HOLD_TIME}, {75, 322, 200, SHORT_SUCTION_HOLD_TIME}, {75, 322, 200, SHORT_SUCTION_HOLD_TIME}, {75, 322, 200, SHORT_SUCTION_HOLD_TIME}}, /// level 14, 23KPA
+    {{75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}, {75, 410, 150, SHORT_SUCTION_HOLD_TIME}}, /// level 15, 27KPA
+};
+
+/// 长吸泵频次表 (泵频次 1分/次) [速度]
+static const uint16_t pump2_long_pump_freq_table[PUMP_LONG_SUCTION_SPEED_MAX] = {
+    38, 42, 46, 50, 54, /// speed 0 ~ 4，对应速度1~5
+};
+
+/// 短吸泵频次表[速度]
+static const uint16_t pump2_short_suction_freq_table[SHORT_SUCTION_SPEED_MAX] = {
+    70, 80, 90, 100, 105, /// speed 0 ~ 4，对应速度1~5
+};
+
+
+/// 短吸力度表 //按摩力表（奶碗 Spectra：6/12/18/23/26 KPA）
+static const uint16_t short_level_table[BREAST_PUMP_LEVEL_MAX] = {
+    SUCTION_LEVEL_0KPA,  /// 0KPA
+    SUCTION_LEVEL_6KPA,  /// 6KPA
+    SUCTION_LEVEL_12KPA, /// 12KPA
+    SUCTION_LEVEL_18KPA, /// 18KPA
+    SUCTION_LEVEL_23KPA, /// 23KPA
+    SUCTION_LEVEL_26KPA, /// 26KPA
+    SUCTION_LEVEL_13KPA, /// 12.8KPA
+    SUCTION_LEVEL_14KPA, /// 14.1KPA
+    SUCTION_LEVEL_15KPA, /// 15.3KPA
+    SUCTION_LEVEL_17KPA, /// 16.5KPA
+    SUCTION_LEVEL_18KPA, /// 17.7KPA
+    SUCTION_LEVEL_19KPA, /// 18.8KPA
+    SUCTION_LEVEL_20KPA, /// 19.9KPA
+    SUCTION_LEVEL_21KPA, /// 21KPA
+    SUCTION_LEVEL_22KPA, /// 22KPA
+    SUCTION_LEVEL_23KPA, /// 23KPA
+};
+
+/// 长吸力度表 //泌乳力表（奶碗 Spectra 龙一：5~40 KPA）
+static const uint16_t long_level_table[BREAST_PUMP_LEVEL_MAX] = {
+    SUCTION_LEVEL_0KPA,  /// 0KPA
+    SUCTION_LEVEL_5KPA,  /// 5KPA
+    SUCTION_LEVEL_10KPA, /// 10KPA
+    SUCTION_LEVEL_15KPA, /// 15KPA
+    SUCTION_LEVEL_18KPA, /// 18KPA
+    SUCTION_LEVEL_21KPA, /// 21KPA
+    SUCTION_LEVEL_24KPA, /// 24KPA
+    SUCTION_LEVEL_26KPA, /// 26KPA
+    SUCTION_LEVEL_28KPA, /// 28KPA
+    SUCTION_LEVEL_30KPA, /// 30KPA
+    SUCTION_LEVEL_32KPA, /// 32KPA
+    SUCTION_LEVEL_34KPA, /// 34KPA
+    SUCTION_LEVEL_36KPA, /// 36KPA
+    SUCTION_LEVEL_38KPA, /// 38KPA
+    SUCTION_LEVEL_39KPA, /// 39KPA
+    SUCTION_LEVEL_40KPA, /// 40KPA
+};
+#endif
+
+#else /* !IS_USE_SPECTRA_SUCTION_CURVE -- Original code1 parameter tables below */
 
 /// 短吸吸奶时间表
 static const uint16_t short_suction_freq_table[SUCTION_SPEED_MAX] = {
-    90, 100, 110, 
+    90, 100, 110,
 };
 
 ///时光泵参数
 /// 吸力参数表（单位kpa）//泌乳力表
 static const suction_parameters_t pump1_long_suction_table[SUCTION_LEVEL_MAX] = {
-    {0,  60, 100}, /// 0KPA   
-    {29, 340, 100}, /// 6KPA     
-    {50, 80, 100}, /// 7KPA      
-    {50, 80, 100}, /// 8KPA   
-    {55, 90, 100}, /// 9KPA     
-    {34, 406, 100}, /// 10KPA   
-    {30, 393, 87}, /// 11KPA      
-    {60, 130, 100}, /// 12KPA   
-    {38, 452, 120}, /// 13KPA   
-    {60, 160, 100}, /// 14KPA      
-    {43, 472, 120}, /// 15KPA   
-    {60, 200, 120}, /// 16KPA   
-    {70, 200, 120}, /// 17KPA       
-    {48, 492, 140}, /// 18KPA   
-    {70, 240, 120}, /// 19KPA   
-    {50, 528, 140}, /// 20KPA      
-    {52, 500, 125}, /// 21KPA   
-    {53, 560, 180}, /// 22KPA   
-    {75, 320, 120}, /// 23KPA   
-    {54, 622, 200}, /// 24KPA   
-    {75, 360, 120}, /// 25KPA   
-    {58, 632, 220}, /// 26KPA      
-    {75, 410, 150}, /// 27KPA   
-    {60, 660, 220}, /// 28KPA   
-    {80, 470, 160}, /// 29KPA   
-    {65, 647, 250}, /// 30KPA  
-    {66, 705, 260}, /// 31KPA   
-    {72, 659, 165}, /// 32KPA   
-    {71, 684, 280}, /// 33KPA   
-    {75, 686, 171}, /// 34KPA   
-    {72, 718, 320}, /// 35KPA   
-    {76, 708, 330}, /// 36KPA   
-    {90, 720, 200}, /// 37KPA   
-    {80, 783, 196}, /// 38KPA   
+    {0,  60, 100}, /// 0KPA
+    {29, 340, 100}, /// 6KPA
+    {50, 80, 100}, /// 7KPA
+    {50, 80, 100}, /// 8KPA
+    {55, 90, 100}, /// 9KPA
+    {34, 406, 100}, /// 10KPA
+    {30, 393, 87}, /// 11KPA
+    {60, 130, 100}, /// 12KPA
+    {38, 452, 120}, /// 13KPA
+    {60, 160, 100}, /// 14KPA
+    {43, 472, 120}, /// 15KPA
+    {60, 200, 120}, /// 16KPA
+    {70, 200, 120}, /// 17KPA
+    {48, 492, 140}, /// 18KPA
+    {70, 240, 120}, /// 19KPA
+    {50, 528, 140}, /// 20KPA
+    {52, 500, 125}, /// 21KPA
+    {53, 560, 180}, /// 22KPA
+    {75, 320, 120}, /// 23KPA
+    {54, 622, 200}, /// 24KPA
+    {75, 360, 120}, /// 25KPA
+    {58, 632, 220}, /// 26KPA
+    {75, 410, 150}, /// 27KPA
+    {60, 660, 220}, /// 28KPA
+    {80, 470, 160}, /// 29KPA
+    {65, 647, 250}, /// 30KPA
+    {66, 705, 260}, /// 31KPA
+    {72, 659, 165}, /// 32KPA
+    {71, 684, 280}, /// 33KPA
+    {75, 686, 171}, /// 34KPA
+    {72, 718, 320}, /// 35KPA
+    {76, 708, 330}, /// 36KPA
+    {90, 720, 200}, /// 37KPA
+    {80, 783, 196}, /// 38KPA
     {83, 818, 205}, /// 39KPA
-    {83, 857, 214}, /// 40KPA             
+    {83, 857, 214}, /// 40KPA
 };
 
 /// 吸力参数表（单位kpa）//按摩力表
 static const suction_parameters_t pump1_short_suction_table[SUCTION_LEVEL_MAX] = {
-    {0,  60, 100}, /// 0KPA   
-    {34, 220, 130}, /// 6KPA   
-    {38, 230, 130}, /// 7KPA      
-    {50, 80, 100}, /// 8KPA   
-    {45, 230, 145}, /// 9KPA     
-    {50, 240, 140}, /// 10KPA   
-    {60, 110, 100}, /// 11KPA      
-    {55, 245, 150}, /// 12KPA   
-    {56, 270, 150}, /// 13KPA   
-    {63, 264, 150}, /// 14KPA      
-    {64, 287, 170}, /// 15KPA   
-    {60, 200, 120}, /// 16KPA   
-    {72, 272, 155}, /// 17KPA      
-    {80, 291, 160}, /// 18KPA   
-    {76, 300, 145}, /// 19KPA   
-    {89, 300, 165}, /// 20KPA      
-    {85, 314, 160}, /// 21KPA   
-    {90, 330, 165}, /// 22KPA   
-    {89, 328, 160}, /// 23KPA   
-    {75, 340, 120}, /// 24KPA   
-    {75, 360, 120}, /// 25KPA   
-    {75, 390, 150}, /// 26KPA      
-    {75, 410, 150}, /// 27KPA   
-    {80, 440, 150}, /// 28KPA   
-    {80, 470, 160}, /// 29KPA   
-    {80, 500, 160}, /// 30KPA  
-    {80, 530, 160}, /// 31KPA   
-    {80, 550, 160}, /// 32KPA   
-    {85, 580, 200}, /// 33KPA   
-    {85, 620, 200}, /// 34KPA   
-    {85, 660, 200}, /// 35KPA   
-    {90, 680, 200}, /// 36KPA   
-    {90, 720, 200}, /// 37KPA   
-    {90, 760, 220}, /// 38KPA   
-    {90, 810, 220}, /// 39KPA         
-    {90, 850, 220}, /// 40KPA         
+    {0,  60, 100}, /// 0KPA
+    {34, 220, 130}, /// 6KPA
+    {38, 230, 130}, /// 7KPA
+    {50, 80, 100}, /// 8KPA
+    {45, 230, 145}, /// 9KPA
+    {50, 240, 140}, /// 10KPA
+    {60, 110, 100}, /// 11KPA
+    {55, 245, 150}, /// 12KPA
+    {56, 270, 150}, /// 13KPA
+    {63, 264, 150}, /// 14KPA
+    {64, 287, 170}, /// 15KPA
+    {60, 200, 120}, /// 16KPA
+    {72, 272, 155}, /// 17KPA
+    {80, 291, 160}, /// 18KPA
+    {76, 300, 145}, /// 19KPA
+    {89, 300, 165}, /// 20KPA
+    {85, 314, 160}, /// 21KPA
+    {90, 330, 165}, /// 22KPA
+    {89, 328, 160}, /// 23KPA
+    {75, 340, 120}, /// 24KPA
+    {75, 360, 120}, /// 25KPA
+    {75, 390, 150}, /// 26KPA
+    {75, 410, 150}, /// 27KPA
+    {80, 440, 150}, /// 28KPA
+    {80, 470, 160}, /// 29KPA
+    {80, 500, 160}, /// 30KPA
+    {80, 530, 160}, /// 31KPA
+    {80, 550, 160}, /// 32KPA
+    {85, 580, 200}, /// 33KPA
+    {85, 620, 200}, /// 34KPA
+    {85, 660, 200}, /// 35KPA
+    {90, 680, 200}, /// 36KPA
+    {90, 720, 200}, /// 37KPA
+    {90, 760, 220}, /// 38KPA
+    {90, 810, 220}, /// 39KPA
+    {90, 850, 220}, /// 40KPA
 };
 
 /// 长吸泵频次表 (泵频次 1分/次)
 static const uint16_t pump1_long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_MAX] = {
-    /// 低，中，高     
-    {90, 100, 110}, /// level 0      
-    {72, 76,  80},  /// level 1      
-    {68, 72,  76 }, /// level 2  
+    /// 低，中，高
+    {90, 100, 110}, /// level 0
+    {72, 76,  80},  /// level 1
+    {68, 72,  76 }, /// level 2
     {65, 69,  73 }, /// level 3
-    {62, 66,  70 }, /// level 4    
-    {60, 64,  68 }, /// level 5 
-    {58, 62,  66 }, /// level 6    
-    {56, 60,  64 }, /// level 7     
-    {54, 58,  62 }, /// level 8   
-    {52, 56,  60 }, /// level 9  
-    {50, 54,  58 }, /// level 10   
-    {48, 52,  56 }, /// level 11  
-    {46, 50,  54 }, /// level 12     
-    {44, 48,  52 }, /// level 13 
+    {62, 66,  70 }, /// level 4
+    {60, 64,  68 }, /// level 5
+    {58, 62,  66 }, /// level 6
+    {56, 60,  64 }, /// level 7
+    {54, 58,  62 }, /// level 8
+    {52, 56,  60 }, /// level 9
+    {50, 54,  58 }, /// level 10
+    {48, 52,  56 }, /// level 11
+    {46, 50,  54 }, /// level 12
+    {44, 48,  52 }, /// level 13
     {42, 46,  50 }, /// level 14
-    {40, 44,  48 }, /// level 15 
+    {40, 44,  48 }, /// level 15
 };
 
 ///龙一泵参数
 /// 吸力参数表（单位kpa）//泌乳力表
 static const suction_parameters_t pump2_long_suction_table[SUCTION_LEVEL_MAX] = {
-    {0,  60, 100}, /// 0KPA   
-    {18, 370, 80}, /// 6KPA     
-    {50, 80, 100}, /// 7KPA      
-    {50, 80, 100}, /// 8KPA   
-    {55, 90, 100}, /// 9KPA     
-    {23, 404, 126}, /// 10KPA   
-    {30, 393, 87}, /// 11KPA      
-    {60, 130, 100}, /// 12KPA   
-    {29, 425, 140}, /// 13KPA   
-    {60, 160, 100}, /// 14KPA      
-    {34, 440, 140}, /// 15KPA   
-    {60, 200, 120}, /// 16KPA   
-    {70, 200, 120}, /// 17KPA       
-    {37, 468, 140}, /// 18KPA   
-    {70, 240, 120}, /// 19KPA   
-    {41, 475, 170}, /// 20KPA      
-    {52, 500, 125}, /// 21KPA   
-    {45, 490, 180}, /// 22KPA   
-    {75, 320, 120}, /// 23KPA   
-    {45, 540, 200}, /// 24KPA   
-    {75, 360, 120}, /// 25KPA   
-    {51, 548, 230}, /// 26KPA      
-    {75, 410, 150}, /// 27KPA   
-    {55, 560, 250}, /// 28KPA   
-    {80, 470, 160}, /// 29KPA   
-    {57, 600, 260}, /// 30KPA  
-    {61, 620, 280}, /// 31KPA   
-    {72, 659, 165}, /// 32KPA   
-    {61, 650, 290}, /// 33KPA   
-    {75, 686, 171}, /// 34KPA   
-    {63, 685, 330}, /// 35KPA   
-    {64, 710, 320}, /// 36KPA   
-    {90, 720, 200}, /// 37KPA   
-    {80, 783, 196}, /// 38KPA   
+    {0,  60, 100}, /// 0KPA
+    {18, 370, 80}, /// 6KPA
+    {50, 80, 100}, /// 7KPA
+    {50, 80, 100}, /// 8KPA
+    {55, 90, 100}, /// 9KPA
+    {23, 404, 126}, /// 10KPA
+    {30, 393, 87}, /// 11KPA
+    {60, 130, 100}, /// 12KPA
+    {29, 425, 140}, /// 13KPA
+    {60, 160, 100}, /// 14KPA
+    {34, 440, 140}, /// 15KPA
+    {60, 200, 120}, /// 16KPA
+    {70, 200, 120}, /// 17KPA
+    {37, 468, 140}, /// 18KPA
+    {70, 240, 120}, /// 19KPA
+    {41, 475, 170}, /// 20KPA
+    {52, 500, 125}, /// 21KPA
+    {45, 490, 180}, /// 22KPA
+    {75, 320, 120}, /// 23KPA
+    {45, 540, 200}, /// 24KPA
+    {75, 360, 120}, /// 25KPA
+    {51, 548, 230}, /// 26KPA
+    {75, 410, 150}, /// 27KPA
+    {55, 560, 250}, /// 28KPA
+    {80, 470, 160}, /// 29KPA
+    {57, 600, 260}, /// 30KPA
+    {61, 620, 280}, /// 31KPA
+    {72, 659, 165}, /// 32KPA
+    {61, 650, 290}, /// 33KPA
+    {75, 686, 171}, /// 34KPA
+    {63, 685, 330}, /// 35KPA
+    {64, 710, 320}, /// 36KPA
+    {90, 720, 200}, /// 37KPA
+    {80, 783, 196}, /// 38KPA
     {83, 818, 205}, /// 39KPA
-    {83, 857, 214}, /// 40KPA             
+    {83, 857, 214}, /// 40KPA
 };
 
 /// 吸力参数表（单位kpa）//按摩力表
 static const suction_parameters_t pump2_short_suction_table[SUCTION_LEVEL_MAX] = {
-    {0,  60, 100}, /// 0KPA   
-    {22, 270, 110}, /// 6KPA   
-    {27, 245, 130}, /// 7KPA      
-    {50, 80, 100}, /// 8KPA   
-    {31, 270, 110}, /// 9KPA     
-    {33, 270, 110}, /// 10KPA   
-    {60, 110, 100}, /// 11KPA      
-    {41, 260, 125}, /// 12KPA   
-    {38, 303, 140}, /// 13KPA   
-    {46, 290, 140}, /// 14KPA      
-    {47, 302, 140}, /// 15KPA   
-    {60, 200, 120}, /// 16KPA   
-    {56, 285, 150}, /// 17KPA      
-    {55, 305, 150}, /// 18KPA   
-    {66, 285, 170}, /// 19KPA   
-    {68, 305, 190}, /// 20KPA      
-    {69, 313, 190}, /// 21KPA   
-    {68, 340, 185}, /// 22KPA   
-    {75, 322, 200}, /// 23KPA   
-    {75, 340, 120}, /// 24KPA   
-    {75, 360, 120}, /// 25KPA   
-    {75, 390, 150}, /// 26KPA      
-    {75, 410, 150}, /// 27KPA   
-    {80, 440, 150}, /// 28KPA   
-    {80, 470, 160}, /// 29KPA   
-    {80, 500, 160}, /// 30KPA  
-    {80, 530, 160}, /// 31KPA   
-    {80, 550, 160}, /// 32KPA   
-    {85, 580, 200}, /// 33KPA   
-    {85, 620, 200}, /// 34KPA   
-    {85, 660, 200}, /// 35KPA   
-    {90, 680, 200}, /// 36KPA   
-    {90, 720, 200}, /// 37KPA   
-    {90, 760, 220}, /// 38KPA   
-    {90, 810, 220}, /// 39KPA         
-    {90, 850, 220}, /// 40KPA         
+    {0,  60, 100}, /// 0KPA
+    {22, 270, 110}, /// 6KPA
+    {27, 245, 130}, /// 7KPA
+    {50, 80, 100}, /// 8KPA
+    {31, 270, 110}, /// 9KPA
+    {33, 270, 110}, /// 10KPA
+    {60, 110, 100}, /// 11KPA
+    {41, 260, 125}, /// 12KPA
+    {38, 303, 140}, /// 13KPA
+    {46, 290, 140}, /// 14KPA
+    {47, 302, 140}, /// 15KPA
+    {60, 200, 120}, /// 16KPA
+    {56, 285, 150}, /// 17KPA
+    {55, 305, 150}, /// 18KPA
+    {66, 285, 170}, /// 19KPA
+    {68, 305, 190}, /// 20KPA
+    {69, 313, 190}, /// 21KPA
+    {68, 340, 185}, /// 22KPA
+    {75, 322, 200}, /// 23KPA
+    {75, 340, 120}, /// 24KPA
+    {75, 360, 120}, /// 25KPA
+    {75, 390, 150}, /// 26KPA
+    {75, 410, 150}, /// 27KPA
+    {80, 440, 150}, /// 28KPA
+    {80, 470, 160}, /// 29KPA
+    {80, 500, 160}, /// 30KPA
+    {80, 530, 160}, /// 31KPA
+    {80, 550, 160}, /// 32KPA
+    {85, 580, 200}, /// 33KPA
+    {85, 620, 200}, /// 34KPA
+    {85, 660, 200}, /// 35KPA
+    {90, 680, 200}, /// 36KPA
+    {90, 720, 200}, /// 37KPA
+    {90, 760, 220}, /// 38KPA
+    {90, 810, 220}, /// 39KPA
+    {90, 850, 220}, /// 40KPA
 };
 
 /// 长吸泵频次表 (泵频次 1分/次)
 static const uint16_t pump2_long_pump_freq_table[BREAST_PUMP_LEVEL_MAX][SUCTION_SPEED_MAX] = {
-    /// 低，中，高     
-    {90, 100, 110}, /// level 0      
-    {72, 76,  80},  /// level 1      
-    {68, 72,  76 }, /// level 2  
+    /// 低，中，高
+    {90, 100, 110}, /// level 0
+    {72, 76,  80},  /// level 1
+    {68, 72,  76 }, /// level 2
     {65, 69,  73 }, /// level 3
-    {62, 66,  70 }, /// level 4    
-    {60, 64,  68 }, /// level 5 
-    {58, 62,  66 }, /// level 6    
-    {56, 60,  64 }, /// level 7     
-    {54, 58,  62 }, /// level 8   
-    {52, 56,  60 }, /// level 9  
-    {50, 54,  58 }, /// level 10   
-    {48, 52,  56 }, /// level 11  
-    {46, 50,  54 }, /// level 12     
-    {44, 48,  52 }, /// level 13 
+    {62, 66,  70 }, /// level 4
+    {60, 64,  68 }, /// level 5
+    {58, 62,  66 }, /// level 6
+    {56, 60,  64 }, /// level 7
+    {54, 58,  62 }, /// level 8
+    {52, 56,  60 }, /// level 9
+    {50, 54,  58 }, /// level 10
+    {48, 52,  56 }, /// level 11
+    {46, 50,  54 }, /// level 12
+    {44, 48,  52 }, /// level 13
     {42, 46,  50 }, /// level 14
-    {40, 44,  48 }, /// level 15 
+    {40, 44,  48 }, /// level 15
 };
 
 /// 短吸力度表 //按摩力表
@@ -270,8 +523,10 @@ static const uint16_t long_level_table[BREAST_PUMP_LEVEL_MAX] = {
     SUCTION_LEVEL_36KPA, /// 36KPA
 };
 
+#endif /* IS_USE_SPECTRA_SUCTION_CURVE */
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif 
+#endif
