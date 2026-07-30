@@ -21,9 +21,13 @@ extern "C" {
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_BASE_PUMP_HOME_COMP_BG           (0)
+#define IS_SUPPORT_BASE_PUMP_HOME_COMP_BG                (0)
+#define IS_SUPPORT_BASE_TIME_3SEG_TEST                   (0)
+
 #define PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT             (2)
+#define PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT             (2)
 #define PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT             (2)
+#define PUMP_HOME_BASE_MODE_TIME_COLON_COUNT             (2)
 
 /// 页间过渡动画参数（与 home base 一致）
 #ifndef PUMP_HOME_BASE_PAGE_TRANSITION_MS
@@ -78,9 +82,11 @@ typedef struct {
 
 typedef enum {
     PUMP_HOME_BASE_ANIM_STIMULATION_WAVE = 0,
-    PUMP_HOME_BASE_ANIM_LACTATION_WAVE,
+    PUMP_HOME_BASE_ANIM_EXPRESSION_WAVE,
     PUMP_HOME_BASE_ANIM_MIX_WAVE,
-    PUMP_HOME_BASE_ANIM_RELAX_WAVE,
+    PUMP_HOME_BASE_ANIM_PROGRAM_STIMULATION_WAVE,
+    PUMP_HOME_BASE_ANIM_PROGRAM_EXPRESSION_WAVE,
+    PUMP_HOME_BASE_ANIM_PROGRAM_RELAX_WAVE,
     PUMP_HOME_BASE_ANIM_MAX,
 } pump_home_base_anim_res_type_e;
 
@@ -111,9 +117,12 @@ typedef struct {
 typedef struct {
     lv_obj_t *bg;                       /// 模式背景 PNG
     lv_obj_t *mode_title;               /// 模式文案
+    lv_obj_t *time_h[PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT];
     lv_obj_t *time_m[PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT];
     lv_obj_t *time_s[PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT];
-    lv_obj_t *time_colon;               /// 冒号 BAJ
+    lv_obj_t *time_colon[PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT]; /// 三段：HH-MM / MM-SS 冒号 BAJ
+    lv_draw_buf_t *time_colon_buf;      /// HOUR_COLON 预解码（两冒号共用）
+    lv_obj_t *time_colon_2seg;          /// 两段：居中 CLOCK_COLON
     lv_obj_t *play_icon;                /// 暂停态播放图标
     lv_obj_t *hint_text;                /// Press to resume
     lv_obj_t *hint_shine;               /// 扫光亮色文案（裁剪窗内）
@@ -124,8 +133,10 @@ typedef struct {
     lv_obj_t *right_level;              /// Rx
     uint16_t shown_bg_id;
     uint32_t shown_hint_color;
+    uint8_t shown_hours;
     uint8_t shown_minutes;
     uint8_t shown_seconds;
+    uint8_t shown_digit_size;           /// 2=MM:SS / 3=HH:MM:SS
     uint8_t shown_speed;
     uint8_t shown_left_level;
     uint8_t shown_right_level;
@@ -142,14 +153,17 @@ typedef struct {
     lv_obj_t *dots[PUMP_HOME_BASE_MODE_PAGE_DOT_MAX];
     lv_obj_t *time_label;               /// 时间背景 BAJ
     lv_obj_t *status_icon;              /// 泵奶中暂停 / 暂停态播放
+    lv_obj_t *time_h[PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT];
     lv_obj_t *time_m[PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT];
     lv_obj_t *time_s[PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT];
-    lv_obj_t *time_colon;               /// 冒号字库
+    lv_obj_t *time_colon[PUMP_HOME_BASE_MODE_TIME_COLON_COUNT]; /// [0]HH-MM [1]MM-SS 字库冒号
     uint8_t dot_count;
     uint8_t selected_dot;
     uint8_t ready;
+    uint8_t shown_hours;
     uint8_t shown_minutes;
     uint8_t shown_seconds;
+    uint8_t shown_digit_size;           /// 2=MM:SS / 3=HH:MM:SS
     uint8_t shown_paused;
     uint16_t shown_status_icon_id;
 } pump_home_base_mode_chrome_info_t;
@@ -159,11 +173,13 @@ typedef struct {
     lv_obj_t *circle_bg;                /// 切换动画圆背景（不缩放）
     lv_obj_t *icon;
     lv_obj_t *title;
+    lv_obj_t *duration;                 /// 韵律总时间（Milk Boost / Power Pumping / Custom）
     uint8_t page_index;
     uint8_t mode;
     uint16_t icon_id;
     uint8_t icon_predecoded;
     char shown_title[24];
+    char shown_duration[16];
 } pump_home_base_mode_page_ctx_t;
 
 typedef struct {
@@ -179,6 +195,9 @@ typedef struct {
     ui_manager_context_t *ui;
     uint8_t popup_ui_index;
     uint8_t force_update;
+#if IS_SUPPORT_BASE_TIME_3SEG_TEST
+    uint8_t test_hours;
+#endif
 } pump_home_base_ui_info_t;
 
 static inline lv_obj_t *pump_home_page_parent_get(const pump_home_base_ui_info_t *info)

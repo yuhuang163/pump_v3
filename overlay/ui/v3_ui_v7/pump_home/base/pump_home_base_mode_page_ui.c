@@ -16,6 +16,8 @@
 #define PUMP_MODE_PAGE_ICON_Y                       (100)
 #define PUMP_MODE_PAGE_TITLE_Y                      (214)
 #define PUMP_MODE_PAGE_TITLE_COLOR                  (0xFFFFFF)
+#define PUMP_MODE_PAGE_DURATION_Y                   (246)
+#define PUMP_MODE_PAGE_DURATION_COLOR               (0x999999)
 
 #define PUMP_MODE_PAGE_SCALE_FULL                   (256)
 /** 5 点布局第 3 点 X 居中：(屏宽 - 直径) / 2 */
@@ -23,13 +25,17 @@
     ((PANLE_DISPLAY_W - PUMP_MODE_PAGE_DOT_DIAMETER) / 2)
 
 #define PUMP_MODE_TIME_LABEL_Y                      (293)
-#define PUMP_MODE_TIME_ICON_X                       (133)
 #define PUMP_MODE_TIME_ICON_Y                       (311)
-#define PUMP_MODE_TIME_M_X                          (168)
 #define PUMP_MODE_TIME_Y                            (308)
 #define PUMP_MODE_TIME_SEG_WIDTH                    (36)
 #define PUMP_MODE_TIME_COLON_GAP                    (2)
 #define PUMP_MODE_TIME_COLOR                        (0xFFFFFF)
+#define PUMP_MODE_TIME_2SEG                         (2)
+#define PUMP_MODE_TIME_3SEG                         (3)
+/// 两段基准：图标与分钟起点；三段在左侧插入 HH:，MM:SS 位置保持不变
+#define PUMP_MODE_TIME_2SEG_ICON_X                  (133)
+#define PUMP_MODE_TIME_2SEG_M_X                     (168)
+#define PUMP_MODE_TIME_COLON_W_FALLBACK             (8)
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -263,12 +269,13 @@ static void pump_mode_chrome_dots_rebuild(pump_home_base_ui_info_t *info, uint8_
 }
 
 static void pump_mode_chrome_time_pair_update(lv_obj_t *labels[PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT],
-    lv_obj_t *parent, uint8_t value, lv_coord_t seg_x, lv_coord_t seg_y)
+    lv_obj_t *parent, uint8_t value, lv_coord_t seg_x, lv_coord_t seg_y, bool hidden)
 {
     const lv_coord_t cell_w = PUMP_MODE_TIME_SEG_WIDTH / PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT;
     char digit_text[2] = {0};
+    int i;
 
-    for (int i = 0; i < PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT; i++) {
+    for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT; i++) {
         if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
             labels[i] = lv_label_create(parent);
             EXCEPTION_CHECK_VOID(labels[i]);
@@ -283,30 +290,108 @@ static void pump_mode_chrome_time_pair_update(lv_obj_t *labels[PUMP_HOME_BASE_MO
         lv_obj_set_width(labels[i], cell_w);
         lv_label_set_text(labels[i], digit_text);
         lv_obj_align(labels[i], LV_ALIGN_TOP_LEFT, seg_x + i * cell_w, seg_y);
+        pump_mode_page_obj_flag_set(labels[i], !hidden);
     }
 }
 
-static lv_coord_t pump_mode_chrome_time_sec_x_get(pump_home_base_mode_chrome_info_t *chrome)
+static lv_coord_t pump_mode_chrome_time_colon_w_get(pump_home_base_mode_chrome_info_t *chrome)
 {
-    lv_coord_t colon_w = 10;
+    lv_coord_t colon_w = PUMP_MODE_TIME_COLON_W_FALLBACK;
+    lv_obj_t *colon = chrome->time_colon[1];
 
-    if (chrome->time_colon != NULL && lv_obj_is_valid(chrome->time_colon)) {
-        lv_obj_update_layout(chrome->time_colon);
-        colon_w = lv_obj_get_width(chrome->time_colon);
+    if (colon == NULL || !lv_obj_is_valid(colon)) {
+        colon = chrome->time_colon[0];
+    }
+    if (colon != NULL && lv_obj_is_valid(colon)) {
+        lv_obj_update_layout(colon);
+        colon_w = lv_obj_get_width(colon);
         if (colon_w <= 0) {
-            colon_w = 10;
+            colon_w = PUMP_MODE_TIME_COLON_W_FALLBACK;
         }
     }
-    return PUMP_MODE_TIME_M_X + PUMP_MODE_TIME_SEG_WIDTH + PUMP_MODE_TIME_COLON_GAP +
-        colon_w + PUMP_MODE_TIME_COLON_GAP;
+    return colon_w;
+}
+
+static lv_coord_t pump_mode_chrome_time_unit_span_get(pump_home_base_mode_chrome_info_t *chrome)
+{
+    return PUMP_MODE_TIME_SEG_WIDTH + PUMP_MODE_TIME_COLON_GAP +
+        pump_mode_chrome_time_colon_w_get(chrome) + PUMP_MODE_TIME_COLON_GAP;
+}
+
+static void pump_mode_chrome_time_colon_ensure(pump_home_base_mode_chrome_info_t *chrome,
+    lv_obj_t *root)
+{
+    int i;
+
+    for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_COLON_COUNT; i++) {
+        if (chrome->time_colon[i] == NULL || !lv_obj_is_valid(chrome->time_colon[i])) {
+            chrome->time_colon[i] = lv_label_create(root);
+            EXCEPTION_CHECK_VOID(chrome->time_colon[i]);
+            lv_obj_set_style_text_color(chrome->time_colon[i], lv_color_hex(PUMP_MODE_TIME_COLOR), 0);
+            lv_obj_set_style_text_font(chrome->time_colon[i], &lv_font_aeonik_soft_26_medium, 0);
+            lv_obj_set_style_text_align(chrome->time_colon[i], LV_TEXT_ALIGN_CENTER, 0);
+            lv_label_set_text(chrome->time_colon[i], ":");
+        }
+    }
+}
+
+static void pump_mode_chrome_time_layout_apply(pump_home_base_ui_info_t *info, uint8_t hours,
+    uint8_t minutes, uint8_t seconds, uint8_t digit_size, bool force)
+{
+    pump_home_base_mode_chrome_info_t *chrome = &info->mode_chrome;
+    lv_obj_t *root = info->root;
+    const lv_coord_t unit_span = pump_mode_chrome_time_unit_span_get(chrome);
+    const lv_coord_t m_x = PUMP_MODE_TIME_2SEG_M_X;
+    const lv_coord_t colon_ms_x = m_x + PUMP_MODE_TIME_SEG_WIDTH + PUMP_MODE_TIME_COLON_GAP;
+    const lv_coord_t s_x = colon_ms_x + pump_mode_chrome_time_colon_w_get(chrome) +
+        PUMP_MODE_TIME_COLON_GAP;
+    lv_coord_t icon_x = PUMP_MODE_TIME_2SEG_ICON_X;
+    lv_coord_t h_x = m_x;
+    lv_coord_t colon_hm_x = colon_ms_x;
+    const bool is_3seg = (digit_size == PUMP_MODE_TIME_3SEG);
+
+    if (is_3seg) {
+        h_x = m_x - unit_span;
+        colon_hm_x = h_x + PUMP_MODE_TIME_SEG_WIDTH + PUMP_MODE_TIME_COLON_GAP;
+        icon_x = PUMP_MODE_TIME_2SEG_ICON_X - unit_span;
+    }
+
+    if (chrome->status_icon != NULL && lv_obj_is_valid(chrome->status_icon)) {
+        lv_obj_align(chrome->status_icon, LV_ALIGN_TOP_LEFT, icon_x, PUMP_MODE_TIME_ICON_Y);
+    }
+
+    if (force || chrome->shown_hours != hours || chrome->shown_digit_size != digit_size) {
+        pump_mode_chrome_time_pair_update(chrome->time_h, root, hours, h_x, PUMP_MODE_TIME_Y,
+            !is_3seg);
+        chrome->shown_hours = hours;
+    }
+
+    if (force || chrome->shown_minutes != minutes || chrome->shown_digit_size != digit_size) {
+        pump_mode_chrome_time_pair_update(chrome->time_m, root, minutes, m_x, PUMP_MODE_TIME_Y,
+            false);
+        chrome->shown_minutes = minutes;
+    }
+    if (force || chrome->shown_seconds != seconds || chrome->shown_digit_size != digit_size) {
+        pump_mode_chrome_time_pair_update(chrome->time_s, root, seconds, s_x, PUMP_MODE_TIME_Y,
+            false);
+        chrome->shown_seconds = seconds;
+    }
+
+    if (chrome->time_colon[0] != NULL && lv_obj_is_valid(chrome->time_colon[0])) {
+        lv_obj_align(chrome->time_colon[0], LV_ALIGN_TOP_LEFT, colon_hm_x, PUMP_MODE_TIME_Y);
+        pump_mode_page_obj_flag_set(chrome->time_colon[0], is_3seg);
+    }
+    if (chrome->time_colon[1] != NULL && lv_obj_is_valid(chrome->time_colon[1])) {
+        lv_obj_align(chrome->time_colon[1], LV_ALIGN_TOP_LEFT, colon_ms_x, PUMP_MODE_TIME_Y);
+        pump_mode_page_obj_flag_set(chrome->time_colon[1], true);
+    }
+    chrome->shown_digit_size = digit_size;
 }
 
 static void pump_mode_chrome_time_rebuild(pump_home_base_ui_info_t *info)
 {
     pump_home_base_mode_chrome_info_t *chrome = &info->mode_chrome;
     lv_obj_t *root = info->root;
-    lv_coord_t colon_x;
-    lv_coord_t sec_x;
 
     EXCEPTION_CHECK_VOID(root);
 
@@ -327,23 +412,12 @@ static void pump_mode_chrome_time_rebuild(pump_home_base_ui_info_t *info)
         chrome->shown_paused = 0xFF;
     }
 
-    colon_x = PUMP_MODE_TIME_M_X + PUMP_MODE_TIME_SEG_WIDTH + PUMP_MODE_TIME_COLON_GAP;
-    if (chrome->time_colon == NULL || !lv_obj_is_valid(chrome->time_colon)) {
-        chrome->time_colon = lv_label_create(root);
-        EXCEPTION_CHECK_VOID(chrome->time_colon);
-        lv_obj_set_style_text_color(chrome->time_colon, lv_color_hex(PUMP_MODE_TIME_COLOR), 0);
-        lv_obj_set_style_text_font(chrome->time_colon, &lv_font_aeonik_soft_26_medium, 0);
-        lv_obj_set_style_text_align(chrome->time_colon, LV_TEXT_ALIGN_CENTER, 0);
-        lv_label_set_text(chrome->time_colon, ":");
-    }
-    lv_obj_align(chrome->time_colon, LV_ALIGN_TOP_LEFT, colon_x, PUMP_MODE_TIME_Y);
-    sec_x = pump_mode_chrome_time_sec_x_get(chrome);
-
+    pump_mode_chrome_time_colon_ensure(chrome, root);
+    chrome->shown_hours = 0xFF;
     chrome->shown_minutes = 0xFF;
     chrome->shown_seconds = 0xFF;
-    pump_mode_chrome_time_pair_update(chrome->time_m, root, 0,
-        PUMP_MODE_TIME_M_X, PUMP_MODE_TIME_Y);
-    pump_mode_chrome_time_pair_update(chrome->time_s, root, 0, sec_x, PUMP_MODE_TIME_Y);
+    chrome->shown_digit_size = 0;
+    pump_mode_chrome_time_layout_apply(info, 0, 0, 0, PUMP_MODE_TIME_2SEG, true);
 }
 
 static void pump_mode_chrome_time_content_update(pump_home_base_ui_info_t *info,
@@ -352,47 +426,41 @@ static void pump_mode_chrome_time_content_update(pump_home_base_ui_info_t *info,
     pump_home_base_mode_chrome_info_t *chrome = &info->mode_chrome;
     const pump_result_info_t *result_info = NULL;
     uint16_t hold_time;
+    uint8_t hours;
     uint8_t minutes;
     uint8_t seconds;
+    uint8_t digit_size;
     bool paused;
     uint16_t icon_id;
-    const lv_coord_t colon_x = PUMP_MODE_TIME_M_X + PUMP_MODE_TIME_SEG_WIDTH + PUMP_MODE_TIME_COLON_GAP;
-    lv_coord_t sec_x;
 
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
     EXCEPTION_CHECK_VOID(result_info);
     hold_time = result_info->work_valid_time / 1000;
+    hours = hold_time / 3600;
+#if IS_SUPPORT_BASE_TIME_3SEG_TEST
+    hours = info->test_hours;
+    minutes = info->test_hours;
+    seconds = info->test_hours;
+#else
     minutes = (hold_time / 60) % 60;
     seconds = hold_time % 60;
+#endif
+    digit_size = (hours == 0) ? PUMP_MODE_TIME_2SEG : PUMP_MODE_TIME_3SEG;
     paused = (proc->pump_status == BREAST_PUMP_PAUSE);
     icon_id = paused ? BASE_RES_ID_PLAY_MIN_ICON : BASE_RES_ID_PAUSE_MIN_ICON;
-    sec_x = pump_mode_chrome_time_sec_x_get(chrome);
 
     if (chrome->status_icon != NULL && lv_obj_is_valid(chrome->status_icon) &&
         (chrome->shown_status_icon_id != icon_id || info->force_update ||
          chrome->shown_paused != (paused ? 1 : 0))) {
         ui_img_baj_theme_set_src(info->ui, chrome->status_icon, icon_id,
             RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-        lv_obj_align(chrome->status_icon, LV_ALIGN_TOP_LEFT,
-            PUMP_MODE_TIME_ICON_X, PUMP_MODE_TIME_ICON_Y);
         chrome->shown_status_icon_id = icon_id;
         chrome->shown_paused = paused ? 1 : 0;
     }
 
-    if (chrome->shown_minutes != minutes || info->force_update) {
-        pump_mode_chrome_time_pair_update(chrome->time_m, info->root, minutes,
-            PUMP_MODE_TIME_M_X, PUMP_MODE_TIME_Y);
-        chrome->shown_minutes = minutes;
-    }
-    if (chrome->shown_seconds != seconds || info->force_update) {
-        pump_mode_chrome_time_pair_update(chrome->time_s, info->root, seconds,
-            sec_x, PUMP_MODE_TIME_Y);
-        chrome->shown_seconds = seconds;
-    }
-    if (chrome->time_colon != NULL && lv_obj_is_valid(chrome->time_colon)) {
-        lv_obj_align(chrome->time_colon, LV_ALIGN_TOP_LEFT, colon_x, PUMP_MODE_TIME_Y);
-    }
+    pump_mode_chrome_time_layout_apply(info, hours, minutes, seconds, digit_size,
+        info->force_update != 0);
 }
 
 static void pump_mode_chrome_visibility_apply(pump_home_base_ui_info_t *info)
@@ -418,8 +486,14 @@ static void pump_mode_chrome_visibility_apply(pump_home_base_ui_info_t *info)
 
     pump_mode_page_obj_flag_set(chrome->time_label, chrome_show);
     pump_mode_page_obj_flag_set(chrome->status_icon, chrome_show);
-    pump_mode_page_obj_flag_set(chrome->time_colon, chrome_show);
+    for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_COLON_COUNT; i++) {
+        const bool colon_show = chrome_show &&
+            (i == 1 || chrome->shown_digit_size == PUMP_MODE_TIME_3SEG);
+        pump_mode_page_obj_flag_set(chrome->time_colon[i], colon_show);
+    }
     for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT; i++) {
+        pump_mode_page_obj_flag_set(chrome->time_h[i],
+            chrome_show && chrome->shown_digit_size == PUMP_MODE_TIME_3SEG);
         pump_mode_page_obj_flag_set(chrome->time_m[i], chrome_show);
         pump_mode_page_obj_flag_set(chrome->time_s[i], chrome_show);
     }
@@ -430,10 +504,15 @@ static void pump_mode_chrome_visibility_apply(pump_home_base_ui_info_t *info)
         if (chrome->status_icon != NULL && lv_obj_is_valid(chrome->status_icon)) {
             lv_obj_move_foreground(chrome->status_icon);
         }
-        if (chrome->time_colon != NULL && lv_obj_is_valid(chrome->time_colon)) {
-            lv_obj_move_foreground(chrome->time_colon);
+        for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_COLON_COUNT; i++) {
+            if (chrome->time_colon[i] != NULL && lv_obj_is_valid(chrome->time_colon[i])) {
+                lv_obj_move_foreground(chrome->time_colon[i]);
+            }
         }
         for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT; i++) {
+            if (chrome->time_h[i] != NULL && lv_obj_is_valid(chrome->time_h[i])) {
+                lv_obj_move_foreground(chrome->time_h[i]);
+            }
             if (chrome->time_m[i] != NULL && lv_obj_is_valid(chrome->time_m[i])) {
                 lv_obj_move_foreground(chrome->time_m[i]);
             }
@@ -500,7 +579,7 @@ static void pump_mode_page_title_build(pump_home_base_ui_info_t *info, pump_home
         ctx->title = lv_label_create(parent);
         EXCEPTION_CHECK_VOID(ctx->title);
         lv_obj_set_style_text_color(ctx->title, lv_color_hex(PUMP_MODE_PAGE_TITLE_COLOR), 0);
-        lv_obj_set_style_text_font(ctx->title, &lv_font_aeonik_soft_36_medium, 0);
+        lv_obj_set_style_text_font(ctx->title, &lv_font_aeonik_soft_33_medium, 0);
         lv_obj_set_style_text_align(ctx->title, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(ctx->title, 0, 0);
     }
@@ -508,6 +587,85 @@ static void pump_mode_page_title_build(pump_home_base_ui_info_t *info, pump_home
     lv_obj_align(ctx->title, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_TITLE_Y);
     strncpy(ctx->shown_title, title, sizeof(ctx->shown_title) - 1);
     ctx->shown_title[sizeof(ctx->shown_title) - 1] = '\0';
+}
+
+static bool pump_mode_page_has_duration(uint8_t mode)
+{
+    return mode == BREAST_PUMP_MILK_BOOST_MODE ||
+           mode == BREAST_PUMP_PP_MILK_TRACK_MODE ||
+           mode == BREAST_PUMP_CUSTOM_MODE;
+}
+
+static void pump_mode_page_duration_text_get(pump_home_base_ui_info_t *info, uint8_t mode,
+    char *buf, size_t buf_len)
+{
+    int pump_time = 0;
+
+    if (buf == NULL || buf_len == 0) {
+        return;
+    }
+    buf[0] = '\0';
+    if (!pump_mode_page_has_duration(mode)) {
+        return;
+    }
+    if (info != NULL && info->st != NULL) {
+        info->st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, mode, 0, &pump_time);
+    }
+    snprintf(buf, buf_len, "≈ %dmin", pump_time / 60);
+}
+
+static void pump_mode_page_duration_build(pump_home_base_ui_info_t *info,
+    pump_home_base_mode_page_ctx_t *ctx)
+{
+    char duration[16] = {0};
+    lv_obj_t *parent = pump_home_page_parent_get(info);
+
+    if (!pump_mode_page_has_duration(ctx->mode)) {
+        if (ctx->duration != NULL && lv_obj_is_valid(ctx->duration)) {
+            lv_obj_add_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
+        }
+        ctx->shown_duration[0] = '\0';
+        return;
+    }
+
+    pump_mode_page_duration_text_get(info, ctx->mode, duration, sizeof(duration));
+
+    if (ctx->duration == NULL || !lv_obj_is_valid(ctx->duration)) {
+        ctx->duration = lv_label_create(parent);
+        EXCEPTION_CHECK_VOID(ctx->duration);
+        lv_obj_set_style_text_color(ctx->duration, lv_color_hex(PUMP_MODE_PAGE_DURATION_COLOR), 0);
+        lv_obj_set_style_text_font(ctx->duration, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_align(ctx->duration, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_letter_space(ctx->duration, 0, 0);
+    }
+    lv_label_set_text(ctx->duration, duration);
+    lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_DURATION_Y);
+    lv_obj_clear_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
+    strncpy(ctx->shown_duration, duration, sizeof(ctx->shown_duration) - 1);
+    ctx->shown_duration[sizeof(ctx->shown_duration) - 1] = '\0';
+}
+
+static void pump_mode_page_duration_content_update(pump_home_base_ui_info_t *info,
+    pump_home_base_mode_page_ctx_t *ctx)
+{
+    char duration[16] = {0};
+
+    if (!pump_mode_page_has_duration(ctx->mode)) {
+        return;
+    }
+    pump_mode_page_duration_text_get(info, ctx->mode, duration, sizeof(duration));
+    if (strncmp(ctx->shown_duration, duration, sizeof(ctx->shown_duration)) == 0 &&
+        !info->force_update) {
+        return;
+    }
+    if (ctx->duration == NULL || !lv_obj_is_valid(ctx->duration)) {
+        pump_mode_page_duration_build(info, ctx);
+        return;
+    }
+    lv_label_set_text(ctx->duration, duration);
+    lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_DURATION_Y);
+    strncpy(ctx->shown_duration, duration, sizeof(ctx->shown_duration) - 1);
+    ctx->shown_duration[sizeof(ctx->shown_duration) - 1] = '\0';
 }
 
 /*
@@ -542,9 +700,13 @@ void pump_home_mode_chrome_remove(pump_home_base_ui_info_t *info)
     ui_img_baj_release_decoded_buf(info->mode_chrome.status_icon);
     LVGL_OBJ_DELETE(info->mode_chrome.status_icon);
     info->mode_chrome.status_icon = NULL;
-    LVGL_OBJ_DELETE(info->mode_chrome.time_colon);
-    info->mode_chrome.time_colon = NULL;
+    for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_COLON_COUNT; i++) {
+        LVGL_OBJ_DELETE(info->mode_chrome.time_colon[i]);
+        info->mode_chrome.time_colon[i] = NULL;
+    }
     for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT; i++) {
+        LVGL_OBJ_DELETE(info->mode_chrome.time_h[i]);
+        info->mode_chrome.time_h[i] = NULL;
         LVGL_OBJ_DELETE(info->mode_chrome.time_m[i]);
         info->mode_chrome.time_m[i] = NULL;
         LVGL_OBJ_DELETE(info->mode_chrome.time_s[i]);
@@ -601,6 +763,7 @@ void pump_home_mode_page_ui_build(pump_home_base_ui_info_t *info, uint8_t page_i
     ctx->circle_bg = pump_mode_page_circle_bg_create(page);
     pump_mode_page_icon_build(info, ctx);
     pump_mode_page_title_build(info, ctx);
+    pump_mode_page_duration_build(info, ctx);
     if (ctx->circle_bg != NULL && lv_obj_is_valid(ctx->circle_bg)) {
         lv_obj_move_background(ctx->circle_bg);
     }
@@ -630,6 +793,7 @@ void pump_home_mode_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
             ctx->shown_title[sizeof(ctx->shown_title) - 1] = '\0';
         }
     }
+    pump_mode_page_duration_content_update(info, ctx);
 
     if (!pump_home_page_ui_is_transitioning(info)) {
         pump_home_mode_page_transition_apply(pump_home_page_parent_get(info),
@@ -687,10 +851,20 @@ void pump_home_mode_page_transition_apply(lv_obj_t *page, int32_t hero_scale, bo
     pump_mode_page_obj_scale_set(ctx->icon, hero_scale);
     if (ctx->title != NULL && lv_obj_is_valid(ctx->title)) {
         const lv_font_t *font = small ?
-            &lv_font_aeonik_soft_29_medium : &lv_font_aeonik_soft_36_medium;
+            &lv_font_aeonik_soft_29_medium : &lv_font_aeonik_soft_33_medium;
 
         pump_mode_page_obj_scale_set(ctx->title, PUMP_MODE_PAGE_SCALE_FULL);
         lv_obj_set_style_text_font(ctx->title, font, 0);
         lv_obj_align(ctx->title, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_TITLE_Y);
+    }
+
+    /* 总时间：圆背景消失后展示，圆背景出现时隐藏 */
+    if (ctx->duration != NULL && lv_obj_is_valid(ctx->duration)) {
+        if (!small && pump_mode_page_has_duration(ctx->mode)) {
+            lv_obj_clear_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_DURATION_Y);
+        } else {
+            lv_obj_add_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 }

@@ -37,6 +37,9 @@ extern "C" {
 
 /// 泵奶主界面档位调节展示时间
 #define PUMP_LEVEL_DISPLAY_TIMEOUT             (3000) /// 3s
+/// 单边力度连续加档限制窗口 / 过大提示时长
+#define PUMP_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
+#define PUMP_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 /// 模式切换成功页展示时长
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TIMEOUT  (1500) /// 1.5s
 /// 泵奶背光灯周期
@@ -55,8 +58,19 @@ typedef enum {
     PUMP_UI_TYPE_HOME = 100,
     PUMP_UI_TYPE_RHYTHM_CONFIRM, /// 切换韵律确认
     PUMP_UI_TYPE_SETTINGS_SUCCESS, /// 模式切换成功
+    PUMP_UI_TYPE_STOP_HOLD, /// 长按 power 停止泵奶确认
+    PUMP_UI_TYPE_LEVEL_ADJUST, /// 单边力度调节
+    PUMP_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
+    PUMP_UI_TYPE_SPEED_ADJUST, /// 速度调节
+    PUMP_UI_TYPE_TIMEOUT, /// 吸乳运行超时提示
+    PUMP_UI_TYPE_WILL_FINISH, /// 泵奶即将结束提示
     PUMP_UI_TYPE_MAX
 } pump_ui_type_e;
+
+typedef enum {
+    PUMP_LEVEL_ADJUST_SIDE_LEFT = 0,
+    PUMP_LEVEL_ADJUST_SIDE_RIGHT = 1,
+} pump_level_adjust_side_e;
 
 /// 与 PUMP_HOME_PAGE_* 对齐，用于驱动模式选择页切换
 typedef enum {
@@ -99,8 +113,28 @@ typedef struct {
     uint16_t ui_mode_page_index; /// 当前UI模式页面索引（与 home 一致，驱动切页）
     uint8_t rhythm_confirm_shown; /// 本次泵奶是否已展示过切换韵律确认页
 
+    /// 长按停止确认
+    uint8_t stop_hold_holding; /// 停止确认页是否处于按住倒计时
+    uint8_t stop_hold_ignore_click; /// 松手后忽略紧随的 power CLICK
+
     /// 档位调节相关
     pump_setting_t setting; /// 当前泵奶设置信息.
+    uint8_t level_adjust_side; /// 单边调节侧 pump_level_adjust_side_e
+    uint8_t level_value; /// 实际/展示力度值（过大提示时不变）
+    uint8_t level_arc_level; /// 圆弧动画目标力度（可与 level_value 分离）
+    uint8_t level_over_limit; /// 力度过大提示中
+    uint8_t level_inc_window_base; /// 连续加档窗口起始力度
+    uint32_t level_adjust_time; /// 档位调节页最近操作时间
+    uint32_t level_over_limit_time; /// 过大提示计时起点（有调节刷新）
+    uint32_t level_inc_window_time; /// 连续加档窗口起点
+
+    /// 双边力度调节（无超时退出，短按 power 回泵奶首页）
+    uint8_t both_level_value[2]; /// 双边实际/展示力度（过大提示时不变）
+    uint8_t both_level_arc[2]; /// 双边圆弧动画目标力度
+    uint8_t both_level_over_limit; /// 双边力度过大提示中
+    uint8_t both_level_inc_steps; /// 双边连续加档窗口内已加档次数
+    uint32_t both_level_over_limit_time; /// 双边过大提示计时
+    uint32_t both_level_inc_window_time; /// 双边连续加档窗口起点
 
 } ui_proc_pump_t;
 
@@ -140,6 +174,39 @@ void pump_rhythm_confirm_ui_exit(ui_proc_pump_t *proc);
 /// 模式切换成功页
 void show_pump_settings_success_ui(ui_proc_pump_t *proc);
 void pump_settings_success_ui_exit(ui_proc_pump_t *proc);
+
+/// 长按 power 停止泵奶确认页
+void show_pump_stop_hold_ui(ui_proc_pump_t *proc);
+void pump_stop_hold_ui_exit(ui_proc_pump_t *proc);
+void pump_stop_hold_dismiss(ui_proc_pump_t *proc);
+void pump_stop_hold_key_long_2s_handler(ui_proc_pump_t *proc);
+void pump_stop_hold_key_up_handler(ui_proc_pump_t *proc);
+
+/// 单边力度调节
+void show_pump_level_adjust_ui(ui_proc_pump_t *proc, uint8_t is_left);
+int pump_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
+void pump_level_adjust_ui_exit(ui_proc_pump_t *proc);
+void pump_level_adjust_ui_dismiss(ui_proc_pump_t *proc);
+
+/// 双边力度调节（同时短按 L+R 进入，无超时退出，短按 power 回泵奶首页）
+void show_pump_both_level_adjust_ui(ui_proc_pump_t *proc);
+int pump_both_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
+void pump_both_level_adjust_ui_exit(ui_proc_pump_t *proc);
+void pump_both_level_adjust_ui_dismiss(ui_proc_pump_t *proc);
+
+/// 速度调节（无超时退出，短按 power 回泵奶首页）
+void show_pump_speed_adjust_ui(ui_proc_pump_t *proc);
+int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
+void pump_speed_adjust_ui_exit(ui_proc_pump_t *proc);
+void pump_speed_adjust_ui_dismiss(ui_proc_pump_t *proc);
+
+/// 吸乳运行超时提示页
+void show_pump_timeout_ui(ui_proc_pump_t *proc);
+void pump_timeout_ui_exit(ui_proc_pump_t *proc);
+
+/// 泵奶即将结束提示页
+void show_pump_will_finish_ui(ui_proc_pump_t *proc);
+void pump_will_finish_ui_exit(ui_proc_pump_t *proc);
 
 #ifdef __cplusplus
 }

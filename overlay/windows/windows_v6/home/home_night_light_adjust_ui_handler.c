@@ -32,6 +32,7 @@ static void home_night_light_adjust_ui_display_completed_cb(hdr_post_args_t *arg
     if (proc->current_ui_type != HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         return;
     }
+    proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
     start_home_ui_animation(proc);
 }
 

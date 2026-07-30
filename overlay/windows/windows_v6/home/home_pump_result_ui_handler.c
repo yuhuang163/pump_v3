@@ -42,6 +42,7 @@ static void home_pump_result_display_completed_cb(hdr_post_args_t *args)
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
+    proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
     start_home_ui_animation(proc);
 }
 

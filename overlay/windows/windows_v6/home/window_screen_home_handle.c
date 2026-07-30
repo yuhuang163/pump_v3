@@ -13,13 +13,16 @@
 */
 #define PAGE_STATIC_NAME                            home
 #define PAGE_NAME_STR                               "home"
-#define HOME_UI_KEY_CODE                            ALL_KEY_CODE_NO_COMBINE
-#define HOME_UI_KEY_TYPE                            KEY_EVENT_CLICK
+/** 含 L+R 组合键（KEY_CODE_FACTORY_RESET）以进入双边力度调节 */
+#define HOME_UI_KEY_CODE                            (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_FACTORY_RESET)
+#define HOME_UI_KEY_TYPE                            (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
 #define HOME_BROADCAST_TASK_NAME                    "home_broadcast_task"
+#define POWER_OFF_HOLD_COMPLETE_TASK_NAME           "power_off_hold_complete"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_BROADCAST_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -66,11 +69,21 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
         return;
     }
 #endif
-    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
-        proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
-        start_home_ui_animation(proc);
+    if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
+        home_pump_level_adjust_handler(proc, false);
         return;
     }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+        home_pump_both_level_adjust_handler(proc, false);
+        return;
+    }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
+        home_pump_speed_adjust_handler(proc, false);
+        return;
+    }
+
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         home_mode_adjust_handler(proc, true);
     }
@@ -85,11 +98,21 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
     }
 #endif
 
-    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
-        proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
-        start_home_ui_animation(proc);
+    if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
+        home_pump_level_adjust_handler(proc, true);
         return;
     }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+        home_pump_both_level_adjust_handler(proc, true);
+        return;
+    }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
+        home_pump_speed_adjust_handler(proc, true);
+        return;
+    }
+
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         home_mode_adjust_handler(proc, false);
     }
@@ -97,16 +120,41 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
 
 static void home_mode_key_event_cb(ui_proc_home_t *proc, uint8_t mode_index)
 {
-    if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
-        LOG_WM("ignore mode key, ui_type:%d", proc->current_ui_type);
-        return;
-    }
+    // if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
+    //     LOG_WM("ignore mode key, ui_type:%d", proc->current_ui_type);
+    //     return;
+    // }
     show_home_settings_success_ui(proc);
     home_mode_set_handler(proc, mode_index);
 }
 
 static void home_power_key_event_cb(ui_proc_home_t *proc)
 {
+    if (proc->power_off_hold_ignore_click) {
+        proc->power_off_hold_ignore_click = 0;
+        LOG_WM("ignore power click after power off hold.");
+        return;
+    }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_POWER_OFF_HOLD) {
+        return;
+    }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
+        home_level_adjust_ui_dismiss(proc);
+        return;
+    }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+        home_both_level_adjust_ui_dismiss(proc);
+        return;
+    }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
+        home_speed_adjust_ui_dismiss(proc);
+        return;
+    }
+
     if (proc->current_ui_type == HOME_UI_TYPE_HOME &&
         proc->ui_mode_page_index > HOME_MODE_PAGE_INDEX_NONE) {
         if (home_mode_confirm_handler(proc) == 0) {
@@ -134,13 +182,50 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
 #endif
     }
 #endif
-
-    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
-        proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
-        start_home_ui_animation(proc);
-        return;
-    }
     LOG_WM("ignore key event.");
+}
+
+static void home_click_event_cb(ui_proc_home_t *proc, uint16_t keycode)
+{
+    switch (keycode) {
+        case KEY_CODE_STIMULATION_MODE:
+            home_mode_key_event_cb(proc, BREAST_PUMP_STIMULATION_MODE);
+            break;
+        case KEY_CODE_LACTATION_MODE:
+            home_mode_key_event_cb(proc, BREAST_PUMP_LACTATION_MODE);
+            break;
+        case KEY_CODE_POWER:
+            home_power_key_event_cb(proc);
+            break;
+        case KEY_CODE_FREQUENCY:
+            show_home_speed_adjust_ui(proc);
+            break;
+        case KEY_CODE_START:
+            home_start_key_event_handler(proc);
+            break;
+        case KEY_CODE_KNOB_LEFT:
+            home_knob_left_event_cb(proc);
+            break;
+        case KEY_CODE_KNOB_RIGHT:
+            home_knob_right_event_cb(proc);
+            break;
+        case KEY_CODE_RIGHT_CONTROL:
+            if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+                show_home_level_adjust_ui(proc, false);
+            }
+            break;
+        case KEY_CODE_LEFT_CONTROL:
+            if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+                show_home_level_adjust_ui(proc, true);
+            }
+            break;
+        case KEY_CODE_FACTORY_RESET:
+            /* 同时短按 L+R → 双边力度调节 */
+            show_home_both_level_adjust_ui(proc);
+            break;
+        default:
+            break;
+    }
 }
 
 static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
@@ -157,6 +242,18 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
+    if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
+        home_power_off_hold_key_long_2s_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
+        home_power_off_hold_key_up_handler(proc);
+        return 0;
+    }
+    if (keytype != KEY_EVENT_CLICK) {
+        return 0;
+    }
+
     /* 泵奶完成页 / 设置成功页仅限制 start，其它按键正常响应 */
     if ((proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
          proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) &&
@@ -165,32 +262,12 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
-    switch (keycode) {
-        case KEY_CODE_STIMULATION_MODE:
-            home_mode_key_event_cb(proc, BREAST_PUMP_STIMULATION_MODE);
-            break;
-        case KEY_CODE_LACTATION_MODE:
-            home_mode_key_event_cb(proc, BREAST_PUMP_LACTATION_MODE);
-            break;
-        case KEY_CODE_POWER:
-            home_power_key_event_cb(proc);
-            break;
-        case KEY_CODE_START:
-            home_start_key_event_handler(proc);
-            break;
-        case KEY_CODE_KNOB_LEFT:
-            home_knob_left_event_cb(proc);
-            break;
-        case KEY_CODE_KNOB_RIGHT:
-            home_knob_right_event_cb(proc);
-            break;
-        case KEY_CODE_RIGHT_CONTROL:
-            break;
-        case KEY_CODE_LEFT_CONTROL:
-            break;
-        default:
-            break;
+    /* 关机确认页期间忽略其它 click，避免误触 */
+    if (proc->current_ui_type == HOME_UI_TYPE_POWER_OFF_HOLD) {
+        return 0;
     }
+
+    home_click_event_cb(proc, keycode);
     return 0;
 }
 
@@ -210,6 +287,7 @@ static void home_broadcast_receive_ui_cb(hdr_post_args_t *args)
             if (bcd_args->arg1 == PM_BROADCAST_SYS_IDLE) {
                 start_home_idle_ui_animation(proc);
             } else if (bcd_args->arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
+                proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
                 start_home_ui_animation(proc);
             } 
             break;
@@ -291,6 +369,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             show_home_pump_result_ui(proc);
             return 0;
         }
+        proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
         start_home_ui_animation(proc);
     }
     return 0;

@@ -19,8 +19,9 @@ extern "C" {
 /// 主界面绑定二维码展示时长
 #define HOME_BIND_QRCODE_DISPLAY_TIMEOUT       (3000) /// 3s
 
-/// 档位调节界面动画展示时间
-#define HOME_PUMP_LEVEL_DISPLAY_TIMEOUT        (5000) /// 5s
+/// 单边力度连续加档限制窗口 / 过大提示时长
+#define HOME_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
+#define HOME_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 
 /// 泵奶结果显示超时时间
 #define HOME_PUMP_RESULT_DISPLAY_TIMEOUT       (3000) /// 3s
@@ -45,8 +46,17 @@ typedef enum {
     HOME_UI_TYPE_PUMP_RESULT,
     HOME_UI_TYPE_SETTINGS_SUCCESS, /// 模式切换成功
     HOME_UI_TYPE_NIGHT_LIGHT_ADJUST, /// 夜灯调节
+    HOME_UI_TYPE_POWER_OFF_HOLD, /// 长按 power 关机确认
+    HOME_UI_TYPE_LEVEL_ADJUST, /// 单边力度调节
+    HOME_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
+    HOME_UI_TYPE_SPEED_ADJUST, /// 速度调节
     HOME_UI_TYPE_MAX
 } home_ui_type_e;
+
+typedef enum {
+    HOME_LEVEL_ADJUST_SIDE_LEFT = 0,
+    HOME_LEVEL_ADJUST_SIDE_RIGHT = 1,
+} home_level_adjust_side_e;
 
 typedef enum {
     HOME_MODE_PAGE_INDEX_NONE = 0,                   /// 无模式选择
@@ -81,6 +91,20 @@ typedef struct {
 
     /// 档位调节相关
     pump_setting_t setting; /// 当前泵奶设置信息.
+    uint8_t level_adjust_side; /// 单边调节侧 home_level_adjust_side_e
+    uint8_t level_value; /// 实际/展示力度值（过大提示时不变）
+    uint8_t level_arc_level; /// 圆弧动画目标力度（可与 level_value 分离）
+    uint8_t level_over_limit; /// 力度过大提示中
+    uint8_t level_inc_window_base; /// 连续加档窗口起始力度
+    uint8_t both_level_value[2]; /// 双边实际/展示力度（过大提示时不变）
+    uint8_t both_level_arc[2]; /// 双边圆弧动画目标力度
+    uint8_t both_level_over_limit; /// 双边力度过大提示中
+    uint8_t both_level_inc_steps; /// 双边连续加档窗口内已加档次数
+    uint32_t level_adjust_time; /// 档位调节页最近操作时间
+    uint32_t level_over_limit_time; /// 过大提示计时起点（有调节刷新）
+    uint32_t level_inc_window_time; /// 连续加档窗口起点
+    uint32_t both_level_over_limit_time; /// 双边过大提示计时
+    uint32_t both_level_inc_window_time; /// 双边连续加档窗口起点
 
     /// 夜灯调节相关
     uint8_t night_light_gear; /// 夜灯调节亮度等级
@@ -88,6 +112,10 @@ typedef struct {
 
     /// 灯光相关
     uint8_t home_light_status; /// 主界面灯光状态.
+
+    /// 长按关机确认
+    uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
+    uint8_t power_off_hold_ignore_click; /// 松手后忽略紧随的 power CLICK
 } ui_proc_home_t;
 
 /*
@@ -104,7 +132,23 @@ int home_mode_confirm_handler(ui_proc_home_t *proc);
 int home_mode_set_handler(ui_proc_home_t *proc, uint8_t mode_index);
 void home_mode_page_index_clamp(ui_proc_home_t *proc);
 
-/// 档位调节功能处理
+/// 单边力度调节
+void show_home_level_adjust_ui(ui_proc_home_t *proc, uint8_t is_left);
+int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase);
+void home_level_adjust_ui_exit(ui_proc_home_t *proc);
+void home_level_adjust_ui_dismiss(ui_proc_home_t *proc);
+
+/// 双边力度调节（无超时退出，短按 power 回首页；L+R 短按进入）
+void show_home_both_level_adjust_ui(ui_proc_home_t *proc);
+int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase);
+void home_both_level_adjust_ui_exit(ui_proc_home_t *proc);
+void home_both_level_adjust_ui_dismiss(ui_proc_home_t *proc);
+
+/// 速度调节（无超时退出，短按 power 回首页）
+void show_home_speed_adjust_ui(ui_proc_home_t *proc);
+int home_pump_speed_adjust_handler(ui_proc_home_t *proc, bool is_increase);
+void home_speed_adjust_ui_exit(ui_proc_home_t *proc);
+void home_speed_adjust_ui_dismiss(ui_proc_home_t *proc);
 
 /// 弹窗类型更新
 void home_popup_ui_type_update(ui_proc_home_t *proc, popup_ui_id_e type);
@@ -124,6 +168,13 @@ void home_settings_success_ui_exit(ui_proc_home_t *proc);
 void show_home_night_light_adjust_ui(ui_proc_home_t *proc);
 void switch_home_night_light_adjust(ui_proc_home_t *proc, bool is_increase);
 void home_night_light_adjust_ui_exit(ui_proc_home_t *proc);
+
+/// 长按 power 关机确认页
+void show_home_power_off_hold_ui(ui_proc_home_t *proc);
+void home_power_off_hold_ui_exit(ui_proc_home_t *proc);
+void home_power_off_hold_dismiss(ui_proc_home_t *proc);
+void home_power_off_hold_key_long_2s_handler(ui_proc_home_t *proc);
+void home_power_off_hold_key_up_handler(ui_proc_home_t *proc);
 
 #ifdef __cplusplus
 }

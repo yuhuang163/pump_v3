@@ -12,7 +12,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_HOME_WAVE_Y                               (150)
+#define PUMP_HOME_WAVE_Y                               (190)
 #define PUMP_HOME_WAVE_PAUSE_OFFSET_Y                  (46)
 #define PUMP_HOME_ANIM_FRAME_INTERVAL_MS               (1000 / PUMP_ANIMATION_FREQ)
 #define PUMP_HOME_ANIM_FRAME_RES_INVALID               (0xFFFF)
@@ -33,29 +33,41 @@ static void pump_home_animation_state_reset(pump_home_base_ui_info_t *info)
     anim->frame_end_res_id = 0;
 }
 
-static bool pump_home_animation_res_get(uint8_t mode_type, uint16_t *start_id, uint16_t *end_id,
+static bool pump_home_animation_res_get(uint8_t mode_index, uint8_t mode_type, uint16_t *start_id, uint16_t *end_id,
     pump_home_base_anim_res_type_e *res_type)
 {
     switch (mode_type) {
         case PUMP_MODE_STIMULATION:
-            *start_id = BASE_RES_ID_SHORT_SUCTION_ANIM_START;
-            *end_id = BASE_RES_ID_SHORT_SUCTION_ANIM_END;
-            *res_type = PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
+            if (PUMP_IS_COMMON_MODE(mode_index)) {
+                *start_id = BASE_RES_ID_STIMULATION_ANIM_START;
+                *end_id = BASE_RES_ID_STIMULATION_ANIM_END;
+                *res_type = PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
+            } else {
+                *start_id = BASE_RES_ID_PROGRAM_STIMULATION_ANIM_START;
+                *end_id = BASE_RES_ID_PROGRAM_STIMULATION_ANIM_END;
+                *res_type = PUMP_HOME_BASE_ANIM_PROGRAM_STIMULATION_WAVE;
+            }
             return true;
         case PUMP_MODE_LACTATION:
-            *start_id = BASE_RES_ID_LONG_SUCTION_ANIM_START;
-            *end_id = BASE_RES_ID_LONG_SUCTION_ANIM_END;
-            *res_type = PUMP_HOME_BASE_ANIM_LACTATION_WAVE;
+            if (PUMP_IS_COMMON_MODE(mode_index)) {
+                *start_id = BASE_RES_ID_EXPRESSION_ANIM_START;
+                *end_id = BASE_RES_ID_EXPRESSION_ANIM_END;
+                *res_type = PUMP_HOME_BASE_ANIM_EXPRESSION_WAVE;
+            } else {
+                *start_id = BASE_RES_ID_PROGRAM_EXPRESSION_ANIM_START;
+                *end_id = BASE_RES_ID_PROGRAM_EXPRESSION_ANIM_END;
+                *res_type = PUMP_HOME_BASE_ANIM_PROGRAM_EXPRESSION_WAVE;
+            }
             return true;
         case PUMP_MODE_MIX:
-            *start_id = BASE_RES_ID_MIXED_SUCTION_ANIM_START;
-            *end_id = BASE_RES_ID_MIXED_SUCTION_ANIM_END;
+            *start_id = BASE_RES_ID_STIMULATION_ANIM_START;
+            *end_id = BASE_RES_ID_STIMULATION_ANIM_END;
             *res_type = PUMP_HOME_BASE_ANIM_MIX_WAVE;
             return true;
         case PUMP_MODE_IDLE:
-            *start_id = BASE_RES_ID_RELAX_SUCTION_ANIM_START;
-            *end_id = BASE_RES_ID_RELAX_SUCTION_ANIM_END;
-            *res_type = PUMP_HOME_BASE_ANIM_RELAX_WAVE;
+            *start_id = BASE_RES_ID_PROGRAM_RELAX_ANIM_START;
+            *end_id = BASE_RES_ID_PROGRAM_RELAX_ANIM_END;
+            *res_type = PUMP_HOME_BASE_ANIM_PROGRAM_RELAX_WAVE;
             return true;
         default:
             return false;
@@ -191,12 +203,13 @@ void pump_home_base_animation_ui_update(pump_home_base_ui_info_t *info)
 {
     pump_home_base_animation_info_t *anim = &info->animation;
     const uint8_t mode_type = info->mode.new_mode_type;
+    const uint8_t mode_index = info->mode.new_index;
     pump_home_base_anim_res_type_e res_type = PUMP_HOME_BASE_ANIM_MAX;
     uint16_t start_id = 0;
     uint16_t end_id = 0;
 
     EXCEPTION_CHECK_VOID(info);
-    if (pump_home_animation_res_get(mode_type, &start_id, &end_id, &res_type) == false) {
+    if (pump_home_animation_res_get(mode_index, mode_type, &start_id, &end_id, &res_type) == false) {
         pump_home_animation_wave_hide(info);
         pump_home_animation_state_reset(info);
         return;

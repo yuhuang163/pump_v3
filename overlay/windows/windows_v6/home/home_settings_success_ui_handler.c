@@ -23,6 +23,7 @@ static void home_settings_success_display_completed_cb(hdr_post_args_t *args)
         LOG_UI("settings success ui, ignore display completed.");
         return;
     }
+    proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
     start_home_ui_animation(proc);
 }
 

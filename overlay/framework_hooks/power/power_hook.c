@@ -226,8 +226,18 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
             if (wm && wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET)) {
                 LOG_PM("in factory reset window, ignore");
                 return 0;
-                
             }
+
+        #if V3_UX_VERSION == V3_UX_V6
+            if (wm && wm->is_current_window(wm, ID_WINDOW_PUMP)) {
+                LOG_PM("in pump window, ignore");
+                return 0;
+            }
+            if (wm && wm->is_current_window(wm, ID_WINDOW_HOME)) {
+                LOG_PM("in home window, ignore");
+                return 0;
+            }
+        #endif
 
         #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
             if (is_prohibit_pm_suspend(ctx)) {

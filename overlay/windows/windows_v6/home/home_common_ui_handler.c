@@ -27,6 +27,10 @@ void stop_home_common_ui(ui_proc_home_t *proc)
 {
     home_pump_result_ui_exit(proc);
     home_settings_success_ui_exit(proc);
+    home_power_off_hold_ui_exit(proc);
+    home_level_adjust_ui_exit(proc);
+    home_both_level_adjust_ui_exit(proc);
+    home_speed_adjust_ui_exit(proc);
     if (proc->led) {
         proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
     }
@@ -52,6 +56,21 @@ void home_ui_change_hdr_remove(ui_proc_home_t *proc)
             break;
         case HOME_UI_TYPE_SETTINGS_SUCCESS:
             home_settings_success_ui_exit(proc);
+            break;
+        case HOME_UI_TYPE_NIGHT_LIGHT_ADJUST:
+            home_night_light_adjust_ui_exit(proc);
+            break;
+        case HOME_UI_TYPE_POWER_OFF_HOLD:
+            home_power_off_hold_ui_exit(proc);
+            break;
+        case HOME_UI_TYPE_LEVEL_ADJUST:
+            home_level_adjust_ui_exit(proc);
+            break;
+        case HOME_UI_TYPE_BOTH_LEVEL_ADJUST:
+            home_both_level_adjust_ui_exit(proc);
+            break;
+        case HOME_UI_TYPE_SPEED_ADJUST:
+            home_speed_adjust_ui_exit(proc);
             break;
         default:
             break;

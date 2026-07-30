@@ -19,13 +19,25 @@
 #define HOME_MAIN_MODE_TITLE_COLOR                      (0xFFFFFF)
 #endif
 
-#define HOME_MAIN_TIME_SEG_WIDTH                        (88)
-#define HOME_MAIN_TIME_M_X                              (75 + 4)
-#define HOME_MAIN_TIME_M_Y                              (137 + 4)
-#define HOME_MAIN_TIME_S_X                              (189 + 4)
-#define HOME_MAIN_TIME_S_Y                              (HOME_MAIN_TIME_M_Y)
-#define HOME_MAIN_TIME_COLON_X                          (0)
-#define HOME_MAIN_TIME_COLON_Y                          (143 + 4)
+/// 两段计时 MM:SS（hours==0）
+#define HOME_MAIN_TIME_2SEG                             (2)
+#define HOME_MAIN_TIME_2SEG_WIDTH                       (88)
+#define HOME_MAIN_TIME_2SEG_M_X                         (75 + 4)
+#define HOME_MAIN_TIME_2SEG_S_X                         (189 + 4)
+#define HOME_MAIN_TIME_2SEG_Y                           (137 + 4)
+#define HOME_MAIN_TIME_2SEG_COLON_X                     (0)
+#define HOME_MAIN_TIME_2SEG_COLON_Y                     (143 + 4)
+
+/// 三段计时 HH:MM:SS（hours>0，等宽，参考 V6）
+#define HOME_MAIN_TIME_3SEG                             (3)
+#define HOME_MAIN_TIME_3SEG_WIDTH                       (69)
+#define HOME_MAIN_TIME_3SEG_H_X                         (51)
+#define HOME_MAIN_TIME_3SEG_M_X                         (147)
+#define HOME_MAIN_TIME_3SEG_S_X                         (240)
+#define HOME_MAIN_TIME_3SEG_Y                           (130 + 15)
+#define HOME_MAIN_TIME_COLON_HM_X                       (130)
+#define HOME_MAIN_TIME_COLON_MS_X                       (222)
+#define HOME_MAIN_TIME_COLON_3SEG_Y                     (134 + 15)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_TIME_COLOR                            (0x00FF00)
 #else
@@ -239,76 +251,192 @@ static void home_main_mode_title_update(home_base_ui_info_t *info, uint8_t mode)
     info->main.shown_title[sizeof(info->main.shown_title) - 1] = '\0';
 }
 
-static void home_main_time_pair_update(lv_obj_t *labels[HOME_BASE_MAIN_TIME_DIGIT_COUNT], lv_obj_t *parent,
-    uint8_t value, lv_coord_t seg_x, lv_coord_t seg_y)
+static void home_main_obj_flag_set(lv_obj_t *obj, bool visible)
 {
-    const lv_coord_t cell_w = HOME_MAIN_TIME_SEG_WIDTH / HOME_BASE_MAIN_TIME_DIGIT_COUNT;
-    char digit_text[2] = {0};
+    if (obj == NULL || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    if (visible) {
+        lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    }
+}
 
-    for (int i = 0; i < HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
+static void home_main_time_pair_update(lv_obj_t *labels[HOME_BASE_MAIN_TIME_DIGIT_COUNT], lv_obj_t *parent,
+    uint8_t value, const lv_font_t *font, lv_coord_t seg_x, lv_coord_t seg_y, lv_coord_t seg_width,
+    bool hidden)
+{
+    const lv_coord_t cell_w = seg_width / HOME_BASE_MAIN_TIME_DIGIT_COUNT;
+    char digit_text[2] = {0};
+    int i;
+
+    for (i = 0; i < HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
         if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
             labels[i] = lv_label_create(parent);
             EXCEPTION_CHECK_VOID(labels[i]);
             lv_label_set_long_mode(labels[i], LV_LABEL_LONG_CLIP);
             lv_obj_set_style_text_align(labels[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_text_color(labels[i], lv_color_hex(HOME_MAIN_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(labels[i], &lv_font_aeonik_soft_69_semibold, 0);
             lv_obj_set_style_text_letter_space(labels[i], 0, 0);
         }
         digit_text[0] = (char)('0' + (i == 0 ? value / 10 : value % 10));
         digit_text[1] = '\0';
         lv_obj_set_width(labels[i], cell_w);
+        lv_obj_set_style_text_font(labels[i], font, 0);
         lv_label_set_text(labels[i], digit_text);
         lv_obj_align(labels[i], LV_ALIGN_TOP_LEFT, seg_x + i * cell_w, seg_y);
+        home_main_obj_flag_set(labels[i], !hidden);
     }
 }
 
-static void home_main_time_m_update(home_base_ui_info_t *info, uint8_t minutes)
+static void home_main_time_h_update(home_base_ui_info_t *info, uint8_t hours, uint8_t digit_size)
 {
-    if (info->main.shown_minutes == minutes && info->force_update == false) {
-        return;
-    }
+    const bool hidden = (digit_size == HOME_MAIN_TIME_2SEG);
 
-    home_main_time_pair_update(info->main.time_m, home_page_parent_get(info), minutes,
-        HOME_MAIN_TIME_M_X, HOME_MAIN_TIME_M_Y);
-    info->main.shown_minutes = minutes;
-}
-
-static void home_main_time_s_update(home_base_ui_info_t *info, uint8_t seconds)
-{
-    if (info->main.shown_seconds == seconds && info->force_update == false) {
-        return;
-    }
-
-    home_main_time_pair_update(info->main.time_s, home_page_parent_get(info), seconds,
-        HOME_MAIN_TIME_S_X, HOME_MAIN_TIME_S_Y);
-    info->main.shown_seconds = seconds;
-}
-
-static void home_main_time_colon_update(home_base_ui_info_t *info)
-{
-    lv_obj_t *parent = home_page_parent_get(info);
-
-    if (info->main.time_colon != NULL && lv_obj_is_valid(info->main.time_colon) &&
+    if (info->main.shown_hours == hours && info->main.shown_digit_size == digit_size &&
         info->force_update == false) {
         return;
     }
 
-    if (info->main.time_colon == NULL || !lv_obj_is_valid(info->main.time_colon)) {
-        info->main.time_colon = lv_image_create(parent);
-        EXCEPTION_CHECK_VOID(info->main.time_colon);
-    }
-    ui_img_baj_theme_set_src(info->ui, info->main.time_colon, BASE_RES_ID_CLOCK_COLON_ICON,
-        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-    lv_obj_align(info->main.time_colon, LV_ALIGN_TOP_MID,
-        HOME_MAIN_TIME_COLON_X, HOME_MAIN_TIME_COLON_Y);
+    home_main_time_pair_update(info->main.time_h, home_page_parent_get(info), hours,
+        &lv_font_aeonik_soft_56_semibold, HOME_MAIN_TIME_3SEG_H_X, HOME_MAIN_TIME_3SEG_Y,
+        HOME_MAIN_TIME_3SEG_WIDTH, hidden);
+    info->main.shown_hours = hours;
 }
 
-static void home_main_time_update(home_base_ui_info_t *info, uint8_t minutes, uint8_t seconds)
+static void home_main_time_m_update(home_base_ui_info_t *info, uint8_t minutes, uint8_t digit_size)
 {
-    home_main_time_m_update(info, minutes);
-    home_main_time_s_update(info, seconds);
-    home_main_time_colon_update(info);
+    if (info->main.shown_minutes == minutes && info->main.shown_digit_size == digit_size &&
+        info->force_update == false) {
+        return;
+    }
+
+    if (digit_size == HOME_MAIN_TIME_2SEG) {
+        home_main_time_pair_update(info->main.time_m, home_page_parent_get(info), minutes,
+            &lv_font_aeonik_soft_69_semibold, HOME_MAIN_TIME_2SEG_M_X, HOME_MAIN_TIME_2SEG_Y,
+            HOME_MAIN_TIME_2SEG_WIDTH, false);
+    } else {
+        home_main_time_pair_update(info->main.time_m, home_page_parent_get(info), minutes,
+            &lv_font_aeonik_soft_56_semibold, HOME_MAIN_TIME_3SEG_M_X, HOME_MAIN_TIME_3SEG_Y,
+            HOME_MAIN_TIME_3SEG_WIDTH, false);
+    }
+    info->main.shown_minutes = minutes;
+}
+
+static void home_main_time_s_update(home_base_ui_info_t *info, uint8_t seconds, uint8_t digit_size)
+{
+    if (info->main.shown_seconds == seconds && info->main.shown_digit_size == digit_size &&
+        info->force_update == false) {
+        return;
+    }
+
+    if (digit_size == HOME_MAIN_TIME_2SEG) {
+        home_main_time_pair_update(info->main.time_s, home_page_parent_get(info), seconds,
+            &lv_font_aeonik_soft_69_semibold, HOME_MAIN_TIME_2SEG_S_X, HOME_MAIN_TIME_2SEG_Y,
+            HOME_MAIN_TIME_2SEG_WIDTH, false);
+    } else {
+        home_main_time_pair_update(info->main.time_s, home_page_parent_get(info), seconds,
+            &lv_font_aeonik_soft_56_semibold, HOME_MAIN_TIME_3SEG_S_X, HOME_MAIN_TIME_3SEG_Y,
+            HOME_MAIN_TIME_3SEG_WIDTH, false);
+    }
+    info->main.shown_seconds = seconds;
+}
+
+static void home_main_time_colon_release(home_base_ui_info_t *info)
+{
+    int i;
+
+    for (i = 0; i < HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+        if (info->main.time_colon[i] != NULL && lv_obj_is_valid(info->main.time_colon[i])) {
+            lv_image_set_src(info->main.time_colon[i], NULL);
+        }
+    }
+    if (info->main.time_colon_buf != NULL) {
+        lv_draw_buf_destroy(info->main.time_colon_buf);
+        info->main.time_colon_buf = NULL;
+    }
+    ui_img_baj_release_decoded_buf(info->main.time_colon_2seg);
+}
+
+static void home_main_time_colon_3seg_update(home_base_ui_info_t *info)
+{
+    static const lv_coord_t colon_x[HOME_BASE_MAIN_TIME_COLON_COUNT] = {
+        HOME_MAIN_TIME_COLON_HM_X,
+        HOME_MAIN_TIME_COLON_MS_X,
+    };
+    lv_obj_t *parent = home_page_parent_get(info);
+    int i;
+
+    for (i = 0; i < HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+        if (info->main.time_colon[i] == NULL || !lv_obj_is_valid(info->main.time_colon[i])) {
+            info->main.time_colon[i] = lv_image_create(parent);
+            EXCEPTION_CHECK_VOID(info->main.time_colon[i]);
+        }
+    }
+
+    if (info->main.time_colon_buf == NULL) {
+        info->main.time_colon_buf = ui_img_baj_theme_decode_draw_buf(info->ui,
+            BASE_RES_ID_HOUR_COLON_ICON, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+    EXCEPTION_CHECK_VOID(info->main.time_colon_buf);
+
+    for (i = 0; i < HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+        lv_image_set_src(info->main.time_colon[i], info->main.time_colon_buf);
+        lv_obj_align(info->main.time_colon[i], LV_ALIGN_TOP_LEFT,
+            colon_x[i], HOME_MAIN_TIME_COLON_3SEG_Y);
+        home_main_obj_flag_set(info->main.time_colon[i], true);
+    }
+}
+
+static void home_main_time_colon_2seg_update(home_base_ui_info_t *info)
+{
+    lv_obj_t *parent = home_page_parent_get(info);
+    int i;
+
+    if (info->main.time_colon_2seg == NULL || !lv_obj_is_valid(info->main.time_colon_2seg)) {
+        info->main.time_colon_2seg = lv_image_create(parent);
+        EXCEPTION_CHECK_VOID(info->main.time_colon_2seg);
+        ui_img_baj_theme_set_src(info->ui, info->main.time_colon_2seg, BASE_RES_ID_CLOCK_COLON_ICON,
+            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+    lv_obj_align(info->main.time_colon_2seg, LV_ALIGN_TOP_MID,
+        HOME_MAIN_TIME_2SEG_COLON_X, HOME_MAIN_TIME_2SEG_COLON_Y);
+    home_main_obj_flag_set(info->main.time_colon_2seg, true);
+
+    for (i = 0; i < HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+        home_main_obj_flag_set(info->main.time_colon[i], false);
+    }
+}
+
+static void home_main_time_colon_update(home_base_ui_info_t *info, uint8_t digit_size)
+{
+    if (info->main.shown_digit_size == digit_size && info->force_update == false &&
+        ((digit_size == HOME_MAIN_TIME_2SEG &&
+          info->main.time_colon_2seg != NULL && lv_obj_is_valid(info->main.time_colon_2seg)) ||
+         (digit_size == HOME_MAIN_TIME_3SEG &&
+          info->main.time_colon_buf != NULL))) {
+        return;
+    }
+
+    if (digit_size == HOME_MAIN_TIME_2SEG) {
+        home_main_time_colon_2seg_update(info);
+    } else {
+        home_main_obj_flag_set(info->main.time_colon_2seg, false);
+        home_main_time_colon_3seg_update(info);
+    }
+}
+
+static void home_main_time_update(home_base_ui_info_t *info, uint8_t hours, uint8_t minutes,
+    uint8_t seconds)
+{
+    const uint8_t digit_size = (hours == 0) ? HOME_MAIN_TIME_2SEG : HOME_MAIN_TIME_3SEG;
+
+    home_main_time_h_update(info, hours, digit_size);
+    home_main_time_m_update(info, minutes, digit_size);
+    home_main_time_s_update(info, seconds, digit_size);
+    home_main_time_colon_update(info, digit_size);
+    info->main.shown_digit_size = digit_size;
 }
 
 static void home_main_hint_shine_sync(home_base_ui_info_t *info)
@@ -611,14 +739,17 @@ void home_main_page_ui_build(home_base_ui_info_t *info)
 #if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
     home_main_hint_mask_a8_release(info);
 #endif
+    home_main_time_colon_release(info);
     memset(&info->main, 0, sizeof(info->main));
     info->main.shown_bg_id = 0;
     info->main.shown_hint_color = 0xFFFFFFFFU;
     info->main.shown_speed = 0xFF;
     info->main.shown_left_level = 0xFF;
     info->main.shown_right_level = 0xFF;
+    info->main.shown_hours = 0xFF;
     info->main.shown_minutes = 0xFF;
     info->main.shown_seconds = 0xFF;
+    info->main.shown_digit_size = 0;
     info->animation.paused_by_transition = 0;
 
     parent = home_page_parent_get(info);
@@ -628,7 +759,7 @@ void home_main_page_ui_build(home_base_ui_info_t *info)
     home_main_bg_update(info, mode);
 #endif
     home_main_mode_title_update(info, mode);
-    home_main_time_update(info, 0, 0);
+    home_main_time_update(info, 0, 0, 0);
     home_main_hint_update(info, mode);
     home_main_speed_update(info, 0);
     home_main_level_label_update(&info->main.left_level, parent, "L",
@@ -659,7 +790,7 @@ void home_main_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
     home_main_bg_update(info, mode);
     #endif
     home_main_mode_title_update(info, mode);
-    home_main_time_update(info, 0, 0);
+    home_main_time_update(info, 0, 0, 0);
     home_main_hint_update(info, mode);
     home_main_mask_anim_update(info);
     home_main_speed_update(info, speed);
@@ -679,7 +810,7 @@ void home_main_page_ui_remove(home_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
     home_main_bg_detach(info);
-    ui_img_baj_release_decoded_buf(info->main.time_colon);
+    home_main_time_colon_release(info);
     ui_img_baj_release_decoded_buf(info->main.speed_icon);
 #if HOME_BASE_MAIN_HINT_SHINE_USE_IMG_MASK
     home_main_hint_mask_a8_release(info);
@@ -704,9 +835,13 @@ void home_main_page_transition_apply(home_base_ui_info_t *info, int32_t hero_sca
     {
         uint8_t i;
         for (i = 0; i < HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
+            home_main_obj_scale_set(info->main.time_h[i], HOME_MAIN_SCALE_FULL);
             home_main_obj_scale_set(info->main.time_m[i], HOME_MAIN_SCALE_FULL);
             home_main_obj_scale_set(info->main.time_s[i], HOME_MAIN_SCALE_FULL);
         }
+        for (i = 0; i < HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+            home_main_obj_scale_set(info->main.time_colon[i], HOME_MAIN_SCALE_FULL);
+        }
+        home_main_obj_scale_set(info->main.time_colon_2seg, HOME_MAIN_SCALE_FULL);
     }
-    home_main_obj_scale_set(info->main.time_colon, HOME_MAIN_SCALE_FULL);
 }

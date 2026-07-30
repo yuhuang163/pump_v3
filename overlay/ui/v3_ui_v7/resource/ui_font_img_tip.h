@@ -1,0 +1,27 @@
+#ifndef __UI_FONT_IMG_TIP_H__
+#define __UI_FONT_IMG_TIP_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*******************************************************************************
+* Include files
+******************************************************************************/
+#include "ui_img_define.h" // IWYU pragma: keep
+
+/*
+* GLOBAL FUNCTION DECLARATION
+*****************************************************************************************
+*/
+/** 「Press the knob to confirm」提示图，全工程只保留一份 PNG 数据 */
+const ui_img_data_t *ui_font_img_mode_select_tip_get(void);
+/** 单边力度调节提示图，全工程只保留一份 PNG 数据 */
+const ui_img_data_t *ui_font_img_level_adjust_tip_get(void);
+/** 吸乳超时页底部提示图，全工程只保留一份 PNG 数据 */
+const ui_img_data_t *ui_font_img_pump_timeout_tip_get(void);
+
+#ifdef __cplusplus
+}
+#endif
+#endif // __UI_FONT_IMG_TIP_H__
