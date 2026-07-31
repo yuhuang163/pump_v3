@@ -87,6 +87,7 @@ void show_pump_stop_hold_ui(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD) {
         return;
     }
+    pump_ui_nav_push(proc);
     pump_ui_change_hdr_remove(proc);
 
     ui_play_info_t play_info = {
@@ -116,11 +117,11 @@ void pump_stop_hold_dismiss(ui_proc_pump_t *proc)
     if (proc->current_ui_type != PUMP_UI_TYPE_STOP_HOLD) {
         return;
     }
-    LOG_WM("dismiss pump stop hold, back to home.");
     proc->stop_hold_holding = 0;
     proc->stop_hold_ignore_click = 1;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_STOP_HOLD_COMPLETE_TASK_NAME);
-    show_pump_home_ui(proc);
+    LOG_WM("dismiss pump stop hold, nav back history.");
+    pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HISTORY);
 }
 
 void pump_stop_hold_key_long_2s_handler(ui_proc_pump_t *proc)

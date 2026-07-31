@@ -13,6 +13,7 @@ extern "C" {
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_popup_window.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
+#include "ui_progress_arc_component.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -70,6 +71,7 @@ typedef struct {
     popup_window_mask_info_t mask;
     popup_window_arc_info_t arc;
     popup_window_countdown_info_t countdown;
+    ui_progress_arc_info_t progress_arc;
     popup_window_runtime_info_t runtime;
 } popup_window_disp_info_t;
 
@@ -97,6 +99,7 @@ void popup_window_components_hide_all(void);
 void popup_window_text_update(ui_manager_context_t *thiz, const popup_window_text_info_t *text_info);
 void popup_window_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint16_t y_offset);
 void popup_window_mask_layer_update(ui_manager_context_t *thiz);
+void popup_window_mask_layer_opaque_update(ui_manager_context_t *thiz);
 void popup_window_arc_update(ui_manager_context_t *thiz);
 void popup_window_num_update(ui_manager_context_t *thiz, int16_t x_offset, int16_t y_offset);
 void popup_window_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type,
@@ -105,6 +108,8 @@ void popup_window_static_tip_ui_update(ui_manager_context_t *thiz,
     const popup_window_text_info_t *text_info, uint16_t img_id, uint16_t icon_y);
 void popup_window_arc_countdown_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type,
     const popup_window_text_info_t *text_info, int16_t x_offset, int16_t y_offset);
+void popup_window_progress_arc_countdown_ui_update(ui_manager_context_t *thiz,
+    popup_ui_id_e popup_type, const popup_window_text_info_t *text_info, uint32_t done_color);
 void popup_window_display_complete(ui_manager_context_t *thiz, uint16_t popup_type);
 
 const char *popup_window_name_get(ui_manager_context_t *thiz, uint16_t popup_type);
@@ -114,6 +119,7 @@ void popup_window_device_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
 void popup_window_power_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void popup_window_pump_stop_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void popup_window_error_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+void popup_window_travel_lock_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 
 #ifdef __cplusplus
 }

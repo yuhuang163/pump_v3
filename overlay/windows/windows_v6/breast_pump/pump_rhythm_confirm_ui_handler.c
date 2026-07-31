@@ -67,6 +67,7 @@ void show_pump_rhythm_confirm_ui(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
         return;
     }
+    pump_ui_nav_push(proc);
     pump_ui_change_hdr_remove(proc);
 
     ui_play_info_t play_info = {

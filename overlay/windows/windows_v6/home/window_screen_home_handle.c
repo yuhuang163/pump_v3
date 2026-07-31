@@ -66,6 +66,11 @@ static void start_pump_handler(ui_proc_home_t *proc)
 
 static void home_start_key_event_handler(ui_proc_home_t *proc)
 {
+    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
+        proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
+        LOG_WM("current ui type is %d, ignore start key.", proc->current_ui_type);
+        return;
+    }
     start_pump_handler(proc);
 }
 
@@ -131,6 +136,8 @@ static void home_mode_key_event_cb(ui_proc_home_t *proc, uint8_t mode_index)
     if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
         proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
         start_home_ui_animation(proc);
+    } else {
+        proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
     }
     home_mode_set_handler(proc, mode_index);
 }
@@ -219,14 +226,10 @@ static void home_click_event_cb(ui_proc_home_t *proc, uint16_t keycode)
             home_knob_right_event_cb(proc);
             break;
         case KEY_CODE_RIGHT_CONTROL:
-            if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
-                show_home_level_adjust_ui(proc, false);
-            }
+            show_home_level_adjust_ui(proc, false);            
             break;
         case KEY_CODE_LEFT_CONTROL:
-            if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
-                show_home_level_adjust_ui(proc, true);
-            }
+            show_home_level_adjust_ui(proc, true);
             break;
         case KEY_CODE_BOTH_CONTROL:
             show_home_both_level_adjust_ui(proc);
@@ -262,15 +265,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
-    /* 泵奶完成页 / 设置成功页仅限制 start，其它按键正常响应 */
-    if ((proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
-         proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) &&
-        keycode == KEY_CODE_START) {
-        LOG_WM("result/success ui, ignore start key.");
-        return 0;
-    }
-
-    /* 关机确认页期间忽略其它 click，避免误触 */
+    /// 关机确认页期间忽略其它 click，避免误触
     if (proc->current_ui_type == HOME_UI_TYPE_POWER_OFF_HOLD) {
         return 0;
     }
@@ -375,6 +370,24 @@ static int entry_event_cb(window_lift_cycle_e new_state,
 
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
             show_home_pump_result_ui(proc);
+            return 0;
+        }
+        if (proc->extra.arg1 == HOME_SUB_UI_TYPE_LEVEL_ADJUST) {
+            show_home_level_adjust_ui(proc, proc->extra.arg2 == HOME_LEVEL_ADJUST_SIDE_LEFT);
+            return 0;
+        }
+        if (proc->extra.arg1 == HOME_SUB_UI_TYPE_BOTH_LEVEL_ADJUST) {
+            show_home_both_level_adjust_ui(proc);
+            return 0;
+        }
+        if (proc->extra.arg1 == HOME_SUB_UI_TYPE_SPEED_ADJUST) {
+            show_home_speed_adjust_ui(proc);
+            return 0;
+        }
+        if (proc->extra.arg1 == HOME_SUB_UI_TYPE_MODE_SET) {
+            proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
+            start_home_ui_animation(proc);
+            home_mode_set_handler(proc, (uint8_t)proc->extra.arg2);
             return 0;
         }
         proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;

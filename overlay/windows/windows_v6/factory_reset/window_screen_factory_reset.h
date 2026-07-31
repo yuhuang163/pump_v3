@@ -24,8 +24,11 @@ extern "C" {
 /// 工厂重置动画展示时间
 #define FACTORY_RESET_ANIMATION_DISPLAY_TIME         (2000) /// 2s
 
-/// 工厂重置确认页 UI 闪烁周期（return 键灯常亮，不闪烁）
+/// 工厂重置确认页 UI 闪烁周期
 #define FACTORY_RESET_BLINK_PERIOD                   (500)
+
+/// 工厂重置确认页空闲超时，超时走原退出路由
+#define FACTORY_RESET_CONFIRM_TIMEOUT_MS             (5000)
 
 /// 系统UI类型枚举
 typedef enum {
@@ -72,6 +75,7 @@ void factory_reset_ui_hdr_remove(void);
 void show_factory_reset_confirm_ui(ui_proc_factory_reset_t *proc);
 void factory_reset_confirm_ui_hdr_remove(void);
 void factory_reset_confirm_led_restore(ui_proc_factory_reset_t *proc);
+void factory_reset_request_exit(ui_proc_factory_reset_t *proc);
 void stop_factory_reset_ui_animation(ui_proc_factory_reset_t *proc);
 #ifdef __cplusplus
 }

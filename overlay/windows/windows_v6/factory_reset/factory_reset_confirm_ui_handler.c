@@ -37,6 +37,38 @@ static void factory_reset_confirm_ui_blink_update(ui_proc_factory_reset_t *proc)
     proc->state_blink_visible = blink_visible;
 }
 
+static void factory_reset_confirm_idle_exit_cb(hdr_post_args_t *args)
+{
+    ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore confirm idle exit.");
+        return;
+    }
+    if (proc->current_ui_type != FACTORY_RESET_UI_TYPE_FACTORY_RESET_CONFIRM) {
+        return;
+    }
+    if (proc->popup_ui_type == ID_POPUP_UI_FACTORY_RESET_CONFIRM) {
+        LOG_WM("holding confirm, ignore idle exit.");
+        return;
+    }
+    LOG_WM("factory reset confirm timeout, request exit.");
+    factory_reset_request_exit(proc);
+}
+
+static void factory_reset_confirm_idle_timeout_check(ui_proc_factory_reset_t *proc)
+{
+    if (proc->popup_ui_type == ID_POPUP_UI_FACTORY_RESET_CONFIRM) {
+        return;
+    }
+    if (get_timestamp_ms(proc->last_progress_ani_time) < FACTORY_RESET_CONFIRM_TIMEOUT_MS) {
+        return;
+    }
+    proc->last_progress_ani_time = get_timestamp();
+    POST_WM_TASK_HANDLER_NO_DELAY(factory_reset_confirm_idle_exit_cb, proc,
+        FACTORY_RESET_CONFIRM_TASK_NAME);
+}
+
 static void factory_reset_confirm_ui_finish_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)ui->priv.play_info.user_data;
@@ -58,6 +90,7 @@ static void factory_reset_confirm_ui_after_policy(ui_manager_context_t *ui, int 
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     factory_reset_confirm_ui_blink_update(proc);
     ui_display_factory_reset_confirm_process(ui, proc->state_blink_visible != 0);
+    factory_reset_confirm_idle_timeout_check(proc);
 }
 
 static void factory_reset_confirm_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -112,7 +145,7 @@ void show_factory_reset_confirm_ui(ui_proc_factory_reset_t *proc)
     }
     proc->blink_start_time = get_timestamp();
     proc->state_blink_visible = 1;
-    /// 确认页 return 键灯常亮，仅 UI 文案闪烁
+    /// 确认页所有按键灯常亮
     factory_reset_confirm_led_restore(proc);
     ui_play_info_t play_info = {
         .tag = "factory_reset_confirm_screen",
@@ -129,7 +162,13 @@ void show_factory_reset_confirm_ui(ui_proc_factory_reset_t *proc)
 void factory_reset_confirm_led_restore(ui_proc_factory_reset_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->led);
-    proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
+    if (proc->led->hook && proc->led->hook->set_key_backlight) {
+        proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+    } else {
+        for (uint8_t i = 0; i < PUMP_LED_INDEX_MAX; i++) {
+            proc->led->set_led_level(i, LED_LEVEL_MAX);
+        }
+    }
 }
 
 void factory_reset_confirm_ui_hdr_remove(void)

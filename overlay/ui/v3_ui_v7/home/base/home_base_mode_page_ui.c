@@ -630,6 +630,8 @@ void home_mode_page_ui_build(home_base_ui_info_t *info, uint8_t page_index)
     if (ctx->circle_bg != NULL && lv_obj_is_valid(ctx->circle_bg)) {
         lv_obj_move_background(ctx->circle_bg);
     }
+    /* 直达显示：稳态全尺寸；过渡入场时随后由 lerp 覆盖为缩小态 */
+    home_mode_page_transition_apply(page, HOME_MODE_PAGE_SCALE_FULL, false);
 }
 
 void home_mode_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)

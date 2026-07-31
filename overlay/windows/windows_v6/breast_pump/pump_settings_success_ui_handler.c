@@ -23,7 +23,7 @@ static void pump_settings_success_display_completed_cb(hdr_post_args_t *args)
         LOG_UI("settings success ui, ignore display completed.");
         return;
     }
-    show_pump_home_ui(proc);
+    pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
 }
 
 static void pump_settings_success_ui_after_policy(ui_manager_context_t *ui, int index)

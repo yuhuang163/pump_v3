@@ -25,7 +25,7 @@ static void pump_will_finish_display_completed_cb(hdr_post_args_t *args)
         return;
     }
     LOG_WM("pump will finish tip timeout, back to pump home without mode switch.");
-    show_pump_home_ui(proc);
+    pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
 }
 
 static void pump_will_finish_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -118,5 +118,5 @@ void pump_will_finish_ui_dismiss(ui_proc_pump_t *proc)
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_WILL_FINISH_DISPLAY_TASK_NAME);
     /// 短按 power：切换到吸吮模式继续运行，再回泵奶首页
     pump_mode_set_handler(proc, BREAST_PUMP_LACTATION_MODE);
-    show_pump_home_ui(proc);
+    pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
 }

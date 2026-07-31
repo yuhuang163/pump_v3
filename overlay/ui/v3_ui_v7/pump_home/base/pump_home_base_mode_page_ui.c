@@ -767,6 +767,8 @@ void pump_home_mode_page_ui_build(pump_home_base_ui_info_t *info, uint8_t page_i
     if (ctx->circle_bg != NULL && lv_obj_is_valid(ctx->circle_bg)) {
         lv_obj_move_background(ctx->circle_bg);
     }
+    /* 直达显示：稳态全尺寸；过渡入场时随后由 lerp 覆盖为缩小态 */
+    pump_home_mode_page_transition_apply(page, PUMP_MODE_PAGE_SCALE_FULL, false);
 }
 
 void pump_home_mode_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc)

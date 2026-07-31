@@ -37,6 +37,9 @@ void start_popup_ui_animation(ui_proc_popup_t *proc)
         case ID_POPUP_UI_COUNT_DOWN:
             start_count_down_ui_animation(proc);
             break;
+        case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
+            start_travel_lock_countdown_ui_animation(proc);
+            break;
         case ID_POPUP_UI_LOW_POWER:
             start_low_power_ui_animation(proc);
             break;
