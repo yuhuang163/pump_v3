@@ -21,7 +21,6 @@
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME "pump_settings_success_display"
 #define PUMP_BREAK_TIP_DISPLAY_TASK_NAME        "pump_break_tip_display"
 #define PUMP_STOP_HOLD_COMPLETE_TASK_NAME   "pump_stop_hold_complete"
-#define PUMP_BREAK_END_COMPLETE_TASK_NAME       "pump_break_end_complete"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -31,7 +30,6 @@ do { \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_BREAK_TIP_DISPLAY_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_STOP_HOLD_COMPLETE_TASK_NAME); \
-    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_BREAK_END_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -101,7 +99,11 @@ static void pump_knob_left_event_cb(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
         proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
         proc->current_ui_type == PUMP_UI_TYPE_BREAK_TIP) {
-        show_pump_home_ui(proc);
+        if (proc->current_ui_type == PUMP_UI_TYPE_BREAK_TIP) {
+            pump_break_tip_ui_dismiss(proc);
+        } else {
+            show_pump_home_ui(proc);
+        }
         return;
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_LEVEL_ADJUST) {
@@ -130,7 +132,11 @@ static void pump_knob_right_event_cb(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
         proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
         proc->current_ui_type == PUMP_UI_TYPE_BREAK_TIP) {
-        show_pump_home_ui(proc);
+        if (proc->current_ui_type == PUMP_UI_TYPE_BREAK_TIP) {
+            pump_break_tip_ui_dismiss(proc);
+        } else {
+            show_pump_home_ui(proc);
+        }
         return;
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_LEVEL_ADJUST) {
@@ -152,9 +158,8 @@ static void pump_knob_right_event_cb(ui_proc_pump_t *proc)
 
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
-    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
-        proc->current_ui_type == PUMP_UI_TYPE_BREAK_END) {
-        LOG_WM("pump finish/break-end ui, ignore key event.");
+    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
+        LOG_WM("pump finish ui, ignore key event.");
         return;
     }
 
@@ -244,9 +249,8 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
-    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
-        proc->current_ui_type == PUMP_UI_TYPE_BREAK_END) {
-        LOG_WM("pump finish/break-end ui, ignore key event. type:%d code:%d", keytype, keycode);
+    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
+        LOG_WM("pump finish ui, ignore key event. type:%d code:%d", keytype, keycode);
         return 0;
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
@@ -257,6 +261,7 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         }
         return 0;
     }
+
     if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
         pump_stop_hold_key_long_2s_handler(proc);
     } else if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
@@ -264,6 +269,7 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     } else if (keytype == KEY_EVENT_CLICK) {
         pump_click_event_cb(proc, keycode);
     }
+    
     return 0;
 }
 
@@ -288,12 +294,7 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
         case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE: {
             int state = bcd_args->arg1;
             if (state == BREAST_PUMP_BROADCAST_COMPLETED) {
-                if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
-                    proc->current_ui_type != PUMP_UI_TYPE_BREAK_END &&
-                    proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
-                    proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
-                    proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
-                    proc->pump_will_finish && PUMP_NO_FINISH(pump_status)) {
+                if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT) {
                     multi_func_msg_data_t msg = {0};
                     msg.union_body.extra.window_id = ID_WINDOW_HOME;
                     msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
@@ -301,12 +302,7 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
                     LOG_WM("pump finish, goto home window.");
                 }
             } else if (state == BREAST_PUMP_BROADCAST_TIMEOUT) {
-                if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
-                    proc->current_ui_type != PUMP_UI_TYPE_BREAK_END &&
-                    proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
-                    proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
-                    proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
-                    proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+                if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT) {
                     show_pump_finish_timeout_ui(proc);
                     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
                         proc->led->hook->set_key_backlight(proc->led, 0);
@@ -328,9 +324,7 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
             } else if (state == BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH_TIP) {
                 if (PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
                     show_pump_will_finish_ui(proc);
-                    LOG_WM("pump will finish tip, show will finish ui. mode:%d", pump_mode);
-                } else {
-                    LOG_WM("pump will finish tip, not in rhythm mode, ignore. mode:%d", pump_mode);
+                    LOG_WM("pump will finish tip, mode:%d", pump_mode);
                 }
             }
             break;
@@ -386,7 +380,6 @@ static void on_pump_window_battery_state_change_cb(void *user_data, battery_stat
     if (info->charge_status == CHARGE_STATE_ERROR) {
         LOG_WM("charge status error");
         if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
-            proc->current_ui_type != PUMP_UI_TYPE_BREAK_END &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
@@ -411,7 +404,6 @@ static void on_pump_window_battery_state_change_cb(void *user_data, battery_stat
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
         info->battery_state == BATTERY_STATE_FORBID_START) {
         if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
-            proc->current_ui_type != PUMP_UI_TYPE_BREAK_END &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
@@ -532,7 +524,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
 
 void pump_complete_event_handler(ui_proc_pump_t *proc)
 {
-    proc->pump_will_finish = false;
     POST_WM_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_COMPLETE,
         PUMP_COMPLETE_TASK_NAME);
 }

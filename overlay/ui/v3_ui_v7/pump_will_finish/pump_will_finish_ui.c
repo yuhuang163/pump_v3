@@ -17,8 +17,9 @@
 #define PUMP_WILL_FINISH_TITLE1_Y                     (198)
 #define PUMP_WILL_FINISH_TITLE_GAP                    (10)
 #define PUMP_WILL_FINISH_TITLE_COLOR                  (0xFFFFFF)
-#define PUMP_WILL_FINISH_TITLE1_TEXT                  "Continue pumping?"
-#define PUMP_WILL_FINISH_TITLE2_TEXT                  "Ending automatically"
+#define PUMP_WILL_FINISH_TITLE2_COLOR                 (0x999999)
+#define PUMP_WILL_FINISH_TITLE1_TEXT                  "Program ending soon"
+#define PUMP_WILL_FINISH_TITLE2_TEXT                  "Continue pumping?"
 
 /** 底部提示图：与 home_speed_adjust 一致 */
 #define PUMP_WILL_FINISH_TIP_W                        (212)
@@ -111,7 +112,7 @@ static void pump_will_finish_title_update(void)
     }
     lv_label_set_text(will_finish_info->title2, PUMP_WILL_FINISH_TITLE2_TEXT);
     lv_obj_set_style_text_color(will_finish_info->title2,
-        lv_color_hex(PUMP_WILL_FINISH_TITLE_COLOR), 0);
+        lv_color_hex(PUMP_WILL_FINISH_TITLE2_COLOR), 0);
     lv_obj_set_style_text_font(will_finish_info->title2, &lv_font_aeonik_soft_26_medium, 0);
     lv_obj_set_style_text_align(will_finish_info->title2, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align_to(will_finish_info->title2, will_finish_info->title1,

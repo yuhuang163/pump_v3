@@ -37,6 +37,7 @@ typedef enum {
     BASE_RES_ID_ADD_ICON, /// 加号图标
     BASE_RES_ID_STIMULATION_KEY_ICON, /// 刺激按键图标
     BASE_RES_ID_EXPRESSION_KEY_ICON, /// 吸吮按键图标
+    BASE_RES_ID_RELAX_TIP_ICON, /// 放松提醒图标
 
     /* 主界面组 [150..200] */
     BASE_RES_ID_START_LOGO_ICON = 150, /// 启动LOGO图标

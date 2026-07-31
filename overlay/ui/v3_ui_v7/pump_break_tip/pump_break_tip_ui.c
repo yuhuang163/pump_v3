@@ -5,36 +5,33 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
-#include "ui_snapshot.h" // IWYU pragma: keep
-#include "ui_shine_component.h" // IWYU pragma: keep
 #include "pump_break_tip_ui.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_BREAK_TIP_ICON_Y                             (93)
-#define PUMP_BREAK_TIP_TITLE_Y                            (202)
+#define PUMP_BREAK_TIP_ICON_Y                             (113)
+#define PUMP_BREAK_TIP_TITLE_Y                            (182)
 #define PUMP_BREAK_TIP_TITLE_COLOR                        (0xFFFFFF)
 #define PUMP_BREAK_TIP_TITLE_LINE_SPACE                   (4)
 #define PUMP_BREAK_TIP_TITLE_TEXT                         "Pumping over 30 min.\nTake a short break."
 
-#define PUMP_BREAK_TIP_W                              (220)
-#define PUMP_BREAK_TIP_H                              (63)
-/** 底部提示图 Y：贴底留边（与 home 模式选择页一致） */
-#define PUMP_BREAK_TIP_Y                              (PANLE_DISPLAY_H - PUMP_BREAK_TIP_H - 8)
-
-#define PUMP_BREAK_TIP_BASE_OPA                       (LV_OPA_70)
+#define PUMP_BREAK_TIP_COUNTDOWN_Y                        (324)
+#define PUMP_BREAK_TIP_COUNTDOWN_COLOR                    (0x999999)
+#define PUMP_BREAK_TIP_COUNTDOWN_MAX                      (3)
+#define PUMP_BREAK_TIP_DURATION_MS                        (3000)
 
 typedef struct {
     lv_obj_t *root;
     lv_obj_t *icon;
     lv_obj_t *title;
-    lv_obj_t *tip_img;
-    ui_shine_info_t tip_shine;
-    lv_draw_buf_t *tip_buf;
+    lv_obj_t *countdown;
+    lv_draw_buf_t *icon_buf;
+    uint32_t start_time;
+    uint8_t shown_remain_sec;
     uint8_t force_update;
-    uint8_t rsv[7];
+    uint8_t rsv[6];
 } pump_break_tip_ui_info_t;
 
 /*
@@ -72,8 +69,16 @@ static void pump_break_tip_icon_update(ui_manager_context_t *thiz)
         break_tip_info->icon = lv_image_create(break_tip_info->root);
         EXCEPTION_CHECK_VOID(break_tip_info->icon);
     }
-    ui_img_baj_theme_set_src(thiz, break_tip_info->icon, BASE_RES_ID_TIMEOUT_ICON,
-        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    if (break_tip_info->icon_buf == NULL) {
+        break_tip_info->icon_buf = ui_img_baj_theme_decode_draw_buf(thiz,
+            BASE_RES_ID_RELAX_TIP_ICON, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+    if (break_tip_info->icon_buf != NULL) {
+        lv_image_set_src(break_tip_info->icon, break_tip_info->icon_buf);
+    } else {
+        ui_img_baj_theme_set_src(thiz, break_tip_info->icon, BASE_RES_ID_RELAX_TIP_ICON,
+            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
     lv_obj_align(break_tip_info->icon, LV_ALIGN_TOP_MID, 0, PUMP_BREAK_TIP_ICON_Y);
 }
 
@@ -95,67 +100,52 @@ static void pump_break_tip_title_update(void)
     lv_obj_align(break_tip_info->title, LV_ALIGN_TOP_MID, 0, PUMP_BREAK_TIP_TITLE_Y);
 }
 
-static lv_draw_buf_t *pump_break_tip_predecode(void)
+static uint8_t pump_break_tip_remain_sec_get(uint32_t elapsed_ms)
 {
-    const ui_img_data_t *tip;
+    uint8_t remain;
 
-    if (break_tip_info->tip_buf != NULL) {
-        return break_tip_info->tip_buf;
+    if (elapsed_ms >= PUMP_BREAK_TIP_DURATION_MS) {
+        return 1;
     }
-    tip = ui_font_img_pump_break_tip_get();
-    if (tip == NULL || tip->data == NULL || tip->size == 0U) {
-        return NULL;
+    remain = (uint8_t)(PUMP_BREAK_TIP_COUNTDOWN_MAX -
+        ((elapsed_ms * PUMP_BREAK_TIP_COUNTDOWN_MAX) / PUMP_BREAK_TIP_DURATION_MS));
+    if (remain < 1) {
+        remain = 1;
     }
-    break_tip_info->tip_buf = ui_img_png_decode_draw_buf(tip->data, tip->size,
-        UI_IMG_PNG_DECODE_RGBA8888);
-    return break_tip_info->tip_buf;
+    if (remain > PUMP_BREAK_TIP_COUNTDOWN_MAX) {
+        remain = PUMP_BREAK_TIP_COUNTDOWN_MAX;
+    }
+    return remain;
 }
 
-static void pump_break_tip_rebuild(void)
+static void pump_break_tip_countdown_update(void)
 {
-    lv_draw_buf_t *predecoded;
-    ui_shine_style_t style;
+    char num_buf[8] = {0};
+    uint32_t elapsed;
+    uint8_t remain_sec;
 
-    if (break_tip_info->tip_img != NULL && lv_obj_is_valid(break_tip_info->tip_img) &&
-        break_tip_info->tip_shine.mask != NULL && lv_obj_is_valid(break_tip_info->tip_shine.mask) &&
-        break_tip_info->tip_shine.shine != NULL && lv_obj_is_valid(break_tip_info->tip_shine.shine)) {
-        return; /* anim handles sync */
+    if (break_tip_info->countdown == NULL || !lv_obj_is_valid(break_tip_info->countdown)) {
+        break_tip_info->countdown = lv_label_create(break_tip_info->root);
+        EXCEPTION_CHECK_VOID(break_tip_info->countdown);
+        break_tip_info->shown_remain_sec = 0xFF;
     }
 
-    predecoded = pump_break_tip_predecode();
+    elapsed = get_timestamp_ms(break_tip_info->start_time);
+    remain_sec = pump_break_tip_remain_sec_get(elapsed);
 
-    if (break_tip_info->tip_img == NULL || !lv_obj_is_valid(break_tip_info->tip_img)) {
-        break_tip_info->tip_img = lv_image_create(break_tip_info->root);
-        EXCEPTION_CHECK_VOID(break_tip_info->tip_img);
-        lv_obj_clear_flag(break_tip_info->tip_img, LV_OBJ_FLAG_CLICKABLE);
-        if (predecoded != NULL) {
-            lv_image_set_src(break_tip_info->tip_img, predecoded);
-        }
-        lv_obj_set_style_image_opa(break_tip_info->tip_img, PUMP_BREAK_TIP_BASE_OPA, 0);
-        lv_obj_align(break_tip_info->tip_img, LV_ALIGN_TOP_MID, 0, PUMP_BREAK_TIP_Y);
+    if (break_tip_info->force_update == false &&
+        break_tip_info->shown_remain_sec == remain_sec) {
+        return;
     }
 
-    ui_shine_style_init(&style);
-    style.mask_y = PUMP_BREAK_TIP_Y;
-    style.screen_w = PANLE_DISPLAY_W;
-
-    ui_shine_prepare_from_tip(&break_tip_info->tip_shine, &style, predecoded);
-    ui_shine_update(&break_tip_info->tip_shine, break_tip_info->root, &style, break_tip_info->tip_img, 1);
-    lv_obj_move_foreground(break_tip_info->tip_img);
-    ui_shine_show(&break_tip_info->tip_shine);
-}
-
-static void pump_break_tip_update(void)
-{
-    ui_shine_style_t style;
-
-    if (break_tip_info->force_update) {
-        pump_break_tip_rebuild();
-    }
-    ui_shine_style_init(&style);
-    style.mask_y = PUMP_BREAK_TIP_Y;
-    style.screen_w = PANLE_DISPLAY_W;
-    ui_shine_anim_update(&break_tip_info->tip_shine, &style, break_tip_info->tip_img, 0);
+    snprintf(num_buf, sizeof(num_buf), "%u s", remain_sec);
+    lv_label_set_text(break_tip_info->countdown, num_buf);
+    lv_obj_set_style_text_color(break_tip_info->countdown,
+        lv_color_hex(PUMP_BREAK_TIP_COUNTDOWN_COLOR), 0);
+    lv_obj_set_style_text_font(break_tip_info->countdown, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_align(break_tip_info->countdown, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(break_tip_info->countdown, LV_ALIGN_TOP_MID, 0, PUMP_BREAK_TIP_COUNTDOWN_Y);
+    break_tip_info->shown_remain_sec = remain_sec;
 }
 
 /*
@@ -170,6 +160,8 @@ void ui_display_pump_break_tip_prepare(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(break_tip_info);
     }
     break_tip_info->force_update = true;
+    break_tip_info->shown_remain_sec = 0xFF;
+    break_tip_info->start_time = get_timestamp();
     pump_break_tip_root_init();
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
@@ -178,14 +170,14 @@ void ui_display_pump_break_tip_prepare(ui_manager_context_t *thiz)
 void ui_display_pump_break_tip_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && break_tip_info && break_tip_info->root);
-    ui_img_baj_release_decoded_buf(break_tip_info->icon);
-    ui_shine_remove(&break_tip_info->tip_shine);
-    if (break_tip_info->tip_img != NULL && lv_obj_is_valid(break_tip_info->tip_img)) {
-        lv_image_set_src(break_tip_info->tip_img, NULL);
-    }
-    if (break_tip_info->tip_buf != NULL) {
-        lv_draw_buf_destroy(break_tip_info->tip_buf);
-        break_tip_info->tip_buf = NULL;
+    if (break_tip_info->icon_buf != NULL) {
+        if (break_tip_info->icon != NULL && lv_obj_is_valid(break_tip_info->icon)) {
+            lv_image_set_src(break_tip_info->icon, NULL);
+        }
+        lv_draw_buf_destroy(break_tip_info->icon_buf);
+        break_tip_info->icon_buf = NULL;
+    } else {
+        ui_img_baj_release_decoded_buf(break_tip_info->icon);
     }
     LVGL_OBJ_DELETE(break_tip_info->root);
     u_free(break_tip_info);
@@ -197,7 +189,7 @@ int ui_display_pump_break_tip_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(thiz && break_tip_info && break_tip_info->root);
     pump_break_tip_icon_update(thiz);
     pump_break_tip_title_update();
-    pump_break_tip_update();
+    pump_break_tip_countdown_update();
     break_tip_info->force_update = false;
 
     thiz->priv.fps_count++;

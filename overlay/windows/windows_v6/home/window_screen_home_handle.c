@@ -40,11 +40,14 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void home_start_key_event_handler(ui_proc_home_t *proc)
+static void start_pump_handler(ui_proc_home_t *proc)
 {
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
-    EXCEPTION_CHECK_VOID(proc->battery);
-    uint8_t battery_state = proc->battery->get_battery_state();
+    uint8_t battery_state = BATTERY_STATE_NONE;
+
+    if (proc->battery) {
+        battery_state = proc->battery->get_battery_state();
+    }
+
     if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
         battery_state == BATTERY_STATE_EMPTY ||
         battery_state == BATTERY_STATE_FORBID_START) {
@@ -59,6 +62,11 @@ static void home_start_key_event_handler(ui_proc_home_t *proc)
         msg.union_body.extra.arg1 = KEY_CODE_START;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
     }
+}
+
+static void home_start_key_event_handler(ui_proc_home_t *proc)
+{
+    start_pump_handler(proc);
 }
 
 static void home_knob_left_event_cb(ui_proc_home_t *proc)
@@ -154,10 +162,12 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
         return;
     }
 
-    if (proc->current_ui_type == HOME_UI_TYPE_HOME &&
-        proc->ui_mode_page_index > HOME_MODE_PAGE_INDEX_NONE) {
-        if (home_mode_confirm_handler(proc) == 0) {
+    if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
+        if (proc->ui_mode_page_index > HOME_MODE_PAGE_INDEX_NONE) {
+            home_mode_confirm_handler(proc);
             show_home_settings_success_ui(proc);
+        } else {
+            start_pump_handler(proc);
         }
         return;
     }

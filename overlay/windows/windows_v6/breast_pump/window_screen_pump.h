@@ -43,7 +43,7 @@ extern "C" {
 /// 模式切换成功页展示时长
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TIMEOUT  (1500) /// 1.5s
 /// 泵奶满 30 分钟休息轻提醒页展示时长
-#define PUMP_BREAK_TIP_DISPLAY_TIMEOUT         (10000) /// 10s
+#define PUMP_BREAK_TIP_DISPLAY_TIMEOUT         (3000) /// 3s
 /// 泵奶背光灯周期
 #define PUMP_BLINK_PERIOD                      (500)
 
@@ -65,7 +65,6 @@ typedef enum {
     PUMP_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
     PUMP_UI_TYPE_SPEED_ADJUST, /// 速度调节
     PUMP_UI_TYPE_BREAK_TIP, /// 泵奶满 30 分钟休息轻提醒
-    PUMP_UI_TYPE_BREAK_END, /// 休息提醒后自动结束
     PUMP_UI_TYPE_FINISH_TIMEOUT, /// 泵奶超时结算
     PUMP_UI_TYPE_WILL_FINISH, /// 韵律即将结束提示
     PUMP_UI_TYPE_MAX
@@ -106,10 +105,10 @@ typedef struct {
     uint8_t window_run_state; /// WM是否运行.
     uint16_t current_ui_type; /// 当前UI类型
     uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
+    uint16_t break_tip_prev_ui_type; /// 进入 30 分钟提醒页前的 UI 类型
     uint32_t last_progress_ani_time; /// 上次进度动画时间
 
     /// 泵奶信息
-    uint8_t pump_will_finish; /// 泵奶即将完成标志.
     breast_pump_result_t pump_result; /// 泵奶结果.
     uint8_t pump_status; /// 泵奶状态.
 
@@ -204,19 +203,16 @@ int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
 void pump_speed_adjust_ui_exit(ui_proc_pump_t *proc);
 void pump_speed_adjust_ui_dismiss(ui_proc_pump_t *proc);
 
-/// 泵奶满 30 分钟休息轻提醒页
+/// 泵奶满 30 分钟休息轻提醒页（进入即暂停，3s 后回到进入前页面）
 void show_pump_break_tip_ui(ui_proc_pump_t *proc);
 void pump_break_tip_ui_exit(ui_proc_pump_t *proc);
-
-/// 休息提醒后自动结束页
-void show_pump_break_end_ui(ui_proc_pump_t *proc);
-void pump_break_end_ui_exit(ui_proc_pump_t *proc);
+void pump_break_tip_ui_dismiss(ui_proc_pump_t *proc);
 
 /// 泵奶超时结算页
 void show_pump_finish_timeout_ui(ui_proc_pump_t *proc);
 void pump_finish_timeout_ui_exit(ui_proc_pump_t *proc);
 
-/// 韵律即将结束提示页
+/// 韵律即将结束提示页（短按 power 切吸吮并回首页；5s 超时仅回首页不切模式；其它按键不响应）
 void show_pump_will_finish_ui(ui_proc_pump_t *proc);
 void pump_will_finish_ui_exit(ui_proc_pump_t *proc);
 void pump_will_finish_ui_dismiss(ui_proc_pump_t *proc);
