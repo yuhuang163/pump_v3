@@ -153,6 +153,8 @@ typedef struct {
 */
 void start_home_ui_animation(ui_proc_home_t *proc);
 void start_home_idle_ui_animation(ui_proc_home_t *proc);
+/// 待机页短按 power 退出，回首页（按键灯全亮）
+void home_idle_ui_dismiss(ui_proc_home_t *proc);
 void stop_home_common_ui(ui_proc_home_t *proc);
 /// 子页导航：进入子页前 push；退出时按策略 back
 void home_ui_nav_push(ui_proc_home_t *proc);

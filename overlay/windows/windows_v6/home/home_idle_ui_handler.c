@@ -60,10 +60,22 @@ static void home_idle_animation_progress_cb(void *user_data, int index, ui_ani_p
     }
 }
 
+static void home_idle_set_key_backlight(ui_proc_home_t *proc, uint8_t level)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+        proc->led->hook->set_key_backlight(proc->led, level);
+    }
+}
+
 static void home_idle_ui_display_prepare(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
+    ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    /// 待机页：所有按键灯熄灭（覆盖 PM idle 广播里的半亮）
+    home_idle_set_key_backlight(proc, 0);
     ui_display_home_screen_saver_prepare(ui);
 }
 
@@ -85,8 +97,10 @@ void start_home_idle_ui_animation(ui_proc_home_t *proc)
     proc->last_progress_ani_time = get_timestamp();
     home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
+        home_idle_set_key_backlight(proc, 0);
         return;
     }
+    home_idle_set_key_backlight(proc, 0);
     ui_play_info_t play_info = {
         .tag = "home_idle_screen",
         .fps = HOME_ANIMATION_FREQ,
@@ -97,4 +111,17 @@ void start_home_idle_ui_animation(ui_proc_home_t *proc)
     };
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = HOME_UI_TYPE_HOME_IDLE;
+}
+
+void home_idle_ui_dismiss(ui_proc_home_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->current_ui_type != HOME_UI_TYPE_HOME_IDLE) {
+        return;
+    }
+    LOG_WM("dismiss home idle, back home.");
+    proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
+    home_ui_nav_clear(proc);
+    /// start_home_ui_animation 内会将按键灯全亮
+    start_home_ui_animation(proc);
 }
