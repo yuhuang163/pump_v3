@@ -119,6 +119,7 @@ void show_home_both_level_adjust_ui(ui_proc_home_t *proc)
         return;
     }
 
+    home_ui_nav_push(proc);
     home_ui_change_hdr_remove(proc);
     ui_play_info_t play_info = {
         .tag = "home_both_level_adjust_screen",
@@ -228,7 +229,6 @@ void home_both_level_adjust_ui_dismiss(ui_proc_home_t *proc)
     if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
         return;
     }
-    LOG_WM("dismiss home both level adjust, back to home.");
-    proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
-    start_home_ui_animation(proc);
+    LOG_WM("dismiss home both level adjust, back home keep page.");
+    home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_KEEP_PAGE);
 }

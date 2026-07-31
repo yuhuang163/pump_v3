@@ -93,6 +93,7 @@ typedef struct {
     uint8_t page_index;
     uint8_t shown_page_index;
     uint8_t transitioning;
+    uint8_t enter_instant; /// 从非首页 UI 进入：首帧按 page_index 直达，不做过渡
     int8_t slide_dir;
     int16_t progress;
     uint32_t start_ms;

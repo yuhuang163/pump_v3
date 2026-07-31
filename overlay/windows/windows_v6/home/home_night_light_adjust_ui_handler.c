@@ -32,8 +32,7 @@ static void home_night_light_adjust_ui_display_completed_cb(hdr_post_args_t *arg
     if (proc->current_ui_type != HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         return;
     }
-    proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
-    start_home_ui_animation(proc);
+    home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_RESET_PAGE);
 }
 
 static void home_night_light_adjust_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
@@ -108,9 +107,9 @@ void show_home_night_light_adjust_ui(ui_proc_home_t *proc)
     home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
         return;
-    } else {
-        home_ui_change_hdr_remove(proc);
     }
+    home_ui_nav_push(proc);
+    home_ui_change_hdr_remove(proc);
     ui_play_info_t play_info = {
         .tag = "home_night_light_adjust_screen",
         .fps = HOME_ANIMATION_FREQ,

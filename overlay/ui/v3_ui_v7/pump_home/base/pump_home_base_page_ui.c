@@ -186,6 +186,8 @@ static void pump_home_page_switch_instant(pump_home_base_ui_info_t *info, uint8_
     info->page.page = pump_home_page_container_create(info);
     EXCEPTION_CHECK_VOID(info->page.page);
     pump_home_page_content_build(info, page_index);
+    pump_home_page_hero_transition_apply(info, page_index, info->page.page,
+        PUMP_HOME_PAGE_SCALE_FULL, PUMP_HOME_PAGE_SCALE_FULL, false);
 }
 
 static void pump_home_page_transition_lerp(pump_home_base_ui_info_t *info)
@@ -387,12 +389,26 @@ static uint8_t pump_home_page_neighbor_get(pump_home_base_ui_info_t *info, uint8
 */
 void pump_home_page_ui_prepare(pump_home_base_ui_info_t *info)
 {
+    uint8_t target_index = PUMP_HOME_PAGE_MAIN;
+
     EXCEPTION_CHECK_VOID(info);
     memset(&info->page, 0, sizeof(info->page));
     info->page.shown_page_index = PUMP_HOME_PAGE_INDEX_INVALID;
     info->page.page_index = PUMP_HOME_PAGE_MAIN;
+    /* 从非首页 UI 重建：首帧按 ui_mode_page_index 直达，不做 MAIN→目标 过渡 */
+    info->page.enter_instant = 1;
     pump_home_mode_chrome_prepare(info);
-    pump_home_page_switch_instant(info, PUMP_HOME_PAGE_MAIN);
+
+    if (info->ui != NULL) {
+        ui_proc_pump_t *proc = (ui_proc_pump_t *)info->ui->priv.play_info.user_data;
+        if (proc != NULL) {
+            target_index = (uint8_t)proc->ui_mode_page_index;
+            if (target_index >= PUMP_HOME_PAGE_MAX) {
+                target_index = PUMP_HOME_PAGE_MAIN;
+            }
+        }
+    }
+    pump_home_page_switch_instant(info, target_index);
 }
 
 void pump_home_page_ui_remove(pump_home_base_ui_info_t *info)
@@ -427,10 +443,16 @@ void pump_home_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *pr
         target_index = PUMP_MODE_PAGE_INDEX_POWER_PUMPING_SELECT;
     }
 
-    if (info->page.shown_page_index == PUMP_HOME_PAGE_INDEX_INVALID) {
-        pump_home_page_switch_instant(info, target_index);
+    if (info->page.shown_page_index == PUMP_HOME_PAGE_INDEX_INVALID ||
+        info->page.enter_instant) {
+        /* 进入首页 UI：直接落到 page_index，无过渡动效 */
+        if (info->page.shown_page_index != target_index) {
+            pump_home_page_switch_instant(info, target_index);
+        }
+        info->page.enter_instant = 0;
     } else if (!info->page.transitioning &&
                info->page.shown_page_index != target_index) {
+        /* 已在首页 UI：仅切 page index，走过渡动效 */
         pump_home_page_ui_goto(info, target_index, proc);
     }
 

@@ -20,7 +20,7 @@
 #define FACTORY_RESET_CONFIRM_TITLE_COLOR             (0xFFFFFF)
 #define FACTORY_RESET_CONFIRM_HINT_COLOR              (0x999999)
 #define FACTORY_RESET_CONFIRM_TITLE_TEXT              "Reset settings"
-#define FACTORY_RESET_CONFIRM_HINT_TEXT               "Press and hold knob\nfor 3s,"
+#define FACTORY_RESET_CONFIRM_HINT_TEXT               "Press and hold knob\nfor 3s"
 
 /** 长按倒计时（文案为 3s/2s/1s） */
 #define FACTORY_RESET_CONFIRM_DURATION_MS             (2000)

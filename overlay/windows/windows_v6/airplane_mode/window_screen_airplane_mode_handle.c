@@ -13,10 +13,12 @@
 #define PAGE_NAME_STR                           "airplane_mode"
 #define AIRPLANE_MODE_UI_KEY_CODE               (KEY_CODE_TRAVEL_LOCK)
 #define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_DOWN | KEY_EVENT_UP)
+#define AIRPLANE_MODE_POWER_OFF_TASK_NAME       "airplane_mode_power_off"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
+    REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_MODE_POWER_OFF_TASK_NAME); \
 } while (0)
 
 /*
@@ -34,6 +36,22 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void airplane_mode_power_off_cb(hdr_post_args_t *args)
+{
+    ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore power off.");
+        return;
+    }
+    LOG_WM("airplane mode timeout, goto power off.");
+    /// 插入关机数据埋点 0:手动关机 1:低电量关机 2:自动休眠关机
+    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_AUTO_SLEEP, 0);
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
+}
+
 static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_airplane_mode_t *proc = user_data;
@@ -90,6 +108,8 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         airplane_mode_led_policy(proc, 1);
         airplane_mode_pump_policy(proc);
         start_airplane_mode_ui(proc);
+        POST_WM_TASK_HANDLER_DELAYED_ARG1(airplane_mode_power_off_cb, AIRPLANE_MODE_TIMEOUT_TIME,
+            proc, AIRPLANE_MODE_POWER_OFF_TASK_NAME);
     }
     
     return 0;

@@ -31,6 +31,10 @@ typedef enum {
     HOME_SUB_UI_TYPE_PUMP_MODE_UNSELECT = 2,
     HOME_SUB_UI_TYPE_PUMP_MODE_ADJUST = 3,
     HOME_SUB_UI_TYPE_PUMP_RHYTHM_ADJUST = 4,
+    HOME_SUB_UI_TYPE_LEVEL_ADJUST = 5,       /// 单边力度调节，arg2: 0左/1右
+    HOME_SUB_UI_TYPE_BOTH_LEVEL_ADJUST = 6,  /// 双边力度调节
+    HOME_SUB_UI_TYPE_SPEED_ADJUST = 7,       /// 速度调节
+    HOME_SUB_UI_TYPE_MODE_SET = 8,           /// 模式设置，arg2: pump mode index
     HOME_SUB_UI_TYPE_MAX
 } home_sub_ui_type_e;
 

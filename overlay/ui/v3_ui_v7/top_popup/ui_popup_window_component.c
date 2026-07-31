@@ -78,6 +78,17 @@ static void popup_window_mask_hide(void)
     }
 }
 
+static void popup_window_progress_arc_hide(void)
+{
+    popup_window_disp_info_t *info = popup_window_info_get();
+
+    if (info == NULL) {
+        return;
+    }
+    ui_progress_arc_hide(&info->progress_arc);
+    ui_progress_arc_countdown_hide(&info->progress_arc);
+}
+
 void popup_window_root_init(ui_manager_context_t *thiz)
 {
     popup_window_disp_info_t *info = popup_window_info_get();
@@ -103,6 +114,7 @@ void popup_window_components_hide_all(void)
     popup_window_mask_hide();
     popup_window_arc_hide();
     popup_window_number_hide();
+    popup_window_progress_arc_hide();
     popup_window_icon_hide();
     for (uint8_t i = 0; i < POPUP_WINDOW_TEXT_COUNT; i++) {
         popup_window_text_hide(i);
@@ -160,7 +172,7 @@ void popup_window_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint1
     lv_obj_clear_flag(info->icon.obj, LV_OBJ_FLAG_HIDDEN);
 }
 
-void popup_window_mask_layer_update(ui_manager_context_t *thiz)
+static void popup_window_mask_layer_style_update(ui_manager_context_t *thiz, lv_opa_t opa)
 {
     popup_window_disp_info_t *info = popup_window_info_get();
 
@@ -177,11 +189,21 @@ void popup_window_mask_layer_update(ui_manager_context_t *thiz)
     lv_obj_set_size(info->mask.layer, LV_PCT(100), LV_PCT(100));
     lv_obj_center(info->mask.layer);
     lv_obj_set_style_bg_color(info->mask.layer, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(info->mask.layer, 190, 0);
+    lv_obj_set_style_bg_opa(info->mask.layer, opa, 0);
     lv_obj_set_style_border_width(info->mask.layer, 0, 0);
     lv_obj_set_style_pad_all(info->mask.layer, 0, 0);
     lv_obj_clear_flag(info->mask.layer, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(info->mask.layer, LV_OBJ_FLAG_HIDDEN);
+}
+
+void popup_window_mask_layer_update(ui_manager_context_t *thiz)
+{
+    popup_window_mask_layer_style_update(thiz, 190);
+}
+
+void popup_window_mask_layer_opaque_update(ui_manager_context_t *thiz)
+{
+    popup_window_mask_layer_style_update(thiz, LV_OPA_COVER);
 }
 
 void popup_window_arc_update(ui_manager_context_t *thiz)
@@ -292,6 +314,32 @@ void popup_window_arc_countdown_ui_update(ui_manager_context_t *thiz, popup_ui_i
     popup_window_display_complete(thiz, popup_type);
 }
 
+void popup_window_progress_arc_countdown_ui_update(ui_manager_context_t *thiz,
+    popup_ui_id_e popup_type, const popup_window_text_info_t *text_info, uint32_t done_color)
+{
+    popup_window_disp_info_t *info = popup_window_info_get();
+    ui_progress_arc_style_t style;
+    uint8_t countdown_max;
+
+    EXCEPTION_CHECK_VOID(info);
+    popup_window_mask_layer_opaque_update(thiz);
+    if (text_info != NULL) {
+        popup_window_text_update(thiz, text_info);
+    }
+
+    ui_progress_arc_style_init(&style, done_color);
+    style.show_countdown = true;
+    countdown_max = (info->runtime.target_time > 0) ?
+        (uint8_t)(info->runtime.target_time / 1000) : 1;
+    if (countdown_max < 1) {
+        countdown_max = 1;
+    }
+    ui_progress_arc_time_update(&info->progress_arc, info->root.obj, &style,
+        info->runtime.start_time, info->runtime.target_time,
+        countdown_max, info->runtime.force_update);
+    popup_window_display_complete(thiz, popup_type);
+}
+
 void popup_window_display_complete(ui_manager_context_t *thiz, uint16_t popup_type)
 {
     popup_window_disp_info_t *info = popup_window_info_get();
@@ -318,6 +366,7 @@ const static popup_window_name_info_t popup_window_name_infos[] = {
     { ID_POPUP_UI_DEVICE_BIND, "device bind" },
     { ID_POPUP_UI_DEVICE_UNBIND, "device unbind" },
     { ID_POPUP_UI_COUNT_DOWN, "count down" },
+    { ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN, "travel lock countdown" },
     { ID_POPUP_UI_LOW_POWER, "low power" },
     { ID_POPUP_UI_WILL_POWER_OFF, "will power off" },
     { ID_POPUP_UI_PUMP_PAUSE_SETTLE, "pump pause settle" },

@@ -42,8 +42,6 @@ extern "C" {
 #define PUMP_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 /// 模式切换成功页展示时长
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TIMEOUT  (1500) /// 1.5s
-/// 泵奶满 30 分钟休息轻提醒页展示时长
-#define PUMP_BREAK_TIP_DISPLAY_TIMEOUT         (3000) /// 3s
 /// 泵奶背光灯周期
 #define PUMP_BLINK_PERIOD                      (500)
 
@@ -64,7 +62,6 @@ typedef enum {
     PUMP_UI_TYPE_LEVEL_ADJUST, /// 单边力度调节
     PUMP_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
     PUMP_UI_TYPE_SPEED_ADJUST, /// 速度调节
-    PUMP_UI_TYPE_BREAK_TIP, /// 泵奶满 30 分钟休息轻提醒
     PUMP_UI_TYPE_FINISH_TIMEOUT, /// 泵奶超时结算
     PUMP_UI_TYPE_WILL_FINISH, /// 韵律即将结束提示
     PUMP_UI_TYPE_MAX
@@ -84,6 +81,32 @@ typedef enum {
     PUMP_MODE_PAGE_INDEX_POWER_PUMPING_SELECT = 4,   /// Power Pumping选择
     PUMP_MODE_PAGE_INDEX_CUSTOMIZE_SELECT = 5,       /// 个性化选择
 } pump_mode_page_index_e;
+
+/**
+ * 子页返回策略（show 时 push，dismiss 时选策略）
+ * - HISTORY：弹出栈顶，恢复进入前 UI（力度/速度/首页+page_index）
+ * - HOME_KEEP_PAGE：回窗口首页，保留/恢复 page_index（模式选择页）
+ * - HOME_RESET_PAGE：回窗口首页，page_index 清零
+ */
+typedef enum {
+    PUMP_UI_NAV_BACK_HISTORY = 0,
+    PUMP_UI_NAV_BACK_HOME_KEEP_PAGE,
+    PUMP_UI_NAV_BACK_HOME_RESET_PAGE,
+} pump_ui_nav_back_e;
+
+#define PUMP_UI_NAV_DEPTH_MAX                       (2)
+
+typedef struct {
+    uint16_t ui_type;       /// pump_ui_type_e
+    uint16_t page_index;    /// ui_mode_page_index
+    uint8_t level_side;     /// 单边力度侧（仅 LEVEL_ADJUST 有意义）
+} pump_ui_nav_frame_t;
+
+typedef struct {
+    pump_ui_nav_frame_t stack[PUMP_UI_NAV_DEPTH_MAX];
+    uint8_t depth;
+    uint8_t restoring;      /// nav_back 恢复中，避免 show 再次 push
+} pump_ui_nav_t;
 
 /// 泵奶UI结构体
 typedef struct {    
@@ -105,7 +128,6 @@ typedef struct {
     uint8_t window_run_state; /// WM是否运行.
     uint16_t current_ui_type; /// 当前UI类型
     uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
-    uint16_t break_tip_prev_ui_type; /// 进入 30 分钟提醒页前的 UI 类型
     uint32_t last_progress_ani_time; /// 上次进度动画时间
 
     /// 泵奶信息
@@ -119,6 +141,9 @@ typedef struct {
     /// 长按停止确认
     uint8_t stop_hold_holding; /// 停止确认页是否处于按住倒计时
     uint8_t stop_hold_ignore_click; /// 松手后忽略紧随的 power CLICK
+
+    /// 子页导航栈（回历史页 / 回首页）
+    pump_ui_nav_t ui_nav;
 
     /// 档位调节相关
     pump_setting_t setting; /// 当前泵奶设置信息.
@@ -149,6 +174,10 @@ typedef struct {
 void show_pump_home_ui(ui_proc_pump_t *proc);
 /// 泵奶状态UI相关
 void switch_pump_status_ui(ui_proc_pump_t *proc);
+/// 子页导航：进入子页前 push；退出时按策略 back
+void pump_ui_nav_push(ui_proc_pump_t *proc);
+void pump_ui_nav_clear(ui_proc_pump_t *proc);
+void pump_ui_nav_back(ui_proc_pump_t *proc, pump_ui_nav_back_e policy);
 /// 移除UI相关
 void pump_ui_change_hdr_remove(ui_proc_pump_t *proc);
 /// 停止泵奶UI动画
@@ -202,11 +231,6 @@ void show_pump_speed_adjust_ui(ui_proc_pump_t *proc);
 int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
 void pump_speed_adjust_ui_exit(ui_proc_pump_t *proc);
 void pump_speed_adjust_ui_dismiss(ui_proc_pump_t *proc);
-
-/// 泵奶满 30 分钟休息轻提醒页（进入即暂停，3s 后回到进入前页面）
-void show_pump_break_tip_ui(ui_proc_pump_t *proc);
-void pump_break_tip_ui_exit(ui_proc_pump_t *proc);
-void pump_break_tip_ui_dismiss(ui_proc_pump_t *proc);
 
 /// 泵奶超时结算页
 void show_pump_finish_timeout_ui(ui_proc_pump_t *proc);

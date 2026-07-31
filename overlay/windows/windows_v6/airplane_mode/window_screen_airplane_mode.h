@@ -21,7 +21,7 @@ extern "C" {
 /// 飞行模式动画更新间隔
 #define AIRPLANE_MODE_ANIMATION_UPDATE_INTERVAL         (1000)
 /// 飞行模式超时时间
-#define AIRPLANE_MODE_TIMEOUT_TIME                      (3 * 60 * 1000) /// 2分钟
+#define AIRPLANE_MODE_TIMEOUT_TIME                      (5 * 60 * 1000) /// 5分钟
 /// 飞行模式显示超时时间
 #define AIRPLANE_MODE_DISPLAY_TIMEOUT                   (2000) /// 2s
 

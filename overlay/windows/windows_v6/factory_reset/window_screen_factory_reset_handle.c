@@ -12,7 +12,8 @@
 */
 #define PAGE_STATIC_NAME                            factory_reset
 #define PAGE_NAME_STR                               "factory_reset"
-#define FACTORY_RESET_UI_KEY_CODE                   (KEY_CODE_POWER | KEY_CODE_CANCEL)
+/** 含 L+R 组合键，短按可跳转 home 对应功能页 */
+#define FACTORY_RESET_UI_KEY_CODE                   (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL)
 #define FACTORY_RESET_UI_KEY_TYPE                   (KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_CLICK)
 #define FACTORY_RESET_DELAY_TIME                    (1000 * 3)
 #define FACTORY_RESET_EXIT_TASK_NAME                "factory_reset_exit_task"
@@ -21,6 +22,7 @@
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(FACTORY_RESET_EXIT_TASK_NAME); \
+    factory_reset_confirm_ui_hdr_remove(); \
 } while (0)
 
 /*
@@ -43,12 +45,15 @@ static void factory_reset_exit_task_cb(hdr_post_args_t *args)
     ui_proc_factory_reset_t *proc = (ui_proc_factory_reset_t *)args->user_data;
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_FACTORY_RESET);
     multi_func_msg_data_t msg = {0};
+
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
     if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
         LOG_WM("goto none theme screen");
         msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
+#endif
 
     if (proc->battery && proc->battery->is_low_battery()) {
         LOG_WM("battery is low power, goto battery screen");
@@ -78,45 +83,81 @@ static void factory_reset_exit_task_cb(hdr_post_args_t *args)
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-    
-    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
-        LOG_WM("goto none theme screen");
-        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
 
-    if (proc->wm->is_window_guidance_deployed() == 0) {
 #if IS_SUPPORT_GUIDE_WINDOW
+    if (proc->wm->is_window_guidance_deployed() == 0) {
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
-#else
-        proc->wm->set_window_guidance_deployed_flag(true);
-#endif
     }
+#else
+    if (proc->wm->is_window_guidance_deployed() == 0) {
+        proc->wm->set_window_guidance_deployed_flag(true);
+    }
+#endif
+
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
-static void factory_cancel_key_event_handler(ui_proc_factory_reset_t *proc, uint16_t keytype)
+static void factory_reset_goto_home_sub_ui(ui_proc_factory_reset_t *proc, int sub_ui, int arg2)
 {
-    if (keytype == KEY_EVENT_CLICK) {
-        proc->popup_ui_type = ID_POPUP_UI_NONE;
-        POST_WM_TASK_HANDLER_NO_DELAY(factory_reset_exit_task_cb, proc, FACTORY_RESET_EXIT_TASK_NAME);
-    }
+    multi_func_msg_data_t msg = {0};
+
+    proc->popup_ui_type = ID_POPUP_UI_NONE;
+    factory_reset_confirm_ui_hdr_remove();
+    LOG_WM("factory reset confirm goto home sub_ui:%d arg2:%d", sub_ui, arg2);
+    msg.union_body.extra.window_id = ID_WINDOW_HOME;
+    msg.union_body.extra.arg1 = sub_ui;
+    msg.union_body.extra.arg2 = arg2;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
 static void factory_power_key_event_handler(ui_proc_factory_reset_t *proc, uint16_t keytype)
 {
     if (keytype == KEY_EVENT_DOWN) {
         proc->popup_ui_type = ID_POPUP_UI_FACTORY_RESET_CONFIRM;
+        proc->last_progress_ani_time = get_timestamp();
     } else if (keytype == KEY_EVENT_UP) {
         if (proc->popup_ui_type != ID_POPUP_UI_NONE) {
             proc->popup_ui_type = ID_POPUP_UI_NONE;
         }
+        /// 松手未完成确认，重新计空闲超时
+        proc->last_progress_ani_time = get_timestamp();
+    }
+}
+
+static void factory_function_key_click_handler(ui_proc_factory_reset_t *proc, uint16_t keycode)
+{
+    switch (keycode) {
+        case KEY_CODE_LEFT_CONTROL:
+            /// arg2: 0=左, 1=右（与 home_level_adjust_side_e 一致）
+            factory_reset_goto_home_sub_ui(proc, HOME_SUB_UI_TYPE_LEVEL_ADJUST, 0);
+            break;
+        case KEY_CODE_RIGHT_CONTROL:
+            factory_reset_goto_home_sub_ui(proc, HOME_SUB_UI_TYPE_LEVEL_ADJUST, 1);
+            break;
+        case KEY_CODE_BOTH_CONTROL:
+            factory_reset_goto_home_sub_ui(proc, HOME_SUB_UI_TYPE_BOTH_LEVEL_ADJUST, 0);
+            break;
+        case KEY_CODE_STIMULATION_MODE:
+            factory_reset_goto_home_sub_ui(proc, HOME_SUB_UI_TYPE_MODE_SET,
+                BREAST_PUMP_STIMULATION_MODE);
+            break;
+        case KEY_CODE_LACTATION_MODE:
+            factory_reset_goto_home_sub_ui(proc, HOME_SUB_UI_TYPE_MODE_SET,
+                BREAST_PUMP_LACTATION_MODE);
+            break;
+        case KEY_CODE_START:
+            factory_reset_request_exit(proc);
+            break;
+        case KEY_CODE_FREQUENCY:
+            factory_reset_goto_home_sub_ui(proc, HOME_SUB_UI_TYPE_SPEED_ADJUST, 0);
+            break;
+        default:
+            break;
     }
 }
 
@@ -135,9 +176,14 @@ static int on_factory_reset_keyevent_hdr(void *user_data, uint16_t keycode, uint
 
     if (keycode == KEY_CODE_POWER) {
         factory_power_key_event_handler(proc, keytype);
-    } else if (keycode == KEY_CODE_CANCEL) {
-        factory_cancel_key_event_handler(proc, keytype);
-    } 
+        return 0;
+    }
+
+    if (keytype != KEY_EVENT_CLICK) {
+        return 0;
+    }
+
+    factory_function_key_click_handler(proc, keycode);
     return 0;
 }
 
@@ -173,16 +219,17 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_factory_reset_window_battery_state_change_cb);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        
-        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            proc->led->hook->set_key_backlight(proc->led, 0);
-        }
 
         if (proc->extra.arg1 == 0) {
+            if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+                proc->led->hook->set_key_backlight(proc->led, 0);
+            }
             factory_reset_handle(proc, 1000);
         } else {
+            /// 确认页：所有按键灯常亮
+            factory_reset_confirm_led_restore(proc);
             show_factory_reset_confirm_ui(proc);
-        } 
+        }
     }
     return 0;
 }
@@ -218,6 +265,14 @@ static int exit_event_cb(window_lift_cycle_e new_state,
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+void factory_reset_request_exit(ui_proc_factory_reset_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    proc->popup_ui_type = ID_POPUP_UI_NONE;
+    factory_reset_confirm_ui_hdr_remove();
+    POST_WM_TASK_HANDLER_NO_DELAY(factory_reset_exit_task_cb, proc, FACTORY_RESET_EXIT_TASK_NAME);
+}
+
 window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_t *wm, uint8_t window_id)
 {
     LOG_WM("%s window enter, time: %ld.", PAGE_NAME_STR, get_timestamp());

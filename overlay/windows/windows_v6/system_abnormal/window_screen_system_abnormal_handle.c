@@ -53,6 +53,15 @@ static void system_abnormal_exit_cb(ui_proc_system_abnormal_t *proc)
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_SYSTEM_ABNORMAL);
     multi_func_msg_data_t msg = {0};
 
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+#endif
+
     if (proc->battery && proc->battery->is_low_battery()) {
         LOG_WM("battery is low power, goto battery screen");
         msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
@@ -82,23 +91,19 @@ static void system_abnormal_exit_cb(ui_proc_system_abnormal_t *proc)
         return;
     }
 
-    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
-        LOG_WM("goto none theme screen");
-        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-
+#if IS_SUPPORT_GUIDE_WINDOW
     if (proc->wm->is_window_guidance_deployed() == 0) {
-        #if IS_SUPPORT_GUIDE_WINDOW
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
-        #else
+    }
+#else
+    if (proc->wm->is_window_guidance_deployed() == 0) {
         proc->wm->set_window_guidance_deployed_flag(true);
-        #endif
-    }    
+    }
+#endif
+
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);

@@ -185,6 +185,8 @@ static void home_page_switch_instant(home_base_ui_info_t *info, uint8_t page_ind
     info->page.page = home_page_container_create(info);
     EXCEPTION_CHECK_VOID(info->page.page);
     home_page_content_build(info, page_index);
+    home_page_hero_transition_apply(info, page_index, info->page.page,
+        HOME_PAGE_SCALE_FULL, HOME_PAGE_SCALE_FULL, false);
 }
 
 static void home_page_transition_lerp(home_base_ui_info_t *info)
@@ -361,12 +363,26 @@ static void home_page_ui_goto(home_base_ui_info_t *info, uint8_t page_index, ui_
 */
 void home_page_ui_prepare(home_base_ui_info_t *info)
 {
+    uint8_t target_index = HOME_PAGE_MAIN;
+
     EXCEPTION_CHECK_VOID(info);
     memset(&info->page, 0, sizeof(info->page));
     info->page.shown_page_index = HOME_PAGE_INDEX_INVALID;
     info->page.page_index = HOME_PAGE_MAIN;
+    /* 从非首页 UI 重建：首帧按 ui_mode_page_index 直达，不做 MAIN→目标 过渡 */
+    info->page.enter_instant = 1;
     home_mode_chrome_prepare(info);
-    home_page_switch_instant(info, HOME_PAGE_MAIN);
+
+    if (info->ui != NULL) {
+        ui_proc_home_t *proc = (ui_proc_home_t *)info->ui->priv.play_info.user_data;
+        if (proc != NULL) {
+            target_index = (uint8_t)proc->ui_mode_page_index;
+            if (target_index >= HOME_PAGE_MAX) {
+                target_index = HOME_PAGE_MAIN;
+            }
+        }
+    }
+    home_page_switch_instant(info, target_index);
 }
 
 void home_page_ui_remove(home_base_ui_info_t *info)
@@ -400,10 +416,16 @@ void home_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
         target_index = HOME_MODE_PAGE_INDEX_POWER_PUMPING_SELECT;
     }
 
-    if (info->page.shown_page_index == HOME_PAGE_INDEX_INVALID) {
-        home_page_switch_instant(info, target_index);
+    if (info->page.shown_page_index == HOME_PAGE_INDEX_INVALID ||
+        info->page.enter_instant) {
+        /* 进入首页 UI：直接落到 page_index，无过渡动效 */
+        if (info->page.shown_page_index != target_index) {
+            home_page_switch_instant(info, target_index);
+        }
+        info->page.enter_instant = 0;
     } else if (!info->page.transitioning &&
                info->page.shown_page_index != target_index) {
+        /* 已在首页 UI：仅切 page index，走过渡动效 */
         home_page_ui_goto(info, target_index, proc);
     }
 

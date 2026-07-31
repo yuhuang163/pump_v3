@@ -119,6 +119,7 @@ void show_pump_both_level_adjust_ui(ui_proc_pump_t *proc)
         return;
     }
 
+    pump_ui_nav_push(proc);
     pump_ui_change_hdr_remove(proc);
     ui_play_info_t play_info = {
         .tag = "pump_both_level_adjust_screen",
@@ -228,7 +229,6 @@ void pump_both_level_adjust_ui_dismiss(ui_proc_pump_t *proc)
     if (proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST) {
         return;
     }
-    LOG_WM("dismiss pump both level adjust, back to pump home.");
-    proc->ui_mode_page_index = PUMP_MODE_PAGE_INDEX_NONE;
-    show_pump_home_ui(proc);
+    LOG_WM("dismiss pump both level adjust, back home keep page.");
+    pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_KEEP_PAGE);
 }

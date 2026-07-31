@@ -67,6 +67,32 @@ typedef enum {
     HOME_MODE_PAGE_INDEX_CUSTOMIZE_SELECT = 5,       /// 个性化选择
 } home_mode_page_index_e;
 
+/**
+ * 子页返回策略（show 时 push，dismiss 时选策略）
+ * - HISTORY：弹出栈顶，恢复进入前 UI（力度/速度/首页+page_index）
+ * - HOME_KEEP_PAGE：回窗口首页，保留/恢复 page_index（模式选择页）
+ * - HOME_RESET_PAGE：回窗口首页，page_index 清零
+ */
+typedef enum {
+    HOME_UI_NAV_BACK_HISTORY = 0,
+    HOME_UI_NAV_BACK_HOME_KEEP_PAGE,
+    HOME_UI_NAV_BACK_HOME_RESET_PAGE,
+} home_ui_nav_back_e;
+
+#define HOME_UI_NAV_DEPTH_MAX                       (2)
+
+typedef struct {
+    uint16_t ui_type;       /// home_ui_type_e
+    uint16_t page_index;    /// ui_mode_page_index
+    uint8_t level_side;     /// 单边力度侧（仅 LEVEL_ADJUST 有意义）
+} home_ui_nav_frame_t;
+
+typedef struct {
+    home_ui_nav_frame_t stack[HOME_UI_NAV_DEPTH_MAX];
+    uint8_t depth;
+    uint8_t restoring;      /// nav_back 恢复中，避免 show 再次 push
+} home_ui_nav_t;
+
 /// 主界面UI结构体
 typedef struct {
     window_context_t w_ctx;
@@ -116,6 +142,9 @@ typedef struct {
     /// 长按关机确认
     uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
     uint8_t power_off_hold_ignore_click; /// 松手后忽略紧随的 power CLICK
+
+    /// 子页导航栈（回历史页 / 回首页）
+    home_ui_nav_t ui_nav;
 } ui_proc_home_t;
 
 /*
@@ -125,6 +154,10 @@ typedef struct {
 void start_home_ui_animation(ui_proc_home_t *proc);
 void start_home_idle_ui_animation(ui_proc_home_t *proc);
 void stop_home_common_ui(ui_proc_home_t *proc);
+/// 子页导航：进入子页前 push；退出时按策略 back
+void home_ui_nav_push(ui_proc_home_t *proc);
+void home_ui_nav_clear(ui_proc_home_t *proc);
+void home_ui_nav_back(ui_proc_home_t *proc, home_ui_nav_back_e policy);
 
 /// 模式选择界面按键处理
 int home_mode_adjust_handler(ui_proc_home_t *proc, bool is_left);

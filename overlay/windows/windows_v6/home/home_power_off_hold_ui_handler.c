@@ -97,6 +97,7 @@ void show_home_power_off_hold_ui(ui_proc_home_t *proc)
     if (proc->current_ui_type == HOME_UI_TYPE_POWER_OFF_HOLD) {
         return;
     }
+    home_ui_nav_push(proc);
     home_ui_change_hdr_remove(proc);
 
     ui_play_info_t play_info = {
@@ -126,12 +127,11 @@ void home_power_off_hold_dismiss(ui_proc_home_t *proc)
     if (proc->current_ui_type != HOME_UI_TYPE_POWER_OFF_HOLD) {
         return;
     }
-    LOG_WM("dismiss power off hold, back to home.");
+    LOG_WM("dismiss power off hold, nav back history.");
     proc->power_off_hold_holding = 0;
     proc->power_off_hold_ignore_click = 1;
     REMOVE_TASK_HANDLER_DIRECTLY(POWER_OFF_HOLD_COMPLETE_TASK_NAME);
-    proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
-    start_home_ui_animation(proc);
+    home_ui_nav_back(proc, HOME_UI_NAV_BACK_HISTORY);
 }
 
 void home_power_off_hold_key_long_2s_handler(ui_proc_home_t *proc)
