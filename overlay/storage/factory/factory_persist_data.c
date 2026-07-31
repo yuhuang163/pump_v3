@@ -296,6 +296,19 @@ int read_factory_dev_info_from_flash(store_func_args_t args)
     return ret;
 }
 
+#if IS_USE_SPECTRA_SUCTION_CURVE
+static void copy_preset_suction_table(factory_suction_para_t *dst,
+                                      const suction_parameters_t (*long_tbl)[PUMP_LONG_SUCTION_SPEED_MAX],
+                                      const suction_parameters_t (*short_tbl)[SHORT_SUCTION_SPEED_MAX],
+                                      const uint16_t *long_freq_tbl,
+                                      const uint16_t *short_freq_tbl)
+{
+    memcpy(dst->long_suction_table, long_tbl, sizeof(pump1_long_suction_table));
+    memcpy(dst->short_suction_table, short_tbl, sizeof(pump1_short_suction_table));
+    memcpy(dst->long_pump_freq_table, long_freq_tbl, sizeof(pump1_long_pump_freq_table));
+    memcpy(dst->short_suction_freq_table, short_freq_tbl, sizeof(pump1_short_suction_freq_table));
+}
+#else
 static void copy_preset_suction_table(factory_suction_para_t *dst,
                                       const suction_parameters_t *long_tbl,
                                       const suction_parameters_t *short_tbl,
@@ -305,6 +318,7 @@ static void copy_preset_suction_table(factory_suction_para_t *dst,
     memcpy(dst->short_suction_table, short_tbl, sizeof(pump1_short_suction_table));
     memcpy(dst->long_pump_freq_table, freq_tbl, sizeof(pump1_long_pump_freq_table));
 }
+#endif
 
 int read_factory_suction_table_from_flash(store_func_args_t args)
 {
@@ -320,23 +334,43 @@ int read_factory_suction_table_from_flash(store_func_args_t args)
 
     switch (motor_type) {
     case FACTORY_MOTOR_TYPE_SHIGUANG:
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        copy_preset_suction_table(suction_table, pump1_long_suction_table, pump1_short_suction_table,
+                                  pump1_long_pump_freq_table, pump1_short_suction_freq_table);
+#else
         copy_preset_suction_table(suction_table, pump1_long_suction_table, pump1_short_suction_table,
                                   pump1_long_pump_freq_table);
+#endif
         LOG_STORE("suction table: shiguang (motor_type=%u)", motor_type);
         break;
     case FACTORY_MOTOR_TYPE_LONGYI:
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        copy_preset_suction_table(suction_table, pump2_long_suction_table, pump2_short_suction_table,
+                                  pump2_long_pump_freq_table, pump2_short_suction_freq_table);
+#else
         copy_preset_suction_table(suction_table, pump2_long_suction_table, pump2_short_suction_table,
                                   pump2_long_pump_freq_table);
+#endif
         LOG_STORE("suction table: longyi (motor_type=%u)", motor_type);
         break;
     default:
 #if IS_USE_NEW_SUCTION
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        copy_preset_suction_table(suction_table, pump1_long_suction_table, pump1_short_suction_table,
+                                  pump1_long_pump_freq_table, pump1_short_suction_freq_table);
+#else
         copy_preset_suction_table(suction_table, pump1_long_suction_table, pump1_short_suction_table,
                                   pump1_long_pump_freq_table);
+#endif
         LOG_STORE("suction table: default SHIGUANG (motor_type=%u) ", motor_type);
+#else
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        copy_preset_suction_table(suction_table, pump2_long_suction_table, pump2_short_suction_table,
+                                  pump2_long_pump_freq_table, pump2_short_suction_freq_table);
 #else
         copy_preset_suction_table(suction_table, pump2_long_suction_table, pump2_short_suction_table,
                                   pump2_long_pump_freq_table);
+#endif
         LOG_STORE("suction table: default longyi (motor_type=%u)", motor_type);
 #endif
         break;

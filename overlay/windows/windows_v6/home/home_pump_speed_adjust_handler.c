@@ -56,7 +56,7 @@ static void home_speed_adjust_state_sync(ui_proc_home_t *proc)
 {
     READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
     if (proc->setting.speed >= BREAST_PUMP_SPEED_MAX) {
-        proc->setting.speed = BREAST_PUMP_SPEED_HIGH;
+        proc->setting.speed = (BREAST_PUMP_SPEED_MAX - 1);
     }
     LOG_WM("speed adjust sync speed=%d", proc->setting.speed);
 }
@@ -99,7 +99,7 @@ int home_pump_speed_adjust_handler(ui_proc_home_t *proc, bool is_increase)
 
     READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
     if (is_increase) {
-        if (proc->setting.speed < BREAST_PUMP_SPEED_HIGH) {
+        if (proc->setting.speed < (BREAST_PUMP_SPEED_MAX - 1)) {
             proc->setting.speed++;
         }
     } else {
