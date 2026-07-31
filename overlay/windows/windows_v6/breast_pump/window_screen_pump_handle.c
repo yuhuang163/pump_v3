@@ -13,8 +13,8 @@
 */
 #define PAGE_STATIC_NAME                    pump
 #define PAGE_NAME_STR                       "pump"
-/** 含 L+R 组合键（KEY_CODE_FACTORY_RESET）以进入双边力度调节 */
-#define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_FACTORY_RESET)
+/** 含 L+R 组合键（KEY_CODE_BOTH_CONTROL）以进入双边力度调节 */
+#define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL)
 #define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
 #define PUMP_COMPLETE_TASK_NAME             "pump_complete"
 #define PUMP_BROADCAST_TASK_NAME            "pump_broadcast"
@@ -228,8 +228,7 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
                 show_pump_level_adjust_ui(proc, true);
             }
             break;
-        case KEY_CODE_FACTORY_RESET:
-            /* 同时短按 L+R → 双边力度调节 */
+        case KEY_CODE_BOTH_CONTROL:
             show_pump_both_level_adjust_ui(proc);
             break;
         case KEY_CODE_KNOB_LEFT:

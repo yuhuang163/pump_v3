@@ -13,14 +13,31 @@
 * DEFINES
 *****************************************************************************************
 */
+#if V3_UX_VERSION == V3_UX_V6
+#define KEY_CODE_SIZE (6 + 1 + 3) // 6个按键 + 1个电源键 + 3个组合按键
+#else
 #define KEY_CODE_SIZE (6 + 1 + 2) // 6个按键 + 1个电源键 + 2个组合按键
-
+#endif
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
 static rt_device_node_t *node = NULL;
 static key_input_evt_cb_fptr key_cb = NULL;
+#if V3_UX_VERSION == V3_UX_V6
+static const uint32_t key_code_value[SCAN_KEY_CODE_MAX] = {
+    SCAN_KEY_CODE_1_VALUE, /// 电源键
+    SCAN_KEY_CODE_2_VALUE, /// 开始键
+    SCAN_KEY_CODE_3_VALUE, /// 模式键
+    SCAN_KEY_CODE_4_VALUE, /// 频率键
+    SCAN_KEY_CODE_5_VALUE, /// 吸吮键
+    SCAN_KEY_CODE_6_VALUE, /// 左控制键
+    SCAN_KEY_CODE_7_VALUE, /// 右控制键
+    SCAN_KEY_CODE_24_VALUE, /// 恢复出厂设置键
+    SCAN_KEY_CODE_35_VALUE, /// 旅行锁键
+    SCAN_KEY_CODE_67_VALUE, /// 双边控制键
+};
+#else
 static const uint32_t key_code_value[SCAN_KEY_CODE_MAX] = {
     SCAN_KEY_CODE_1_VALUE,
     SCAN_KEY_CODE_2_VALUE,
@@ -32,11 +49,12 @@ static const uint32_t key_code_value[SCAN_KEY_CODE_MAX] = {
     SCAN_KEY_CODE_67_VALUE,
 #if V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V4
     SCAN_KEY_CODE_36_VALUE,
-    // SCAN_KEY_CODE_23_VALUE,
 #else
     SCAN_KEY_CODE_23_VALUE,
 #endif
+    SCAN_KEY_CODE_13_VALUE 
 };
+#endif
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -173,7 +191,7 @@ bool touch_key_is_upgrading(void)
 void knob_button_event_handler(int arg1, int arg2, void *param)
 {
     LOG_PBUS("knob button event: arg1=%d, arg2=%d", arg1, arg2);
-    int keycode = arg1 == 0 ? KEY_CODE_10 : KEY_CODE_11;
+    int keycode = arg1 == 0 ? KEY_CODE_11 : KEY_CODE_12;
     key_cb(node, keycode, KEY_EVENT_CLICK);
 }
 
