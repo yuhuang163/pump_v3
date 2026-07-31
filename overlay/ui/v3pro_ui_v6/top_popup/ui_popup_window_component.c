@@ -317,7 +317,7 @@ const static popup_window_name_info_t popup_window_name_infos[] = {
     { ID_POPUP_UI_BT_CONNECTING, "ble connecting" },
     { ID_POPUP_UI_DEVICE_BIND, "device bind" },
     { ID_POPUP_UI_DEVICE_UNBIND, "device unbind" },
-    { ID_POPUP_UI_COUNT_DOWN, "count down" },
+    { ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN, "count down" },
     { ID_POPUP_UI_LOW_POWER, "low power" },
     { ID_POPUP_UI_WILL_POWER_OFF, "will power off" },
     { ID_POPUP_UI_PUMP_PAUSE_SETTLE, "pump pause settle" },

@@ -203,7 +203,7 @@ ui->hook->ui_animation_overlay_init(ui, play_info);  // overlay 通道
 |------|------|
 | `ID_POPUP_UI_BT_CONNECT/DISCONNECT/CONNECTING` | 蓝牙状态 |
 | `ID_POPUP_UI_DEVICE_BIND/UNBIND` | 设备绑定 |
-| `ID_POPUP_UI_COUNT_DOWN/LOW_POWER/WILL_POWER_OFF` | 电源相关 |
+| `ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN/LOW_POWER/WILL_POWER_OFF` | 电源相关 |
 | `ID_POPUP_UI_PUMP_PAUSE_SETTLE` | 暂停结算 |
 | `ID_POPUP_UI_SYS_ERROR/TEMP_ERROR` | 系统/温度异常 |
 
