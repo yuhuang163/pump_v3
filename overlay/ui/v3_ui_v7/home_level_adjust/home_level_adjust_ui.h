@@ -15,7 +15,11 @@ extern "C" {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-uint8_t home_level_adjust_max_get(uint8_t pump_mode);
+/** 按子模式（pump_mode_type_e）取力度上限：刺激 0-5，其它 0-15 */
+uint8_t home_level_adjust_max_get(uint8_t mode_type);
+/** 常规模式用 pump_mode；韵律模式用 runtime 子模式 */
+uint8_t home_level_adjust_mode_type_resolve(uint8_t pump_mode, uint8_t runtime_mode_type);
+const char *home_level_adjust_mode_type_name_get(uint8_t mode_type);
 uint32_t home_level_adjust_accent_color_get(uint8_t pump_mode);
 uint8_t home_level_adjust_ui_level_max_get(void);
 void ui_display_home_level_adjust_prepare(ui_manager_context_t *thiz);

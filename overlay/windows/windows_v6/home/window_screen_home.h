@@ -22,6 +22,15 @@ extern "C" {
 /// 单边力度连续加档限制窗口 / 过大提示时长
 #define HOME_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
 #define HOME_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
+/// 子模式切换提醒时长
+#define HOME_SUB_MODE_SWITCH_TIMEOUT_MS      (3000) /// 3s
+
+/// 子模式同步场景（力度/速度页共用）
+typedef enum {
+    HOME_SUB_MODE_SYNC_LEVEL = 0,      /// 单边力度
+    HOME_SUB_MODE_SYNC_BOTH_LEVEL,     /// 双边力度
+    HOME_SUB_MODE_SYNC_SPEED,          /// 速度
+} home_sub_mode_sync_e;
 
 /// 泵奶结果显示超时时间
 #define HOME_PUMP_RESULT_DISPLAY_TIMEOUT       (3000) /// 3s
@@ -104,6 +113,7 @@ typedef struct {
     key_input_context_t *key;
     led_manager_context_t *led;
     breast_pump_manager_context_t *pump;
+    motor_manager_context_t *motor;
     broadcast_obj_t receiver;
     window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic; /// 窗口标识.
@@ -122,6 +132,9 @@ typedef struct {
     uint8_t level_arc_level; /// 圆弧动画目标力度（可与 level_value 分离）
     uint8_t level_over_limit; /// 力度过大提示中
     uint8_t level_inc_window_base; /// 连续加档窗口起始力度
+    uint8_t sub_mode_type; /// 当前子模式 pump_mode_type_e（力度/速度页共用）
+    uint8_t sub_mode_switch; /// 子模式切换提醒中（力度/速度页共用）
+    int sub_mode_time_index; /// 调节页缓存的 mode step index，读写 setting 用
     uint8_t both_level_value[2]; /// 双边实际/展示力度（过大提示时不变）
     uint8_t both_level_arc[2]; /// 双边圆弧动画目标力度
     uint8_t both_level_over_limit; /// 双边力度过大提示中
@@ -129,6 +142,7 @@ typedef struct {
     uint32_t level_adjust_time; /// 档位调节页最近操作时间
     uint32_t level_over_limit_time; /// 过大提示计时起点（有调节刷新）
     uint32_t level_inc_window_time; /// 连续加档窗口起点
+    uint32_t sub_mode_switch_time; /// 子模式切换提醒计时（力度/速度页共用）
     uint32_t both_level_over_limit_time; /// 双边过大提示计时
     uint32_t both_level_inc_window_time; /// 双边连续加档窗口起点
 
@@ -187,6 +201,13 @@ void home_speed_adjust_ui_dismiss(ui_proc_home_t *proc);
 
 /// 弹窗类型更新
 void home_popup_ui_type_update(ui_proc_home_t *proc, popup_ui_id_e type);
+
+/// 子模式（刺激/吸乳/混合/放松）同步：力度/速度页共用
+uint8_t home_sub_mode_type_get(ui_proc_home_t *proc);
+void home_sub_mode_switch_clear(ui_proc_home_t *proc);
+void home_sub_mode_switch_tick(ui_proc_home_t *proc);
+void home_sub_mode_state_init(ui_proc_home_t *proc, uint8_t clamp_level);
+void home_sub_mode_sync_tick(ui_proc_home_t *proc, home_sub_mode_sync_e sync);
 
 /// 主界面UI切换
 void home_ui_change_hdr_remove(ui_proc_home_t *proc);

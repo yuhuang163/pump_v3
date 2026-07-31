@@ -460,6 +460,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    proc->motor = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "home_screen";

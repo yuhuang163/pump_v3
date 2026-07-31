@@ -15,6 +15,8 @@ static void pump_speed_adjust_ui_after_policy(ui_manager_context_t *ui, int inde
 
     (void)index;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    pump_sub_mode_sync_tick(proc, PUMP_SUB_MODE_SYNC_SPEED);
+    pump_sub_mode_switch_tick(proc);
     ui_display_pump_speed_adjust_process(ui);
     pump_pause_led_tick(proc);
 }
@@ -55,14 +57,12 @@ static void pump_speed_adjust_ui_remove(void *user_data)
 
 static void pump_speed_adjust_state_sync(ui_proc_pump_t *proc)
 {
-    int time_index = 0;
-
-    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    pump_sub_mode_state_init(proc, 0);
     if (proc->setting.speed >= BREAST_PUMP_SPEED_MAX) {
         proc->setting.speed = BREAST_PUMP_SPEED_MAX - 1;
     }
-    LOG_WM("pump speed adjust sync speed=%d", proc->setting.speed);
+    LOG_WM("pump speed adjust sync speed=%d type=%d time=%d",
+        proc->setting.speed, proc->sub_mode_type, proc->sub_mode_time_index);
 }
 
 /*
@@ -99,14 +99,15 @@ void show_pump_speed_adjust_ui(ui_proc_pump_t *proc)
 
 int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase)
 {
-    int time_index = 0;
+    int time_index;
 
     EXCEPTION_CHECK_INT(proc && proc->pump);
     if (proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
         return -1;
     }
 
-    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    pump_sub_mode_switch_clear(proc);
+    time_index = proc->sub_mode_time_index;
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     if (is_increase) {
         if (proc->setting.speed < BREAST_PUMP_SPEED_MAX - 1) {
@@ -118,13 +119,14 @@ int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase)
         }
     }
     WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-    LOG_WM("pump speed adjust -> %d", proc->setting.speed);
+    LOG_WM("pump speed adjust -> %d time=%d", proc->setting.speed, time_index);
     return 0;
 }
 
 void pump_speed_adjust_ui_exit(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
+    proc->sub_mode_switch = 0;
 }
 
 void pump_speed_adjust_ui_dismiss(ui_proc_pump_t *proc)

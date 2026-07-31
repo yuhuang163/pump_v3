@@ -31,6 +31,7 @@
 #define PUMP_LEVEL_DIR_LEFT_TEXT                    "Left Level"
 #define PUMP_LEVEL_DIR_RIGHT_TEXT                   "Right Level"
 #define PUMP_LEVEL_OVER_LIMIT_TEXT                  "Max 3 Levels at a time"
+#define PUMP_LEVEL_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 /** 泵奶时间组件参数与 pump_home_base_mode_page_ui 一致 */
 #define PUMP_LEVEL_TIME_DIGIT_COUNT                 (2)
@@ -70,6 +71,8 @@ typedef struct {
     uint8_t shown_level;
     uint8_t shown_side;
     uint8_t shown_over_limit;
+    uint8_t shown_mode_switch;
+    uint8_t shown_mode_type;
     uint8_t anim_to_level;
     uint8_t shown_hours;
     uint8_t shown_minutes;
@@ -77,8 +80,9 @@ typedef struct {
     uint8_t shown_digit_size;
     uint8_t shown_paused;
     uint8_t force_update;
-    uint8_t pump_mode; /// 进入页时的模式（页内不切换）
-    uint8_t level_max; /// 当前模式力度上限
+    uint8_t pump_mode; /// 工作模式（强调色）
+    uint8_t mode_type; /// 当前子模式（力度上限）
+    uint8_t level_max; /// 当前子模式力度上限
     uint16_t shown_status_icon_id;
     uint32_t accent_color; /// 圆弧/过大提示强调色
     uint32_t shown_dir_color;
@@ -240,25 +244,42 @@ static void pump_level_value_update(ui_proc_pump_t *proc)
 
 static void pump_level_dir_update(ui_proc_pump_t *proc, uint32_t accent_color)
 {
+    char switch_buf[32] = {0};
     const char *text;
     uint32_t color;
+    uint8_t mode_switch = proc->sub_mode_switch;
+    uint32_t expect_color;
 
     if (level_info->dir_label == NULL || !lv_obj_is_valid(level_info->dir_label)) {
         level_info->dir_label = lv_label_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->dir_label);
         level_info->shown_side = 0xFF;
         level_info->shown_over_limit = 0xFF;
+        level_info->shown_mode_switch = 0xFF;
+        level_info->shown_mode_type = 0xFF;
+    }
+
+    if (proc->level_over_limit || mode_switch) {
+        expect_color = accent_color;
+    } else {
+        expect_color = PUMP_LEVEL_DIR_COLOR;
     }
     if (level_info->force_update == false &&
         level_info->shown_side == proc->level_adjust_side &&
         level_info->shown_over_limit == proc->level_over_limit &&
-        level_info->shown_dir_color ==
-            (proc->level_over_limit ? accent_color : PUMP_LEVEL_DIR_COLOR)) {
+        level_info->shown_mode_switch == mode_switch &&
+        level_info->shown_mode_type == proc->sub_mode_type &&
+        level_info->shown_dir_color == expect_color) {
         return;
     }
 
     if (proc->level_over_limit) {
         text = PUMP_LEVEL_OVER_LIMIT_TEXT;
+        color = accent_color;
+    } else if (mode_switch) {
+        snprintf(switch_buf, sizeof(switch_buf), PUMP_LEVEL_MODE_SWITCH_TEXT_FMT,
+            home_level_adjust_mode_type_name_get(proc->sub_mode_type));
+        text = switch_buf;
         color = accent_color;
     } else if (proc->level_adjust_side == PUMP_LEVEL_ADJUST_SIDE_RIGHT) {
         text = PUMP_LEVEL_DIR_RIGHT_TEXT;
@@ -275,6 +296,8 @@ static void pump_level_dir_update(ui_proc_pump_t *proc, uint32_t accent_color)
     lv_obj_align(level_info->dir_label, LV_ALIGN_TOP_MID, 0, PUMP_LEVEL_DIR_Y);
     level_info->shown_side = proc->level_adjust_side;
     level_info->shown_over_limit = proc->level_over_limit;
+    level_info->shown_mode_switch = mode_switch;
+    level_info->shown_mode_type = proc->sub_mode_type;
     level_info->shown_dir_color = color;
 }
 
@@ -533,19 +556,22 @@ void ui_display_pump_level_adjust_prepare(ui_manager_context_t *thiz)
     proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc && proc->pump);
 
-    /* 页内不切换模式：进入时用 int 读一次并缓存在 UI（READ_PUMP_WORK_MODE 要求 sizeof(int)） */
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     level_info->pump_mode = (uint8_t)pump_mode;
-    level_info->level_max = home_level_adjust_max_get(level_info->pump_mode);
+    level_info->mode_type = proc->sub_mode_type;
+    level_info->level_max = home_level_adjust_max_get(level_info->mode_type);
     level_info->accent_color = home_level_adjust_accent_color_get(level_info->pump_mode);
-    LOG_UI("pump level adjust prepare mode=%d max=%d color=0x%06X",
-        level_info->pump_mode, level_info->level_max, level_info->accent_color);
+    LOG_UI("pump level adjust prepare mode=%d type=%d max=%d color=0x%06X",
+        level_info->pump_mode, level_info->mode_type, level_info->level_max,
+        level_info->accent_color);
 
     level_info->ui = thiz;
     level_info->force_update = true;
     level_info->shown_level = 0xFF;
     level_info->shown_side = 0xFF;
     level_info->shown_over_limit = 0xFF;
+    level_info->shown_mode_switch = 0xFF;
+    level_info->shown_mode_type = 0xFF;
     level_info->shown_dir_color = 0;
     level_info->shown_hours = 0xFF;
     level_info->shown_minutes = 0xFF;
@@ -590,10 +616,19 @@ void ui_display_pump_level_adjust_remove(ui_manager_context_t *thiz)
 int ui_display_pump_level_adjust_process(ui_manager_context_t *thiz)
 {
     ui_proc_pump_t *proc;
+    uint8_t level_max;
 
     EXCEPTION_CHECK_INT(thiz && level_info && level_info->root);
     proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->pump);
+
+    level_max = home_level_adjust_max_get(proc->sub_mode_type);
+    if (level_info->mode_type != proc->sub_mode_type ||
+        level_info->level_max != level_max) {
+        level_info->mode_type = proc->sub_mode_type;
+        level_info->level_max = level_max;
+        level_info->force_update = true;
+    }
 
     pump_level_arc_update(proc, level_info->level_max, level_info->accent_color);
     pump_level_value_update(proc);

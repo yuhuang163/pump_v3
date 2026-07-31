@@ -69,6 +69,7 @@
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_Y                (68)
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT \
     "Max 3 levels at a time\nfor your safety"
+#define PUMP_BOTH_LEVEL_MODE_SWITCH_TEXT_FMT        "Switch to %s"
 
 /** 泵奶时间组件参数与 pump_speed_adjust_ui 一致 */
 #define PUMP_BOTH_LEVEL_TIME_DIGIT_COUNT                 (2)
@@ -127,10 +128,12 @@ typedef struct {
     uint16_t shown_status_icon_id;
     uint8_t shown_level[2];
     uint8_t shown_over_limit;
+    uint8_t shown_mode_switch;
+    uint8_t shown_mode_type;
     uint8_t pump_mode;
+    uint8_t mode_type;
     uint8_t level_max;
     uint8_t force_update;
-    uint8_t rsv;
     uint32_t accent_color;
     uint32_t over_limit_color;
     uint32_t shown_accent_color;
@@ -447,9 +450,11 @@ static void pump_both_level_value_update(ui_proc_pump_t *proc)
     }
 }
 
-static void pump_both_level_dir_update(void)
+static void pump_both_level_dir_update(ui_proc_pump_t *proc, uint32_t accent_color)
 {
+    char switch_buf[32] = {0};
     uint8_t i;
+    uint8_t mode_switch = proc->sub_mode_switch;
     static const lv_coord_t dir_x[2] = {
         PUMP_BOTH_LEVEL_DIR_LEFT_X, PUMP_BOTH_LEVEL_DIR_RIGHT_X
     };
@@ -458,27 +463,58 @@ static void pump_both_level_dir_update(void)
     };
 
     for (i = 0; i < 2; i++) {
-        if (pump_both_info->dir_box[i] != NULL && lv_obj_is_valid(pump_both_info->dir_box[i]) &&
-            pump_both_info->force_update == false) {
-            continue;
-        }
         if (pump_both_info->dir_box[i] == NULL || !lv_obj_is_valid(pump_both_info->dir_box[i])) {
             pump_both_info->dir_box[i] = pump_both_level_box_create(dir_x[i],
                 PUMP_BOTH_LEVEL_DIR_Y, PUMP_BOTH_LEVEL_DIR_W, PUMP_BOTH_LEVEL_DIR_H);
             EXCEPTION_CHECK_VOID(pump_both_info->dir_box[i]);
+            pump_both_info->shown_mode_switch = 0xFF;
+            pump_both_info->shown_mode_type = 0xFF;
         }
         if (pump_both_info->dir_label[i] == NULL || !lv_obj_is_valid(pump_both_info->dir_label[i])) {
             pump_both_info->dir_label[i] = lv_label_create(pump_both_info->dir_box[i]);
             EXCEPTION_CHECK_VOID(pump_both_info->dir_label[i]);
         }
-        lv_label_set_text(pump_both_info->dir_label[i], dir_text[i]);
-        lv_obj_set_style_text_color(pump_both_info->dir_label[i],
-            lv_color_hex(PUMP_BOTH_LEVEL_DIR_COLOR), 0);
-        lv_obj_set_style_text_font(pump_both_info->dir_label[i],
-            &lv_font_aeonik_soft_26_medium, 0);
-        lv_obj_set_style_text_align(pump_both_info->dir_label[i], LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_center(pump_both_info->dir_label[i]);
     }
+
+    if (pump_both_info->force_update == false &&
+        pump_both_info->shown_mode_switch == mode_switch &&
+        pump_both_info->shown_mode_type == proc->sub_mode_type) {
+        return;
+    }
+
+    if (mode_switch) {
+        snprintf(switch_buf, sizeof(switch_buf), PUMP_BOTH_LEVEL_MODE_SWITCH_TEXT_FMT,
+            home_level_adjust_mode_type_name_get(proc->sub_mode_type));
+        lv_obj_set_size(pump_both_info->dir_box[0], PANLE_DISPLAY_W, PUMP_BOTH_LEVEL_DIR_H);
+        lv_obj_set_align(pump_both_info->dir_box[0], LV_ALIGN_TOP_LEFT);
+        lv_obj_set_pos(pump_both_info->dir_box[0], 0, PUMP_BOTH_LEVEL_DIR_Y);
+        lv_obj_clear_flag(pump_both_info->dir_box[0], LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(pump_both_info->dir_label[0], switch_buf);
+        lv_obj_set_style_text_color(pump_both_info->dir_label[0],
+            lv_color_hex(accent_color), 0);
+        lv_obj_set_style_text_font(pump_both_info->dir_label[0],
+            &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_align(pump_both_info->dir_label[0], LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_center(pump_both_info->dir_label[0]);
+        lv_obj_add_flag(pump_both_info->dir_box[1], LV_OBJ_FLAG_HIDDEN);
+    } else {
+        for (i = 0; i < 2; i++) {
+            lv_obj_set_size(pump_both_info->dir_box[i],
+                PUMP_BOTH_LEVEL_DIR_W, PUMP_BOTH_LEVEL_DIR_H);
+            lv_obj_set_align(pump_both_info->dir_box[i], LV_ALIGN_TOP_LEFT);
+            lv_obj_set_pos(pump_both_info->dir_box[i], dir_x[i], PUMP_BOTH_LEVEL_DIR_Y);
+            lv_obj_clear_flag(pump_both_info->dir_box[i], LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text(pump_both_info->dir_label[i], dir_text[i]);
+            lv_obj_set_style_text_color(pump_both_info->dir_label[i],
+                lv_color_hex(PUMP_BOTH_LEVEL_DIR_COLOR), 0);
+            lv_obj_set_style_text_font(pump_both_info->dir_label[i],
+                &lv_font_aeonik_soft_26_medium, 0);
+            lv_obj_set_style_text_align(pump_both_info->dir_label[i], LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_center(pump_both_info->dir_label[i]);
+        }
+    }
+    pump_both_info->shown_mode_switch = mode_switch;
+    pump_both_info->shown_mode_type = proc->sub_mode_type;
 }
 
 static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t color)
@@ -803,18 +839,22 @@ void ui_display_pump_both_level_adjust_prepare(ui_manager_context_t *thiz)
 
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     pump_both_info->pump_mode = (uint8_t)pump_mode;
-    pump_both_info->level_max = home_level_adjust_max_get(pump_both_info->pump_mode);
+    pump_both_info->mode_type = proc->sub_mode_type;
+    pump_both_info->level_max = home_level_adjust_max_get(pump_both_info->mode_type);
     pump_both_info->accent_color = home_level_adjust_accent_color_get(pump_both_info->pump_mode);
     pump_both_info->over_limit_color =
         pump_both_level_adjust_over_limit_color_get(pump_both_info->pump_mode);
-    LOG_UI("pump both level adjust prepare mode=%d max=%d color=0x%06X",
-        pump_both_info->pump_mode, pump_both_info->level_max, pump_both_info->accent_color);
+    LOG_UI("pump both level adjust prepare mode=%d type=%d max=%d color=0x%06X",
+        pump_both_info->pump_mode, pump_both_info->mode_type, pump_both_info->level_max,
+        pump_both_info->accent_color);
 
     pump_both_info->ui = thiz;
     pump_both_info->force_update = true;
     pump_both_info->shown_level[0] = 0xFF;
     pump_both_info->shown_level[1] = 0xFF;
     pump_both_info->shown_over_limit = 0xFF;
+    pump_both_info->shown_mode_switch = 0xFF;
+    pump_both_info->shown_mode_type = 0xFF;
     pump_both_info->shown_accent_color = 0;
     pump_both_info->shown_over_limit_color = 0;
     pump_both_info->shown_hours = 0xFF;
@@ -859,15 +899,24 @@ void ui_display_pump_both_level_adjust_remove(ui_manager_context_t *thiz)
 int ui_display_pump_both_level_adjust_process(ui_manager_context_t *thiz)
 {
     ui_proc_pump_t *proc;
+    uint8_t level_max;
 
     EXCEPTION_CHECK_INT(thiz && pump_both_info && pump_both_info->root);
     proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->pump);
 
+    level_max = home_level_adjust_max_get(proc->sub_mode_type);
+    if (pump_both_info->mode_type != proc->sub_mode_type ||
+        pump_both_info->level_max != level_max) {
+        pump_both_info->mode_type = proc->sub_mode_type;
+        pump_both_info->level_max = level_max;
+        pump_both_info->force_update = true;
+    }
+
     pump_both_level_adjust_bg_update(thiz);
     pump_both_level_arc_update(proc, pump_both_info->level_max, pump_both_info->accent_color);
     pump_both_level_value_update(proc);
-    pump_both_level_dir_update();
+    pump_both_level_dir_update(proc, pump_both_info->accent_color);
     pump_both_level_over_limit_update(proc, pump_both_info->over_limit_color);
     pump_both_level_time_update(proc);
     pump_both_info->force_update = false;
