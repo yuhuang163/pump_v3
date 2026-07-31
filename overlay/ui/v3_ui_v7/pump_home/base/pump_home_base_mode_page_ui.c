@@ -18,6 +18,15 @@
 #define PUMP_MODE_PAGE_TITLE_COLOR                  (0xFFFFFF)
 #define PUMP_MODE_PAGE_DURATION_Y                   (246)
 #define PUMP_MODE_PAGE_DURATION_COLOR               (0x999999)
+/** 模式标题单行超宽则换行；换行后按间距重排 ICON / 时间文案 */
+#define PUMP_MODE_PAGE_TITLE_MAX_W                  (290)
+#define PUMP_MODE_PAGE_ICON_TITLE_GAP               (22)
+#define PUMP_MODE_PAGE_TITLE_DURATION_GAP           (6)
+/** 标题最长 32 字符；超出则裁进 shown 并启用 "..." */
+#define PUMP_MODE_PAGE_TITLE_MAX_CHARS              (32 - 6)
+#define PUMP_MODE_PAGE_TITLE_BUF_LEN                (PUMP_MODE_PAGE_TITLE_MAX_CHARS + 1)
+#define PUMP_MODE_PAGE_TITLE_RAW_LEN                (64)
+#define PUMP_MODE_PAGE_TITLE_DISPLAY_LEN            (40)
 
 #define PUMP_MODE_PAGE_SCALE_FULL                   (256)
 /** 5 点布局第 3 点 X 居中：(屏宽 - 直径) / 2 */
@@ -120,6 +129,10 @@ static uint16_t pump_mode_page_icon_res_id_get(uint8_t mode)
 static void pump_mode_page_title_get(pump_home_base_ui_info_t *info, uint8_t mode,
     char *buf, size_t buf_len)
 {
+    if (buf == NULL || buf_len == 0) {
+        return;
+    }
+
     switch (mode) {
         case BREAST_PUMP_STIMULATION_MODE:
             snprintf(buf, buf_len, "Stimulation");
@@ -139,6 +152,150 @@ static void pump_mode_page_title_get(pump_home_base_ui_info_t *info, uint8_t mod
         default:
             snprintf(buf, buf_len, "");
             break;
+    }
+}
+
+/** 单行塞入 max_w 的最长字节前缀长度 */
+static uint32_t pump_mode_page_title_fit_len(const char *text, uint32_t text_len,
+    const lv_font_t *font, int32_t letter_space, int32_t max_w)
+{
+    char tmp[PUMP_MODE_PAGE_TITLE_BUF_LEN];
+    uint32_t lo = 0;
+    uint32_t hi;
+    uint32_t best = 0;
+
+    if (text == NULL || font == NULL || text_len == 0 || max_w <= 0) {
+        return 0;
+    }
+    if (text_len >= sizeof(tmp)) {
+        text_len = (uint32_t)sizeof(tmp) - 1U;
+    }
+    hi = text_len;
+
+    while (lo <= hi) {
+        uint32_t mid = (lo + hi) / 2U;
+        lv_point_t size;
+
+        memcpy(tmp, text, mid);
+        tmp[mid] = '\0';
+        lv_text_get_size(&size, tmp, font, letter_space, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        if (size.x <= max_w) {
+            best = mid;
+            if (mid == text_len) {
+                break;
+            }
+            lo = mid + 1U;
+        } else {
+            if (mid == 0U) {
+                break;
+            }
+            hi = mid - 1U;
+        }
+    }
+    return best;
+}
+
+/**
+ * 生成展示文案：
+ * - 未超 32 且单行 ≤290 / 两行内可放下：原文 + WRAP
+ * - 超 32 或两行仍不够：裁剪并加 "..."
+ */
+static void pump_mode_page_title_make_display(char *out, size_t out_len, const char *src,
+    const lv_font_t *font, int32_t letter_space, bool force_ellipsis)
+{
+    lv_point_t size;
+    uint32_t src_len;
+    uint32_t line1_len;
+    uint32_t line2_fit;
+    const char *rest;
+    int32_t ellipsis_w;
+    uint32_t i;
+
+    if (out == NULL || out_len == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (src == NULL || font == NULL) {
+        return;
+    }
+
+    src_len = (uint32_t)strlen(src);
+    if (src_len == 0U) {
+        return;
+    }
+
+    if (!force_ellipsis) {
+        lv_text_get_size(&size, src, font, letter_space, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        if (size.x <= PUMP_MODE_PAGE_TITLE_MAX_W) {
+            strncpy(out, src, out_len - 1U);
+            out[out_len - 1U] = '\0';
+            return;
+        }
+        lv_text_get_size(&size, src, font, letter_space, 0, PUMP_MODE_PAGE_TITLE_MAX_W, LV_TEXT_FLAG_NONE);
+        if (size.y <= (int32_t)font->line_height * 2) {
+            strncpy(out, src, out_len - 1U);
+            out[out_len - 1U] = '\0';
+            return;
+        }
+    } else {
+        char trial[PUMP_MODE_PAGE_TITLE_DISPLAY_LEN];
+
+        snprintf(trial, sizeof(trial), "%s...", src);
+        lv_text_get_size(&size, trial, font, letter_space, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        if (size.x <= PUMP_MODE_PAGE_TITLE_MAX_W) {
+            strncpy(out, trial, out_len - 1U);
+            out[out_len - 1U] = '\0';
+            return;
+        }
+    }
+
+    line1_len = pump_mode_page_title_fit_len(src, src_len, font, letter_space,
+        PUMP_MODE_PAGE_TITLE_MAX_W);
+    for (i = line1_len; i > 0U; i--) {
+        if (src[i - 1U] == ' ') {
+            line1_len = i - 1U;
+            break;
+        }
+    }
+    rest = src + line1_len;
+    while (*rest == ' ') {
+        rest++;
+    }
+
+    lv_text_get_size(&size, "...", font, letter_space, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    ellipsis_w = size.x;
+
+    if (!force_ellipsis) {
+        lv_text_get_size(&size, rest, font, letter_space, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        if (size.x <= PUMP_MODE_PAGE_TITLE_MAX_W) {
+            snprintf(out, out_len, "%.*s\n%s", (int)line1_len, src, rest);
+            return;
+        }
+    }
+
+    if (ellipsis_w >= PUMP_MODE_PAGE_TITLE_MAX_W) {
+        snprintf(out, out_len, "%.*s\n...", (int)line1_len, src);
+        return;
+    }
+    line2_fit = pump_mode_page_title_fit_len(rest, (uint32_t)strlen(rest), font, letter_space,
+        PUMP_MODE_PAGE_TITLE_MAX_W - ellipsis_w);
+    snprintf(out, out_len, "%.*s\n%.*s...", (int)line1_len, src, (int)line2_fit, rest);
+}
+
+/** 入库：超过 32 字符截断并标记需 "..." */
+static void pump_mode_page_title_store(pump_home_base_mode_page_ctx_t *ctx, const char *title)
+{
+    size_t len;
+
+    EXCEPTION_CHECK_VOID(ctx && title);
+    len = strlen(title);
+    ctx->title_ellipsis = (len > PUMP_MODE_PAGE_TITLE_MAX_CHARS) ? 1U : 0U;
+    if (ctx->title_ellipsis) {
+        memcpy(ctx->shown_title, title, PUMP_MODE_PAGE_TITLE_MAX_CHARS);
+        ctx->shown_title[PUMP_MODE_PAGE_TITLE_MAX_CHARS] = '\0';
+    } else {
+        strncpy(ctx->shown_title, title, sizeof(ctx->shown_title) - 1U);
+        ctx->shown_title[sizeof(ctx->shown_title) - 1U] = '\0';
     }
 }
 
@@ -523,6 +680,94 @@ static void pump_mode_chrome_visibility_apply(pump_home_base_ui_info_t *info)
     }
 }
 
+/**
+ * 模式标题超 290px 自动换行；两行仍不够则第二行加 "..."。
+ * 单行：固定 Y；多行：ICON+标题(+时间) 相对单行设计块垂直居中，避免整体下移。
+ */
+static void pump_mode_page_hero_layout(pump_home_base_mode_page_ctx_t *ctx)
+{
+    const lv_font_t *font;
+    int32_t letter_space;
+    int32_t line_space;
+    lv_point_t size;
+    lv_coord_t title_y = PUMP_MODE_PAGE_TITLE_Y;
+    lv_coord_t icon_y = PUMP_MODE_PAGE_ICON_Y;
+    lv_coord_t duration_y = PUMP_MODE_PAGE_DURATION_Y;
+    lv_coord_t icon_h = 0;
+    lv_coord_t title_h = 0;
+    lv_coord_t duration_h = 0;
+    bool has_duration = false;
+    bool multi_line = false;
+    char display[PUMP_MODE_PAGE_TITLE_DISPLAY_LEN];
+
+    if (ctx == NULL || ctx->title == NULL || !lv_obj_is_valid(ctx->title)) {
+        return;
+    }
+
+    font = lv_obj_get_style_text_font(ctx->title, 0);
+    letter_space = lv_obj_get_style_text_letter_space(ctx->title, 0);
+    line_space = lv_obj_get_style_text_line_space(ctx->title, 0);
+    if (font == NULL) {
+        return;
+    }
+
+    pump_mode_page_title_make_display(display, sizeof(display), ctx->shown_title,
+        font, letter_space, ctx->title_ellipsis != 0);
+    lv_label_set_text(ctx->title, display);
+
+    lv_text_get_size(&size, display, font, letter_space, line_space, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    if (size.x > PUMP_MODE_PAGE_TITLE_MAX_W || strchr(display, '\n') != NULL) {
+        lv_label_set_long_mode(ctx->title, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(ctx->title, PUMP_MODE_PAGE_TITLE_MAX_W);
+    } else {
+        lv_label_set_long_mode(ctx->title, LV_LABEL_LONG_CLIP);
+        lv_obj_set_width(ctx->title, LV_SIZE_CONTENT);
+    }
+
+    lv_obj_update_layout(ctx->title);
+    title_h = lv_obj_get_height(ctx->title);
+    multi_line = (title_h > font->line_height) || (strchr(display, '\n') != NULL);
+
+    if (ctx->icon != NULL && lv_obj_is_valid(ctx->icon)) {
+        lv_obj_update_layout(ctx->icon);
+        icon_h = lv_obj_get_height(ctx->icon);
+    }
+    has_duration = (ctx->duration != NULL && lv_obj_is_valid(ctx->duration) &&
+        !lv_obj_has_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN));
+    if (has_duration) {
+        lv_obj_update_layout(ctx->duration);
+        duration_h = lv_obj_get_height(ctx->duration);
+    }
+
+    if (multi_line) {
+        /* ICON + 标题 (+ 时间) 整体绕单行设计中心展开 */
+        lv_coord_t block_h = icon_h + PUMP_MODE_PAGE_ICON_TITLE_GAP + title_h;
+        lv_coord_t ref_bottom;
+        lv_coord_t ref_center;
+        lv_coord_t top;
+
+        if (has_duration) {
+            block_h += PUMP_MODE_PAGE_TITLE_DURATION_GAP + duration_h;
+            ref_bottom = PUMP_MODE_PAGE_DURATION_Y + duration_h;
+        } else {
+            ref_bottom = PUMP_MODE_PAGE_TITLE_Y + font->line_height;
+        }
+        ref_center = (PUMP_MODE_PAGE_ICON_Y + ref_bottom) / 2;
+        top = ref_center - block_h / 2;
+        icon_y = top;
+        title_y = top + icon_h + PUMP_MODE_PAGE_ICON_TITLE_GAP;
+        duration_y = title_y + title_h + PUMP_MODE_PAGE_TITLE_DURATION_GAP;
+    }
+
+    lv_obj_align(ctx->title, LV_ALIGN_TOP_MID, 0, title_y);
+    if (ctx->icon != NULL && lv_obj_is_valid(ctx->icon)) {
+        lv_obj_align(ctx->icon, LV_ALIGN_TOP_MID, 0, icon_y);
+    }
+    if (has_duration) {
+        lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, duration_y);
+    }
+}
+
 static void pump_mode_page_icon_detach(pump_home_base_mode_page_ctx_t *ctx)
 {
     if (ctx == NULL || ctx->icon == NULL || !lv_obj_is_valid(ctx->icon)) {
@@ -564,13 +809,12 @@ static void pump_mode_page_icon_build(pump_home_base_ui_info_t *info, pump_home_
             RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888);
         ctx->icon_predecoded = 0;
     }
-    lv_obj_align(ctx->icon, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_ICON_Y);
     ctx->icon_id = res_id;
 }
 
 static void pump_mode_page_title_build(pump_home_base_ui_info_t *info, pump_home_base_mode_page_ctx_t *ctx)
 {
-    char title[24] = {0};
+    char title[PUMP_MODE_PAGE_TITLE_RAW_LEN] = {0};
     lv_obj_t *parent = pump_home_page_parent_get(info);
 
     pump_mode_page_title_get(info, ctx->mode, title, sizeof(title));
@@ -583,10 +827,7 @@ static void pump_mode_page_title_build(pump_home_base_ui_info_t *info, pump_home
         lv_obj_set_style_text_align(ctx->title, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(ctx->title, 0, 0);
     }
-    lv_label_set_text(ctx->title, title);
-    lv_obj_align(ctx->title, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_TITLE_Y);
-    strncpy(ctx->shown_title, title, sizeof(ctx->shown_title) - 1);
-    ctx->shown_title[sizeof(ctx->shown_title) - 1] = '\0';
+    pump_mode_page_title_store(ctx, title);
 }
 
 static bool pump_mode_page_has_duration(uint8_t mode)
@@ -639,7 +880,6 @@ static void pump_mode_page_duration_build(pump_home_base_ui_info_t *info,
         lv_obj_set_style_text_letter_space(ctx->duration, 0, 0);
     }
     lv_label_set_text(ctx->duration, duration);
-    lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_DURATION_Y);
     lv_obj_clear_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
     strncpy(ctx->shown_duration, duration, sizeof(ctx->shown_duration) - 1);
     ctx->shown_duration[sizeof(ctx->shown_duration) - 1] = '\0';
@@ -660,12 +900,14 @@ static void pump_mode_page_duration_content_update(pump_home_base_ui_info_t *inf
     }
     if (ctx->duration == NULL || !lv_obj_is_valid(ctx->duration)) {
         pump_mode_page_duration_build(info, ctx);
+        pump_mode_page_hero_layout(ctx);
         return;
     }
     lv_label_set_text(ctx->duration, duration);
-    lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_DURATION_Y);
+    lv_obj_clear_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
     strncpy(ctx->shown_duration, duration, sizeof(ctx->shown_duration) - 1);
     ctx->shown_duration[sizeof(ctx->shown_duration) - 1] = '\0';
+    pump_mode_page_hero_layout(ctx);
 }
 
 /*
@@ -764,6 +1006,7 @@ void pump_home_mode_page_ui_build(pump_home_base_ui_info_t *info, uint8_t page_i
     pump_mode_page_icon_build(info, ctx);
     pump_mode_page_title_build(info, ctx);
     pump_mode_page_duration_build(info, ctx);
+    pump_mode_page_hero_layout(ctx);
     if (ctx->circle_bg != NULL && lv_obj_is_valid(ctx->circle_bg)) {
         lv_obj_move_background(ctx->circle_bg);
     }
@@ -774,7 +1017,9 @@ void pump_home_mode_page_ui_build(pump_home_base_ui_info_t *info, uint8_t page_i
 void pump_home_mode_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc)
 {
     pump_home_base_mode_page_ctx_t *ctx;
-    char title[24] = {0};
+    char title[PUMP_MODE_PAGE_TITLE_RAW_LEN] = {0};
+    char capped[PUMP_MODE_PAGE_TITLE_BUF_LEN] = {0};
+    uint8_t need_ellipsis;
 
     EXCEPTION_CHECK_VOID(info && proc);
     ctx = pump_mode_page_ctx_get(info);
@@ -785,14 +1030,19 @@ void pump_home_mode_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
     /// 个性化 ID 变化时刷新 Customized 文案
     if (ctx->mode == BREAST_PUMP_CUSTOM_MODE || info->force_update) {
         pump_mode_page_title_get(info, ctx->mode, title, sizeof(title));
-        if (strncmp(ctx->shown_title, title, sizeof(ctx->shown_title)) != 0 ||
+        need_ellipsis = (strlen(title) > PUMP_MODE_PAGE_TITLE_MAX_CHARS) ? 1U : 0U;
+        if (need_ellipsis) {
+            memcpy(capped, title, PUMP_MODE_PAGE_TITLE_MAX_CHARS);
+            capped[PUMP_MODE_PAGE_TITLE_MAX_CHARS] = '\0';
+        } else {
+            strncpy(capped, title, sizeof(capped) - 1U);
+            capped[sizeof(capped) - 1U] = '\0';
+        }
+        if (strncmp(ctx->shown_title, capped, sizeof(ctx->shown_title)) != 0 ||
+            ctx->title_ellipsis != need_ellipsis ||
             info->force_update) {
-            if (ctx->title != NULL && lv_obj_is_valid(ctx->title)) {
-                lv_label_set_text(ctx->title, title);
-                lv_obj_align(ctx->title, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_TITLE_Y);
-            }
-            strncpy(ctx->shown_title, title, sizeof(ctx->shown_title) - 1);
-            ctx->shown_title[sizeof(ctx->shown_title) - 1] = '\0';
+            pump_mode_page_title_store(ctx, title);
+            pump_mode_page_hero_layout(ctx);
         }
     }
     pump_mode_page_duration_content_update(info, ctx);
@@ -853,16 +1103,16 @@ void pump_home_mode_page_transition_apply(lv_obj_t *page, int32_t hero_scale, bo
 
         pump_mode_page_obj_scale_set(ctx->title, PUMP_MODE_PAGE_SCALE_FULL);
         lv_obj_set_style_text_font(ctx->title, font, 0);
-        lv_obj_align(ctx->title, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_TITLE_Y);
     }
 
     /* 总时间：圆背景消失后展示，圆背景出现时隐藏 */
     if (ctx->duration != NULL && lv_obj_is_valid(ctx->duration)) {
         if (!small && pump_mode_page_has_duration(ctx->mode)) {
             lv_obj_clear_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_align(ctx->duration, LV_ALIGN_TOP_MID, 0, PUMP_MODE_PAGE_DURATION_Y);
         } else {
             lv_obj_add_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN);
         }
     }
+    /* 字号/显隐变化后按是否换行重排 ICON / 标题 / 时间 */
+    pump_mode_page_hero_layout(ctx);
 }
