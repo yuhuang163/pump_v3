@@ -54,7 +54,10 @@ static void home_speed_adjust_ui_remove(void *user_data)
 
 static void home_speed_adjust_state_sync(ui_proc_home_t *proc)
 {
-    READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
+    int time_index = 0;
+
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     if (proc->setting.speed >= BREAST_PUMP_SPEED_MAX) {
         proc->setting.speed = (BREAST_PUMP_SPEED_MAX - 1);
     }
@@ -93,12 +96,15 @@ void show_home_speed_adjust_ui(ui_proc_home_t *proc)
 
 int home_pump_speed_adjust_handler(ui_proc_home_t *proc, bool is_increase)
 {
+    int time_index = 0;
+
     EXCEPTION_CHECK_INT(proc && proc->pump);
     if (proc->current_ui_type != HOME_UI_TYPE_SPEED_ADJUST) {
         return -1;
     }
 
-    READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     if (is_increase) {
         if (proc->setting.speed < (BREAST_PUMP_SPEED_MAX - 1)) {
             proc->setting.speed++;
@@ -108,7 +114,7 @@ int home_pump_speed_adjust_handler(ui_proc_home_t *proc, bool is_increase)
             proc->setting.speed--;
         }
     }
-    WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
+    WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     LOG_WM("home speed adjust -> %d", proc->setting.speed);
     return 0;
 }

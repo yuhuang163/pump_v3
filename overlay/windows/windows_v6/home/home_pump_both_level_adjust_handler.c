@@ -79,8 +79,10 @@ static void home_both_level_adjust_state_sync(ui_proc_home_t *proc)
     int pump_mode = 0;
     uint8_t level_max;
     uint8_t i;
+    int time_index = 0;
 
-    READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     level_max = home_level_adjust_max_get((uint8_t)pump_mode);
 
@@ -91,7 +93,7 @@ static void home_both_level_adjust_state_sync(ui_proc_home_t *proc)
         proc->both_level_value[i] = proc->setting.level[i];
         proc->both_level_arc[i] = proc->both_level_value[i];
     }
-    WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
+    WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
 
     proc->both_level_over_limit = 0;
     proc->both_level_inc_steps = 0;
@@ -140,13 +142,15 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
     uint8_t next_l;
     uint8_t next_r;
     bool changed = false;
+    int time_index = 0;
 
     EXCEPTION_CHECK_INT(proc && proc->pump);
     if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
         return -1;
     }
 
-    READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     level_max = home_both_level_adjust_ui_level_max_get();
     proc->level_adjust_time = get_timestamp();
 
@@ -161,7 +165,7 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
             proc->both_level_arc[i] = proc->both_level_value[i];
         }
         if (changed) {
-            WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
+            WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
         }
         proc->both_level_inc_steps = 0;
         proc->both_level_inc_window_time = get_timestamp();
@@ -209,7 +213,7 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         proc->both_level_value[1] = next_r;
         proc->setting.level[0] = next_l;
         proc->setting.level[1] = next_r;
-        WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
         proc->both_level_inc_steps++;
     }
     proc->both_level_arc[0] = proc->both_level_value[0];
