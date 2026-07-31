@@ -16,6 +16,7 @@ static void pump_speed_adjust_ui_after_policy(ui_manager_context_t *ui, int inde
     (void)index;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     ui_display_pump_speed_adjust_process(ui);
+    pump_pause_led_tick(proc);
 }
 
 static void pump_speed_adjust_animation_progress_cb(void *user_data, int index,
