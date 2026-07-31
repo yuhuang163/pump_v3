@@ -149,7 +149,8 @@ typedef struct {
     uint8_t mode;
     uint16_t icon_id;
     uint8_t icon_predecoded;
-    char shown_title[24];
+    uint8_t title_ellipsis;             /// 原文超 32 字符，展示需 "..."
+    char shown_title[33];               /// 最多 32 字符 + '\0'
     char shown_duration[16];
 } home_base_mode_page_ctx_t;
 
