@@ -40,6 +40,15 @@ extern "C" {
 /// 单边力度连续加档限制窗口 / 过大提示时长
 #define PUMP_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
 #define PUMP_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
+/// 子模式切换提醒时长
+#define PUMP_SUB_MODE_SWITCH_TIMEOUT_MS      (3000) /// 3s
+
+/// 子模式同步场景（力度/速度页共用）
+typedef enum {
+    PUMP_SUB_MODE_SYNC_LEVEL = 0,      /// 单边力度
+    PUMP_SUB_MODE_SYNC_BOTH_LEVEL,     /// 双边力度
+    PUMP_SUB_MODE_SYNC_SPEED,          /// 速度
+} pump_sub_mode_sync_e;
 /// 模式切换成功页展示时长
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TIMEOUT  (1500) /// 1.5s
 /// 泵奶背光灯周期（半周期 500ms → 全周期 1Hz）
@@ -159,9 +168,13 @@ typedef struct {
     uint8_t level_arc_level; /// 圆弧动画目标力度（可与 level_value 分离）
     uint8_t level_over_limit; /// 力度过大提示中
     uint8_t level_inc_window_base; /// 连续加档窗口起始力度
+    uint8_t sub_mode_type; /// 当前子模式 pump_mode_type_e（力度/速度页共用）
+    uint8_t sub_mode_switch; /// 子模式切换提醒中（力度/速度页共用）
+    int sub_mode_time_index; /// 调节页缓存的 mode step index，读写 setting 用
     uint32_t level_adjust_time; /// 档位调节页最近操作时间
     uint32_t level_over_limit_time; /// 过大提示计时起点（有调节刷新）
     uint32_t level_inc_window_time; /// 连续加档窗口起点
+    uint32_t sub_mode_switch_time; /// 子模式切换提醒计时（力度/速度页共用）
 
     /// 双边力度调节（无超时退出，短按 power 回泵奶首页）
     uint8_t both_level_value[2]; /// 双边实际/展示力度（过大提示时不变）
@@ -201,6 +214,14 @@ void pump_complete_event_handler(ui_proc_pump_t *proc);
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type);
 /// 暂停态 start 按键灯 1Hz 闪烁 tick（仅 LED，不同步 UI）
 void pump_pause_led_tick(ui_proc_pump_t *proc);
+
+/// 子模式（刺激/吸乳/混合/放松）同步：力度/速度页共用
+uint8_t pump_sub_mode_type_get(ui_proc_pump_t *proc);
+void pump_sub_mode_switch_clear(ui_proc_pump_t *proc);
+void pump_sub_mode_switch_tick(ui_proc_pump_t *proc);
+void pump_sub_mode_state_init(ui_proc_pump_t *proc, uint8_t clamp_level);
+void pump_sub_mode_sync_tick(ui_proc_pump_t *proc, pump_sub_mode_sync_e sync);
+
 /// 电源按键事件处理
 void pump_power_key_event_handler(ui_proc_pump_t *proc);
 /// 开始按键事件处理

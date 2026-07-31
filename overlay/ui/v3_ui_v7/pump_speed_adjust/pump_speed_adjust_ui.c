@@ -42,6 +42,7 @@
 #define PUMP_SPEED_LABEL_Y                          (210)
 #define PUMP_SPEED_LABEL_COLOR                      (0x999999)
 #define PUMP_SPEED_LABEL_TEXT                       "Speed"
+#define PUMP_SPEED_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 /** 泵奶时间组件参数与 pump_level_adjust_ui 一致 */
 #define PUMP_SPEED_TIME_DIGIT_COUNT                 (2)
@@ -78,6 +79,8 @@ typedef struct {
 #endif
     uint8_t shown_speed;
     uint8_t shown_selected;
+    uint8_t shown_mode_switch;
+    uint8_t shown_mode_type;
     uint8_t shown_hours;
     uint8_t shown_minutes;
     uint8_t shown_seconds;
@@ -88,6 +91,7 @@ typedef struct {
     uint16_t shown_status_icon_id;
     uint32_t accent_color;
     uint32_t shown_accent_color;
+    uint32_t shown_label_color;
 } pump_speed_adjust_ui_info_t;
 
 /*
@@ -245,24 +249,45 @@ static void pump_speed_value_update(ui_proc_pump_t *proc)
     speed_info->shown_speed = proc->setting.speed;
 }
 
-static void pump_speed_label_update(void)
+static void pump_speed_label_update(ui_proc_pump_t *proc, uint32_t accent_color)
 {
-    if (speed_info->speed_label != NULL && lv_obj_is_valid(speed_info->speed_label) &&
-        speed_info->force_update == false) {
-        return;
-    }
+    char switch_buf[32] = {0};
+    const char *text;
+    uint32_t color;
+    uint8_t mode_switch = proc->sub_mode_switch;
 
     if (speed_info->speed_label == NULL || !lv_obj_is_valid(speed_info->speed_label)) {
         speed_info->speed_label = lv_label_create(speed_info->root);
         EXCEPTION_CHECK_VOID(speed_info->speed_label);
+        speed_info->shown_mode_switch = 0xFF;
+        speed_info->shown_mode_type = 0xFF;
     }
 
-    lv_label_set_text(speed_info->speed_label, PUMP_SPEED_LABEL_TEXT);
-    lv_obj_set_style_text_color(speed_info->speed_label,
-        lv_color_hex(PUMP_SPEED_LABEL_COLOR), 0);
+    if (mode_switch) {
+        snprintf(switch_buf, sizeof(switch_buf), PUMP_SPEED_MODE_SWITCH_TEXT_FMT,
+            home_level_adjust_mode_type_name_get(proc->sub_mode_type));
+        text = switch_buf;
+        color = accent_color;
+    } else {
+        text = PUMP_SPEED_LABEL_TEXT;
+        color = PUMP_SPEED_LABEL_COLOR;
+    }
+
+    if (speed_info->force_update == false &&
+        speed_info->shown_mode_switch == mode_switch &&
+        speed_info->shown_mode_type == proc->sub_mode_type &&
+        speed_info->shown_label_color == color) {
+        return;
+    }
+
+    lv_label_set_text(speed_info->speed_label, text);
+    lv_obj_set_style_text_color(speed_info->speed_label, lv_color_hex(color), 0);
     lv_obj_set_style_text_font(speed_info->speed_label, &lv_font_aeonik_soft_26_medium, 0);
     lv_obj_set_style_text_align(speed_info->speed_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(speed_info->speed_label, LV_ALIGN_TOP_MID, 0, PUMP_SPEED_LABEL_Y);
+    speed_info->shown_mode_switch = mode_switch;
+    speed_info->shown_mode_type = proc->sub_mode_type;
+    speed_info->shown_label_color = color;
 }
 
 static void pump_speed_obj_flag_set(lv_obj_t *obj, bool visible)
@@ -522,7 +547,10 @@ void ui_display_pump_speed_adjust_prepare(ui_manager_context_t *thiz)
     speed_info->force_update = true;
     speed_info->shown_speed = 0xFF;
     speed_info->shown_selected = 0xFF;
+    speed_info->shown_mode_switch = 0xFF;
+    speed_info->shown_mode_type = 0xFF;
     speed_info->shown_accent_color = 0;
+    speed_info->shown_label_color = 0;
     speed_info->shown_hours = 0xFF;
     speed_info->shown_minutes = 0xFF;
     speed_info->shown_seconds = 0xFF;
@@ -572,7 +600,7 @@ int ui_display_pump_speed_adjust_process(ui_manager_context_t *thiz)
 
     pump_speed_arc_update(proc, speed_info->accent_color);
     pump_speed_value_update(proc);
-    pump_speed_label_update();
+    pump_speed_label_update(proc, speed_info->accent_color);
     pump_speed_time_update(proc);
     pump_speed_adjust_bg_update(thiz);
     speed_info->force_update = false;

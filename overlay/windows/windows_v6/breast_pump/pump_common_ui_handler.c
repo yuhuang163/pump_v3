@@ -345,3 +345,139 @@ void pump_start_key_event_handler(ui_proc_pump_t *proc)
 {
     switch_pump_status_handler(proc);
 }
+
+uint8_t pump_sub_mode_type_get(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_INT(proc);
+    if (proc->motor == NULL || proc->motor->get_runtime_mode_type == NULL) {
+        return PUMP_MODE_LACTATION;
+    }
+    return proc->motor->get_runtime_mode_type(false);
+}
+
+void pump_sub_mode_switch_clear(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    proc->sub_mode_switch = 0;
+}
+
+void pump_sub_mode_switch_tick(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->sub_mode_switch == 0) {
+        return;
+    }
+    if (get_timestamp_ms(proc->sub_mode_switch_time) < PUMP_SUB_MODE_SWITCH_TIMEOUT_MS) {
+        return;
+    }
+    pump_sub_mode_switch_clear(proc);
+}
+
+static uint8_t pump_sub_mode_level_clamp(ui_proc_pump_t *proc, uint8_t mode_type)
+{
+    uint8_t level_max = home_level_adjust_max_get(mode_type);
+    uint8_t i;
+    bool changed = false;
+
+    READ_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, proc->setting);
+    for (i = 0; i < BREAST_PUMP_NUM; i++) {
+        if (proc->setting.level[i] > level_max) {
+            proc->setting.level[i] = level_max;
+            changed = true;
+        }
+    }
+    if (changed) {
+        WRITE_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, true, proc->setting);
+    }
+    return level_max;
+}
+
+void pump_sub_mode_state_init(ui_proc_pump_t *proc, uint8_t clamp_level)
+{
+    int pump_mode = 0;
+    int time_index = 0;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    proc->sub_mode_time_index = time_index;
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    proc->sub_mode_type = home_level_adjust_mode_type_resolve((uint8_t)pump_mode,
+        pump_sub_mode_type_get(proc));
+    proc->sub_mode_switch = 0;
+    READ_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, proc->setting);
+    if (clamp_level) {
+        pump_sub_mode_level_clamp(proc, proc->sub_mode_type);
+    }
+}
+
+void pump_sub_mode_sync_tick(ui_proc_pump_t *proc, pump_sub_mode_sync_e sync)
+{
+    int pump_mode = 0;
+    int time_index = 0;
+    uint8_t mode_type;
+    uint8_t switched = 0;
+    uint8_t i;
+    uint8_t index;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    mode_type = home_level_adjust_mode_type_resolve((uint8_t)pump_mode,
+        pump_sub_mode_type_get(proc));
+
+    if (proc->sub_mode_time_index != time_index) {
+        if (proc->sub_mode_type != 0xFF) {
+            switched = 1;
+            LOG_WM("pump sub mode time %d->%d sync=%d",
+                proc->sub_mode_time_index, time_index, sync);
+        }
+        proc->sub_mode_time_index = time_index;
+    }
+
+    if (proc->sub_mode_type != mode_type) {
+        if (proc->sub_mode_type != 0xFF) {
+            switched = 1;
+            proc->sub_mode_switch = 1;
+            proc->sub_mode_switch_time = get_timestamp();
+            LOG_WM("pump sub mode type %d->%d sync=%d",
+                proc->sub_mode_type, mode_type, sync);
+        }
+        proc->sub_mode_type = mode_type;
+    }
+
+    if (sync == PUMP_SUB_MODE_SYNC_LEVEL || sync == PUMP_SUB_MODE_SYNC_BOTH_LEVEL) {
+        pump_sub_mode_level_clamp(proc, mode_type);
+    } else if (sync == PUMP_SUB_MODE_SYNC_SPEED && switched) {
+        READ_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, proc->setting);
+    }
+
+    if (switched) {
+        if (sync == PUMP_SUB_MODE_SYNC_LEVEL) {
+            if (proc->level_over_limit) {
+                proc->level_over_limit = 0;
+                proc->level_arc_level = proc->level_value;
+            }
+        } else if (sync == PUMP_SUB_MODE_SYNC_BOTH_LEVEL) {
+            if (proc->both_level_over_limit) {
+                proc->both_level_over_limit = 0;
+                proc->both_level_arc[0] = proc->both_level_value[0];
+                proc->both_level_arc[1] = proc->both_level_value[1];
+            }
+        }
+    }
+
+    if (sync == PUMP_SUB_MODE_SYNC_LEVEL) {
+        index = proc->level_adjust_side;
+        if (index < BREAST_PUMP_NUM && proc->level_over_limit == 0) {
+            proc->level_value = proc->setting.level[index];
+            proc->level_arc_level = proc->level_value;
+        }
+    } else if (sync == PUMP_SUB_MODE_SYNC_BOTH_LEVEL) {
+        if (proc->both_level_over_limit == 0) {
+            for (i = 0; i < BREAST_PUMP_NUM; i++) {
+                proc->both_level_value[i] = proc->setting.level[i];
+                proc->both_level_arc[i] = proc->both_level_value[i];
+            }
+        }
+    }
+}

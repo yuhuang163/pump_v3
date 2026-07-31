@@ -32,6 +32,7 @@
 #define HOME_LEVEL_DIR_LEFT_TEXT                    "Left Level"
 #define HOME_LEVEL_DIR_RIGHT_TEXT                   "Right Level"
 #define HOME_LEVEL_OVER_LIMIT_TEXT                  "Max 3 Levels at a time"
+#define HOME_LEVEL_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 #define HOME_LEVEL_TIP_W                            (220)
 #define HOME_LEVEL_TIP_H                            (63)
@@ -58,11 +59,13 @@ typedef struct {
     uint8_t shown_level;
     uint8_t shown_side;
     uint8_t shown_over_limit;
+    uint8_t shown_mode_switch;
+    uint8_t shown_mode_type;
     uint8_t anim_to_level;
-    uint8_t pump_mode; /// 进入页时的模式（页内不切换）
-    uint8_t level_max; /// 当前模式力度上限
+    uint8_t pump_mode; /// 工作模式（强调色）
+    uint8_t mode_type; /// 当前子模式（力度上限）
+    uint8_t level_max; /// 当前子模式力度上限
     uint8_t force_update;
-    uint8_t rsv;
     uint32_t accent_color; /// 圆弧/过大提示强调色
     uint32_t shown_dir_color;
     uint16_t anim_from_sweep;
@@ -222,25 +225,42 @@ static void home_level_value_update(ui_proc_home_t *proc)
 
 static void home_level_dir_update(ui_proc_home_t *proc, uint32_t accent_color)
 {
+    char switch_buf[32] = {0};
     const char *text;
     uint32_t color;
+    uint8_t mode_switch = proc->sub_mode_switch;
+    uint32_t expect_color;
 
     if (level_info->dir_label == NULL || !lv_obj_is_valid(level_info->dir_label)) {
         level_info->dir_label = lv_label_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->dir_label);
         level_info->shown_side = 0xFF;
         level_info->shown_over_limit = 0xFF;
+        level_info->shown_mode_switch = 0xFF;
+        level_info->shown_mode_type = 0xFF;
+    }
+
+    if (proc->level_over_limit || mode_switch) {
+        expect_color = accent_color;
+    } else {
+        expect_color = HOME_LEVEL_DIR_COLOR;
     }
     if (level_info->force_update == false &&
         level_info->shown_side == proc->level_adjust_side &&
         level_info->shown_over_limit == proc->level_over_limit &&
-        level_info->shown_dir_color ==
-            (proc->level_over_limit ? accent_color : HOME_LEVEL_DIR_COLOR)) {
+        level_info->shown_mode_switch == mode_switch &&
+        level_info->shown_mode_type == proc->sub_mode_type &&
+        level_info->shown_dir_color == expect_color) {
         return;
     }
 
     if (proc->level_over_limit) {
         text = HOME_LEVEL_OVER_LIMIT_TEXT;
+        color = accent_color;
+    } else if (mode_switch) {
+        snprintf(switch_buf, sizeof(switch_buf), HOME_LEVEL_MODE_SWITCH_TEXT_FMT,
+            home_level_adjust_mode_type_name_get(proc->sub_mode_type));
+        text = switch_buf;
         color = accent_color;
     } else if (proc->level_adjust_side == HOME_LEVEL_ADJUST_SIDE_RIGHT) {
         text = HOME_LEVEL_DIR_RIGHT_TEXT;
@@ -257,6 +277,8 @@ static void home_level_dir_update(ui_proc_home_t *proc, uint32_t accent_color)
     lv_obj_align(level_info->dir_label, LV_ALIGN_TOP_MID, 0, HOME_LEVEL_DIR_Y);
     level_info->shown_side = proc->level_adjust_side;
     level_info->shown_over_limit = proc->level_over_limit;
+    level_info->shown_mode_switch = mode_switch;
+    level_info->shown_mode_type = proc->sub_mode_type;
     level_info->shown_dir_color = color;
 }
 
@@ -328,17 +350,41 @@ static void home_level_tip_update(void)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-uint8_t home_level_adjust_max_get(uint8_t pump_mode)
+uint8_t home_level_adjust_max_get(uint8_t mode_type)
 {
-    switch (pump_mode) {
-        case BREAST_PUMP_STIMULATION_MODE:
+    switch (mode_type) {
+        case PUMP_MODE_STIMULATION:
             return BREAST_PUMP_LEVEL_5;
-        case BREAST_PUMP_LACTATION_MODE:
-        case BREAST_PUMP_MILK_BOOST_MODE:
-        case BREAST_PUMP_CUSTOM_MODE:
-        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+        case PUMP_MODE_LACTATION:
+        case PUMP_MODE_MIX:
+        case PUMP_MODE_IDLE:
         default:
             return BREAST_PUMP_LEVEL_15;
+    }
+}
+
+uint8_t home_level_adjust_mode_type_resolve(uint8_t pump_mode, uint8_t runtime_mode_type)
+{
+    if (PUMP_IS_COMMON_MODE(pump_mode)) {
+        /* BREAST_PUMP_STIMULATION/LACTATION/MIX 与 PUMP_MODE_* 对齐 */
+        return pump_mode;
+    }
+    return runtime_mode_type;
+}
+
+const char *home_level_adjust_mode_type_name_get(uint8_t mode_type)
+{
+    switch (mode_type) {
+        case PUMP_MODE_STIMULATION:
+            return "Stimulation";
+        case PUMP_MODE_LACTATION:
+            return "Expression";
+        case PUMP_MODE_MIX:
+            return "Mixed";
+        case PUMP_MODE_IDLE:
+            return "Relax";
+        default:
+            return "Expression";
     }
 }
 
@@ -379,18 +425,21 @@ void ui_display_home_level_adjust_prepare(ui_manager_context_t *thiz)
     proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc && proc->pump);
 
-    /* 页内不切换模式：进入时用 int 读一次并缓存在 UI（READ_PUMP_WORK_MODE 要求 sizeof(int)） */
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     level_info->pump_mode = (uint8_t)pump_mode;
-    level_info->level_max = home_level_adjust_max_get(level_info->pump_mode);
+    level_info->mode_type = proc->sub_mode_type;
+    level_info->level_max = home_level_adjust_max_get(level_info->mode_type);
     level_info->accent_color = home_level_adjust_accent_color_get(level_info->pump_mode);
-    LOG_UI("level adjust prepare mode=%d max=%d color=0x%06X",
-        level_info->pump_mode, level_info->level_max, level_info->accent_color);
+    LOG_UI("level adjust prepare mode=%d type=%d max=%d color=0x%06X",
+        level_info->pump_mode, level_info->mode_type, level_info->level_max,
+        level_info->accent_color);
 
     level_info->force_update = true;
     level_info->shown_level = 0xFF;
     level_info->shown_side = 0xFF;
     level_info->shown_over_limit = 0xFF;
+    level_info->shown_mode_switch = 0xFF;
+    level_info->shown_mode_type = 0xFF;
     level_info->shown_dir_color = 0;
     ui_progress_arc_reset(&level_info->arc);
     home_level_adjust_root_init();
@@ -418,10 +467,19 @@ void ui_display_home_level_adjust_remove(ui_manager_context_t *thiz)
 int ui_display_home_level_adjust_process(ui_manager_context_t *thiz)
 {
     ui_proc_home_t *proc;
+    uint8_t level_max;
 
     EXCEPTION_CHECK_INT(thiz && level_info && level_info->root);
     proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->pump);
+
+    level_max = home_level_adjust_max_get(proc->sub_mode_type);
+    if (level_info->mode_type != proc->sub_mode_type ||
+        level_info->level_max != level_max) {
+        level_info->mode_type = proc->sub_mode_type;
+        level_info->level_max = level_max;
+        level_info->force_update = true;
+    }
 
     home_level_adjust_bg_update(thiz);
     home_level_arc_update(proc, level_info->level_max, level_info->accent_color);

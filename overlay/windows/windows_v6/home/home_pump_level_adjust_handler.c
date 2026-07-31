@@ -35,7 +35,9 @@ static void home_level_adjust_ui_after_policy(ui_manager_context_t *ui, int inde
 
     (void)index;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    home_sub_mode_sync_tick(proc, HOME_SUB_MODE_SYNC_LEVEL);
     home_level_over_limit_tick(proc);
+    home_sub_mode_switch_tick(proc);
     ui_display_home_level_adjust_process(ui);
 }
 
@@ -78,18 +80,9 @@ static void home_level_adjust_state_sync(ui_proc_home_t *proc, uint8_t is_left)
     uint8_t side = is_left ? HOME_LEVEL_ADJUST_SIDE_LEFT : HOME_LEVEL_ADJUST_SIDE_RIGHT;
     uint8_t index = side;
     int pump_mode = 0;
-    uint8_t level_max;
-    int time_index = 0;
 
-    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    home_sub_mode_state_init(proc, 1);
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
-    level_max = home_level_adjust_max_get((uint8_t)pump_mode);
-    if (proc->setting.level[index] > level_max) {
-        proc->setting.level[index] = level_max;
-        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-    }
-
     proc->level_adjust_side = side;
     proc->level_value = proc->setting.level[index];
     proc->level_arc_level = proc->level_value;
@@ -97,8 +90,9 @@ static void home_level_adjust_state_sync(ui_proc_home_t *proc, uint8_t is_left)
     proc->level_inc_window_base = proc->level_value;
     proc->level_inc_window_time = get_timestamp();
     proc->level_adjust_time = get_timestamp();
-    LOG_WM("level adjust sync side=%d mode=%d max=%d level=%d",
-        side, pump_mode, level_max, proc->level_value);
+    LOG_WM("level adjust sync side=%d mode=%d type=%d max=%d level=%d",
+        side, pump_mode, proc->sub_mode_type,
+        home_level_adjust_max_get(proc->sub_mode_type), proc->level_value);
 }
 
 /*
@@ -140,7 +134,7 @@ int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
     uint8_t level_max;
     uint8_t cur;
     uint8_t next;
-    int time_index = 0;
+    int time_index;
 
     EXCEPTION_CHECK_INT(proc && proc->pump);
     if (proc->current_ui_type != HOME_UI_TYPE_LEVEL_ADJUST) {
@@ -152,9 +146,10 @@ int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         return -1;
     }
 
-    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    home_sub_mode_switch_clear(proc);
+    time_index = proc->sub_mode_time_index;
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
-    level_max = home_level_adjust_ui_level_max_get();
+    level_max = home_level_adjust_max_get(proc->sub_mode_type);
     cur = proc->level_value;
     proc->level_adjust_time = get_timestamp();
 
@@ -214,6 +209,7 @@ void home_level_adjust_ui_exit(ui_proc_home_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     proc->level_over_limit = 0;
+    proc->sub_mode_switch = 0;
 }
 
 void home_level_adjust_ui_dismiss(ui_proc_home_t *proc)
