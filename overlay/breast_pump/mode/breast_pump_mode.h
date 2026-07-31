@@ -60,6 +60,13 @@ int breast_pump_mode_time_step_number_get(int mode);
 void breast_pump_setting_reset (sys_pump_info_t *pump_info, int mode);
 void breast_pump_mode_steps_info_reset(sys_pump_mode_info_t *mode_info, int mode);
 int breast_pump_mode_step_target_time_get(int mode, int step);
+void policy_manager_obj_lock(void);
+void policy_manager_obj_unlock(void);
+void pump_setting_update_ram(breast_pump_manager_context_t *ctx,
+    pump_setting_t *src, uint8_t step_idx);
+void pump_setting_store(breast_pump_manager_context_t *ctx, int mode, uint8_t step_idx);
+void pump_setting_sync_by_mode_type(breast_pump_manager_context_t *ctx,
+    pump_setting_t *setting, uint8_t step_index, int mode, bool is_need_store);
 
 #ifdef __cplusplus
 }

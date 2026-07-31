@@ -158,7 +158,7 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
     if (step_index >= ROOT_BREAST_PUMP_STEP_MAX) {
         LOGE("step_index out of range");
         return;
-    } 
+    }
 #if IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING
     int mode = BREAST_PUMP_ALL_MODE_AND_PROGRAM;
 #else
@@ -176,11 +176,17 @@ static void set_breast_pump_setting(pump_setting_t *setting, uint8_t step_index,
         }
     }
 #else
+    /// 更新当前step
     memcpy(&breast_pump_obj->priv.setting[step_index], setting, sizeof(pump_setting_t));
     if (is_need_store && breast_pump_obj->priv.st) {
         breast_pump_obj->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
             mode, step_index, setting);
     }
+
+    /// 同步相同mode_type的其他step
+#if IS_PUMP_SETTING_SYNC_BY_MODE_TYPE
+    pump_setting_sync_by_mode_type(breast_pump_obj, setting, step_index, mode, is_need_store);
+#endif
 #endif
 }
 
