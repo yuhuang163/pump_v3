@@ -25,6 +25,20 @@
 *****************************************************************************************
 */
 
+static void switch_pump_status_handler(ui_proc_pump_t *proc)
+{
+    if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
+        proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
+        proc->current_ui_type == PUMP_UI_TYPE_BREAK_TIP ||
+        proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH ||
+        proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ) {
+        LOG_WM("ignore start key %d", proc->current_ui_type);
+        return;
+    }
+    switch_pump_status_ui(proc);
+}
+
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -34,7 +48,6 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc)
     pump_rhythm_confirm_ui_exit(proc);
     pump_settings_success_ui_exit(proc);
     pump_break_tip_ui_exit(proc);
-    pump_break_end_ui_exit(proc);
     pump_stop_hold_ui_exit(proc);
     pump_finish_timeout_ui_exit(proc);
     pump_will_finish_ui_exit(proc);
@@ -60,9 +73,6 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
             break;
         case PUMP_UI_TYPE_BREAK_TIP:
             pump_break_tip_ui_exit(proc);
-            break;
-        case PUMP_UI_TYPE_BREAK_END:
-            pump_break_end_ui_exit(proc);
             break;
         case PUMP_UI_TYPE_STOP_HOLD:
             pump_stop_hold_ui_exit(proc);
@@ -125,16 +135,18 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
     }
 
     /// 模式选择页：满足条件先弹确认页，否则直接成功页
-    if (proc->current_ui_type == PUMP_UI_TYPE_HOME &&
-        proc->ui_mode_page_index > PUMP_MODE_PAGE_INDEX_NONE) {
-        if (pump_mode_rhythm_confirm_needed(proc) == 0) {
-            show_pump_rhythm_confirm_ui(proc);
-            return;
+    if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
+        if (proc->ui_mode_page_index > PUMP_MODE_PAGE_INDEX_NONE) {
+            if (pump_mode_rhythm_confirm_needed(proc) == 0) {
+                show_pump_rhythm_confirm_ui(proc);
+                return;
+            }
+            if (pump_mode_confirm_handler(proc) == 0) {
+                show_pump_settings_success_ui(proc);
+            }
+        } else {
+            switch_pump_status_handler(proc);
         }
-        if (pump_mode_confirm_handler(proc) == 0) {
-            show_pump_settings_success_ui(proc);
-        }
-        return;
     }
 
     if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS) {
@@ -142,13 +154,13 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
         return;
     }
 
-    /// 休息轻提醒页：短按 power → 回泵奶首页
+    /// 休息轻提醒页：短按 power → 回到进入前的页面
     if (proc->current_ui_type == PUMP_UI_TYPE_BREAK_TIP) {
-        show_pump_home_ui(proc);
+        pump_break_tip_ui_dismiss(proc);
         return;
     }
 
-    /// 韵律即将结束提示：短按 power → 回泵奶首页
+    /// 韵律即将结束提示：短按 power → 切吸吮模式并回泵奶首页
     if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
         pump_will_finish_ui_dismiss(proc);
         return;
@@ -182,16 +194,5 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
 
 void pump_start_key_event_handler(ui_proc_pump_t *proc)
 {
-    if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
-        proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
-        proc->current_ui_type == PUMP_UI_TYPE_BREAK_TIP ||
-        proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH ||
-        proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ||
-        proc->current_ui_type == PUMP_UI_TYPE_LEVEL_ADJUST ||
-        proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL_ADJUST ||
-        proc->current_ui_type == PUMP_UI_TYPE_SPEED_ADJUST) {
-        LOG_WM("settings/confirm/break-tip/will-finish/stop-hold/level-adjust/speed-adjust ui, ignore start key.");
-        return;
-    }
-    switch_pump_status_ui(proc);
+    switch_pump_status_handler(proc);
 }

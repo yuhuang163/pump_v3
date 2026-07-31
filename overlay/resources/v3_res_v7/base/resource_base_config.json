@@ -220,6 +220,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "BASE_RES_ID_RELAX_TIP_ICON",
+      "description": "放松提醒图标",
+      "file": "baj/icon_relax_48x47_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "BASE_RES_ID_START_LOGO_ICON",
       "description": "启动LOGO",
       "file": "baj/icon_logo_start_186x25_a8_q99_444.baj",

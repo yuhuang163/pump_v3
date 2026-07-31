@@ -130,7 +130,6 @@ void pump_stop_hold_key_long_2s_handler(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     if (proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ||
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
-        proc->current_ui_type == PUMP_UI_TYPE_BREAK_END ||
         proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
         return;
     }
