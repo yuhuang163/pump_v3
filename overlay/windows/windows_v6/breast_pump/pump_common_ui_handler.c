@@ -193,6 +193,77 @@ void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)
     proc->popup_ui_type = type;
 }
 
+static bool pump_ui_blink_update(ui_proc_pump_t *proc)
+{
+    const uint8_t blink_visible =
+        ((get_timestamp_ms(proc->blink_start_time) / PUMP_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
+    if (proc->state_blink_visible == blink_visible) {
+        return false;
+    }
+    proc->state_blink_visible = blink_visible;
+    return true;
+}
+
+static bool pump_pause_led_needs_update(const ui_proc_pump_t *proc)
+{
+    /* 结束类弹窗由窗口侧关灯，此处不抢控 */
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        return false;
+    }
+    if (proc->pump_status == BREAST_PUMP_PAUSE) {
+        if (proc->pump_light_status != PUMP_LIGHT_STATUS_PAUSE) {
+            return true;
+        }
+        return proc->pump_pause_blink_state != proc->state_blink_visible;
+    }
+    return proc->pump_light_status == PUMP_LIGHT_STATUS_PAUSE;
+}
+
+static void pump_pause_led_update(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc && proc->led);
+
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        return;
+    }
+
+    if (proc->pump_status == BREAST_PUMP_PAUSE) {
+        const bool entering_pause = proc->pump_light_status != PUMP_LIGHT_STATUS_PAUSE;
+        if (entering_pause) {
+            proc->blink_start_time = get_timestamp();
+            proc->state_blink_visible = 1;
+            proc->pump_light_status = PUMP_LIGHT_STATUS_PAUSE;
+        }
+        if (entering_pause || proc->pump_pause_blink_state != proc->state_blink_visible) {
+            proc->led->set_led_level(PUMP_START_BL,
+                proc->state_blink_visible ? LED_LEVEL_MAX : 0);
+            proc->pump_pause_blink_state = proc->state_blink_visible;
+        }
+        return;
+    }
+
+    if (proc->pump_light_status == PUMP_LIGHT_STATUS_PAUSE) {
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+        proc->pump_light_status = PUMP_LIGHT_STATUS_DEFAULT;
+        proc->pump_pause_blink_state = proc->state_blink_visible;
+    }
+}
+
+void pump_pause_led_tick(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    const bool blink_changed = pump_ui_blink_update(proc);
+    if (blink_changed || pump_pause_led_needs_update(proc)) {
+        pump_pause_led_update(proc);
+    }
+}
+
 void pump_power_key_event_handler(ui_proc_pump_t *proc)
 {
     if (proc->stop_hold_ignore_click) {

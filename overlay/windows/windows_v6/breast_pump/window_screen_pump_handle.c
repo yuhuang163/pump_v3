@@ -311,6 +311,7 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
             } else if (state == BREAST_PUMP_BROADCAST_PUMP_ERROR) {
                 LOG_WM("pump error, post pump error task.");
             } else if (state == BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST) {
+                proc->pump_status = BREAST_PUMP_PAUSE;
                 pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_TIMEOUT);
             } else if (state == BREAST_PUMP_BROADCAST_RUNNING_30M_TIP) {
                 pump_runing_30m_tip_pause(proc);

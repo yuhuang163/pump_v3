@@ -38,6 +38,7 @@ static void pump_both_level_adjust_ui_after_policy(ui_manager_context_t *ui, int
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     pump_both_level_over_limit_tick(proc);
     ui_display_pump_both_level_adjust_process(ui);
+    pump_pause_led_tick(proc);
 }
 
 static void pump_both_level_adjust_animation_progress_cb(void *user_data, int index,

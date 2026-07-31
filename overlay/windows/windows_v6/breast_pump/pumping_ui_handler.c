@@ -57,6 +57,7 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
         pump_mode_page_index_clamp(proc);
     }
     ui_display_pump_home_screen_process(ui);
+    pump_pause_led_tick(proc);
 }
 
 static void pumping_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)

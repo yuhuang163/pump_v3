@@ -42,8 +42,15 @@ extern "C" {
 #define PUMP_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 /// 模式切换成功页展示时长
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TIMEOUT  (1500) /// 1.5s
-/// 泵奶背光灯周期
+/// 泵奶背光灯周期（半周期 500ms → 全周期 1Hz）
 #define PUMP_BLINK_PERIOD                      (500)
+
+/// 泵奶按键灯状态
+typedef enum {
+    PUMP_LIGHT_STATUS_DEFAULT = 0,      /// 默认常亮
+    PUMP_LIGHT_STATUS_PAUSE,            /// 暂停：start 灯闪烁
+    PUMP_LIGHT_STATUS_MAX
+} pump_light_status_e;
 
 /// 泵奶UI动作枚举
 typedef enum {
@@ -164,6 +171,12 @@ typedef struct {
     uint32_t both_level_over_limit_time; /// 双边过大提示计时
     uint32_t both_level_inc_window_time; /// 双边连续加档窗口起点
 
+    /// 灯光相关（仅按键灯，不同步 UI 组件闪烁）
+    uint8_t pump_light_status; /// 泵奶灯光状态 pump_light_status_e
+    uint8_t state_blink_visible; /// 闪烁相位: 0 灭, 1 亮
+    uint8_t pump_pause_blink_state; /// 暂停态 start 灯上次闪烁相位
+    uint32_t blink_start_time; /// 闪烁起始时间
+
 } ui_proc_pump_t;
 
 /*
@@ -186,6 +199,8 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc);
 void pump_complete_event_handler(ui_proc_pump_t *proc);
 /// 弹窗类型更新
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type);
+/// 暂停态 start 按键灯 1Hz 闪烁 tick（仅 LED，不同步 UI）
+void pump_pause_led_tick(ui_proc_pump_t *proc);
 /// 电源按键事件处理
 void pump_power_key_event_handler(ui_proc_pump_t *proc);
 /// 开始按键事件处理
