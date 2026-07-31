@@ -37,7 +37,7 @@ static void count_down_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
-    popup_window_ui_process(ui, ID_POPUP_UI_COUNT_DOWN);
+    popup_window_ui_process(ui, ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN);
 }
 
 static void count_down_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -65,7 +65,7 @@ static void count_down_ui_display_prepare(void *user_data)
     EXCEPTION_CHECK_VOID(ui);
     ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
-    popup_window_ui_prepare(ui, ID_POPUP_UI_COUNT_DOWN, proc->extra.popup_exit_time);
+    popup_window_ui_prepare(ui, ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN, proc->extra.popup_exit_time);
 }
 
 static void count_down_ui_display_remove(void *user_data)

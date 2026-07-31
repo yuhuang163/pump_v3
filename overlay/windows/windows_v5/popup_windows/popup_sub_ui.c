@@ -34,7 +34,7 @@ void start_popup_ui_animation(ui_proc_popup_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc->ui);
     switch (proc->popup_window_id) {
-        case ID_POPUP_UI_COUNT_DOWN:
+        case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
             start_count_down_ui_animation(proc);
             break;
         case ID_POPUP_UI_LOW_POWER:

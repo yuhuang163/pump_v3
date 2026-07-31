@@ -62,7 +62,7 @@ const char *get_input_key_code_name(uint16_t keycode)
         case KEY_CODE_BOTH_CONTROL:
             return "@both_control";
     #else
-        case KEY_CODE_MODE:V
+        case KEY_CODE_MODE:
             return "@mode";
         case KEY_CODE_BREASTFEEDING:
             return "@breastfeeding";

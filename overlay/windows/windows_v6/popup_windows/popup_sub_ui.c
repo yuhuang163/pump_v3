@@ -34,20 +34,11 @@ void start_popup_ui_animation(ui_proc_popup_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc->ui);
     switch (proc->popup_window_id) {
-        case ID_POPUP_UI_COUNT_DOWN:
-            start_count_down_ui_animation(proc);
-            break;
         case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
             start_travel_lock_countdown_ui_animation(proc);
             break;
         case ID_POPUP_UI_LOW_POWER:
             start_low_power_ui_animation(proc);
-            break;
-        case ID_POPUP_UI_WILL_POWER_OFF:
-            start_system_will_power_off_ui_animation(proc);
-            break;
-        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
-            start_pump_stop_ui_animation(proc);
             break;
         case ID_POPUP_UI_BT_CONNECT:
         case ID_POPUP_UI_BT_DISCONNECT:

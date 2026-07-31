@@ -251,8 +251,8 @@ static const char *popup_window_ui_name_get(ui_manager_context_t *thiz, uint16_t
             return "device bind";
         case ID_POPUP_UI_DEVICE_UNBIND:
             return "device unbind";
-        case ID_POPUP_UI_COUNT_DOWN:
-            return "count down";
+        case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
+            return "travel lock countdown";
         case ID_POPUP_UI_LOW_POWER:
             return "low power";
         case ID_POPUP_UI_WILL_POWER_OFF:
@@ -306,7 +306,7 @@ static void popup_window_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
             popup_window_ui_icon_update(thiz, BASE_RES_ID_UNBIND_ICON, 130);
             popup_window_ui_display_complete(thiz, popup_type);
             break;
-        case ID_POPUP_UI_COUNT_DOWN:
+        case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
             popup_window_ui_mask_layer_update(thiz);
             popup_window_ui_arc_update(thiz);
             popup_window_ui_num_update(thiz);
