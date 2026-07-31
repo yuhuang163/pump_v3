@@ -59,6 +59,8 @@ const char *get_input_key_code_name(uint16_t keycode)
             return "@lactation";
         case KEY_CODE_FREQUENCY:
             return "@frequency";
+        case KEY_CODE_BOTH_CONTROL:
+            return "@both_control";
     #else
         case KEY_CODE_MODE:V
             return "@mode";

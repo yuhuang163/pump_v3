@@ -84,6 +84,7 @@ typedef enum {
     KEY_CODE_9  = (1 << 8),  
     KEY_CODE_10 = (1 << 9),  
     KEY_CODE_11 = (1 << 10),  
+    KEY_CODE_12 = (1 << 11),  
     KEY_CODE_MAX
 } key_type_enum_e;
 
