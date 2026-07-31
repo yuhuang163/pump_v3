@@ -522,7 +522,7 @@ int write_pump_setting_info_to_ram(store_func_args_t args)
     }
 #if IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING
     if (mode == BREAST_PUMP_ALL_MODE_AND_PROGRAM) {
-        for (int i = 0; i <= BREAST_PUMP_CUSTOM_MODE; i++) {
+        for (int i = 0; i <= BREAST_PUMP_MODE_MAX - 1; i++) {
             memcpy(&pump_info->setting_wrap[i].info[mode_step], setting, sizeof(pump_setting_t));
         }
         return 0;

@@ -127,7 +127,7 @@ extern "C" {
 /// 支持泵奶步数使用相同设置
 #define IS_PUMP_STEPS_USE_SAME_SETTING                   (0)
 /// 支持泵奶全局参数设置
-#define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (1)
+#define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (0)
 /// 支持泵奶档位实时调节
 #define IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST           (1)
 /// 支持泵奶韵律模式选择
