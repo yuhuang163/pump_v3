@@ -125,7 +125,7 @@ extern "C" {
 /// 支持泵奶时间累计
 #define IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE             (1)
 /// 支持泵奶步数使用相同设置
-#define IS_PUMP_STEPS_USE_SAME_SETTING                   (1)
+#define IS_PUMP_STEPS_USE_SAME_SETTING                   (0)
 /// 支持泵奶全局参数设置
 #define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (1)
 /// 支持泵奶档位实时调节
@@ -192,9 +192,12 @@ extern "C" {
 #define IS_SUPPORT_THEME_SWITCH                          (0)
 
 /// 使用新的Spectra兼容吸力曲线参数表 // 0 不使用 1 使用
+#if (ROOT_UI_VERSION == ROOT_UI_V7)
 #ifndef IS_USE_SPECTRA_SUCTION_CURVE
 #define IS_USE_SPECTRA_SUCTION_CURVE                     (1)
 #endif
+#endif
+
 #ifdef __cplusplus
 }
 #endif
