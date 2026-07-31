@@ -137,7 +137,9 @@ int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase)
 
 #if IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC
     if (proc->pump != NULL) {
-        READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
+        int time_index = 0;
+        READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+        READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     }
 #endif
 
@@ -158,7 +160,9 @@ int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase)
 
 #if IS_SUPPORT_GUIDE_PUMP_LEVEL_SYNC
     if (proc->pump != NULL) {
-        WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
+        int time_index = 0;
+        READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
 #endif
 

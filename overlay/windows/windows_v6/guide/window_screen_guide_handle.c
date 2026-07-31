@@ -117,7 +117,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->setting.level[1] = BREAST_PUMP_LEVEL_1;
         proc->setting.speed = BREAST_PUMP_SPEED_MID;
         if (proc->pump) {
-            WRITE_PUMP_SETTING_INFO(proc->pump, 0, true, proc->setting);
+            int time_index = 0;
+            READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+            WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
         }
         start_guide_ui_animation(proc);
     }
