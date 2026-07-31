@@ -15,6 +15,7 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
+static os_mutex_id s_policy_manager_obj_lock = NULL;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -332,6 +333,120 @@ motor_policy_manager_t *breast_pump_mode_parameter_init(const motor_policy_cfg_t
 ERROR_EXIT:
     breast_pump_mode_parameter_deinit(obj);
     return NULL;
+}
+
+static void policy_manager_obj_lock_init(void)
+{
+    if (s_policy_manager_obj_lock == NULL) {
+        MUTEX_INIT(&s_policy_manager_obj_lock, policy_manager_obj_mutex);
+    }
+}
+
+void policy_manager_obj_lock(void)
+{
+    policy_manager_obj_lock_init();
+    MUTEX_LOCK(s_policy_manager_obj_lock);
+}
+
+void policy_manager_obj_unlock(void)
+{
+    policy_manager_obj_lock_init();
+    MUTEX_UNLOCK(s_policy_manager_obj_lock);
+}
+
+void pump_setting_update_ram(breast_pump_manager_context_t *ctx,
+    pump_setting_t *src, uint8_t step_idx)
+{
+    ctx->priv.setting[step_idx].level[0] = src->level[0];
+    ctx->priv.setting[step_idx].level[1] = src->level[1];
+    ctx->priv.setting[step_idx].speed = src->speed;
+    LOG_MOTOR("update_ram step=%d L=%d R=%d speed=%d",
+        step_idx, src->level[0], src->level[1], src->speed);
+}
+
+void pump_setting_store(breast_pump_manager_context_t *ctx, int mode, uint8_t step_idx)
+{
+    if (ctx->priv.st) {
+        ctx->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
+            mode, step_idx, &ctx->priv.setting[step_idx]);
+        LOG_MOTOR("store mode=%d step=%d L=%d R=%d speed=%d",
+            mode, step_idx,
+            ctx->priv.setting[step_idx].level[0],
+            ctx->priv.setting[step_idx].level[1],
+            ctx->priv.setting[step_idx].speed);
+    }
+}
+
+/// 根据传入step_index找到策略中mode_type相同的其他step，同步设置
+/// 从motor的policy_list获取策略（注册态，非runtime），避免motor线程并发修改导致异常
+void pump_setting_sync_by_mode_type(breast_pump_manager_context_t *ctx,
+    pump_setting_t *setting, uint8_t step_index, int mode, bool is_need_store)
+{
+    /// 全局参数模式下使用当前实际模式
+    int actual_mode = (mode == BREAST_PUMP_ALL_MODE_AND_PROGRAM) ?
+        ctx->priv.m_info.mode : mode;
+
+    policy_manager_obj_lock();
+
+    motor_manager_context_t *motor = ctx->priv.motor;
+    if (!motor) {
+        LOGE("sync_by_mode_type: motor is NULL");
+        policy_manager_obj_unlock();
+        return;
+    }
+
+    /// 从policy_list查找对应模式的策略管理器（注册态链表，非runtime）
+    const motor_policy_manager_t *manager = NULL;
+    list_head_t *head = &motor->priv.policy_list;
+    if (head->next != NULL) {
+        LIST_FOR_EACH(pos, head) {
+            breast_pump_policy_node_t *node =
+                CONTAINER_OF(pos, breast_pump_policy_node_t, list);
+            if (node->breast_pump_mode == actual_mode) {
+                if (node->get_policy_cb) {
+                    manager = node->get_policy_cb(node->user_data);
+                }
+                break;
+            }
+        }
+    }
+    if (!manager) {
+        LOGE("sync_by_mode_type: manager not found for mode=%d", actual_mode);
+        policy_manager_obj_unlock();
+        return;
+    }
+
+    /// 遍历策略链表，找到目标step的mode_type
+    const motor_timed_policy_node_t *time_policy = &manager->head;
+    int idx = 0;
+    uint8_t target_mode_type = 0xFF;
+    while (time_policy != NULL && idx <= step_index && idx < ROOT_BREAST_PUMP_STEP_MAX) {
+        if (idx == step_index) {
+            target_mode_type = time_policy->policy.core.un.mapping.mode_type;
+            break;
+        }
+        time_policy = time_policy->next;
+        idx++;
+    }
+
+    /// 找到后，遍历所有step，同步相同mode_type的其他step
+    if (target_mode_type != 0xFF) {
+        time_policy = &manager->head;
+        idx = 0;
+        while (time_policy != NULL && idx < ROOT_BREAST_PUMP_STEP_MAX) {
+            if (idx != step_index &&
+                time_policy->policy.core.un.mapping.mode_type == target_mode_type) {
+                pump_setting_update_ram(ctx, setting, idx);
+                if (is_need_store) {
+                    pump_setting_store(ctx, mode, idx);
+                }
+            }
+            time_policy = time_policy->next;
+            idx++;
+        }
+    }
+
+    policy_manager_obj_unlock();
 }
 
 motor_policy_manager_t *pump_mode_parameter_init_by_steps_info(pump_mode_steps_info_t *steps_info, char *name)

@@ -59,8 +59,10 @@ int custom_mode_update_by_steps_info(pump_mode_steps_info_t *steps_info)
     motor_policy_manager_t *new_obj = NULL;
     new_obj = pump_mode_parameter_init_by_steps_info(steps_info, "custom");
     if (new_obj) {
+        policy_manager_obj_lock();
         breast_pump_mode_parameter_deinit(s_custom_obj);
         s_custom_obj = new_obj;
+        policy_manager_obj_unlock();
         return 0;
     }
     LOGE("custom mode update by steps info failed");

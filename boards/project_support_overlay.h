@@ -126,6 +126,8 @@ extern "C" {
 #define IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE             (1)
 /// 支持泵奶步数使用相同设置
 #define IS_PUMP_STEPS_USE_SAME_SETTING                   (0)
+/// 支持多时间组合的韵律中其同类型的时间策略使用同一套设置
+#define IS_PUMP_SETTING_SYNC_BY_MODE_TYPE                (1)
 /// 支持泵奶全局参数设置
 #define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (0)
 /// 支持泵奶档位实时调节
