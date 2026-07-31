@@ -13,10 +13,10 @@
 #define PUMP_WILL_FINISH_TIME_MS                           (2300) /// 3000 - 700ms = 2300ms 
 #define PUMP_WILL_FINISH_TIP_TIME_MS                       (9300) /// 10000 - 700ms = 9300ms 
 #define PUMP_TIME_TO_SECOND(time)                          (time / 1000)
-#if 1
-#define PUMP_RUNNING_TIP_TIME_MS                           (30 * 60 * 1000)
-#else
+#if IS_SUPPORT_PUMP_MODE_FAST_TEST
 #define PUMP_RUNNING_TIP_TIME_MS                           (10 * 1000)
+#else
+#define PUMP_RUNNING_TIP_TIME_MS                           (30 * 60 * 1000)
 #endif
 
 /*
