@@ -45,10 +45,9 @@ static void airplane_mode_power_off_cb(hdr_post_args_t *args)
         return;
     }
     LOG_WM("airplane mode timeout, goto power off.");
-    /// 插入关机数据埋点 0:手动关机 1:低电量关机 2:自动休眠关机
-    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_AUTO_SLEEP, 0);
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_AUTO;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 

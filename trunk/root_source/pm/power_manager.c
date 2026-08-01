@@ -656,74 +656,6 @@ static bool is_pm_idle(void)
     return (thiz->priv.pm_state == ID_SYS_PM_IDLE);
 }
 
-static void power_off_wait_pump_finish(void)
-{
-    breast_pump_manager_context_t *pump_ctx =
-        (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
-
-    if (!pump_ctx) {
-        return;
-    }
-    for (int i = 0; i < 50; i++) {
-        int work_status = 0;
-        READ_PUMP_WORK_STATUS(pump_ctx, work_status);
-        if (work_status == BREAST_PUMP_FINISH || work_status == BREAST_PUMP_RESET
-            || work_status == BREAST_PUMP_IDLE) {
-            break;
-        }
-        msleep(10);
-    }
-}
-
-static int system_power_control(bool state)
-{
-    if (state) {
-        thiz->priv.is_system_power_on = true;
-        LOG_PM("system_power_on");
-        return 0;
-    } 
-    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    EXCEPTION_CHECK_INT(st);
-    if (thiz->priv.is_system_power_on) {
-        thiz->priv.is_system_power_on = false;
-        window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-        EXCEPTION_CHECK_INT(wm);
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
-        msg.union_body.extra.arg1 = 1;
-        wm->dispatch_new_window_args(wm, &msg);
-        power_off_wait_pump_finish();
-        servers_manager_context_t *srv =
-            (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-        uint16_t sleep_time = 50;    
-        if (srv && srv->hook && srv->hook->on_power_off_status_report_route) {
-            srv->hook->on_power_off_status_report_route(srv);
-            sleep_time = 100; 
-        }
-        if (st->hook && st->hook->on_power_off_force_save_route) {
-            st->hook->on_power_off_force_save_route(st);
-            sleep_time = 200;
-        }
-        msleep(sleep_time); /// 数据同步延时
-        st->flash_protect(true); /// 禁止flash读写操作.
-    } else {
-        LOG_PM("system_power_off");
-        peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-        EXCEPTION_CHECK_INT(pbus);
-        rt_device_node_t *power_dev = pbus->find_device(ID_DEVICE_POWER);
-        EXCEPTION_CHECK_INT(power_dev);
-        st->flash_protect(true); /// 禁止flash读写操作.
-        int args[] = {0};
-        for (uint8_t i = 0; i < 3; i++) {
-            power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)args);
-            msleep(200);
-            LOG_PM("power off try: %d", i);
-        }
-        platform_system_reboot();
-    }
-    return 0;
-}
-
 static bool is_system_power_on(void)
 {
     return thiz->priv.is_system_power_on;
@@ -742,7 +674,6 @@ void *register_module_for_pm_new(list_head_t *list_head)
     ptr->pm_wakeup = pm_wakeup;
     ptr->enable_pmu_sleep = enable_pmu_sleep;
     ptr->is_pmu_sleep = is_pmu_sleep;
-    ptr->system_power_control = system_power_control;
     ptr->set_period_wake_up = set_period_wake_up;
     ptr->pm_get_wakeup_reason = pm_get_wakeup_reason;
     ptr->print_wakeup_state = print_wakeup_state;

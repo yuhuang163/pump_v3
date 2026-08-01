@@ -30,11 +30,10 @@ static void pump_stop_popup_display_complete(ui_manager_context_t *ui, int index
     EXCEPTION_CHECK_VOID(ui);
     ui_proc_popup_t *proc = (ui_proc_popup_t *)ui->priv.overlay_play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POPUP_WINDOW);
-    power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    EXCEPTION_CHECK_VOID(pm);
-    ///插入关机数据埋点 0:手动关机 1:低电量关机 2:自动休眠关机 3:异常关机 4:固件更新关机 5:过热关机
-    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_AUTO_SLEEP, 0);
-    pm->system_power_control(false);
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_AUTO;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
 static void pump_stop_ui_after_policy(ui_manager_context_t *ui, int index)

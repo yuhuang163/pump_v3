@@ -41,6 +41,23 @@ static bool is_power_off_by_charging(void)
     return false;
 }
 
+static void system_power_off(struct power_manager_context *ctx)
+{
+    LOG_PM("system_power_off");
+    ctx->priv.is_system_power_on = false;
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    EXCEPTION_CHECK_VOID(pbus);
+    rt_device_node_t *power_dev = pbus->find_device(ID_DEVICE_POWER);
+    EXCEPTION_CHECK_VOID(power_dev);
+    int args[] = {0};
+    for (uint8_t i = 0; i < 3; i++) {
+        power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)args);
+        msleep(200);
+        LOG_PM("power off try: %d", i);
+    }
+    platform_system_reboot();
+}
+
 static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
 {
     EXCEPTION_CHECK_BOOL(ctx);
@@ -52,38 +69,13 @@ static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
         if (wm->is_current_window(wm, ID_WINDOW_POWER_OFF) == 0) {
             multi_func_msg_data_t msg = {0};
             msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
-            msg.union_body.extra.arg1 = 1;
+            msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
             wm->dispatch_new_window_args(wm, &msg);
             LOG_PM("goto power off charge window");
         }
         return true; /// 充电状态下禁止进入待机状态.
     }
     return false;
-}
-
-static void system_power_control_off(power_manager_context_t *pm)
-{
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    rt_device_node_t *led_dev = NULL;
-    if (pbus) {
-        led_dev = pbus->find_device(ID_DEVICE_LED);
-    }
-    
-    if (led_dev) {
-        led_status_msg_t msg = {
-            .led_index = PUMP_LED_ALL_ID,
-            .led_status = {
-                .mode = LED_MODE_LEVEL,
-                .un.luminous = {
-                    .level = 0,
-                },
-            },
-        };
-        led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-        LOG_PM("set key led off");
-        msleep(10);
-    }
-    pm->system_power_control(false);
 }
 
 static void system_power_event_cb(hdr_post_args_t *args)
@@ -107,7 +99,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             if (key && key->is_key_triggered(KEY_INDEX_POWER) == 0) {
                 #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
                 if (is_power_off_by_charging()) {
-                    pm->system_power_control(true);
+                    pm->priv.is_system_power_on = true;
                     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
                     DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
                     msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
@@ -117,9 +109,9 @@ static void system_power_event_cb(hdr_post_args_t *args)
                     return;
                 }
                 #endif      
-                system_power_control_off(pm);
+                system_power_off(pm);
             } else {
-                pm->system_power_control(true);
+                pm->priv.is_system_power_on = true;
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
                 DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
                 msg.union_body.extra.window_id = ID_WINDOW_LOGO;
@@ -129,7 +121,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             break;
         case HDR_ACTION_POWER_ON:
             LOG_PM("%s action:%d", args->name, action);
-            pm->system_power_control(true);
+            pm->priv.is_system_power_on = true;
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
             msg.union_body.extra.window_id = ID_WINDOW_LOGO;
@@ -138,22 +130,25 @@ static void system_power_event_cb(hdr_post_args_t *args)
             break;
         case HDR_ACTION_POWER_ON_BY_CHARGING:    
             LOG_PM("%s action:%d", args->name, action);
-            pm->system_power_control(true);
+            pm->priv.is_system_power_on = true;
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
             msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
-            msg.union_body.extra.arg1 = 0;
+            msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
             LOG_PM("goto power off charge screen");
             wm->dispatch_new_window_args(wm, &msg); 
             break;
         case HDR_ACTION_POWER_ON_INVALID: 
             LOG_PM("%s action:%d", args->name, action);
-            system_power_control_off(pm);
+            system_power_off(pm);
             break;
         case HDR_ACTION_POWER_OFF: 
             LOG_PM("%s action:%d", args->name, action);
             pm->priv.allow_shutdown_or_standby = 0;
-            system_power_control_off(pm);
+            msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+            msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_MANUAL;
+            LOG_PM("goto power off charge screen");
+            wm->dispatch_new_window_args(wm, &msg); 
             break;
         case HDR_ACTION_SYS_STANDBY: 
             LOG_PM("%s action:%d", args->name, action);
@@ -244,11 +239,6 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
                 return 0;
             }
         #endif
-        /// 触发泵奶结束埋点 arg2 ==1 表示立即写入cache
-        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 1);
-        ///插入关机数据埋点 0:手动关机 1:低电量关机 2:自动休眠关机 3:异常关机 4:固件更新关机 5:过热关机
-        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_USER_MANUAL, 0);
-
         #if IS_SUPPORT_SLEEP_POWER_OFF
             POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_OFF,
                 POWER_ONOFF_AND_STANDBY_TASK_NAME);
@@ -343,6 +333,7 @@ static void pm_resume_post_enter(power_manager_context_t *ctx)
     } while (++counter < 50);
 }
 #endif
+
 static void set_pm_state_progress(power_manager_context_t *ctx, const char *tag, int state, int t0)
 {
     int tmp = state;
@@ -378,11 +369,18 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
     msg.union_body.extra.user_data = ctx;
     msg.union_body.extra.forbid_short_press_exit_popup = false;
     wm->dispatch_new_window_args(wm, &msg); 
+    set_pm_state_progress(ctx, __func__, PM_WILL_POWER_OFF, 0);
 #else
     ctx->priv.allow_shutdown_or_standby = 0;
-    system_power_control_off(ctx);
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_INT(wm);
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_AUTO;
+    LOG_PM("goto power off charge screen");
+    wm->dispatch_new_window_args(wm, &msg); 
+    set_pm_state_progress(ctx, __func__, PM_POWER_OFF, 0);
 #endif
-    set_pm_state_progress(ctx, __func__, PM_WILL_POWER_OFF, 0);
     return 0;
 #else
     uint32_t t0 = 0;
@@ -494,12 +492,12 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
 #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
         if (is_power_off_by_charging()) {
             LOG_PM("power on by charging, timeout: %d", timeout_ms);
-            POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, timeout_ms, HDR_ACTION_POWER_ON_BY_CHARGING, ctx,
-                POWER_ONOFF_AND_STANDBY_TASK_NAME);
+            POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, timeout_ms, 
+                HDR_ACTION_POWER_ON_BY_CHARGING, ctx, POWER_ONOFF_AND_STANDBY_TASK_NAME);
             return 0;
         }
 #endif
-        system_power_control_off(ctx);
+        system_power_off(ctx);
         return 0;
     }
     LOG_PM("key down, power on timeout: %d", timeout_ms);
