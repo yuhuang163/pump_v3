@@ -46,12 +46,6 @@ static bool pump_mode_is_program_target(uint8_t mode_index)
            mode_index == BREAST_PUMP_PP_MILK_TRACK_MODE;
 }
 
-static bool pump_mode_is_basic_current(uint8_t mode_index)
-{
-    return mode_index == BREAST_PUMP_STIMULATION_MODE ||
-           mode_index == BREAST_PUMP_LACTATION_MODE;
-}
-
 static void pump_mode_apply_page_index(ui_proc_pump_t *proc, uint16_t page_index)
 {
     if (proc->ui_mode_page_index == page_index) {
@@ -148,16 +142,12 @@ int pump_mode_rhythm_confirm_needed(ui_proc_pump_t *proc)
     }
 
 #if (PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME == PUMP_RHYTHM_CONFIRM_SCHEME_1)
-    /// 方案1：当前刺激/吸吮 → 韵律，且本次泵奶首次
-    if (!pump_mode_is_basic_current((uint8_t)work_mode)) {
-        return -1;
-    }
+    /// 方案1：切到韵律（模式→韵律 / 韵律→韵律），本次泵奶首次才确认
     if (proc->rhythm_confirm_shown != 0) {
         return -1;
     }
 #elif (PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME == PUMP_RHYTHM_CONFIRM_SCHEME_2)
     /// 方案2：目标为韵律模式即确认
-    (void)work_mode;
 #else
 #error "PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME must be PUMP_RHYTHM_CONFIRM_SCHEME_1 or _2"
 #endif
