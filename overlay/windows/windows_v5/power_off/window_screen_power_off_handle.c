@@ -191,24 +191,35 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->pm) {
             proc->pm->acquire_wakelock("power_off_screen", -1); /// 永久持有锁.
         }
-       ///1S后停止ble
+        /// 1S后停止ble
         POST_WM_TASK_HANDLER_DELAYED_ARG1(power_off_ble_teardown_cb, 2000, proc, POWER_OFF_BLE_TEARDOWN_TASK_NAME);
- #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING       
-        if (proc->extra.arg1 == 0) {
-            if (proc->battery) {
-                int chage_state = proc->battery->get_charge_status();
-                if (BATTERY_IS_CHARGING(chage_state)) {
-                    show_power_off_charging_ui(proc);
-                } else if (chage_state == CHARGE_STATE_ERROR) {
-                    show_power_off_charge_error_ui(proc);
-                } else {
-                    power_off_handle(proc);
-                }
-                return 0;
-            }
+        /// 插入关机数据埋点
+        if (proc->extra.arg1 == PM_POWER_OFF_TYPE_MANUAL) {
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 1); 
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_USER_MANUAL, 0); /// 手动关机
+        } else if (proc->extra.arg1 == PM_POWER_OFF_TYPE_LOW_POWER) {
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_LOW_BATTERY, 0); /// 低电量关机
+        } else if (proc->extra.arg1 == PM_POWER_OFF_TYPE_AUTO) {
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_AUTO_SLEEP, 0); /// 自动休眠关机
+        } else {
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_ABNORMAL, 0); /// 异常关机
         } 
-#endif
+ #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+        int chage_state = CHARGE_STATE_UNCHARGE;        
+        if (proc->battery) {
+            chage_state = proc->battery->get_charge_status();
+        }
+
+        if (BATTERY_IS_CHARGING(chage_state)) {
+            show_power_off_charging_ui(proc);
+        } else if (chage_state == CHARGE_STATE_ERROR) {
+            show_power_off_charge_error_ui(proc);
+        } else {
+            start_power_off_ui_animation(proc);
+        }
+#else
         start_power_off_ui_animation(proc);
+#endif
     }
     return 0;
 }

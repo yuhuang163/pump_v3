@@ -37,6 +37,16 @@ typedef enum {
 } system_pm_state_e;
 
 typedef enum {
+    PM_POWER_OFF_TYPE_NONE = 0,
+    PM_POWER_OFF_TYPE_MANUAL = 1, /// 手动关机, 
+    PM_POWER_OFF_TYPE_AUTO = 2,   /// 自动关机
+    PM_POWER_OFF_TYPE_FORCE = 3,  /// 强制关机, 不显示关机动画
+    PM_POWER_OFF_TYPE_LOW_POWER = 4,  /// 低电量关机
+    PM_POWER_OFF_TYPE_CHARGE = 5,  /// 充电关机
+    PM_POWER_OFF_TYPE_MAX
+} pm_power_off_type_e;
+
+typedef enum {
     PM_BROADCAST_SYS_RESUME = 100, /// 系统空闲进入.
     PM_BROADCAST_SYS_IDLE, /// 系统空闲状态.
     PM_BROADCAST_SYS_IDLE_RELEASE, /// 系统空闲释放.
@@ -80,7 +90,6 @@ typedef struct power_manager_context {
     void (*pm_wakeup)(pm_wakeup_reason_e reason);
     int (*enable_pmu_sleep)(const char *caller, bool enable);
     int (*is_pmu_sleep)(void);
-    int (*system_power_control)(bool state);
     void (*set_period_wake_up)(int ms);
     bool (*is_background_wakeup)(void);
     bool (*is_on_suspend_gotoing)(void);

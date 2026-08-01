@@ -26,18 +26,10 @@ static void power_off_hold_complete_cb(hdr_post_args_t *args)
     LOG_WM("power off hold complete, goto power off.");
     proc->power_off_hold_holding = 0;
     proc->power_off_hold_ignore_click = 1;
-
-    /// 触发泵奶结束埋点 arg2 ==1 表示立即写入cache
-    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 1);
-    /// 插入关机数据埋点 0:手动关机
-    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_USER_MANUAL, 0);
-
-    if (proc->wm) {
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
-        msg.union_body.extra.arg1 = 0;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-    }
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_MANUAL;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
 static void power_off_hold_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -140,10 +132,11 @@ void home_power_off_hold_key_long_2s_handler(ui_proc_home_t *proc)
     if (proc->current_ui_type == HOME_UI_TYPE_POWER_OFF_HOLD) {
         return;
     }
-    if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
-        LOG_WM("home idle, ignore power off hold.");
-        return;
-    }
+
+    // if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
+    //     LOG_WM("home idle, ignore power off hold.");
+    //     return;
+    // }
 
     LOG_WM("power long 2s, show power off hold ui.");
     show_home_power_off_hold_ui(proc);

@@ -31,7 +31,8 @@ static void power_off_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_power_off_t *proc = (ui_proc_power_off_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
-    ui_display_power_off_process(ui, POWER_OFF_TEXT_POWERING_OFF);
+    ui_display_power_off_process(ui, proc->extra.arg1 == PM_POWER_OFF_TYPE_AUTO ? 
+        POWER_OFF_TEXT_AUTO_SHUT_OFF : POWER_OFF_TEXT_POWERING_OFF);
 }
 
 static void power_off_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -109,15 +110,14 @@ static void power_off_cb(hdr_post_args_t *args)
 void power_off_handle(ui_proc_power_off_t *proc)
 {
     LOGW("==========POWER_OFF==========");
+    uint16_t sleep_time = 50;  
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    if (pbus == NULL) {
-        platform_system_reboot();
-    }
     rt_device_node_t *power_dev = pbus->find_device(ID_DEVICE_POWER);
     if (power_dev == NULL) {
+        LOGE("power dev not found, reboot");
+        msleep(50);
         platform_system_reboot();
     }
-    
     rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
     if (led_dev) {
         led_status_msg_t msg = {
@@ -131,9 +131,26 @@ void power_off_handle(ui_proc_power_off_t *proc)
         };
         led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
         LOG_WM("set led off");
-        msleep(100);
+        sleep_time = 100;
     } 
-
+    servers_manager_context_t *srv = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+    if (srv && srv->hook && srv->hook->on_power_off_status_report_route) {
+        srv->hook->on_power_off_status_report_route(srv);
+        sleep_time = 100; 
+    }
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (st ) {
+        if (st->hook && st->hook->on_power_off_force_save_route) {
+            st->hook->on_power_off_force_save_route(st);
+            sleep_time = 200;
+            LOG_WM("power off force save");
+        }
+    }
+    msleep(sleep_time); /// 数据同步延时
+    if (st ) {
+        st->flash_protect(true); /// 禁止flash读写操作.
+        LOG_WM("flash protect true");
+    }
     int arg1[] = {0};
     for (uint8_t i = 0; i < 3; i++) {
         power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)arg1);
@@ -146,7 +163,6 @@ void power_off_handle(ui_proc_power_off_t *proc)
 void start_power_off_ui_animation(ui_proc_power_off_t *proc)
 {
     show_power_off_ui(proc);
-    /// 关机 ioctl + msleep + 重启，走 hdr 工作线程
     POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, POWER_OFF_DELAY_TIME, proc, POWER_OFF_TASK_NAME);
 }
 
