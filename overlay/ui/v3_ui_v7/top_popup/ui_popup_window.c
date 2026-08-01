@@ -20,8 +20,6 @@ static bool popup_window_is_supported(popup_ui_id_e popup_type)
         case ID_POPUP_UI_BT_CONNECT:
         case ID_POPUP_UI_BT_DISCONNECT:
         case ID_POPUP_UI_BT_CONNECTING:
-        case ID_POPUP_UI_DEVICE_BIND:
-        case ID_POPUP_UI_DEVICE_UNBIND:
         case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
         case ID_POPUP_UI_LOW_POWER:
         case ID_POPUP_UI_SYS_ERROR:
@@ -49,10 +47,6 @@ static void popup_window_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
         case ID_POPUP_UI_BT_DISCONNECT:
         case ID_POPUP_UI_BT_CONNECTING:
             popup_window_ble_ui_update(thiz, popup_type);
-            break;
-        case ID_POPUP_UI_DEVICE_BIND:
-        case ID_POPUP_UI_DEVICE_UNBIND:
-            popup_window_device_ui_update(thiz, popup_type);
             break;
         case ID_POPUP_UI_LOW_POWER:
             popup_window_power_ui_update(thiz, popup_type);

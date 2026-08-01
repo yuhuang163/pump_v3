@@ -19,7 +19,6 @@ extern "C" {
 *****************************************************************************************
 */
 #define IS_SUPPORT_CUSTOM_GUIDE_COMP_BG            (0)
-#define IS_SUPPORT_CUSTOM_GUIDE_WELCOME_ANIM       (1)
 #define GUIDE_PAGE_INDEX_INVALID                   (0xFF)
 
 /*

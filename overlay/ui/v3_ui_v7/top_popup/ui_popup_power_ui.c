@@ -33,9 +33,6 @@ const static popup_window_text_info_t low_power_infos[POPUP_WINDOW_TEXT_COUNT] =
 void popup_window_power_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type)
 {
     switch (popup_type) {
-        case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
-            popup_window_arc_countdown_ui_update(thiz, popup_type, NULL, 0, COMMON_COUNT_DOWN_Y);
-            break;
         case ID_POPUP_UI_LOW_POWER:
             popup_window_arc_countdown_ui_update(thiz, popup_type, low_power_infos, 0, LOW_POWER_COUNT_DOWN_Y);
             break;

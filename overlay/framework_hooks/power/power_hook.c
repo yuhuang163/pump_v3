@@ -228,8 +228,14 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
                 LOG_PM("in pump window, ignore");
                 return 0;
             }
+
             if (wm && wm->is_current_window(wm, ID_WINDOW_HOME)) {
                 LOG_PM("in home window, ignore");
+                return 0;
+            }
+
+            if (wm && wm->is_current_window(wm, ID_WINDOW_GUIDE)) {
+                LOG_PM("in guide window, ignore");
                 return 0;
             }
         #endif
