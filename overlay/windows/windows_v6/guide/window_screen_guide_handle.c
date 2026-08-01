@@ -14,8 +14,9 @@
 */
 #define PAGE_STATIC_NAME                            guide
 #define PAGE_NAME_STR                               "guide"
-#define GUIDE_UI_KEY_CODE                           ALL_KEY_CODE_NO_COMBINE
-#define GUIDE_UI_KEY_TYPE                           (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP)
+#define GUIDE_UI_KEY_CODE                           (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL)
+#define GUIDE_UI_KEY_TYPE                           \
+    (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -45,12 +46,12 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
         return 0;
     }
 
-    if (keytype == KEY_EVENT_DOWN && keycode == KEY_CODE_CANCEL) {
-        guide_cancel_key_down_handler(proc);
+    if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
+        guide_stop_hold_key_long_2s_handler(proc);
         return 0;
     }
-    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_CANCEL) {
-        guide_cancel_key_up_handler(proc);
+    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
+        guide_stop_hold_key_up_handler(proc);
         return 0;
     }
     if (keytype != KEY_EVENT_CLICK) {

@@ -117,7 +117,7 @@ extern "C" {
 
 /// 支持关机提醒
 #if IS_SUPPORT_SLEEP_POWER_OFF
-#define IS_SUPPORT_POWER_OFF_REMINDER                    (1)
+#define IS_SUPPORT_POWER_OFF_REMINDER                    (0)
 #else
 #define IS_SUPPORT_POWER_OFF_REMINDER                    (0)
 #endif
@@ -175,7 +175,7 @@ extern "C" {
 /// 支持LOGO界面按键背光自适应测试
 #define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (0)    
 /// 支持引导界面
-#define IS_SUPPORT_GUIDE_WINDOW                          (0)    
+#define IS_SUPPORT_GUIDE_WINDOW                          (1)    
 /// 支持主题选择界面
 #define IS_SUPPORT_THEME_GUIDE_WINDOW                    (0)    
 

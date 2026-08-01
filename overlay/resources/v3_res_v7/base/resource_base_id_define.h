@@ -12,7 +12,7 @@ extern "C" {
 typedef enum {
     BASE_RES_ID_NONE = 0, /// 无资源
 
-    /* 通用组 [1..100] */  
+    /* 通用组 [1..150] */  
     BASE_RES_ID_CLOCK_COLON_ICON = 1, /// 时钟冒号图标
     BASE_RES_ID_HOUR_COLON_ICON, /// 小时冒号图标
     BASE_RES_ID_BLE_CONNECT_ICON, /// 蓝牙连接图标
@@ -42,9 +42,19 @@ typedef enum {
     /* 主界面组 [150..200] */
     BASE_RES_ID_START_LOGO_ICON = 150, /// 启动LOGO图标
     BASE_RES_ID_HOME_IDLE_ICON, /// 主页空闲图标
+    BASE_RES_ID_HOME_POWER_OFF_ICON, /// 主页关机图标
 
-    /* 模式相关组 [200..300] */
-    BASE_RES_ID_SIMULATION_MODE_BG = 200, /// 刺激模式背景
+    /* 引导组 [200..300] */
+    BASE_RES_ID_GUIDE_POWER_KEY_ICON = 200, /// 引导电源按键
+    BASE_RES_ID_GUIDE_KNOB_KEY_ICON, /// 引导旋钮按键
+    BASE_RES_ID_GUIDE_LEFT_KEY_ICON, /// 引导左按键
+    BASE_RES_ID_GUIDE_LEFT_KEY_MIN_ICON, /// 引导左按键小图标
+    BASE_RES_ID_GUIDE_RIGHT_KEY_ICON, /// 引导右按键
+    BASE_RES_ID_GUIDE_RIGHT_KEY_MIN_ICON, /// 引导右按键小图标
+    BASE_RES_ID_GUIDE_SPEED_KEY_ICON, /// 引导速度按键
+
+    /* 模式相关组 [300..500] */
+    BASE_RES_ID_SIMULATION_MODE_BG = 300, /// 刺激模式背景
     BASE_RES_ID_EXPRESSION_MODE_BG, /// 吸吮模式背景
     BASE_RES_ID_MIXED_MODE_BG, /// 混合模式背景
     BASE_RES_ID_PROGRAM_MODE_BG, /// 韵律模式背景
