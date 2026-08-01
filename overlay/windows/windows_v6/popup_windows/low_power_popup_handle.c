@@ -10,7 +10,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define LOW_POWER_POP_DISPLAY_COMPLETE_TASK_NAME        "low_power_power_off_task"
 
 /*
 * LOCAL VARIABLE DEFINITIONS

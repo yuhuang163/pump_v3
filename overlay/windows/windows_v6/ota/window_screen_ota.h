@@ -20,8 +20,6 @@ extern "C" {
 #define OTA_ANIMATION_FREQ                 (5)
 #endif
 
-/// ota动画展示时间
-#define OTA_ANIMATION_DISPLAY_TIME         (2000) /// 2s
 #define OTA_RESULT_DISPLAY_TIME            (5000) /// 5s
 
 /// ota UI类型枚举

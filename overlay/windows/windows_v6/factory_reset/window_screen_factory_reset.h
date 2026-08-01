@@ -21,9 +21,6 @@ extern "C" {
 #define FACTORY_RESET_ANIMATION_FREQ                 (5)
 #endif
 
-/// 工厂重置动画展示时间
-#define FACTORY_RESET_ANIMATION_DISPLAY_TIME         (2000) /// 2s
-
 /// 工厂重置确认页 UI 闪烁周期
 #define FACTORY_RESET_BLINK_PERIOD                   (500)
 

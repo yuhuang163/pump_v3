@@ -21,9 +21,6 @@ extern "C" {
 #define PRODUCT_TEST_ANIMATION_FREQ                 (5)
 #endif
 
-/// 产品测试动画展示时间
-#define PRODUCT_TESTS_ANIMATION_DISPLAY_TIME        (2000) /// 2s
-
 /// 产品测试UI动作枚举
 typedef enum {
     PRODUCT_TEST_HOME = 100,

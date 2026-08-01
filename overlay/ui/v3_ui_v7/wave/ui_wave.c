@@ -631,13 +631,6 @@ static void wave_timer_start(ui_wave_t *wave)
     }
 }
 
-static void wave_timer_stop(ui_wave_t *wave)
-{
-    if (wave->timer != NULL) {
-        lv_timer_pause(wave->timer);
-    }
-}
-
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -768,70 +761,5 @@ void ui_wave_set_type(ui_wave_t *wave, ui_wave_type_e type)
 
     const bool force_redraw = (wave->cfg.anim_mode == UI_WAVE_ANIM_NONE);
     wave_request_type(wave, type, force_redraw);
-}
-
-void ui_wave_set_amplitude(ui_wave_t *wave, int16_t amplitude)
-{
-    if (wave == NULL) {
-        return;
-    }
-
-    wave->cfg.amplitude = amplitude;
-    wave_cache_metrics(wave);
-    wave_rebuild_sample_lut(wave);
-    wave_redraw_full(wave);
-}
-
-void ui_wave_set_narrow_period_px(ui_wave_t *wave, uint16_t period_x100)
-{
-    if (wave == NULL || period_x100 == 0) {
-        return;
-    }
-
-    wave->cfg.period_px = (uint16_t)(period_x100 / 100U);
-    if (wave->cfg.period_px < UI_WAVE_MIN_PERIOD) {
-        wave->cfg.period_px = UI_WAVE_MIN_PERIOD;
-    }
-    wave_cache_metrics(wave);
-    wave_rebuild_sample_lut(wave);
-    wave_redraw_full(wave);
-}
-
-void ui_wave_set_color(ui_wave_t *wave, uint32_t color_hex)
-{
-    if (wave == NULL) {
-        return;
-    }
-
-    wave->cfg.color = color_hex;
-    wave_apply_line_style(wave);
-    wave_redraw_full(wave);
-}
-
-void ui_wave_start_anim(ui_wave_t *wave, ui_wave_anim_mode_e mode)
-{
-    if (wave == NULL) {
-        return;
-    }
-
-    wave->cfg.anim_mode = mode;
-    wave_timer_start(wave);
-}
-
-void ui_wave_stop_anim(ui_wave_t *wave)
-{
-    if (wave == NULL) {
-        return;
-    }
-
-    wave->cfg.anim_mode = UI_WAVE_ANIM_NONE;
-    wave_timer_stop(wave);
-}
-
-void ui_wave_refresh(ui_wave_t *wave)
-{
-    if (wave != NULL) {
-        wave_redraw_full(wave);
-    }
 }
 #endif

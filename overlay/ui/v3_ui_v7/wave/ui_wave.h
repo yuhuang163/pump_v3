@@ -67,12 +67,6 @@ void ui_wave_delete(ui_wave_t *wave);
 lv_obj_t *ui_wave_get_obj(const ui_wave_t *wave);
 lv_obj_t *ui_wave_get_shadow_obj(const ui_wave_t *wave);
 void ui_wave_set_type(ui_wave_t *wave, ui_wave_type_e type);
-void ui_wave_set_amplitude(ui_wave_t *wave, int16_t amplitude);
-void ui_wave_set_narrow_period_px(ui_wave_t *wave, uint16_t period_x100);
-void ui_wave_set_color(ui_wave_t *wave, uint32_t color_hex);
-void ui_wave_start_anim(ui_wave_t *wave, ui_wave_anim_mode_e mode);
-void ui_wave_stop_anim(ui_wave_t *wave);
-void ui_wave_refresh(ui_wave_t *wave);
 
 #ifdef __cplusplus
 }

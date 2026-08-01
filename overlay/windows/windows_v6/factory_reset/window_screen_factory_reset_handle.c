@@ -15,7 +15,6 @@
 /** 含 L+R 组合键，短按可跳转 home 对应功能页 */
 #define FACTORY_RESET_UI_KEY_CODE                   (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL)
 #define FACTORY_RESET_UI_KEY_TYPE                   (KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_CLICK)
-#define FACTORY_RESET_DELAY_TIME                    (1000 * 3)
 #define FACTORY_RESET_EXIT_TASK_NAME                "factory_reset_exit_task"
 
 #define REMOVE_ALL_HANDER_TASK() \

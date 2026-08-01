@@ -28,14 +28,6 @@ static uint8_t guide_level_side_level_max_get(const ui_proc_guide_t *proc)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void guide_pump_level_page_enter_reset(ui_proc_guide_t *proc)
-{
-    EXCEPTION_CHECK_VOID(proc);
-    proc->last_adjust_time = get_timestamp();
-    proc->level_knob_touched = 0;
-    proc->level_knob_ready_time = 0;
-}
-
 int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase)
 {
     uint8_t index;

@@ -14,16 +14,6 @@ extern "C" {
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "input_key_code.h" // IWYU pragma: keep
 
-/// dummy界面动画频率
-#if IS_SUPPORT_LVGL
-#define DUMMY_ANIMATION_FREQ                 (25)
-#else
-#define DUMMY_ANIMATION_FREQ                 (5)
-#endif
-
-/// dummy界面动画展示时间
-#define DUMMY_ANIMATION_DISPLAY_TIME         (2000) /// 2s
-
 /// dummy UI动作枚举
 typedef enum {
     DUMMY_HDR_NIGHT_LIGHT_ONOFF = 100,

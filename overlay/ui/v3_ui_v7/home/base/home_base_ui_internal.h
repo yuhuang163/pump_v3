@@ -26,8 +26,6 @@ extern "C" {
 #define HOME_BASE_MAIN_TIME_COLON_COUNT              (2)
 /** 主页提示扫光宽度（像素，CPU 软边剖面） */
 #define HOME_BASE_MAIN_HINT_SHINE_W                  (140)
-/** 模式选择提示扫光宽度（像素，CPU 软边剖面） */
-#define HOME_BASE_MODE_TIP_SHINE_W                   (140)
 /** 模式选择提示图：1=内嵌 BAJ 代码段（默认），0=资源包 BASE_RES_ID_MODE_SELECT_TIP */
 #ifndef HOME_BASE_MODE_SELECT_TIP_FROM_CODE
 #define HOME_BASE_MODE_SELECT_TIP_FROM_CODE          (1)
