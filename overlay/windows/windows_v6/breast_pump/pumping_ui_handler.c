@@ -136,11 +136,11 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (pump_status == BREAST_PUMP_PAUSE || pump_status == BREAST_PUMP_IDLE || pump_status == BREAST_PUMP_FINISH) {
         int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;
-        ///如果是开机首次启动或者结算后的首次启动，则触发泵奶启动埋点事件
+        /// 如果是开机首次启动或者结算后的首次启动，则触发泵奶启动埋点事件
         if (BREAST_PUMP_START == next_status) {
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START, 0, 0);
         }
-        ///状态变化 触发泵奶状态切换埋点事件
+        /// 状态变化 触发泵奶状态切换埋点事件
         {
             int control_source = 0;
             READ_PUMP_CONTROL_SOURCE(proc->pump, control_source);
@@ -154,13 +154,14 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         WRITE_PUMP_WORK_STATUS(proc->pump, next_status, 1);
         proc->pump_status = next_status;
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
-        /* 力度/速度调节页启动/继续时保持当前页，不回首页 */
-        if (proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
+        LOG_UI("pump start: %d, page index: %d", pump_status, proc->ui_mode_page_index);
+        /* 首页/力度/速度调节页：start 不改 page_index，也不回退导航栈 */
+        if (proc->current_ui_type != PUMP_UI_TYPE_HOME &&
+            proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
             proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST &&
             proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
             pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_KEEP_PAGE);
         }
-        LOG_UI("pump start ui create: %d", pump_status);
     } else {
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, 1);
         proc->pump_status = BREAST_PUMP_PAUSE;
@@ -175,12 +176,14 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
             DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
             WRITE_PUMP_CONTROL_SOURCE(proc->pump, false);
         }
-        /* 力度/速度调节页暂停时保持当前页，不回首页 */
-        if (proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
+        LOG_UI("pump pause: %d, page index: %d", pump_status, proc->ui_mode_page_index);
+        /* 首页/力度/速度调节页：pause 不改 page_index，也不回退导航栈 */
+        if (proc->current_ui_type != PUMP_UI_TYPE_HOME &&
+            proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
             proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST &&
             proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
             pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_KEEP_PAGE);
         }
-        LOG_UI("pump stop ui create: %d", pump_status);
+  
     }
 }

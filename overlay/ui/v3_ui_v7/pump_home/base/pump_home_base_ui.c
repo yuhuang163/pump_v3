@@ -170,8 +170,8 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
-        LOG_UI("===> pump home fps: %d, mode:%d/%d", thiz->priv.fps_count, pump_mode,
-            proc->popup_ui_type);
+        LOG_UI("===> pump home fps: %d, mode:%d/%d, page:%d", thiz->priv.fps_count, pump_mode,
+            proc->popup_ui_type, proc->ui_mode_page_index);
         thiz->priv.fps_count = 0;
 #if IS_SUPPORT_BASE_TIME_3SEG_TEST
         pump_info->test_hours += 1;
