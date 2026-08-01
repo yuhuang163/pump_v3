@@ -172,7 +172,7 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
-        LOG_UI("===> home fps: %d", thiz->priv.fps_count);
+        LOG_UI("===> home fps: %d, page:%d", thiz->priv.fps_count, proc->ui_mode_page_index);
         thiz->priv.fps_count = 0;
     }
     return 0;

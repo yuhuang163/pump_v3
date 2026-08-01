@@ -86,8 +86,8 @@ static void pump_mode_key_event_cb(ui_proc_pump_t *proc, uint8_t mode_index)
         return;
     }
     if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
-        proc->ui_mode_page_index = PUMP_MODE_PAGE_INDEX_NONE;
-        show_pump_home_ui(proc);
+        /* 从力度/速度等子页回首页时清导航栈，避免残留 page_index 被 start 误恢复 */
+        pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
     } else {
         proc->ui_mode_page_index = PUMP_MODE_PAGE_INDEX_NONE;
     }
