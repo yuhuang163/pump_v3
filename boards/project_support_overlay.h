@@ -117,7 +117,7 @@ extern "C" {
 
 /// 支持关机提醒
 #if IS_SUPPORT_SLEEP_POWER_OFF
-#define IS_SUPPORT_POWER_OFF_REMINDER                    (1)
+#define IS_SUPPORT_POWER_OFF_REMINDER                    (0)
 #else
 #define IS_SUPPORT_POWER_OFF_REMINDER                    (0)
 #endif
