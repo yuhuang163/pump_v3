@@ -22,7 +22,6 @@
 #define PUMP_WILL_FINISH_TITLE2_TEXT                  "Continue pumping?"
 
 /** 底部提示图：与 home_speed_adjust 一致 */
-#define PUMP_WILL_FINISH_TIP_W                        (212)
 #define PUMP_WILL_FINISH_TIP_H                        (49)
 #define PUMP_WILL_FINISH_TIP_Y                        (PANLE_DISPLAY_H - PUMP_WILL_FINISH_TIP_H - 8)
 

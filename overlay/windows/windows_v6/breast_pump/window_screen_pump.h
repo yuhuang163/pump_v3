@@ -16,9 +16,7 @@ extern "C" {
 
 /// 泵奶动画频率
 #define PUMP_ANIMATION_FREQ                    (20)
-#define PUMP_CUSTOM_ANIMATION_FREQ             (16)
-#define PUMP_MODE_ANIMATION_FREQ               (25) 
-#define PUMP_SPEED_ANIMATION_FREQ              (25) 
+#define PUMP_SPEED_ANIMATION_FREQ              (25)
 #define PUMP_LEVEL_ANIMATION_FREQ              (20) 
 
 /// 是否支持泵奶中切换韵律

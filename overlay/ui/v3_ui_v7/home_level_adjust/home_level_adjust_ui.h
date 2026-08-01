@@ -21,7 +21,6 @@ uint8_t home_level_adjust_max_get(uint8_t mode_type);
 uint8_t home_level_adjust_mode_type_resolve(uint8_t pump_mode, uint8_t runtime_mode_type);
 const char *home_level_adjust_mode_type_name_get(uint8_t mode_type);
 uint32_t home_level_adjust_accent_color_get(uint8_t pump_mode);
-uint8_t home_level_adjust_ui_level_max_get(void);
 void ui_display_home_level_adjust_prepare(ui_manager_context_t *thiz);
 void ui_display_home_level_adjust_remove(ui_manager_context_t *thiz);
 int ui_display_home_level_adjust_process(ui_manager_context_t *thiz);

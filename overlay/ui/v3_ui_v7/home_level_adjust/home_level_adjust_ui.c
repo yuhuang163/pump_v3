@@ -34,7 +34,6 @@
 #define HOME_LEVEL_OVER_LIMIT_TEXT                  "Max 3 Levels at a time"
 #define HOME_LEVEL_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
-#define HOME_LEVEL_TIP_W                            (220)
 #define HOME_LEVEL_TIP_H                            (63)
 /** 底部提示图 Y：贴底留边（与 home 模式选择页一致） */
 #define HOME_LEVEL_TIP_Y                            (PANLE_DISPLAY_H - HOME_LEVEL_TIP_H - 8)
@@ -402,14 +401,6 @@ uint32_t home_level_adjust_accent_color_get(uint8_t pump_mode)
         default:
             return HOME_STIMULATION_LEVEL_COLOR;
     }
-}
-
-uint8_t home_level_adjust_ui_level_max_get(void)
-{
-    if (level_info == NULL) {
-        return BREAST_PUMP_LEVEL_15;
-    }
-    return level_info->level_max;
 }
 
 void ui_display_home_level_adjust_prepare(ui_manager_context_t *thiz)

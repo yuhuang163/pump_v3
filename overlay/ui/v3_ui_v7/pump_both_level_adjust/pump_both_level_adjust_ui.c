@@ -32,7 +32,6 @@
 /** 左弧：底部起沿左侧向上（参考图量测） */
 #define PUMP_BOTH_LEVEL_LEFT_START                  (136)
 #define PUMP_BOTH_LEVEL_LEFT_TRACK                  (122)
-#define PUMP_BOTH_LEVEL_LEFT_END                    (PUMP_BOTH_LEVEL_LEFT_START + PUMP_BOTH_LEVEL_LEFT_TRACK)
 /** 右弧：与左弧左右镜像；顶→底顺时针，进度自底向上（from_bottom） */
 #define PUMP_BOTH_LEVEL_RIGHT_END                   (540 - PUMP_BOTH_LEVEL_LEFT_START) /* 406 */
 #define PUMP_BOTH_LEVEL_RIGHT_TRACK                 (PUMP_BOTH_LEVEL_LEFT_TRACK)
@@ -799,14 +798,6 @@ static void pump_both_level_time_update(ui_proc_pump_t *proc)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-uint8_t pump_both_level_adjust_ui_level_max_get(void)
-{
-    if (pump_both_info == NULL) {
-        return BREAST_PUMP_LEVEL_15;
-    }
-    return pump_both_info->level_max;
-}
-
 uint32_t pump_both_level_adjust_over_limit_color_get(uint8_t pump_mode)
 {
     switch (pump_mode) {

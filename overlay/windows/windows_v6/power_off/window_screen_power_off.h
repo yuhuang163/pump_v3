@@ -20,9 +20,6 @@ extern "C" {
 #define POWER_OFF_ANIMATION_FREQ                 (5)
 #endif
 
-/// 系统动画展示时间
-#define POWER_OFF_ANIMATION_DISPLAY_TIME         (2000) /// 2s
-
 typedef enum {
     POWER_OFF_HDR_EXIT_CHARGE_POLICY = 100, /// 退出充电策略
     POWER_OFF_HDR_DISCHARGE_POWER_OFF, /// 拔除充电关机
@@ -67,7 +64,6 @@ typedef struct {
 */
 void power_off_handle(ui_proc_power_off_t *proc);
 void start_power_off_ui_animation(ui_proc_power_off_t *proc);
-void stop_power_off_common_ui(ui_proc_power_off_t *proc);
 void stop_power_off_ui_animation(ui_proc_power_off_t *proc);
 void show_power_off_charging_ui(ui_proc_power_off_t *proc);
 void show_power_off_charge_error_ui(ui_proc_power_off_t *proc);

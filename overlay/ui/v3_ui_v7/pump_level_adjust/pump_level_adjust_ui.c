@@ -535,14 +535,6 @@ static void pump_level_time_update(ui_proc_pump_t *proc)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-uint8_t pump_level_adjust_ui_level_max_get(void)
-{
-    if (level_info == NULL) {
-        return BREAST_PUMP_LEVEL_15;
-    }
-    return level_info->level_max;
-}
-
 void ui_display_pump_level_adjust_prepare(ui_manager_context_t *thiz)
 {
     ui_proc_pump_t *proc;

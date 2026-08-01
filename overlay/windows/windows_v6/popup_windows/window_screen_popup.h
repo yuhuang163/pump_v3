@@ -16,14 +16,9 @@ extern "C" {
 /// logo动画频率
 #if IS_SUPPORT_LVGL
 #define POPUP_ANIMATION_FREQ                 (25)
-#define EXIT_AIRPLANE_ANIMATION_FREQ         (25)
-#define MODE_PROMPT_ANIMATION_FREQ          (25)
 #else
 #define POPUP_ANIMATION_FREQ                 (5)
 #endif
-
-/// pop动画展示时间
-#define POPUP_ANIMATION_DISPLAY_TIME         (2000) /// 2s
 
 /// logo UI类型枚举
 typedef enum {

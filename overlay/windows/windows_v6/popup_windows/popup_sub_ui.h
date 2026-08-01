@@ -19,7 +19,6 @@ extern "C" {
 *****************************************************************************************
 */
 void start_low_power_ui_animation(ui_proc_popup_t *proc);
-void stop_low_power_ui_animation(ui_proc_popup_t *proc);
 
 void start_travel_lock_countdown_ui_animation(ui_proc_popup_t *proc);
 

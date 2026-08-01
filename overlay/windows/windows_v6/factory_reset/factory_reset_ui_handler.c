@@ -11,7 +11,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define FACTORY_RESET_DELAY_TIME                    (1000 * 3)
 #define FACTORY_RESET_TASK_NAME                     "factory_reset_task"
 /*
 * LOCAL VARIABLE DEFINITIONS

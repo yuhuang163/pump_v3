@@ -20,11 +20,7 @@ extern "C" {
 #define GUIDE_ANIMATION_FREQ                 (5)
 #endif
 
-/// 主界面动画展示时间
-#define GUIDE_ANIMATION_DISPLAY_TIME            (2000) /// 2s
 #define GUIDE_BLINK_PERIOD                      (500)
-/// 首次进入带倒计时页的静默时间（UI 不显示倒计时）
-#define GUIDE_IDLE_SILENT_FIRST_MS              (7000) /// 7s
 /// 左/右力度页：最后一次旋转后静默结算时长，结算完成后等待再跳转
 #define GUIDE_LEVEL_KNOB_ADVANCE_MS             (2000) /// 2s
 /// 左/右力度页：结算完成后的跳转等待时长（UI 不展示）
@@ -37,37 +33,10 @@ extern "C" {
 #define GUIDE_LEVEL_BOTH_SETTLE_MS               (1000) /// 1s
 #define GUIDE_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
 #define GUIDE_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
-/// 模式选择页：调节 2 次后，第 3 次 mode 键切下一页
-#define GUIDE_MODE_SELECT_ADVANCE_CLICK_COUNT   (3)
-/// 韵律选择页：调节 1 次后，第 2 次 program 键切下一页
-#define GUIDE_RHYTHM_SELECT_ADVANCE_CLICK_COUNT (2)
-/// 静默结束后的可见倒计时时长，结束后切下一页
-#define GUIDE_IDLE_COUNTDOWN_SHOW_MS            (3000) /// 3s
 /// 力度调节后，展示页面停留时间
 #define GUIDE_GUIDE_STEP_ADVANCE_TIME_MS        (3000) /// 纯引导页自动翻页时间
 #define GUIDE_PUMP_HOME_GUIDE_ADVANCE_TIME_MS   (3200) /// 第四页泵奶首页引导停留后切第五页
 #define GUIDE_FINISH_IDLE_TIMEOUT_MS            (3000) /// 引导结束页无操作超时
-
-/** 静默结束后剩余可见倒计时秒数；静默中或已超时返回 0（UI 应隐藏） */
-static inline uint8_t guide_idle_countdown_remain_sec(uint32_t elapsed_ms, uint32_t silent_ms)
-{
-    uint32_t total_ms = silent_ms + GUIDE_IDLE_COUNTDOWN_SHOW_MS;
-
-    if (elapsed_ms < silent_ms || elapsed_ms >= total_ms) {
-        return 0;
-    }
-    return (uint8_t)((total_ms - elapsed_ms + 999U) / 1000U);
-}
-
-static inline uint32_t guide_idle_total_timeout_ms(uint32_t silent_ms)
-{
-    return silent_ms + GUIDE_IDLE_COUNTDOWN_SHOW_MS;
-}
-#define GUIDE_PUMP_STOP_RETURN_LONG_PRESS_MS     (3000) /// 泵奶结束引导长按返回跳转时间
-#define GUIDE_DEFAULT_LEFT_LEVEL                 (12)
-#define GUIDE_DEFAULT_RIGHT_LEVEL                (6)
-#define GUIDE_LEVEL_MIN                          (0)
-#define GUIDE_LEVEL_MAX                          (15)
 
 /// 引导页模式/韵律切换是否同步到 breast_pump_manager
 #ifndef IS_SUPPORT_GUIDE_PUMP_MODE_SYNC
@@ -158,13 +127,6 @@ static inline uint8_t guide_mode_switch_mode_from_slot(uint8_t slot)
 /** 兼容旧命名：旋钮按压引导即泵奶启动向导 */
 #define GUIDE_PAGE_KNOB_GUIDE                       GUIDE_PAGE_PUMP_START_GUIDE
 
-typedef enum {
-    GUIDE_MODE_SELECT_NONE = 0, /// 未选择模式
-    GUIDE_MODE_SELECT_MODE = 1, /// 选择模式
-    GUIDE_MODE_SELECT_BREASTFEEDING = 2, /// 选择哺乳
-    GUIDE_MODE_SELECT_MAX,
-} guide_mode_select_e;
-
 #define GUIDE_PAGE_IS_WELCOME_ANIM(page)        ((page) == GUIDE_PAGE_WELCOME_ANIM)
 
 /// base 主题无欢迎动画页时，custom 主题仍从欢迎动画页开始
@@ -173,30 +135,14 @@ static inline uint16_t guide_page_initial_get(int res_theme_type)
     return (res_theme_type == RES_THEME_TYPE_CUSTOM)
         ? GUIDE_PAGE_WELCOME_ANIM : GUIDE_PAGE_QRCODE;
 }
-#define GUIDE_PAGE_IS_LEVEL_INTERACTIVE(page)   (0)
-#define GUIDE_PAGE_SHOW_LEVEL_COUNTDOWN(page)   (0)
-#define GUIDE_PAGE_IS_MODE_INTERACTIVE(page)    (0)
-#define GUIDE_PAGE_IS_RHYTHM_INTERACTIVE(page)  (0)
-#define GUIDE_PAGE_IS_LEVEL_SIDE(page)          (0)
 #define GUIDE_PAGE_IS_GUIDE_STEP(page)        \
     ((page) == GUIDE_PAGE_INTRO || (page) == GUIDE_PAGE_PUMP_START_GUIDE || \
      (page) == GUIDE_PAGE_PUMP_PAUSE_GUIDE || (page) == GUIDE_PAGE_PUMP_FINISH_GUIDE || \
      (page) == GUIDE_PAGE_MODE_SWITCH_GUIDE || (page) == GUIDE_PAGE_LEVEL_SIDE_GUIDE || \
      (page) == GUIDE_PAGE_LEVEL_BOTH_GUIDE || (page) == GUIDE_PAGE_SPEED_GUIDE)
-#define GUIDE_PAGE_SHOW_BLE(page)               (0)
-#define GUIDE_PAGE_SHOW_LEVEL(page)             (0)
 #define GUIDE_PAGE_IS_LED_BLINK(page)           \
     ((page) == GUIDE_PAGE_LEVEL_SIDE_GUIDE || (page) == GUIDE_PAGE_LEVEL_BOTH_GUIDE || \
      (page) == GUIDE_PAGE_SPEED_GUIDE)
-
-#define GUIDE_PAGE_NUM_TOTAL                    (0)
-#define GUIDE_PAGE_SHOW_NUM(page)               (0)
-
-static inline uint8_t guide_page_num_of(uint8_t page)
-{
-    (void)page;
-    return 0;
-}
 
 /// 主界面UI结构体
 typedef struct {
@@ -250,8 +196,6 @@ void stop_guide_ui_animation(ui_proc_guide_t *proc);
 void guide_led_backlight_update(ui_proc_guide_t *proc);
 void guide_led_backlight_blink_tick(ui_proc_guide_t *proc);
 void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page);
-int guide_pump_mode_adjust_handler(ui_proc_guide_t *proc, bool is_bf_mode);
-void guide_pump_level_page_enter_reset(ui_proc_guide_t *proc);
 int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase);
 void guide_pump_level_idle_timeout_handler(ui_proc_guide_t *proc);
 uint8_t guide_pump_level_idle_remain_sec_get(const ui_proc_guide_t *proc);

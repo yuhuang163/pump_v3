@@ -20,9 +20,6 @@ extern "C" {
 #define CHARGE_ANIMATION_FREQ                    (5)
 #endif
 
-/// 充电动画更新间隔
-#define CHARGE_ANIMATION_UPDATE_INTERVAL         (1000)
-
 typedef enum {
     CHARGE_HDR_EXIT_CHARGE_POLICY = 100, /// 退出充电策略
     CHARGE_HDR_CHARGE_SCREEN_ON,
@@ -62,10 +59,8 @@ typedef struct {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-void show_charging_ui(ui_proc_charge_t *proc);
 void show_charge_adapter_ui(ui_proc_charge_t *proc);
 void stop_charge_common_ui(ui_proc_charge_t *proc);
-int switch_charge_night_light_onoff_ui(ui_proc_charge_t *proc);
 
 #ifdef __cplusplus
 }

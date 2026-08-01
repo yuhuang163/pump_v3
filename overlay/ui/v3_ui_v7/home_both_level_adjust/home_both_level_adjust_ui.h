@@ -15,7 +15,6 @@ extern "C" {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-uint8_t home_both_level_adjust_ui_level_max_get(void);
 uint32_t home_both_level_adjust_over_limit_color_get(uint8_t pump_mode);
 void ui_display_home_both_level_adjust_prepare(ui_manager_context_t *thiz);
 void ui_display_home_both_level_adjust_remove(ui_manager_context_t *thiz);

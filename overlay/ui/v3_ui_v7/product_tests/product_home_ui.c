@@ -19,10 +19,6 @@
 #define IS_SUPPORT_BATTERY_PERCENT                                   0
 #endif
 #define PRODUCT_TESTS_HOME_CONTENT_COUNT                             1
-#define PRODUCT_TESTS_HOME_CONTENT_COLOR                             0x3C3D40
-#define PRODUCT_TESTS_HOME_QRCODE_BG_COLOR                           0xFFFFFF
-#define PRODUCT_TESTS_HOME_QRCODE_FG_COLOR                           0x000000
-#define PRODUCT_TESTS_HOME_QRCODE_BORDER_COLOR                       0xA6A6A6
 #define PRODUCT_TESTS_HOME_MAC_NAME_COLOR                            0x01D65A // 0x3C3D40
 #define PRODUCT_TESTS_HOME_BATTERY_PERCENT_COLOR                      0x01D65A // 0x3C3D40
 #define PRODUCT_TESTS_HOME_AGING_INFO_COLOR                           0x01D65A // 老化信息颜色

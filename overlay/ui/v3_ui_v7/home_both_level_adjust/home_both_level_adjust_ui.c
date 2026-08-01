@@ -32,7 +32,6 @@
 /** 左弧：底部起沿左侧向上（参考图量测） */
 #define HOME_BOTH_LEVEL_LEFT_START                  (136)
 #define HOME_BOTH_LEVEL_LEFT_TRACK                  (122)
-#define HOME_BOTH_LEVEL_LEFT_END                    (HOME_BOTH_LEVEL_LEFT_START + HOME_BOTH_LEVEL_LEFT_TRACK)
 /** 右弧：与左弧左右镜像；顶→底顺时针，进度自底向上（from_bottom） */
 #define HOME_BOTH_LEVEL_RIGHT_END                   (540 - HOME_BOTH_LEVEL_LEFT_START) /* 406 */
 #define HOME_BOTH_LEVEL_RIGHT_TRACK                 (HOME_BOTH_LEVEL_LEFT_TRACK)
@@ -72,7 +71,6 @@
 #define HOME_BOTH_LEVEL_MODE_SWITCH_TEXT_FMT        "Switch to %s"
 
 /** 底部提示图：与速度调节一致 */
-#define HOME_BOTH_LEVEL_TIP_W                       (212)
 #define HOME_BOTH_LEVEL_TIP_H                       (49)
 #define HOME_BOTH_LEVEL_TIP_Y                       (PANLE_DISPLAY_H - HOME_BOTH_LEVEL_TIP_H - 8)
 
@@ -599,14 +597,6 @@ static void home_both_level_tip_update(void)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-uint8_t home_both_level_adjust_ui_level_max_get(void)
-{
-    if (both_info == NULL) {
-        return BREAST_PUMP_LEVEL_15;
-    }
-    return both_info->level_max;
-}
-
 uint32_t home_both_level_adjust_over_limit_color_get(uint8_t pump_mode)
 {
     switch (pump_mode) {

@@ -21,7 +21,6 @@
 #define GUIDE_QRCODE_DESC_LINE_SPACE                (8)
 #define GUIDE_QRCODE_DESC_TEXT                      "Scan to download App to\nconnect to device"
 
-#define GUIDE_QRCODE_TIP_W                          (220)
 #define GUIDE_QRCODE_TIP_H                          (63)
 /** 底部提示图 Y：贴底留边（与 home 模式选择页一致） */
 #define GUIDE_QRCODE_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_QRCODE_TIP_H - 8)

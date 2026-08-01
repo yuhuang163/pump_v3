@@ -9,7 +9,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define HOME_IDLE_DISPLAY_TASK_NAME              "home_idle_display_cmp"
 
 /*
 * LOCAL VARIABLE DEFINITIONS

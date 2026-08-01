@@ -15,7 +15,6 @@ extern "C" {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-uint8_t pump_level_adjust_ui_level_max_get(void);
 void ui_display_pump_level_adjust_prepare(ui_manager_context_t *thiz);
 void ui_display_pump_level_adjust_remove(ui_manager_context_t *thiz);
 int ui_display_pump_level_adjust_process(ui_manager_context_t *thiz);

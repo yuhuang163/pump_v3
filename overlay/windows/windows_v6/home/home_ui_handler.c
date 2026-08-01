@@ -9,7 +9,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define HOME_DISPLAY_TASK_NAME              "home_display_cmp"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
