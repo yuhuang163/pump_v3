@@ -320,6 +320,12 @@ void guide_stop_hold_key_up_handler(ui_proc_guide_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     if (proc->page_index != GUIDE_PAGE_PUMP_FINISH_HOLD) {
+        /// 长按已完成时松手：LONG_2S 后通常不再上报 CLICK，
+        /// 需在 UP 时清掉 ignore，避免第 10 页首次短按被吞掉。
+        if (proc->stop_hold_ignore_click) {
+            proc->stop_hold_ignore_click = 0;
+            LOG_WM("clear stop hold ignore click on power up after complete.");
+        }
         return;
     }
     if (!proc->stop_hold_holding) {
