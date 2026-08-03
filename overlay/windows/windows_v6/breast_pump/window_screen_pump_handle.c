@@ -45,6 +45,12 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void pump_window_async_evt_handler_cb(void *user_data)
+{
+
+
+}
+
 static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *result)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
@@ -518,6 +524,12 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
         proc->pump->add_breast_pump_result_listener(proc, on_breast_pump_result_cb);
     }
+    
+    /// 设置窗口异步事件处理回调.
+    if (proc->wm) {
+        proc->wm->priv.window_private[window_id] = pump_window_async_evt_handler_cb;
+    }
+
     /// 设置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;

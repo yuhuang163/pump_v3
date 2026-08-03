@@ -43,6 +43,25 @@ static void home_ui_nav_restore_frame(ui_proc_home_t *proc, const home_ui_nav_fr
     proc->ui_nav.restoring = 0;
 }
 
+static uint8_t home_sub_mode_level_clamp(ui_proc_home_t *proc, uint8_t mode_type)
+{
+    uint8_t level_max = home_level_adjust_max_get(mode_type);
+    uint8_t i;
+    bool changed = false;
+
+    READ_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, proc->setting);
+    for (i = 0; i < BREAST_PUMP_NUM; i++) {
+        if (proc->setting.level[i] > level_max) {
+            proc->setting.level[i] = level_max;
+            changed = true;
+        }
+    }
+    if (changed) {
+        WRITE_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, true, proc->setting);
+    }
+    return level_max;
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -203,25 +222,6 @@ void home_sub_mode_switch_tick(ui_proc_home_t *proc)
     home_sub_mode_switch_clear(proc);
 }
 
-static uint8_t home_sub_mode_level_clamp(ui_proc_home_t *proc, uint8_t mode_type)
-{
-    uint8_t level_max = home_level_adjust_max_get(mode_type);
-    uint8_t i;
-    bool changed = false;
-
-    READ_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, proc->setting);
-    for (i = 0; i < BREAST_PUMP_NUM; i++) {
-        if (proc->setting.level[i] > level_max) {
-            proc->setting.level[i] = level_max;
-            changed = true;
-        }
-    }
-    if (changed) {
-        WRITE_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, true, proc->setting);
-    }
-    return level_max;
-}
-
 void home_sub_mode_state_init(ui_proc_home_t *proc, uint8_t clamp_level)
 {
     int pump_mode = 0;
@@ -310,4 +310,31 @@ void home_sub_mode_sync_tick(ui_proc_home_t *proc, home_sub_mode_sync_e sync)
             }
         }
     }
+}
+
+int home_start_pump_handler(ui_proc_home_t *proc)
+{
+    uint8_t battery_state = BATTERY_STATE_NONE;
+
+    EXCEPTION_CHECK_INT(proc);
+    if (proc->battery) {
+        battery_state = proc->battery->get_battery_state();
+    }
+
+    if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+        battery_state == BATTERY_STATE_EMPTY ||
+        battery_state == BATTERY_STATE_FORBID_START) {
+        LOG_WM("battery state is low, ignore key event.");
+        return -1;
+    }
+
+    if (proc->wm) {
+        multi_func_msg_data_t msg = {0};
+        LOG_WM("goto pump window.");
+        msg.union_body.extra.window_id = ID_WINDOW_PUMP;
+        msg.union_body.extra.arg1 = KEY_CODE_START;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return 0;
+    }
+    return -1;
 }

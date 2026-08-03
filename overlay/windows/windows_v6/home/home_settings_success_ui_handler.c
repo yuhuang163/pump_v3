@@ -23,7 +23,10 @@ static void home_settings_success_display_completed_cb(hdr_post_args_t *args)
         LOG_UI("settings success ui, ignore display completed.");
         return;
     }
-    home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_RESET_PAGE);
+    /// 模式确认成功提示超时后立即启动泵奶；启动失败则回首页
+    if (home_start_pump_handler(proc) != 0) {
+        home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_RESET_PAGE);
+    }
 }
 
 static void home_settings_success_ui_after_policy(ui_manager_context_t *ui, int index)
