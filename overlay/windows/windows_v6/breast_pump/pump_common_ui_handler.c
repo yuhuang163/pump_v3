@@ -86,6 +86,10 @@ void pump_ui_nav_push(ui_proc_pump_t *proc)
     frame->ui_type = proc->current_ui_type;
     frame->page_index = proc->ui_mode_page_index;
     frame->level_side = proc->level_adjust_side;
+#if PUMP_MODE_SELECT_IDLE_EXIT_ENABLE
+    /// 离开首页进子页时暂停倒计时，返回后重新计时
+    proc->mode_select_idle_time = 0;
+#endif
     LOG_WM("pump ui_nav push type:%d page:%d depth:%d",
         frame->ui_type, frame->page_index, proc->ui_nav.depth);
 }

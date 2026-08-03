@@ -46,6 +46,13 @@ static void home_mode_apply_page_index(ui_proc_home_t *proc, uint16_t page_index
     }
 
     proc->ui_mode_page_index = page_index;
+#if HOME_MODE_SELECT_IDLE_EXIT_ENABLE
+    if (page_index == HOME_MODE_PAGE_INDEX_NONE) {
+        proc->mode_select_idle_time = 0;
+    } else {
+        proc->mode_select_idle_time = get_timestamp();
+    }
+#endif
     if (page_index == HOME_MODE_PAGE_INDEX_NONE) {
         LOG_UI("home page_index -> HOME");
         return;
@@ -58,6 +65,48 @@ static void home_mode_apply_page_index(ui_proc_home_t *proc, uint16_t page_index
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+void home_mode_select_idle_touch(ui_proc_home_t *proc)
+{
+#if HOME_MODE_SELECT_IDLE_EXIT_ENABLE
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
+        return;
+    }
+    if (proc->ui_mode_page_index == HOME_MODE_PAGE_INDEX_NONE) {
+        return;
+    }
+    proc->mode_select_idle_time = get_timestamp();
+#else
+    (void)proc;
+#endif
+}
+
+void home_mode_select_idle_timeout_handler(ui_proc_home_t *proc)
+{
+#if HOME_MODE_SELECT_IDLE_EXIT_ENABLE
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
+        return;
+    }
+    if (proc->ui_mode_page_index == HOME_MODE_PAGE_INDEX_NONE) {
+        return;
+    }
+    /// 从子页 KEEP_PAGE 回首页等场景：计时未启动则先启动
+    if (proc->mode_select_idle_time == 0) {
+        proc->mode_select_idle_time = get_timestamp();
+        return;
+    }
+    if (get_timestamp_ms(proc->mode_select_idle_time) < HOME_MODE_SELECT_IDLE_TIMEOUT_MS) {
+        return;
+    }
+    /// 静默退出预览：仅复位 page_index，不调用 confirm/set，不更换工作模式
+    LOG_UI("home mode select idle timeout, silent exit (no mode change)");
+    home_mode_apply_page_index(proc, HOME_MODE_PAGE_INDEX_NONE);
+#else
+    (void)proc;
+#endif
+}
+
 void home_mode_page_index_clamp(ui_proc_home_t *proc)
 {
     int activate_status = 0;

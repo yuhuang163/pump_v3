@@ -219,6 +219,9 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         LOG_WM("pump finish ui, ignore key event. type:%d code:%d", keytype, keycode);
         return 0;
     }
+
+    /// 模式选择页倒计时中：任意按键刷新计时
+    pump_mode_select_idle_touch(proc);
     
     /// 韵律即将结束提示：仅短按 power 可退出，其它按键/长按/抬起均忽略
     if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {

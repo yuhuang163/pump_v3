@@ -39,6 +39,7 @@ static void home_ui_after_policy(ui_manager_context_t *ui, int index)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         home_mode_page_index_clamp(proc);
+        home_mode_select_idle_timeout_handler(proc);
     }
     ui_display_home_process(ui);
 }
