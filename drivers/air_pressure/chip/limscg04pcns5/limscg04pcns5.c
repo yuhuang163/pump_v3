@@ -15,7 +15,7 @@
 */
 #define LIMS_I2C_ADDR                  0x6C
 #define LIMS_LOG_DEBUG                 0
-#define LIMS_ABNORMAL_MAX_COUNT        10
+#define LIMS_ABNORMAL_MAX_COUNT        500
 #define LIMS_LOG_COUNT_INTERVAL        100
 
 #define PRESSURE_RAW_DATA_CALC(x)  (x) > 8388608 ? \
