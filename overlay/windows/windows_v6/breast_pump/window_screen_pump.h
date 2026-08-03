@@ -39,7 +39,7 @@ extern "C" {
 #define PUMP_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
 #define PUMP_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 /// 子模式切换提醒时长
-#define PUMP_SUB_MODE_SWITCH_TIMEOUT_MS      (3000) /// 3s
+#define PUMP_SUB_MODE_SWITCH_TIMEOUT_MS        (3000) /// 3s
 
 /// 模式选择页无操作静默回首页（page_index 非 0 时计时，超时仅复位预览；
 /// 不更换工作模式，模式落地仅由 power 确认触发）
@@ -47,6 +47,11 @@ extern "C" {
 #define PUMP_MODE_SELECT_IDLE_EXIT_ENABLE      (1)
 #endif
 #define PUMP_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
+
+/// 力度/速度调节页退出：1=回到上一页（保留 page_index），0=回本窗口首页（page_index 清零）
+#ifndef PUMP_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
+#define PUMP_ADJUST_EXIT_TO_PREV_PAGE_ENABLE   (0)
+#endif
 
 /// 子模式同步场景（力度/速度页共用）
 typedef enum {

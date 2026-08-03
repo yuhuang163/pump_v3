@@ -32,6 +32,11 @@ extern "C" {
 #endif
 #define HOME_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
 
+/// 力度/速度调节页退出：1=回到上一页（保留 page_index），0=回本窗口首页（page_index 清零）
+#ifndef HOME_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
+#define HOME_ADJUST_EXIT_TO_PREV_PAGE_ENABLE   (0)
+#endif
+
 /// 子模式同步场景（力度/速度页共用）
 typedef enum {
     HOME_SUB_MODE_SYNC_LEVEL = 0,      /// 单边力度
