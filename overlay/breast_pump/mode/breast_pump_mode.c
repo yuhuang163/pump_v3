@@ -360,7 +360,7 @@ void pump_setting_update_ram(breast_pump_manager_context_t *ctx,
     ctx->priv.setting[step_idx].level[0] = src->level[0];
     ctx->priv.setting[step_idx].level[1] = src->level[1];
     ctx->priv.setting[step_idx].speed = src->speed;
-    LOG_MOTOR("update_ram step=%d L=%d R=%d speed=%d",
+    LOG_MOTOR("same-mode update_ram step=%d L=%d R=%d speed=%d",
         step_idx, src->level[0], src->level[1], src->speed);
 }
 
@@ -369,7 +369,7 @@ void pump_setting_store(breast_pump_manager_context_t *ctx, int mode, uint8_t st
     if (ctx->priv.st) {
         ctx->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
             mode, step_idx, &ctx->priv.setting[step_idx]);
-        LOG_MOTOR("store mode=%d step=%d L=%d R=%d speed=%d",
+        LOG_MOTOR("same-mode store mode=%d step=%d L=%d R=%d speed=%d",
             mode, step_idx,
             ctx->priv.setting[step_idx].level[0],
             ctx->priv.setting[step_idx].level[1],
@@ -377,14 +377,95 @@ void pump_setting_store(breast_pump_manager_context_t *ctx, int mode, uint8_t st
     }
 }
 
-/// 根据传入step_index找到策略中mode_type相同的其他step，同步设置
-/// 从motor的policy_list获取策略（注册态，非runtime），避免motor线程并发修改导致异常
+/**
+ * @brief 在单个模式策略中，同步相同 mode_type 的 step 设置
+ * @param skip_step_index 跳过的源 step（0xFF 表示不跳过）
+ * @param update_runtime_ram 是否更新当前运行时 setting[]（仅当前实际模式需要）
+ * @param store_mode 写入存储用的 mode（可为具体模式或 BREAST_PUMP_ALL_MODE_AND_PROGRAM）
+ */
+static void pump_setting_sync_mode_type_in_manager(breast_pump_manager_context_t *ctx,
+    pump_setting_t *setting, const motor_policy_manager_t *manager,
+    uint8_t target_mode_type, uint8_t skip_step_index,
+    bool update_runtime_ram, int store_mode, bool is_need_store)
+{
+    const motor_timed_policy_node_t *time_policy = &manager->head;
+    int idx = 0;
+
+    while (time_policy != NULL && idx < ROOT_BREAST_PUMP_STEP_MAX) {
+        if (idx != skip_step_index &&
+            time_policy->policy.core.un.mapping.mode_type == target_mode_type) {
+            if (update_runtime_ram) {
+                pump_setting_update_ram(ctx, setting, idx);
+            }
+            if (is_need_store) {
+                if (update_runtime_ram) {
+                    pump_setting_store(ctx, store_mode, idx);
+                } else if (ctx->priv.st) {
+                    /// 其他模式只写该模式存储，避免误改当前运行时 setting[]
+                    ctx->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
+                        store_mode, idx, setting);
+                    LOG_MOTOR("cross-mode store mode=%d step=%d L=%d R=%d speed=%d",
+                        store_mode, idx, setting->level[0], setting->level[1], setting->speed);
+                }
+            }
+        }
+        time_policy = time_policy->next;
+        idx++;
+    }
+}
+
+static const motor_policy_manager_t *pump_setting_find_policy_manager(
+    motor_manager_context_t *motor, int breast_pump_mode)
+{
+    list_head_t *head = &motor->priv.policy_list;
+
+    if (head->next == NULL) {
+        return NULL;
+    }
+    LIST_FOR_EACH(pos, head) {
+        breast_pump_policy_node_t *node =
+            CONTAINER_OF(pos, breast_pump_policy_node_t, list);
+        if (node->breast_pump_mode == breast_pump_mode && node->get_policy_cb) {
+            return node->get_policy_cb(node->user_data);
+        }
+    }
+    return NULL;
+}
+
+static uint8_t pump_setting_get_step_mode_type(const motor_policy_manager_t *manager,
+    uint8_t step_index)
+{
+    const motor_timed_policy_node_t *time_policy = &manager->head;
+    int idx = 0;
+
+    while (time_policy != NULL && idx <= step_index && idx < ROOT_BREAST_PUMP_STEP_MAX) {
+        if (idx == step_index) {
+            return time_policy->policy.core.un.mapping.mode_type;
+        }
+        time_policy = time_policy->next;
+        idx++;
+    }
+    return 0xFF;
+}
+
+/**
+ * @brief 按 mode_type 同步泵设置（策略取自 policy_list 注册态，非 runtime）
+ * @param ctx 泵管理上下文
+ * @param setting 源设置
+ * @param step_index 源 step 索引
+ * @param mode 目标模式；为 BREAST_PUMP_ALL_MODE_AND_PROGRAM 时按当前实际模式查策略
+ * @param is_need_store 是否写入存储
+ * @note IS_PUMP_SETTING_SYNC_MODE_TYPE_ALL_MODES=0 仅当前模式内同步；
+ *       =1 时同步所有已注册模式中相同 mode_type 的时间策略
+ */
 void pump_setting_sync_by_mode_type(breast_pump_manager_context_t *ctx,
     pump_setting_t *setting, uint8_t step_index, int mode, bool is_need_store)
 {
     /// 全局参数模式下使用当前实际模式
     int actual_mode = (mode == BREAST_PUMP_ALL_MODE_AND_PROGRAM) ?
         ctx->priv.m_info.mode : mode;
+    const motor_policy_manager_t *manager = NULL;
+    uint8_t target_mode_type = 0xFF;
 
     policy_manager_obj_lock();
 
@@ -395,56 +476,52 @@ void pump_setting_sync_by_mode_type(breast_pump_manager_context_t *ctx,
         return;
     }
 
-    /// 从policy_list查找对应模式的策略管理器（注册态链表，非runtime）
-    const motor_policy_manager_t *manager = NULL;
-    list_head_t *head = &motor->priv.policy_list;
-    if (head->next != NULL) {
-        LIST_FOR_EACH(pos, head) {
-            breast_pump_policy_node_t *node =
-                CONTAINER_OF(pos, breast_pump_policy_node_t, list);
-            if (node->breast_pump_mode == actual_mode) {
-                if (node->get_policy_cb) {
-                    manager = node->get_policy_cb(node->user_data);
-                }
-                break;
-            }
-        }
-    }
+    manager = pump_setting_find_policy_manager(motor, actual_mode);
     if (!manager) {
         LOGE("sync_by_mode_type: manager not found for mode=%d", actual_mode);
         policy_manager_obj_unlock();
         return;
     }
 
-    /// 遍历策略链表，找到目标step的mode_type
-    const motor_timed_policy_node_t *time_policy = &manager->head;
-    int idx = 0;
-    uint8_t target_mode_type = 0xFF;
-    while (time_policy != NULL && idx <= step_index && idx < ROOT_BREAST_PUMP_STEP_MAX) {
-        if (idx == step_index) {
-            target_mode_type = time_policy->policy.core.un.mapping.mode_type;
-            break;
-        }
-        time_policy = time_policy->next;
-        idx++;
+    target_mode_type = pump_setting_get_step_mode_type(manager, step_index);
+    if (target_mode_type == 0xFF) {
+        LOG_MOTOR("sync_by_mode_type: mode_type not found, mode=%d step=%d",
+            actual_mode, step_index);
+        policy_manager_obj_unlock();
+        return;
     }
 
-    /// 找到后，遍历所有step，同步相同mode_type的其他step
-    if (target_mode_type != 0xFF) {
-        time_policy = &manager->head;
-        idx = 0;
-        while (time_policy != NULL && idx < ROOT_BREAST_PUMP_STEP_MAX) {
-            if (idx != step_index &&
-                time_policy->policy.core.un.mapping.mode_type == target_mode_type) {
-                pump_setting_update_ram(ctx, setting, idx);
-                if (is_need_store) {
-                    pump_setting_store(ctx, mode, idx);
-                }
+#if IS_PUMP_SETTING_SYNC_MODE_TYPE_ALL_MODES
+    /// 遍历所有已注册模式，同步相同 mode_type 的时间策略
+    list_head_t *head = &motor->priv.policy_list;
+    if (head->next != NULL) {
+        LIST_FOR_EACH(pos, head) {
+            breast_pump_policy_node_t *node =
+                CONTAINER_OF(pos, breast_pump_policy_node_t, list);
+            const motor_policy_manager_t *mode_manager = NULL;
+            bool is_actual_mode = (node->breast_pump_mode == actual_mode);
+
+            if (!node->get_policy_cb) {
+                continue;
             }
-            time_policy = time_policy->next;
-            idx++;
+            mode_manager = node->get_policy_cb(node->user_data);
+            if (!mode_manager) {
+                continue;
+            }
+
+            pump_setting_sync_mode_type_in_manager(ctx, setting, mode_manager,
+                target_mode_type,
+                is_actual_mode ? step_index : 0xFF,
+                is_actual_mode,
+                node->breast_pump_mode,
+                is_need_store);
         }
     }
+#else
+    /// 仅当前模式内：同步相同 mode_type 的其他 step
+    pump_setting_sync_mode_type_in_manager(ctx, setting, manager,
+        target_mode_type, step_index, true, mode, is_need_store);
+#endif
 
     policy_manager_obj_unlock();
 }
