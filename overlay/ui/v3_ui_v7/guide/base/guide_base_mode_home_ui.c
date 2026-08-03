@@ -302,9 +302,6 @@ void guide_mode_home_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc
 
     EXCEPTION_CHECK_VOID(info && proc);
     opa = (proc->state_blink_visible != 0) ? LV_OPA_COVER : LV_OPA_TRANSP;
-    if (info->mode_home.mode_title != NULL && lv_obj_is_valid(info->mode_home.mode_title)) {
-        lv_obj_set_style_text_opa(info->mode_home.mode_title, opa, 0);
-    }
     if (info->mode_home.left_level != NULL && lv_obj_is_valid(info->mode_home.left_level)) {
         lv_obj_set_style_text_opa(info->mode_home.left_level, opa, 0);
     }
