@@ -17,10 +17,16 @@
 #define GUIDE_UI_KEY_CODE                           (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL)
 #define GUIDE_UI_KEY_TYPE                           \
     (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
+#define POWER_OFF_HOLD_COMPLETE_TASK_NAME           "guide_power_off_hold_complete"
+
+/// 第 7/8 页长按 power 用于泵奶完成确认，与关机冲突，沿用原逻辑
+#define GUIDE_PAGE_IS_STOP_HOLD_CONFLICT(page) \
+    ((page) == GUIDE_PAGE_PUMP_FINISH_GUIDE || (page) == GUIDE_PAGE_PUMP_FINISH_HOLD)
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
+    REMOVE_TASK_HANDLER_DIRECTLY(POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -47,14 +53,27 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
     }
 
     if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
-        guide_stop_hold_key_long_2s_handler(proc);
+        if (GUIDE_PAGE_IS_STOP_HOLD_CONFLICT(proc->page_index)) {
+            guide_stop_hold_key_long_2s_handler(proc);
+        } else {
+            guide_power_off_hold_key_long_2s_handler(proc);
+        }
         return 0;
     }
     if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
-        guide_stop_hold_key_up_handler(proc);
+        if (proc->current_ui_type == GUIDE_UI_TYPE_POWER_OFF_HOLD) {
+            guide_power_off_hold_key_up_handler(proc);
+        } else {
+            guide_stop_hold_key_up_handler(proc);
+        }
         return 0;
     }
     if (keytype != KEY_EVENT_CLICK) {
+        return 0;
+    }
+
+    /// 关机确认页期间忽略其它 click，避免误触
+    if (proc->current_ui_type == GUIDE_UI_TYPE_POWER_OFF_HOLD) {
         return 0;
     }
 
@@ -135,6 +154,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            guide_power_off_hold_ui_exit(proc);
             stop_guide_ui_animation(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:

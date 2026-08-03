@@ -67,6 +67,7 @@ typedef enum {
 typedef enum {
     GUIDE_UI_TYPE_NONE = 0,
     GUIDE_UI_TYPE_HOME,
+    GUIDE_UI_TYPE_POWER_OFF_HOLD, /// 长按 power 关机确认
     GUIDE_UI_TYPE_MAX
 } guide_ui_type_e;
 
@@ -181,6 +182,8 @@ typedef struct {
     uint8_t rhythm_select_click_cnt; /// 韵律选择页 program 键累计点击次数.
     uint8_t stop_hold_holding; /// 泵奶完成进度页是否处于长按中
     uint8_t stop_hold_ignore_click; /// 完成进度松手后忽略紧随的 CLICK
+    uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
+    uint8_t power_off_hold_ignore_click; /// 松手后忽略紧随的 power CLICK
     uint32_t last_adjust_time; /// 上次力度调节时间
     uint32_t level_knob_ready_time; /// 左/右力度页：非 0 表示倒计时已锁定；双边力度页：到达目标档位后的计时起点
     uint32_t page_enter_time; /// 当前页面进入时间
@@ -210,6 +213,12 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
 void guide_exit_to_home(ui_proc_guide_t *proc);
 void guide_stop_hold_key_long_2s_handler(ui_proc_guide_t *proc);
 void guide_stop_hold_key_up_handler(ui_proc_guide_t *proc);
+/// 长按 power 关机确认页（第 7/8 页除外，与泵奶完成长按冲突）
+void show_guide_power_off_hold_ui(ui_proc_guide_t *proc);
+void guide_power_off_hold_ui_exit(ui_proc_guide_t *proc);
+void guide_power_off_hold_dismiss(ui_proc_guide_t *proc);
+void guide_power_off_hold_key_long_2s_handler(ui_proc_guide_t *proc);
+void guide_power_off_hold_key_up_handler(ui_proc_guide_t *proc);
 #ifdef __cplusplus
 }
 #endif
