@@ -51,6 +51,7 @@ typedef struct airplane_mode_context {
         int (*on_airplane_mode_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data);
         int (*enter_airplane_mode_route)(struct airplane_mode_context *ctx, int enter_reason);
         int (*exit_airplane_mode_route)(struct airplane_mode_context *ctx, int exit_reason);
+        void (*travel_lock_key_event_handler)(struct airplane_mode_context *ctx, void *user_data); /// 旅行锁按键事件处理
     } *hook;
 } airplane_mode_context_t;
 

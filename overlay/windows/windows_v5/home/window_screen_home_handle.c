@@ -14,8 +14,8 @@
 */
 #define PAGE_STATIC_NAME                            home
 #define PAGE_NAME_STR                               "home"
-#define HOME_UI_KEY_CODE                            ALL_KEY_CODE_NO_COMBINE
-#define HOME_UI_KEY_TYPE                            KEY_EVENT_CLICK
+#define HOME_UI_KEY_CODE                            (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_TRAVEL_LOCK)
+#define HOME_UI_KEY_TYPE                            (KEY_EVENT_CLICK | KEY_EVENT_DOWN)
 #define HOME_BROADCAST_TASK_NAME                    "home_broadcast_task"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -128,6 +128,18 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 
     if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
         LOG_WM("system idle, ignore key event.");
+        return 0;
+    }
+
+    if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_DOWN) {
+        if (proc->airplane_mode && proc->airplane_mode->hook &&
+            proc->airplane_mode->hook->travel_lock_key_event_handler) {
+            proc->airplane_mode->hook->travel_lock_key_event_handler(proc->airplane_mode, proc->wm);
+        }
+        return 0;
+    }
+
+    if (keytype != KEY_EVENT_CLICK) {
         return 0;
     }
 
@@ -339,6 +351,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+    proc->airplane_mode = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "home_screen";

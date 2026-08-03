@@ -121,6 +121,7 @@ typedef struct {
     led_manager_context_t *led;
     breast_pump_manager_context_t *pump;
     motor_manager_context_t *motor;
+    airplane_mode_context_t *airplane_mode;
     broadcast_obj_t receiver;
     window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic; /// 窗口标识.

@@ -13,8 +13,8 @@
 */
 #define PAGE_STATIC_NAME                    pump
 #define PAGE_NAME_STR                       "pump"
-#define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE)
-#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_LONG_2S | KEY_EVENT_UP)
+#define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_TRAVEL_LOCK)
+#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_LONG_2S | KEY_EVENT_UP | KEY_EVENT_DOWN)
 #define PUMP_COMPLETE_TASK_NAME             "pump_complete"
 #define PUMP_BROADCAST_TASK_NAME            "pump_broadcast"
 
@@ -172,6 +172,14 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
+
+    if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_DOWN) {
+        if (proc->airplane_mode && proc->airplane_mode->hook &&
+            proc->airplane_mode->hook->travel_lock_key_event_handler) {
+            proc->airplane_mode->hook->travel_lock_key_event_handler(proc->airplane_mode, proc->wm);
+        }
+        return 0;
+    }
 
     #if IS_SUPPORT_AIR_LEAKAGE_WARNING
     if (proc->is_air_leakage_popup_show == true) {
@@ -406,6 +414,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    proc->airplane_mode = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "pump_screen";

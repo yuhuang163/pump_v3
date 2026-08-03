@@ -14,8 +14,8 @@
 #define PAGE_STATIC_NAME                            home
 #define PAGE_NAME_STR                               "home"
 /** 含 L+R 组合键（KEY_CODE_BOTH_CONTROL）以进入双边力度调节 */
-#define HOME_UI_KEY_CODE                            (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL)
-#define HOME_UI_KEY_TYPE                            (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
+#define HOME_UI_KEY_CODE                            (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL | KEY_CODE_TRAVEL_LOCK)
+#define HOME_UI_KEY_TYPE                            (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S | KEY_EVENT_DOWN)
 #define HOME_BROADCAST_TASK_NAME                    "home_broadcast_task"
 #define POWER_OFF_HOLD_COMPLETE_TASK_NAME           "power_off_hold_complete"
 #define REMOVE_ALL_HANDER_TASK() \
@@ -248,6 +248,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
+    LOG_WM("keyevent: %d, %d", keycode, keytype);
     /// 模式选择页倒计时中：任意按键刷新计时
     home_mode_select_idle_touch(proc);
 
@@ -269,6 +270,14 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         }
 
         LOG_WM("system idle, ignore key event.");
+        return 0;
+    }
+
+    if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_DOWN) { 
+        if (proc->airplane_mode && proc->airplane_mode->hook && 
+            proc->airplane_mode->hook->travel_lock_key_event_handler) {
+            proc->airplane_mode->hook->travel_lock_key_event_handler(proc->airplane_mode, proc->wm);
+        }
         return 0;
     }
 
@@ -472,6 +481,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     proc->motor = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
+    proc->airplane_mode = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "home_screen";
