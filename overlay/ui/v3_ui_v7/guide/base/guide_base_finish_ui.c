@@ -12,7 +12,7 @@
 *****************************************************************************************
 */
 #define GUIDE_FINISH_QRCODE_SIZE                        (120)
-#define GUIDE_FINISH_QRCODE_RADIUS                      (10)
+#define GUIDE_FINISH_QRCODE_RADIUS                      (11)
 #define GUIDE_FINISH_QRCODE_ALIGN_Y                     (56)
 #define GUIDE_FINISH_QRCODE_BG_COLOR                    (0xFFFFFF)
 #define GUIDE_FINISH_QRCODE_FG_COLOR                    (0x000000)
