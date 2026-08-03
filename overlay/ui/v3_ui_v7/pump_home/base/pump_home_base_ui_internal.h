@@ -149,6 +149,7 @@ typedef struct {
     uint8_t shown_paused;               /// 当前是否显示暂停态
     uint8_t shown_mode_switch;          /// 当前是否显示子模式切换提醒
     uint8_t tracked_mode_type;          /// 用于检测子模式切换
+    uint8_t tracked_pump_mode;          /// 用于区分韵律内子模式切换 / 工作模式切换
     uint8_t tip_mode_type;              /// 提醒文案对应的子模式
     uint32_t mode_switch_time;          /// 子模式切换提醒起始时间
     char shown_title[24];
