@@ -218,6 +218,11 @@ void home_level_adjust_ui_dismiss(ui_proc_home_t *proc)
     if (proc->current_ui_type != HOME_UI_TYPE_LEVEL_ADJUST) {
         return;
     }
-    LOG_WM("dismiss home level adjust, back home keep page.");
+#if HOME_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
+    LOG_WM("dismiss home level adjust, back prev page.");
     home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_KEEP_PAGE);
+#else
+    LOG_WM("dismiss home level adjust, back home reset page.");
+    home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_RESET_PAGE);
+#endif
 }
