@@ -14,8 +14,10 @@
 #define PAGE_STATIC_NAME                            home
 #define PAGE_NAME_STR                               "home"
 /** 含 L+R 组合键（KEY_CODE_BOTH_CONTROL）以进入双边力度调节 */
-#define HOME_UI_KEY_CODE                            (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL | KEY_CODE_TRAVEL_LOCK)
-#define HOME_UI_KEY_TYPE                            (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S | KEY_EVENT_DOWN)
+#define HOME_UI_KEY_CODE                            (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL | \
+                                                     KEY_CODE_TRAVEL_LOCK | KEY_CODE_FACTORY_RESET)
+#define HOME_UI_KEY_TYPE                            (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S | \
+                                                     KEY_EVENT_DOWN | KEY_EVENT_LONG_5S)
 #define HOME_BROADCAST_TASK_NAME                    "home_broadcast_task"
 #define POWER_OFF_HOLD_COMPLETE_TASK_NAME           "power_off_hold_complete"
 #define REMOVE_ALL_HANDER_TASK() \
@@ -278,6 +280,16 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             proc->airplane_mode->hook->travel_lock_key_event_handler) {
             proc->airplane_mode->hook->travel_lock_key_event_handler(proc->airplane_mode, proc->wm);
         }
+        return 0;
+    }
+
+    if (keycode == KEY_CODE_FACTORY_RESET && keytype == KEY_EVENT_LONG_5S) {
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_FACTORY_RESET;
+        msg.union_body.extra.arg1 = 1; /// 1: factory reset confirm
+        msg.union_body.extra.arg2 = ID_WINDOW_HOME;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        LOG_WM("goto factory reset");
         return 0;
     }
 
