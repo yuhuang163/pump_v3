@@ -9,6 +9,9 @@
 *****************************************************************************************
 */
 #define PUMP_CTRL_TASK_DELAY_TIME 500
+#define APP_OLD_COMM_CUSTOM_MODE_NAME_MIN   1
+#define APP_OLD_COMM_CUSTOM_MODE_NAME_MAX   20
+#define APP_OLD_COMM_CUSTOM_STEP_BYTES      10
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -49,6 +52,169 @@ static bool app_old_comm_check_custom_policy_capacity(uint8_t step_index, uint8_
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, cid, 4, cab);
         return false;
     }
+    return true;
+}
+
+/**
+ * @brief 解析 C4/C5 自定义模式载荷（名称变长）
+ * 格式: ID(4) + 步骤数(1) + 名称长度(1) + 名称(n) + 单步参数(步骤数*10)
+ */
+static bool app_old_comm_parse_custom_mode_payload(uint8_t cal, uint8_t *cab, uint8_t cid,
+    pump_mode_steps_info_t *pump_steps_info, char *mode_name, uint8_t mode_name_size)
+{
+    uint8_t section_num = 0, name_len = 0, speed = 0, mode_type = 0, level = 0;
+    uint8_t step_index = 0;
+    uint16_t time_policy_duration = 0;
+    uint16_t step_base = 0;
+    uint16_t expect_cal = 0;
+    uint16_t n = 0;
+
+    EXCEPTION_CHECK_BOOL(cab);
+    EXCEPTION_CHECK_BOOL(pump_steps_info);
+    EXCEPTION_CHECK_BOOL(mode_name);
+    if (mode_name_size < (APP_OLD_COMM_CUSTOM_MODE_NAME_MAX + 1) || cal < 6) {
+        LOG_SRV("custom mode invalid arg, name_size:%d, cal:%d", mode_name_size, cal);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, cid, 4, cab);
+        return false;
+    }
+
+    memset(pump_steps_info, 0, sizeof(*pump_steps_info));
+    memset(mode_name, 0, mode_name_size);
+
+    pump_steps_info->id.dat[0] = cab[0];
+    pump_steps_info->id.dat[1] = cab[1];
+    pump_steps_info->id.dat[2] = cab[2];
+    pump_steps_info->id.dat[3] = cab[3];
+    LOG_SRV("cmd ud-mode id = %u", (unsigned)pump_steps_info->id.dat32);
+
+    section_num = cab[4];
+    if (section_num == 0 || section_num > ROOT_BREAST_PUMP_STEP_MAX) {
+        LOG_SRV("section_num: %d, out of range", section_num);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, cid, 4, cab);
+        return false;
+    }
+    pump_steps_info->time_policy_num = section_num;
+    LOG_SRV("time_policy_num = %d", pump_steps_info->time_policy_num);
+
+    name_len = cab[5];
+    if (name_len < APP_OLD_COMM_CUSTOM_MODE_NAME_MIN || name_len > APP_OLD_COMM_CUSTOM_MODE_NAME_MAX) {
+        LOG_SRV("mode name len out of range:%d", name_len);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, cid, 4, cab);
+        return false;
+    }
+
+    /// CAL = 4(ID) + 1(步骤数) + 1(名称长度) + n(名称) + 步骤数*10
+    expect_cal = 6 + name_len + (uint16_t)section_num * APP_OLD_COMM_CUSTOM_STEP_BYTES;
+    if (cal < expect_cal) {
+        LOG_SRV("custom mode cal too short, cal:%d, expect:%d, name_len:%d, steps:%d",
+            cal, expect_cal, name_len, section_num);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, cid, 4, cab);
+        return false;
+    }
+
+    memcpy(mode_name, &cab[6], name_len);
+    mode_name[name_len] = '\0';
+    LOG_SRV("mode_name(%d) %s", name_len, mode_name);
+
+    step_base = 6 + name_len;
+    for (uint8_t i = 0; i < section_num; i++) {
+        n = step_base + (uint16_t)i * APP_OLD_COMM_CUSTOM_STEP_BYTES;
+        if (!app_old_comm_check_custom_payload_len(cal, n, cid, cab)) {
+            return false;
+        }
+        if (cab[n] > ROOT_BREAST_PUMP_STEP_MAX) {
+            LOG_SRV("section index out of range:%d", cab[n]);
+            app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, cid, 4, cab);
+            return false;
+        }
+        mode_type = cab[n + 1];
+        level = cab[n + 2] >= BREAST_PUMP_LEVEL_MAX ? BREAST_PUMP_LEVEL_15 : cab[n + 2];
+#if IS_USE_SPECTRA_SUCTION_CURVE
+        speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ?
+            (BREAST_PUMP_SPEED_MAX - 1) : (cab[n + 3] - 1);
+        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT && level > BREAST_PUMP_LEVEL_5) {
+            level = BREAST_PUMP_LEVEL_5;
+        }
+#else
+        speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ? BREAST_PUMP_SPEED_HIGH : (cab[n + 3] - 1);
+#endif
+        time_policy_duration = (uint16_t)(cab[n + 4] << 8) | cab[n + 5];
+        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT) {
+            if (!app_old_comm_check_custom_policy_capacity(step_index, 1, cid, cab)) {
+                return false;
+            }
+            pump_steps_info->data[step_index].mode_type = SUCTION_MODE_SHORT;
+            pump_steps_info->data[step_index].level = level;
+            pump_steps_info->data[step_index].freq = speed;
+            pump_steps_info->data[step_index].loop_num = 1;
+            pump_steps_info->data[step_index].duration = time_policy_duration;
+            pump_steps_info->data[step_index].policy_type = MOTOR_TIME_POLICY;
+            step_index++;
+        } else if (mode_type == APP_OLD_COMM_STEP_MODE_LONG) {
+            if (!app_old_comm_check_custom_policy_capacity(step_index, 1, cid, cab)) {
+                return false;
+            }
+            pump_steps_info->data[step_index].mode_type = SUCTION_MODE_LONG;
+            pump_steps_info->data[step_index].level = level;
+            pump_steps_info->data[step_index].freq = speed;
+            pump_steps_info->data[step_index].loop_num = 1;
+            pump_steps_info->data[step_index].duration = time_policy_duration;
+            pump_steps_info->data[step_index].policy_type = MOTOR_TIME_POLICY;
+            step_index++;
+        } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX1) {
+            if (!app_old_comm_check_custom_policy_capacity(step_index, 2, cid, cab)) {
+                return false;
+            }
+            pump_steps_info->data[step_index].mode_type = SUCTION_MODE_MIX_SHORT;
+            pump_steps_info->data[step_index].level = level;
+            pump_steps_info->data[step_index].freq = speed;
+            pump_steps_info->data[step_index].loop_num = 5;
+            pump_steps_info->data[step_index].duration = time_policy_duration;
+            pump_steps_info->data[step_index].policy_type = MOTOR_TIME_POLICY;
+            pump_steps_info->data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
+            pump_steps_info->data[step_index + 1].level = level;
+            pump_steps_info->data[step_index + 1].freq = speed;
+            pump_steps_info->data[step_index + 1].loop_num = 1;
+            pump_steps_info->data[step_index + 1].duration = 0;
+            pump_steps_info->data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
+            step_index += 2;
+        } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX2) {
+            if (!app_old_comm_check_custom_policy_capacity(step_index, 2, cid, cab)) {
+                return false;
+            }
+            pump_steps_info->data[step_index].mode_type = SUCTION_MODE_MIX_SHORT;
+            pump_steps_info->data[step_index].level = level;
+            pump_steps_info->data[step_index].freq = speed;
+            pump_steps_info->data[step_index].loop_num = 2;
+            pump_steps_info->data[step_index].duration = time_policy_duration;
+            pump_steps_info->data[step_index].policy_type = MOTOR_TIME_POLICY;
+            pump_steps_info->data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
+            pump_steps_info->data[step_index + 1].level = level;
+            pump_steps_info->data[step_index + 1].freq = speed;
+            pump_steps_info->data[step_index + 1].loop_num = 1;
+            pump_steps_info->data[step_index + 1].duration = 0;
+            pump_steps_info->data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
+            step_index += 2;
+        } else {
+            if (!app_old_comm_check_custom_policy_capacity(step_index, 1, cid, cab)) {
+                return false;
+            }
+            pump_steps_info->data[step_index].mode_type = SUCTION_MODE_IDLE;
+            pump_steps_info->data[step_index].level = 0;
+            pump_steps_info->data[step_index].freq = 0;
+            pump_steps_info->data[step_index].loop_num = 1;
+            pump_steps_info->data[step_index].duration = time_policy_duration;
+            pump_steps_info->data[step_index].policy_type = MOTOR_TIME_POLICY;
+            step_index++;
+        }
+        pump_steps_info->total_time += time_policy_duration;
+        LOG_SRV("step %d mode=%d, level=%d, freq=%d, duration=%d", i, mode_type, level, speed, time_policy_duration);
+    }
+
+    pump_steps_info->policy_num = step_index;
+    LOG_SRV("total_time=%d", pump_steps_info->total_time);
+    LOG_SRV("policy_num=%d", pump_steps_info->policy_num);
+    LOG_SRV("data end = [%d] data len = [%d]", step_base + section_num * APP_OLD_COMM_CUSTOM_STEP_BYTES, cal);
     return true;
 }
 
@@ -1269,141 +1435,14 @@ void app_old_comm_handle_ctrl_dev_req(uint8_t cal, uint8_t *cab)
 //0xc4
 void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
 {
-    uint8_t section_num = 0, speed = 0, mode_type = 0, level = 0;
-    uint16_t time_policy_duration = 0;
 	pump_mode_steps_info_t pump_steps_info = {0};
     char mode_name[PUMP_MODE_NAME_LEN];   /// 模式名称
     EXCEPTION_CHECK_VOID(cab);
-    //memcpy(pump_steps_info.id.dat, cab, 4);
-    pump_steps_info.id.dat[0] = cab[0];
-    pump_steps_info.id.dat[1] = cab[1];
-    pump_steps_info.id.dat[2] = cab[2];
-    pump_steps_info.id.dat[3] = cab[3];
-	LOG_SRV("cmd ud-mode id = %d", pump_steps_info.id.dat32);
-	if (cab[4] <= ROOT_BREAST_PUMP_STEP_MAX) {
-		section_num = cab[4];
-		pump_steps_info.time_policy_num = section_num;
-        LOG_SRV("time_policy_num = %d", pump_steps_info.time_policy_num);
-	}
-	else { //超出范围，发送NACK
-		LOG_SRV("section_num: %d, out of range", section_num);
-		app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_USER_DEFINE, 4, cab);
-		return;
-	}
 
-    ///名称标号
-    if ( cab[5] < 10) {  
-        snprintf(mode_name, sizeof(mode_name), "0%d", cab[5]);
-    } else {
-        snprintf(mode_name, sizeof(mode_name), "%d", cab[5]);
+    if (!app_old_comm_parse_custom_mode_payload(cal, cab, APP_OLD_COMM_CID_USER_DEFINE,
+            &pump_steps_info, mode_name, sizeof(mode_name))) {
+        return;
     }
-    LOG_SRV("mode_name %s", mode_name);
-
-	pump_steps_info.total_time = 0;
-    uint8_t step_index = 0;
-    uint16_t n = 0;
-	for (uint8_t i = 0; i < section_num; i++) {
-		n = 6 + 10 * i;
-        if (!app_old_comm_check_custom_payload_len(cal, n, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
-            return;
-        }
-        if (cab[n] > ROOT_BREAST_PUMP_STEP_MAX) {
-            LOG_SRV("section index out of range:%d", cab[n]);
-            app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_USER_DEFINE, 4, cab);
-            return;
-        }
-        mode_type = cab[n + 1];
-        level = cab[n + 2] >= BREAST_PUMP_LEVEL_MAX ? BREAST_PUMP_LEVEL_15 : cab[n + 2];
-#if IS_USE_SPECTRA_SUCTION_CURVE
-        speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ?
-            (BREAST_PUMP_SPEED_MAX - 1) : (cab[n + 3] - 1);
-        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT && level > BREAST_PUMP_LEVEL_5) {
-            level = BREAST_PUMP_LEVEL_5;
-        }
-#else
-        speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ? BREAST_PUMP_SPEED_HIGH : (cab[n + 3] - 1);
-#endif
-        time_policy_duration = cab[n + 4] << 8 | cab[n + 5];
-        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT) {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
-                    return;
-                }
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_SHORT;
-                pump_steps_info.data[step_index].level = level;
-                pump_steps_info.data[step_index].freq = speed;
-                pump_steps_info.data[step_index].loop_num = 1;
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                step_index++;
-            } else if (mode_type == APP_OLD_COMM_STEP_MODE_LONG) {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
-                    return;
-                }
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_LONG;
-                pump_steps_info.data[step_index].level = level;
-                pump_steps_info.data[step_index].freq = speed;
-                pump_steps_info.data[step_index].loop_num = 1;
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                step_index++;
-            } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX1) {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 2, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
-                    return;
-                }
-                /// 混合1短吸
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_MIX_SHORT;
-                pump_steps_info.data[step_index].level = level;
-                pump_steps_info.data[step_index].freq = speed;
-                pump_steps_info.data[step_index].loop_num = 5; 
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                /// 混合1长吸
-                pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
-                pump_steps_info.data[step_index + 1].level = level;
-                pump_steps_info.data[step_index + 1].freq = speed;
-                pump_steps_info.data[step_index + 1].loop_num = 1;
-                pump_steps_info.data[step_index + 1].duration = 0;
-                pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
-                step_index += 2;
-            } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX2) {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 2, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
-                    return;
-                }
-                /// 混合2短吸
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_MIX_SHORT;
-                pump_steps_info.data[step_index].level = level;
-                pump_steps_info.data[step_index].freq = speed;
-                pump_steps_info.data[step_index].loop_num = 2; 
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                /// 混合2长吸
-                pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
-                pump_steps_info.data[step_index + 1].level = level;
-                pump_steps_info.data[step_index + 1].freq = speed;
-                pump_steps_info.data[step_index + 1].loop_num = 1;
-                pump_steps_info.data[step_index + 1].duration = 0;
-                pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
-                step_index += 2;
-            } else {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_USER_DEFINE, cab)) {
-                    return;
-                }
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_IDLE;
-                pump_steps_info.data[step_index].level = 0;
-                pump_steps_info.data[step_index].freq = 0;
-                pump_steps_info.data[step_index].loop_num = 1;
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                step_index++;
-            }
-        pump_steps_info.total_time += time_policy_duration;
-		LOG_SRV("step %d mode=%d, level=%d, freq=%d, duration=%d", i, mode_type, level, speed, time_policy_duration);
-	}
-    pump_steps_info.policy_num = step_index;
-    LOG_SRV("total_time=%d", pump_steps_info.total_time);
-    LOG_SRV("policy_num=%d", pump_steps_info.policy_num);
-    n += 10;
-    LOG_SRV("data n = [%d] data len = [%d]", n, cal);
 
     pump_custom_mode_update_by_app(pump_steps_info,  mode_name); /// 将自定义模式参数存入
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
@@ -1426,141 +1465,15 @@ void app_old_comm_handle_set_user_define_req(uint8_t cal, uint8_t *cab)
 ///0xc5  
 void app_old_comm_handle_set_trail_user_define_req(uint8_t cal, uint8_t *cab)
 {
-    uint8_t section_num = 0, speed = 0, mode_type = 0, level = 0;
-    uint16_t time_policy_duration = 0;
 	pump_mode_steps_info_t pump_steps_info = {0};
     char mode_name[PUMP_MODE_NAME_LEN];   /// 模式名称
     EXCEPTION_CHECK_VOID(cab);
-    //memcpy(pump_steps_info.id.dat, cab, 4);
-    pump_steps_info.id.dat[0] = cab[0];
-    pump_steps_info.id.dat[1] = cab[1];
-    pump_steps_info.id.dat[2] = cab[2];
-    pump_steps_info.id.dat[3] = cab[3];
-	LOG_SRV("cmd ud-mode id = %d", pump_steps_info.id.dat32);
-	if (cab[4] <= ROOT_BREAST_PUMP_STEP_MAX) {
-		section_num = cab[4];
-		pump_steps_info.time_policy_num = section_num;
-        LOG_SRV("time_policy_num = %d", pump_steps_info.time_policy_num);
-	}
-	else { //超出范围，发送NACK
-		LOG_SRV("section_num: %d, out of range", section_num);
-		app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PARA_DOWNLOAD, 4, cab);
-		return;
-	}
 
-    ///名称标号
-    if ( cab[5] < 10) {  
-        snprintf(mode_name, sizeof(mode_name), "0%d", cab[5]);
-    } else {
-        snprintf(mode_name, sizeof(mode_name), "%d", cab[5]);
+    if (!app_old_comm_parse_custom_mode_payload(cal, cab, APP_OLD_COMM_CID_PARA_DOWNLOAD,
+            &pump_steps_info, mode_name, sizeof(mode_name))) {
+        return;
     }
-    LOG_SRV("mode_name %s", mode_name);
 
-	pump_steps_info.total_time = 0;
-    uint8_t step_index = 0;
-    uint16_t n = 0;
-	for (uint8_t i = 0; i < section_num; i++) {
-		n = 6 + 10 * i;
-        if (!app_old_comm_check_custom_payload_len(cal, n, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
-            return;
-        }
-        if (cab[n] > ROOT_BREAST_PUMP_STEP_MAX) {
-            LOG_SRV("section index out of range:%d", cab[n]);
-            app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_PARA_DOWNLOAD, 4, cab);
-            return;
-        }
-        mode_type = cab[n + 1];
-        level = cab[n + 2] >= BREAST_PUMP_LEVEL_MAX ? BREAST_PUMP_LEVEL_15 : cab[n + 2];
-#if IS_USE_SPECTRA_SUCTION_CURVE
-        speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ?
-            (BREAST_PUMP_SPEED_MAX - 1) : (cab[n + 3] - 1);
-        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT && level > BREAST_PUMP_LEVEL_5) {
-            level = BREAST_PUMP_LEVEL_5;
-        }
-#else
-        speed = (cab[n + 3] - 1) >= BREAST_PUMP_SPEED_MAX ? BREAST_PUMP_SPEED_HIGH : (cab[n + 3] - 1);
-#endif
-        time_policy_duration = cab[n + 4] << 8 | cab[n + 5];
-        if (mode_type == APP_OLD_COMM_STEP_MODE_SHORT) {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
-                    return;
-                }
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_SHORT;
-                pump_steps_info.data[step_index].level = level;
-                pump_steps_info.data[step_index].freq = speed;
-                pump_steps_info.data[step_index].loop_num = 1;
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                step_index++;
-            } else if (mode_type == APP_OLD_COMM_STEP_MODE_LONG) {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
-                    return;
-                }
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_LONG;
-                pump_steps_info.data[step_index].level = level;
-                pump_steps_info.data[step_index].freq = speed;
-                pump_steps_info.data[step_index].loop_num = 1;
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                step_index++;
-            } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX1) {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 2, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
-                    return;
-                }
-                /// 混合1短吸
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_MIX_SHORT;
-                pump_steps_info.data[step_index].level = level;
-                pump_steps_info.data[step_index].freq = speed;
-                pump_steps_info.data[step_index].loop_num = 5; 
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                /// 混合1长吸
-                pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
-                pump_steps_info.data[step_index + 1].level = level;
-                pump_steps_info.data[step_index + 1].freq = speed;
-                pump_steps_info.data[step_index + 1].loop_num = 1;
-                pump_steps_info.data[step_index + 1].duration = 0;
-                pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
-                step_index += 2;
-            } else if (mode_type == APP_OLD_COMM_STEP_MODE_MIX2) {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 2, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
-                    return;
-                }
-                /// 混合2短吸
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_MIX_SHORT;
-                pump_steps_info.data[step_index].level = level;
-                pump_steps_info.data[step_index].freq = speed;
-                pump_steps_info.data[step_index].loop_num = 2; 
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                /// 混合2长吸
-                pump_steps_info.data[step_index + 1].mode_type = SUCTION_MODE_MIX_LONG;
-                pump_steps_info.data[step_index + 1].level = level;
-                pump_steps_info.data[step_index + 1].freq = speed;
-                pump_steps_info.data[step_index + 1].loop_num = 1;
-                pump_steps_info.data[step_index + 1].duration = 0;
-                pump_steps_info.data[step_index + 1].policy_type = MOTOR_TIME_SUB_POLICY;
-                step_index += 2;
-            } else {
-                if (!app_old_comm_check_custom_policy_capacity(step_index, 1, APP_OLD_COMM_CID_PARA_DOWNLOAD, cab)) {
-                    return;
-                }
-                pump_steps_info.data[step_index].mode_type = SUCTION_MODE_IDLE;
-                pump_steps_info.data[step_index].level = 0;
-                pump_steps_info.data[step_index].freq = 0;
-                pump_steps_info.data[step_index].loop_num = 1;
-                pump_steps_info.data[step_index].duration = time_policy_duration;
-                pump_steps_info.data[step_index].policy_type = MOTOR_TIME_POLICY;
-                step_index++;
-            }
-        pump_steps_info.total_time += time_policy_duration;
-		LOG_SRV("step %d mode=%d, level=%d, freq=%d, duration=%d", i, mode_type, level, speed, time_policy_duration);
-	}
-    pump_steps_info.policy_num = step_index;
-    LOG_SRV("total_time=%d", pump_steps_info.total_time);
-    LOG_SRV("policy_num=%d", pump_steps_info.policy_num);
-    n += 10;
-    LOG_SRV("data n = [%d] data len = [%d]", n, cal);
     pump_custom_trial_mode_update_by_app(pump_steps_info,  mode_name); /// 将自定义模式参数存入
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PARA_DOWNLOAD, 4, cab);
     /*window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);

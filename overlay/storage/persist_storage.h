@@ -283,7 +283,8 @@ typedef struct {
 } sys_pump_info_t;
 
 /// 描述泵奶模式信息
-#define PUMP_MODE_NAME_LEN                 20
+/// 协议 C4/C5 名称最长 20 字节 ASCII（无结束符），本地多留 1 字节存放 '\0'
+#define PUMP_MODE_NAME_LEN                 21
 typedef struct {
     pump_mode_steps_info_t steps_info[BREAST_PUMP_MODE_MAX];
     char mode_name[BREAST_PUMP_MODE_MAX][PUMP_MODE_NAME_LEN];   /// 模式名称
