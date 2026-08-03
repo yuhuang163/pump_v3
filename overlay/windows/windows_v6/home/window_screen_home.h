@@ -25,6 +25,13 @@ extern "C" {
 /// 子模式切换提醒时长
 #define HOME_SUB_MODE_SWITCH_TIMEOUT_MS      (3000) /// 3s
 
+/// 模式选择页无操作静默回首页（page_index 非 0 时计时，超时仅复位预览；
+/// 不更换工作模式，模式落地仅由 power 确认触发）
+#ifndef HOME_MODE_SELECT_IDLE_EXIT_ENABLE
+#define HOME_MODE_SELECT_IDLE_EXIT_ENABLE      (1)
+#endif
+#define HOME_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
+
 /// 子模式同步场景（力度/速度页共用）
 typedef enum {
     HOME_SUB_MODE_SYNC_LEVEL = 0,      /// 单边力度
@@ -124,6 +131,7 @@ typedef struct {
     
     /// 模式相关
     uint16_t ui_mode_page_index; /// 当前UI模式页面索引.
+    uint32_t mode_select_idle_time; /// 模式选择页无操作计时起点
 
     /// 档位调节相关
     pump_setting_t setting; /// 当前泵奶设置信息.
@@ -180,6 +188,9 @@ int home_mode_adjust_handler(ui_proc_home_t *proc, bool is_left);
 int home_mode_confirm_handler(ui_proc_home_t *proc);
 int home_mode_set_handler(ui_proc_home_t *proc, uint8_t mode_index);
 void home_mode_page_index_clamp(ui_proc_home_t *proc);
+/// 模式选择页无操作自动回首页：按键刷新计时 / 超时检测
+void home_mode_select_idle_touch(ui_proc_home_t *proc);
+void home_mode_select_idle_timeout_handler(ui_proc_home_t *proc);
 
 /// 单边力度调节
 void show_home_level_adjust_ui(ui_proc_home_t *proc, uint8_t is_left);

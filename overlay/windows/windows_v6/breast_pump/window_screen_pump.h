@@ -41,6 +41,13 @@ extern "C" {
 /// 子模式切换提醒时长
 #define PUMP_SUB_MODE_SWITCH_TIMEOUT_MS      (3000) /// 3s
 
+/// 模式选择页无操作静默回首页（page_index 非 0 时计时，超时仅复位预览；
+/// 不更换工作模式，模式落地仅由 power 确认触发）
+#ifndef PUMP_MODE_SELECT_IDLE_EXIT_ENABLE
+#define PUMP_MODE_SELECT_IDLE_EXIT_ENABLE      (1)
+#endif
+#define PUMP_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
+
 /// 子模式同步场景（力度/速度页共用）
 typedef enum {
     PUMP_SUB_MODE_SYNC_LEVEL = 0,      /// 单边力度
@@ -150,6 +157,7 @@ typedef struct {
 
     /// 模式相关
     uint16_t ui_mode_page_index; /// 当前UI模式页面索引（与 home 一致，驱动切页）
+    uint32_t mode_select_idle_time; /// 模式选择页无操作计时起点
     uint8_t rhythm_confirm_shown; /// 本次泵奶是否已展示过切换韵律确认页
 
     /// 长按停止确认
@@ -230,6 +238,9 @@ int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_left);
 int pump_mode_confirm_handler(ui_proc_pump_t *proc);
 int pump_mode_set_handler(ui_proc_pump_t *proc, uint8_t mode_index);
 void pump_mode_page_index_clamp(ui_proc_pump_t *proc);
+/// 模式选择页无操作自动回首页：按键刷新计时 / 超时检测
+void pump_mode_select_idle_touch(ui_proc_pump_t *proc);
+void pump_mode_select_idle_timeout_handler(ui_proc_pump_t *proc);
 /// 是否需要先弹切换韵律确认页（0=需要，负数=不需要/错误）
 int pump_mode_rhythm_confirm_needed(ui_proc_pump_t *proc);
 
