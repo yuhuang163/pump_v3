@@ -133,11 +133,6 @@ void home_power_off_hold_key_long_2s_handler(ui_proc_home_t *proc)
         return;
     }
 
-    // if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
-    //     LOG_WM("home idle, ignore power off hold.");
-    //     return;
-    // }
-
     LOG_WM("power long 2s, show power off hold ui.");
     show_home_power_off_hold_ui(proc);
 }
