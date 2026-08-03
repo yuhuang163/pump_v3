@@ -6,6 +6,12 @@
 #include "window_screen_pump.h"
 
 /*
+* DEFINES
+*****************************************************************************************
+*/
+#define PUMP_LEVEL_ADJUST_IDLE_EXIT_TASK_NAME           "pump_level_adjust_idle_exit"
+
+/*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
@@ -29,6 +35,41 @@ static void pump_level_over_limit_tick(ui_proc_pump_t *proc)
     pump_level_over_limit_clear(proc);
 }
 
+static void pump_level_adjust_idle_exit_cb(hdr_post_args_t *args)
+{
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST) {
+        return;
+    }
+    if (proc->level_over_limit) {
+        return;
+    }
+    LOG_UI("pump level adjust idle timeout, silent exit");
+    pump_level_adjust_ui_dismiss(proc);
+}
+
+static void pump_level_adjust_idle_timeout_tick(ui_proc_pump_t *proc)
+{
+    uint32_t time_diff;
+
+    if (proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST) {
+        return;
+    }
+    /// 力度限制态不静默退出，过大提示自行 2s 结束
+    if (proc->level_over_limit) {
+        return;
+    }
+    time_diff = get_timestamp_ms(proc->level_adjust_time);
+    if (time_diff < PUMP_LEVEL_ADJUST_IDLE_TIMEOUT_MS) {
+        return;
+    }
+    proc->level_adjust_time = get_timestamp();
+    LOG_UI("pump level adjust idle timeout: %d", time_diff);
+    POST_WM_TASK_HANDLER_NO_DELAY(pump_level_adjust_idle_exit_cb, proc,
+        PUMP_LEVEL_ADJUST_IDLE_EXIT_TASK_NAME);
+}
+
 static void pump_level_adjust_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
@@ -38,6 +79,7 @@ static void pump_level_adjust_ui_after_policy(ui_manager_context_t *ui, int inde
     pump_sub_mode_sync_tick(proc, PUMP_SUB_MODE_SYNC_LEVEL);
     pump_level_over_limit_tick(proc);
     pump_sub_mode_switch_tick(proc);
+    pump_level_adjust_idle_timeout_tick(proc);
     ui_display_pump_level_adjust_process(ui);
     pump_pause_led_tick(proc);
 }
@@ -211,6 +253,7 @@ void pump_level_adjust_ui_exit(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc);
     proc->level_over_limit = 0;
     proc->sub_mode_switch = 0;
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_LEVEL_ADJUST_IDLE_EXIT_TASK_NAME);
 }
 
 void pump_level_adjust_ui_dismiss(ui_proc_pump_t *proc)
@@ -219,6 +262,7 @@ void pump_level_adjust_ui_dismiss(ui_proc_pump_t *proc)
     if (proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST) {
         return;
     }
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_LEVEL_ADJUST_IDLE_EXIT_TASK_NAME);
 #if PUMP_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
     LOG_WM("dismiss pump level adjust, back prev page.");
     pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_KEEP_PAGE);

@@ -578,14 +578,30 @@ static void pump_home_main_hint_shine_anim_update(pump_home_base_ui_info_t *info
 static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, uint8_t mode_type)
 {
     char tip_buf[64] = {0};
+    const uint8_t pump_mode = info->mode.new_index;
     uint8_t mode_switch = info->main.shown_mode_switch;
     bool state_changed;
+    bool type_changed;
+    bool pump_mode_changed;
 
-    if (info->main.tracked_mode_type != 0xFF && info->main.tracked_mode_type != mode_type) {
+    type_changed = (info->main.tracked_mode_type != 0xFF &&
+        info->main.tracked_mode_type != mode_type);
+    pump_mode_changed = (info->main.tracked_pump_mode != 0xFF &&
+        info->main.tracked_pump_mode != pump_mode);
+
+    /*
+     * 仅韵律模式下、同一工作模式内的子模式切换才提示。
+     * 非韵律刺激↔吸乳、韵律↔刺激/吸乳（工作模式切换）均不显示。
+     */
+    if (type_changed && !pump_mode_changed && !PUMP_IS_COMMON_MODE(pump_mode)) {
         mode_switch = 1;
         info->main.mode_switch_time = get_timestamp();
+    } else if (pump_mode_changed || PUMP_IS_COMMON_MODE(pump_mode)) {
+        mode_switch = 0;
     }
+
     info->main.tracked_mode_type = mode_type;
+    info->main.tracked_pump_mode = pump_mode;
 
     if (mode_switch &&
         get_timestamp_ms(info->main.mode_switch_time) >= PUMP_SUB_MODE_SWITCH_TIMEOUT_MS) {
@@ -723,6 +739,7 @@ void pump_home_main_page_ui_build(pump_home_base_ui_info_t *info)
     info->main.shown_paused = 0xFF;
     info->main.shown_mode_switch = 0;
     info->main.tracked_mode_type = 0xFF;
+    info->main.tracked_pump_mode = 0xFF;
     info->main.tip_mode_type = 0xFF;
     info->main.mode_switch_time = 0;
     info->animation.paused_by_transition = 0;

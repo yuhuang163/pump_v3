@@ -6,9 +6,43 @@
 #include "window_screen_pump.h"
 
 /*
+* DEFINES
+*****************************************************************************************
+*/
+#define PUMP_SPEED_ADJUST_IDLE_EXIT_TASK_NAME           "pump_speed_adjust_idle_exit"
+
+/*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void pump_speed_adjust_idle_exit_cb(hdr_post_args_t *args)
+{
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
+        return;
+    }
+    LOG_UI("pump speed adjust idle timeout, silent exit");
+    pump_speed_adjust_ui_dismiss(proc);
+}
+
+static void pump_speed_adjust_idle_timeout_tick(ui_proc_pump_t *proc)
+{
+    uint32_t time_diff;
+
+    if (proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
+        return;
+    }
+    time_diff = get_timestamp_ms(proc->level_adjust_time);
+    if (time_diff < PUMP_SPEED_ADJUST_IDLE_TIMEOUT_MS) {
+        return;
+    }
+    proc->level_adjust_time = get_timestamp();
+    LOG_UI("pump speed adjust idle timeout: %d", time_diff);
+    POST_WM_TASK_HANDLER_NO_DELAY(pump_speed_adjust_idle_exit_cb, proc,
+        PUMP_SPEED_ADJUST_IDLE_EXIT_TASK_NAME);
+}
+
 static void pump_speed_adjust_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
@@ -17,6 +51,7 @@ static void pump_speed_adjust_ui_after_policy(ui_manager_context_t *ui, int inde
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     pump_sub_mode_sync_tick(proc, PUMP_SUB_MODE_SYNC_SPEED);
     pump_sub_mode_switch_tick(proc);
+    pump_speed_adjust_idle_timeout_tick(proc);
     ui_display_pump_speed_adjust_process(ui);
     pump_pause_led_tick(proc);
 }
@@ -61,6 +96,7 @@ static void pump_speed_adjust_state_sync(ui_proc_pump_t *proc)
     if (proc->setting.speed >= BREAST_PUMP_SPEED_MAX) {
         proc->setting.speed = BREAST_PUMP_SPEED_MAX - 1;
     }
+    proc->level_adjust_time = get_timestamp();
     LOG_WM("pump speed adjust sync speed=%d type=%d time=%d",
         proc->setting.speed, proc->sub_mode_type, proc->sub_mode_time_index);
 }
@@ -109,6 +145,7 @@ int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase)
     pump_sub_mode_switch_clear(proc);
     time_index = proc->sub_mode_time_index;
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    proc->level_adjust_time = get_timestamp();
     if (is_increase) {
         if (proc->setting.speed < BREAST_PUMP_SPEED_MAX - 1) {
             proc->setting.speed++;
@@ -127,6 +164,7 @@ void pump_speed_adjust_ui_exit(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     proc->sub_mode_switch = 0;
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SPEED_ADJUST_IDLE_EXIT_TASK_NAME);
 }
 
 void pump_speed_adjust_ui_dismiss(ui_proc_pump_t *proc)
@@ -135,6 +173,7 @@ void pump_speed_adjust_ui_dismiss(ui_proc_pump_t *proc)
     if (proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
         return;
     }
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SPEED_ADJUST_IDLE_EXIT_TASK_NAME);
 #if PUMP_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
     LOG_WM("dismiss pump speed adjust, back prev page.");
     pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_KEEP_PAGE);

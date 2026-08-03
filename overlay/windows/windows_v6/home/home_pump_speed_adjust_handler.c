@@ -6,9 +6,43 @@
 #include "window_screen_home.h"
 
 /*
+* DEFINES
+*****************************************************************************************
+*/
+#define HOME_SPEED_ADJUST_IDLE_EXIT_TASK_NAME           "home_speed_adjust_idle_exit"
+
+/*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void home_speed_adjust_idle_exit_cb(hdr_post_args_t *args)
+{
+    ui_proc_home_t *proc = (ui_proc_home_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    if (proc->current_ui_type != HOME_UI_TYPE_SPEED_ADJUST) {
+        return;
+    }
+    LOG_UI("home speed adjust idle timeout, silent exit");
+    home_speed_adjust_ui_dismiss(proc);
+}
+
+static void home_speed_adjust_idle_timeout_tick(ui_proc_home_t *proc)
+{
+    uint32_t time_diff;
+
+    if (proc->current_ui_type != HOME_UI_TYPE_SPEED_ADJUST) {
+        return;
+    }
+    time_diff = get_timestamp_ms(proc->level_adjust_time);
+    if (time_diff < HOME_SPEED_ADJUST_IDLE_TIMEOUT_MS) {
+        return;
+    }
+    proc->level_adjust_time = get_timestamp();
+    LOG_UI("home speed adjust idle timeout: %d", time_diff);
+    POST_WM_TASK_HANDLER_NO_DELAY(home_speed_adjust_idle_exit_cb, proc,
+        HOME_SPEED_ADJUST_IDLE_EXIT_TASK_NAME);
+}
+
 static void home_speed_adjust_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
@@ -17,6 +51,7 @@ static void home_speed_adjust_ui_after_policy(ui_manager_context_t *ui, int inde
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     home_sub_mode_sync_tick(proc, HOME_SUB_MODE_SYNC_SPEED);
     home_sub_mode_switch_tick(proc);
+    home_speed_adjust_idle_timeout_tick(proc);
     ui_display_home_speed_adjust_process(ui);
 }
 
@@ -60,6 +95,7 @@ static void home_speed_adjust_state_sync(ui_proc_home_t *proc)
     if (proc->setting.speed >= BREAST_PUMP_SPEED_MAX) {
         proc->setting.speed = (BREAST_PUMP_SPEED_MAX - 1);
     }
+    proc->level_adjust_time = get_timestamp();
     LOG_WM("speed adjust sync speed=%d type=%d time=%d",
         proc->setting.speed, proc->sub_mode_type, proc->sub_mode_time_index);
 }
@@ -106,6 +142,7 @@ int home_pump_speed_adjust_handler(ui_proc_home_t *proc, bool is_increase)
     home_sub_mode_switch_clear(proc);
     time_index = proc->sub_mode_time_index;
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    proc->level_adjust_time = get_timestamp();
     if (is_increase) {
         if (proc->setting.speed < (BREAST_PUMP_SPEED_MAX - 1)) {
             proc->setting.speed++;
@@ -124,6 +161,7 @@ void home_speed_adjust_ui_exit(ui_proc_home_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     proc->sub_mode_switch = 0;
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_SPEED_ADJUST_IDLE_EXIT_TASK_NAME);
 }
 
 void home_speed_adjust_ui_dismiss(ui_proc_home_t *proc)
@@ -132,6 +170,7 @@ void home_speed_adjust_ui_dismiss(ui_proc_home_t *proc)
     if (proc->current_ui_type != HOME_UI_TYPE_SPEED_ADJUST) {
         return;
     }
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_SPEED_ADJUST_IDLE_EXIT_TASK_NAME);
 #if HOME_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
     LOG_WM("dismiss home speed adjust, back prev page.");
     home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_KEEP_PAGE);
