@@ -5,7 +5,6 @@
 #include "pump_home_base_ui_internal.h" // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
 #include "ui_snapshot.h" // IWYU pragma: keep
-#include "home_level_adjust_ui.h" // IWYU pragma: keep
 
 /*
 * DEFINES
