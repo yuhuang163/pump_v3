@@ -233,6 +233,9 @@ void home_ui_change_hdr_remove(ui_proc_home_t *proc);
 void show_home_pump_result_ui(ui_proc_home_t *proc);
 void home_pump_result_ui_exit(ui_proc_home_t *proc);
 
+/// 启动泵奶（跳转泵奶窗口）；成功返回 0，电量不足等失败返回负数
+int home_start_pump_handler(ui_proc_home_t *proc);
+
 /// 模式切换成功页
 void show_home_settings_success_ui(ui_proc_home_t *proc);
 void home_settings_success_ui_exit(ui_proc_home_t *proc);

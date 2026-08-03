@@ -291,7 +291,7 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
         return;
     }
 
-    /// 确认页：再次短按 power → 落地模式并跳转成功页
+    /// 确认页：再次短按 power → 落地模式并跳转成功页（超时后启动泵奶）
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
         if (pump_mode_confirm_handler(proc) == 0) {
             show_pump_settings_success_ui(proc);
@@ -299,7 +299,7 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
         return;
     }
 
-    /// 模式选择页：满足条件先弹确认页，否则直接成功页
+    /// 模式选择页：满足条件先弹确认页，否则直接成功页（超时后启动泵奶）
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
         if (proc->ui_mode_page_index > PUMP_MODE_PAGE_INDEX_NONE) {
             if (pump_mode_rhythm_confirm_needed(proc) == 0) {
@@ -309,9 +309,10 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
             if (pump_mode_confirm_handler(proc) == 0) {
                 show_pump_settings_success_ui(proc);
             }
-        } else {
-            switch_pump_status_handler(proc);
+            return;
         }
+        switch_pump_status_handler(proc);
+        return;
     }
 
     if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS) {

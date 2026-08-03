@@ -18,12 +18,21 @@
 static void pump_settings_success_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
+    int pump_status = 0;
+
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     if (proc->current_ui_type != PUMP_UI_TYPE_SETTINGS_SUCCESS) {
         LOG_UI("settings success ui, ignore display completed.");
         return;
     }
+    /// 模式确认成功提示超时后回首页并立即启动泵奶（已在运行则不切换）
     pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (pump_status == BREAST_PUMP_PAUSE ||
+        pump_status == BREAST_PUMP_IDLE ||
+        pump_status == BREAST_PUMP_FINISH) {
+        switch_pump_status_ui(proc);
+    }
 }
 
 static void pump_settings_success_ui_after_policy(ui_manager_context_t *ui, int index)

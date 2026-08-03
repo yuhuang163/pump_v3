@@ -42,30 +42,6 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void start_pump_handler(ui_proc_home_t *proc)
-{
-    uint8_t battery_state = BATTERY_STATE_NONE;
-
-    if (proc->battery) {
-        battery_state = proc->battery->get_battery_state();
-    }
-
-    if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-        battery_state == BATTERY_STATE_EMPTY ||
-        battery_state == BATTERY_STATE_FORBID_START) {
-        LOG_WM("battery state is low, ignore key event.");
-        return;
-    }
-
-    if (proc->wm) {
-        multi_func_msg_data_t msg = {0};
-        LOG_WM("goto pump window.");
-        msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-        msg.union_body.extra.arg1 = KEY_CODE_START;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-    }
-}
-
 static void home_start_key_event_handler(ui_proc_home_t *proc)
 {
     if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
@@ -73,7 +49,7 @@ static void home_start_key_event_handler(ui_proc_home_t *proc)
         LOG_WM("current ui type is %d, ignore start key.", proc->current_ui_type);
         return;
     }
-    start_pump_handler(proc);
+    home_start_pump_handler(proc);
 }
 
 static void home_knob_left_event_cb(ui_proc_home_t *proc)
@@ -173,10 +149,11 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
 
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         if (proc->ui_mode_page_index > HOME_MODE_PAGE_INDEX_NONE) {
+            /// 模式选择页短按 power：确认模式 → 成功提示，超时后启动泵奶
             home_mode_confirm_handler(proc);
             show_home_settings_success_ui(proc);
         } else {
-            start_pump_handler(proc);
+            home_start_pump_handler(proc);
         }
         return;
     }
