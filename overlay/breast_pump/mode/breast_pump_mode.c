@@ -148,9 +148,15 @@ void breast_pump_setting_reset(sys_pump_info_t *pump_info, int mode)
     }
     #else
     for (uint8_t i = 0; i < step_count; i++) {
+        #if 0
         setting[i].speed = cfg[i].core.un.mapping.speed;
         setting[i].level[0] = cfg[i].core.un.mapping.level;
         setting[i].level[1] = cfg[i].core.un.mapping.level;
+        #else
+        setting[i].speed = DEFAULT_SPEED_VALUE;
+        setting[i].level[0] = DEFAULT_LEVEL_VALUE;
+        setting[i].level[1] = DEFAULT_LEVEL_VALUE;
+        #endif
     }
     #endif
 }

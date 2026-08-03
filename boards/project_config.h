@@ -140,6 +140,10 @@ extern "C" {
 #define POWER_OFF_REMINDER_TIME                        (3000) /// 3秒
 /// OTA单块原数据大小
 #define OTA_BLOCK_SIZE                                 (4096)
+/// 默认力度值
+#define DEFAULT_LEVEL_VALUE                            (1)
+/// 默认速度值
+#define DEFAULT_SPEED_VALUE                            (0)
 
 #ifdef __cplusplus
 }
