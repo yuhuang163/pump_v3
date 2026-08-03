@@ -10,8 +10,9 @@
 *****************************************************************************************
 */
 #define PUMP_INFO_LOG_INTERVAL                             (2000 / PUMP_WORK_STEP_TIME_MS) 
-#define PUMP_WILL_FINISH_TIME_MS                           (2300) /// 3000 - 700ms = 2300ms 
-#define PUMP_WILL_FINISH_TIP_TIME_MS                       (9300) /// 10000 - 700ms = 9300ms 
+#define PUMP_FINISH_TIME_DISPLAY_MS                        (700)
+#define PUMP_WILL_FINISH_TIME_MS                           (3000 - PUMP_FINISH_TIME_DISPLAY_MS)
+#define PUMP_WILL_FINISH_TIP_TIME_MS                       (10000 - PUMP_FINISH_TIME_DISPLAY_MS)
 #define PUMP_TIME_TO_SECOND(time)                          (time / 1000)
 #if IS_SUPPORT_PUMP_MODE_FAST_TEST
 #define PUMP_RUNNING_TIP_TIME_MS                           (10 * 1000)
@@ -243,7 +244,7 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
     /// 更新运行时间
     update_work_valid_time(ctx, result_info);
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
-    if (result_info->work_valid_time >= TOTAL_PUMP_TIME_MAX) {
+    if (result_info->work_valid_time >= (TOTAL_PUMP_TIME_MAX + PUMP_FINISH_TIME_DISPLAY_MS)) {
         LOG_PMP("timeout, work_time=%d/%d, mode_time=%d", 
             PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->target_valid_time),
             result_info->current_mode_work_time);   
@@ -251,7 +252,8 @@ static int local_breast_pump_process(breast_pump_manager_context_t *ctx, pump_re
         return RESULT_PUMP_TIMEOUT;
     }
 
-    if (result_info->work_valid_time >= result_info->target_valid_time && result_info->target_valid_time != 0) {
+    if (result_info->work_valid_time >= (result_info->target_valid_time + PUMP_FINISH_TIME_DISPLAY_MS) &&
+        result_info->target_valid_time != 0) {
         LOG_PMP("finish, work_time=%d/%d, mode_time=%d", 
             PUMP_TIME_TO_SECOND(result_info->work_valid_time), PUMP_TIME_TO_SECOND(result_info->target_valid_time),
             result_info->current_mode_work_time);   
