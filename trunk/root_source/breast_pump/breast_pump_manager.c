@@ -76,6 +76,13 @@ static void notify_breast_pump_completed(void)
     breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
     if (PUMP_IS_COMMON_MODE(m_info->mode)) {
         m_info->mode = BREAST_PUMP_STIMULATION_MODE;
+        struct storage_manager_context *st = breast_pump_obj->priv.st;
+        for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+            if (st) {
+                st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, 
+                    &breast_pump_obj->priv.setting[i]);
+            }
+        }
     }
     m_info->common_mode = BREAST_PUMP_STIMULATION_MODE;
 }
