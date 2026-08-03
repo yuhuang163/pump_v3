@@ -248,7 +248,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
-    /// 待机页：仅短按 power 可退出回首页，其它按键不响应
+    /// 待机页：短按 power 退出回首页，长按 power 可关机，其它按键不响应
     if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
         if (keytype == KEY_EVENT_CLICK && keycode == KEY_CODE_POWER) {
             if (proc->power_off_hold_ignore_click) {
@@ -259,6 +259,12 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             home_idle_ui_dismiss(proc);
             return 0;
         }
+
+        if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
+            home_power_off_hold_key_long_2s_handler(proc);
+            return 0;
+        }
+
         LOG_WM("system idle, ignore key event.");
         return 0;
     }
@@ -267,10 +273,12 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         home_power_off_hold_key_long_2s_handler(proc);
         return 0;
     }
+
     if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
         home_power_off_hold_key_up_handler(proc);
         return 0;
     }
+    
     if (keytype != KEY_EVENT_CLICK) {
         return 0;
     }
