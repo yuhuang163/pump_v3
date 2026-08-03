@@ -104,6 +104,7 @@ typedef struct {
     uint16_t shown_frame_res_id; /// 已显示帧资源ID
     uint8_t anim_play_state; /// 动画播放状态: 0: 播放, 1: 暂停.
     uint8_t paused_by_transition; /// 过渡期间暂停波形动画
+    uint8_t hidden_by_mode_switch; /// 子模式切换提醒期间隐藏并停止波形
     uint32_t last_frame_tick_ms; /// 上次切帧时间
 } pump_home_base_animation_info_t;
 
@@ -131,6 +132,7 @@ typedef struct {
     lv_obj_t *play_icon;                /// 暂停态播放图标
     lv_obj_t *hint_text;                /// Press to resume
     ui_shine_info_t hint_shine;         /// 扫光（字库文案软边）
+    lv_obj_t *mode_switch_label;        /// 子模式切换提醒文案
     lv_obj_t *speed_icon;
     lv_obj_t *speed_value;
     lv_obj_t *left_level;               /// Lx
@@ -145,6 +147,10 @@ typedef struct {
     uint8_t shown_left_level;
     uint8_t shown_right_level;
     uint8_t shown_paused;               /// 当前是否显示暂停态
+    uint8_t shown_mode_switch;          /// 当前是否显示子模式切换提醒
+    uint8_t tracked_mode_type;          /// 用于检测子模式切换
+    uint8_t tip_mode_type;              /// 提醒文案对应的子模式
+    uint32_t mode_switch_time;          /// 子模式切换提醒起始时间
     char shown_title[24];
 } pump_home_base_main_page_info_t;
 
