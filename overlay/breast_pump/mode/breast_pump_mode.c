@@ -360,8 +360,10 @@ void pump_setting_update_ram(breast_pump_manager_context_t *ctx,
     ctx->priv.setting[step_idx].level[0] = src->level[0];
     ctx->priv.setting[step_idx].level[1] = src->level[1];
     ctx->priv.setting[step_idx].speed = src->speed;
+    #if IS_SUPPORT_PUMP_MODE_DEBUG_LOG
     LOG_MOTOR("same-mode update_ram step=%d L=%d R=%d speed=%d",
         step_idx, src->level[0], src->level[1], src->speed);
+    #endif
 }
 
 void pump_setting_store(breast_pump_manager_context_t *ctx, int mode, uint8_t step_idx)
@@ -369,11 +371,13 @@ void pump_setting_store(breast_pump_manager_context_t *ctx, int mode, uint8_t st
     if (ctx->priv.st) {
         ctx->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
             mode, step_idx, &ctx->priv.setting[step_idx]);
+        #if IS_SUPPORT_PUMP_MODE_DEBUG_LOG
         LOG_MOTOR("same-mode store mode=%d step=%d L=%d R=%d speed=%d",
             mode, step_idx,
             ctx->priv.setting[step_idx].level[0],
             ctx->priv.setting[step_idx].level[1],
             ctx->priv.setting[step_idx].speed);
+        #endif
     }
 }
 
@@ -404,8 +408,10 @@ static void pump_setting_sync_mode_type_in_manager(breast_pump_manager_context_t
                     /// 其他模式只写该模式存储，避免误改当前运行时 setting[]
                     ctx->priv.st->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO,
                         store_mode, idx, setting);
-                    LOG_MOTOR("cross-mode store mode=%d step=%d L=%d R=%d speed=%d",
-                        store_mode, idx, setting->level[0], setting->level[1], setting->speed);
+                    #if IS_SUPPORT_PUMP_MODE_DEBUG_LOG
+                        LOG_MOTOR("cross-mode store mode=%d step=%d L=%d R=%d speed=%d",
+                            store_mode, idx, setting->level[0], setting->level[1], setting->speed);
+                    #endif
                 }
             }
         }
