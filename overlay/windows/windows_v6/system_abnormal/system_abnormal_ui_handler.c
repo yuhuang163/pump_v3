@@ -28,7 +28,13 @@ static void system_abnormal_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_system_abnormal_t *proc = (ui_proc_system_abnormal_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_SYSTEM_ABNORMAL);
-    ui_display_system_abnormal_process(ui);
+    if (proc->current_ui_type == SYSTEM_ABNORMAL_UI_TYPE_BATTERY_TEMP_HIGH) {
+        ui_display_system_abnormal_process(ui, SYS_ABNORMAL_BATTERY_TEMP_HIGH);
+    } else if (proc->current_ui_type == SYSTEM_ABNORMAL_UI_TYPE_STORAGE_FAILURE) {
+        ui_display_system_abnormal_process(ui, SYS_ABNORMAL_STORAGE_FAILURE);
+    } else if (proc->current_ui_type == SYSTEM_ABNORMAL_UI_TYPE_COMMUNICATION_ERROR) {
+        ui_display_system_abnormal_process(ui, SYS_ABNORMAL_COMMUNICATION_ERROR);
+    }
 }
 
 static void system_abnormal_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)

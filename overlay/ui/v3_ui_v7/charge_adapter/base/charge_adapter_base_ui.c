@@ -13,12 +13,12 @@
 */
 #define IS_SUPPORT_CHARGE_ADAPTER_COMP_BG              (0)
 #define CHARGE_ADAPTER_TEXT_COUNT                      (2)
-#define CHARGE_ADAPTER_ICON_Y                          (104)
-#define CHARGE_ADAPTER_TITLE_Y                         (193)
-#define CHARGE_ADAPTER_SUBTITLE_Y                      (232)
-#define CHARGE_ADAPTER_TITLE_COLOR                     (0x240F1B)
-#define CHARGE_ADAPTER_SUBTITLE_COLOR                  (0x7C6971)
-#define CHARGE_ADAPTER_ROOT_BG_COLOR                   (0xEDE3E5)
+#define CHARGE_ADAPTER_ICON_Y                          (90)
+#define CHARGE_ADAPTER_TITLE_Y                         (196)
+#define CHARGE_ADAPTER_SUBTITLE_Y                      (238)
+#define CHARGE_ADAPTER_TITLE_COLOR                     (0xFFFFFF)
+#define CHARGE_ADAPTER_SUBTITLE_COLOR                  (0x999999)
+#define CHARGE_ADAPTER_ROOT_BG_COLOR                   (0x000000)
 
 typedef struct {
     const char *name;
@@ -51,9 +51,9 @@ static charge_adapter_display_info_t *adapter_info;
 
 static const charge_adapter_text_info_t charge_adapter_text_infos[CHARGE_ADAPTER_TEXT_COUNT] = {
     { "Incompatible adapter", CHARGE_ADAPTER_TITLE_Y,
-        &lv_font_aeonik_soft_19_medium, CHARGE_ADAPTER_TITLE_COLOR, 0 },
-    { "Unable to charge", CHARGE_ADAPTER_SUBTITLE_Y,
-        &lv_font_aeonik_soft_19_medium, CHARGE_ADAPTER_SUBTITLE_COLOR, 4 },
+        &lv_font_aeonik_soft_26_medium, CHARGE_ADAPTER_TITLE_COLOR, 0 },
+    { "Unable to charge.", CHARGE_ADAPTER_SUBTITLE_Y,
+        &lv_font_aeonik_soft_26_medium, CHARGE_ADAPTER_SUBTITLE_COLOR, 0 },
 };
 
 /*
@@ -66,8 +66,7 @@ static void charge_adapter_ui_root_init(void)
         adapter_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(adapter_info->root, LV_PCT(100), LV_PCT(100));
-    // lv_obj_set_style_bg_color(adapter_info->root, lv_color_hex(CHARGE_ADAPTER_ROOT_BG_COLOR), 0);
-    lv_obj_set_style_bg_color(adapter_info->root, lv_color_black(), 0);
+    lv_obj_set_style_bg_color(adapter_info->root, lv_color_hex(CHARGE_ADAPTER_ROOT_BG_COLOR), 0);
     lv_obj_set_style_bg_opa(adapter_info->root, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(adapter_info->root, 0, 0);
     lv_obj_set_style_pad_all(adapter_info->root, 0, 0);
@@ -131,7 +130,7 @@ static void charge_adapter_icon_update(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(adapter_info->charge_adapter_icon);
     }
     ui_img_baj_theme_set_src(thiz, adapter_info->charge_adapter_icon,
-        UI_IMG_RES_ID_NONE, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+        BASE_RES_ID_CHARGE_ERROR_ICON, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
     lv_obj_align(adapter_info->charge_adapter_icon, LV_ALIGN_TOP_MID, 0, CHARGE_ADAPTER_ICON_Y);
 }
 
