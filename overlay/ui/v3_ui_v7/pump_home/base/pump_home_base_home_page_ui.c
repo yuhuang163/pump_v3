@@ -5,6 +5,7 @@
 #include "pump_home_base_ui_internal.h" // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
 #include "ui_snapshot.h" // IWYU pragma: keep
+#include "home_level_adjust_ui.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -44,6 +45,8 @@
 #else
 #define PUMP_HOME_MAIN_TIME_COLOR                       (0xFFFFFF)
 #endif
+/** 子模式切换提醒出现时，时间整体下移 */
+#define PUMP_HOME_MAIN_TIME_MODE_SWITCH_OFFSET_Y        (15)
 
 #define PUMP_HOME_MAIN_SPEED_GROUP_WIDTH                (47)
 #define PUMP_HOME_MAIN_SPEED_ICON_Y                     (265 + 4)
@@ -79,6 +82,13 @@
 #endif
 #define PUMP_HOME_MAIN_MASK_W                           (PUMP_HOME_BASE_MAIN_HINT_SHINE_W)
 #define PUMP_HOME_MAIN_MASK_Y                           (PUMP_HOME_MAIN_HINT_Y)
+
+#define PUMP_HOME_MAIN_MODE_SWITCH_Y                    (208)
+#define PUMP_HOME_MAIN_MODE_SWITCH_COLOR                (0xFFFFFF)
+#define PUMP_HOME_MAIN_MODE_SWITCH_OPA                  (LV_OPA_60)
+#define PUMP_HOME_MAIN_MODE_SWITCH_LINE_SPACE           (8)
+#define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT \
+    "Switched to %s.\nLevel and speed may changed."
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -160,6 +170,19 @@ static void pump_home_main_obj_flag_set(lv_obj_t *obj, bool visible)
     } else {
         lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
     }
+}
+
+static lv_coord_t pump_home_main_time_y_offset_get(const pump_home_base_ui_info_t *info)
+{
+    return info->main.shown_mode_switch ? PUMP_HOME_MAIN_TIME_MODE_SWITCH_OFFSET_Y : 0;
+}
+
+static void pump_home_main_time_layout_invalidate(pump_home_base_ui_info_t *info)
+{
+    info->main.shown_hours = 0xFF;
+    info->main.shown_minutes = 0xFF;
+    info->main.shown_seconds = 0xFF;
+    info->main.shown_digit_size = 0;
 }
 
 static void pump_home_main_obj_scale_set(lv_obj_t *obj, int32_t scale)
@@ -273,6 +296,7 @@ static void pump_home_main_time_h_update(pump_home_base_ui_info_t *info, uint8_t
     uint8_t digit_size)
 {
     const bool hidden = (digit_size == PUMP_HOME_MAIN_TIME_2SEG);
+    const lv_coord_t y = PUMP_HOME_MAIN_TIME_3SEG_Y + pump_home_main_time_y_offset_get(info);
 
     if (info->main.shown_hours == hours && info->main.shown_digit_size == digit_size &&
         info->force_update == false) {
@@ -280,7 +304,7 @@ static void pump_home_main_time_h_update(pump_home_base_ui_info_t *info, uint8_t
     }
 
     pump_home_main_time_pair_update(info->main.time_h, pump_home_page_parent_get(info), hours,
-        &lv_font_aeonik_soft_56_semibold, PUMP_HOME_MAIN_TIME_3SEG_H_X, PUMP_HOME_MAIN_TIME_3SEG_Y,
+        &lv_font_aeonik_soft_56_semibold, PUMP_HOME_MAIN_TIME_3SEG_H_X, y,
         PUMP_HOME_MAIN_TIME_3SEG_WIDTH, hidden);
     info->main.shown_hours = hours;
 }
@@ -288,6 +312,8 @@ static void pump_home_main_time_h_update(pump_home_base_ui_info_t *info, uint8_t
 static void pump_home_main_time_m_update(pump_home_base_ui_info_t *info, uint8_t minutes,
     uint8_t digit_size)
 {
+    const lv_coord_t y_offset = pump_home_main_time_y_offset_get(info);
+
     if (info->main.shown_minutes == minutes && info->main.shown_digit_size == digit_size &&
         info->force_update == false) {
         return;
@@ -296,11 +322,11 @@ static void pump_home_main_time_m_update(pump_home_base_ui_info_t *info, uint8_t
     if (digit_size == PUMP_HOME_MAIN_TIME_2SEG) {
         pump_home_main_time_pair_update(info->main.time_m, pump_home_page_parent_get(info), minutes,
             &lv_font_aeonik_soft_69_semibold, PUMP_HOME_MAIN_TIME_2SEG_M_X,
-            PUMP_HOME_MAIN_TIME_2SEG_Y, PUMP_HOME_MAIN_TIME_2SEG_WIDTH, false);
+            PUMP_HOME_MAIN_TIME_2SEG_Y + y_offset, PUMP_HOME_MAIN_TIME_2SEG_WIDTH, false);
     } else {
         pump_home_main_time_pair_update(info->main.time_m, pump_home_page_parent_get(info), minutes,
             &lv_font_aeonik_soft_56_semibold, PUMP_HOME_MAIN_TIME_3SEG_M_X,
-            PUMP_HOME_MAIN_TIME_3SEG_Y, PUMP_HOME_MAIN_TIME_3SEG_WIDTH, false);
+            PUMP_HOME_MAIN_TIME_3SEG_Y + y_offset, PUMP_HOME_MAIN_TIME_3SEG_WIDTH, false);
     }
     info->main.shown_minutes = minutes;
 }
@@ -308,6 +334,8 @@ static void pump_home_main_time_m_update(pump_home_base_ui_info_t *info, uint8_t
 static void pump_home_main_time_s_update(pump_home_base_ui_info_t *info, uint8_t seconds,
     uint8_t digit_size)
 {
+    const lv_coord_t y_offset = pump_home_main_time_y_offset_get(info);
+
     if (info->main.shown_seconds == seconds && info->main.shown_digit_size == digit_size &&
         info->force_update == false) {
         return;
@@ -316,11 +344,11 @@ static void pump_home_main_time_s_update(pump_home_base_ui_info_t *info, uint8_t
     if (digit_size == PUMP_HOME_MAIN_TIME_2SEG) {
         pump_home_main_time_pair_update(info->main.time_s, pump_home_page_parent_get(info), seconds,
             &lv_font_aeonik_soft_69_semibold, PUMP_HOME_MAIN_TIME_2SEG_S_X,
-            PUMP_HOME_MAIN_TIME_2SEG_Y, PUMP_HOME_MAIN_TIME_2SEG_WIDTH, false);
+            PUMP_HOME_MAIN_TIME_2SEG_Y + y_offset, PUMP_HOME_MAIN_TIME_2SEG_WIDTH, false);
     } else {
         pump_home_main_time_pair_update(info->main.time_s, pump_home_page_parent_get(info), seconds,
             &lv_font_aeonik_soft_56_semibold, PUMP_HOME_MAIN_TIME_3SEG_S_X,
-            PUMP_HOME_MAIN_TIME_3SEG_Y, PUMP_HOME_MAIN_TIME_3SEG_WIDTH, false);
+            PUMP_HOME_MAIN_TIME_3SEG_Y + y_offset, PUMP_HOME_MAIN_TIME_3SEG_WIDTH, false);
     }
     info->main.shown_seconds = seconds;
 }
@@ -347,6 +375,8 @@ static void pump_home_main_time_colon_3seg_update(pump_home_base_ui_info_t *info
         PUMP_HOME_MAIN_TIME_COLON_HM_X,
         PUMP_HOME_MAIN_TIME_COLON_MS_X,
     };
+    const lv_coord_t colon_y = PUMP_HOME_MAIN_TIME_COLON_3SEG_Y +
+        pump_home_main_time_y_offset_get(info);
     lv_obj_t *parent = pump_home_page_parent_get(info);
     int i;
 
@@ -365,8 +395,7 @@ static void pump_home_main_time_colon_3seg_update(pump_home_base_ui_info_t *info
 
     for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
         lv_image_set_src(info->main.time_colon[i], info->main.time_colon_buf);
-        lv_obj_align(info->main.time_colon[i], LV_ALIGN_TOP_LEFT,
-            colon_x[i], PUMP_HOME_MAIN_TIME_COLON_3SEG_Y);
+        lv_obj_align(info->main.time_colon[i], LV_ALIGN_TOP_LEFT, colon_x[i], colon_y);
         pump_home_main_obj_flag_set(info->main.time_colon[i], true);
     }
 }
@@ -383,7 +412,8 @@ static void pump_home_main_time_colon_2seg_update(pump_home_base_ui_info_t *info
             RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
     }
     lv_obj_align(info->main.time_colon_2seg, LV_ALIGN_TOP_MID,
-        PUMP_HOME_MAIN_TIME_2SEG_COLON_X, PUMP_HOME_MAIN_TIME_2SEG_COLON_Y);
+        PUMP_HOME_MAIN_TIME_2SEG_COLON_X,
+        PUMP_HOME_MAIN_TIME_2SEG_COLON_Y + pump_home_main_time_y_offset_get(info));
     pump_home_main_obj_flag_set(info->main.time_colon_2seg, true);
 
     for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
@@ -546,6 +576,64 @@ static void pump_home_main_hint_shine_anim_update(pump_home_base_ui_info_t *info
     ui_shine_anim_update(&info->main.hint_shine, &style, info->main.hint_text, anim_paused);
 }
 
+static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, uint8_t mode_type)
+{
+    char tip_buf[64] = {0};
+    uint8_t mode_switch = info->main.shown_mode_switch;
+    bool state_changed;
+
+    if (info->main.tracked_mode_type != 0xFF && info->main.tracked_mode_type != mode_type) {
+        mode_switch = 1;
+        info->main.mode_switch_time = get_timestamp();
+    }
+    info->main.tracked_mode_type = mode_type;
+
+    if (mode_switch &&
+        get_timestamp_ms(info->main.mode_switch_time) >= PUMP_SUB_MODE_SWITCH_TIMEOUT_MS) {
+        mode_switch = 0;
+    }
+
+    state_changed = (info->main.shown_mode_switch != mode_switch) ||
+        (mode_switch && info->main.tip_mode_type != mode_type) ||
+        (info->force_update != 0);
+
+    if (info->main.mode_switch_label == NULL || !lv_obj_is_valid(info->main.mode_switch_label)) {
+        info->main.mode_switch_label = lv_label_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->main.mode_switch_label);
+        lv_obj_set_style_text_color(info->main.mode_switch_label,
+            lv_color_hex(PUMP_HOME_MAIN_MODE_SWITCH_COLOR), 0);
+        lv_obj_set_style_text_opa(info->main.mode_switch_label, PUMP_HOME_MAIN_MODE_SWITCH_OPA, 0);
+        lv_obj_set_style_text_font(info->main.mode_switch_label, &lv_font_aeonik_soft_19_medium, 0);
+        lv_obj_set_style_text_align(info->main.mode_switch_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_line_space(info->main.mode_switch_label,
+            PUMP_HOME_MAIN_MODE_SWITCH_LINE_SPACE, 0);
+        lv_obj_set_style_text_letter_space(info->main.mode_switch_label, 0, 0);
+        state_changed = true;
+    }
+
+    if (state_changed == false) {
+        return;
+    }
+
+    if (mode_switch) {
+        info->main.tip_mode_type = mode_type;
+        snprintf(tip_buf, sizeof(tip_buf), PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT,
+            home_level_adjust_mode_type_name_get(mode_type));
+        lv_label_set_text(info->main.mode_switch_label, tip_buf);
+        lv_obj_align(info->main.mode_switch_label, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MAIN_MODE_SWITCH_Y);
+        pump_home_main_obj_flag_set(info->main.mode_switch_label, true);
+        info->animation.hidden_by_mode_switch = 1;
+    } else {
+        pump_home_main_obj_flag_set(info->main.mode_switch_label, false);
+        info->animation.hidden_by_mode_switch = 0;
+    }
+
+    if (info->main.shown_mode_switch != mode_switch) {
+        pump_home_main_time_layout_invalidate(info);
+    }
+    info->main.shown_mode_switch = mode_switch;
+}
+
 static void pump_home_main_speed_update(pump_home_base_ui_info_t *info, uint8_t speed)
 {
     char speed_text[8] = {0};
@@ -634,7 +722,12 @@ void pump_home_main_page_ui_build(pump_home_base_ui_info_t *info)
     info->main.shown_seconds = 0xFF;
     info->main.shown_digit_size = 0;
     info->main.shown_paused = 0xFF;
+    info->main.shown_mode_switch = 0;
+    info->main.tracked_mode_type = 0xFF;
+    info->main.tip_mode_type = 0xFF;
+    info->main.mode_switch_time = 0;
     info->animation.paused_by_transition = 0;
+    info->animation.hidden_by_mode_switch = 0;
 }
 
 void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc)
@@ -683,6 +776,7 @@ void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
     pump_home_main_bg_update(info, mode);
 #endif
     pump_home_main_mode_title_update(info, mode);
+    pump_home_main_mode_switch_update(info, info->mode.new_mode_type);
     pump_home_main_time_update(info, hours, minutes, seconds, paused);
     pump_home_base_animation_ui_update(info);
     pump_home_main_play_icon_update(info, paused);
