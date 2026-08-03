@@ -6,6 +6,12 @@
 #include "window_screen_home.h"
 
 /*
+* DEFINES
+*****************************************************************************************
+*/
+#define HOME_BOTH_LEVEL_ADJUST_IDLE_EXIT_TASK_NAME      "home_both_level_adjust_idle_exit"
+
+/*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
@@ -30,6 +36,41 @@ static void home_both_level_over_limit_tick(ui_proc_home_t *proc)
     home_both_level_over_limit_clear(proc);
 }
 
+static void home_both_level_adjust_idle_exit_cb(hdr_post_args_t *args)
+{
+    ui_proc_home_t *proc = (ui_proc_home_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
+    if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+        return;
+    }
+    if (proc->both_level_over_limit) {
+        return;
+    }
+    LOG_UI("home both level adjust idle timeout, silent exit");
+    home_both_level_adjust_ui_dismiss(proc);
+}
+
+static void home_both_level_adjust_idle_timeout_tick(ui_proc_home_t *proc)
+{
+    uint32_t time_diff;
+
+    if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+        return;
+    }
+    /// 力度限制态不静默退出，过大提示自行 2s 结束
+    if (proc->both_level_over_limit) {
+        return;
+    }
+    time_diff = get_timestamp_ms(proc->level_adjust_time);
+    if (time_diff < HOME_LEVEL_ADJUST_IDLE_TIMEOUT_MS) {
+        return;
+    }
+    proc->level_adjust_time = get_timestamp();
+    LOG_UI("home both level adjust idle timeout: %d", time_diff);
+    POST_WM_TASK_HANDLER_NO_DELAY(home_both_level_adjust_idle_exit_cb, proc,
+        HOME_BOTH_LEVEL_ADJUST_IDLE_EXIT_TASK_NAME);
+}
+
 static void home_both_level_adjust_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)ui->priv.play_info.user_data;
@@ -39,6 +80,7 @@ static void home_both_level_adjust_ui_after_policy(ui_manager_context_t *ui, int
     home_sub_mode_sync_tick(proc, HOME_SUB_MODE_SYNC_BOTH_LEVEL);
     home_both_level_over_limit_tick(proc);
     home_sub_mode_switch_tick(proc);
+    home_both_level_adjust_idle_timeout_tick(proc);
     ui_display_home_both_level_adjust_process(ui);
 }
 
@@ -221,6 +263,7 @@ void home_both_level_adjust_ui_exit(ui_proc_home_t *proc)
     EXCEPTION_CHECK_VOID(proc);
     proc->both_level_over_limit = 0;
     proc->sub_mode_switch = 0;
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_BOTH_LEVEL_ADJUST_IDLE_EXIT_TASK_NAME);
 }
 
 void home_both_level_adjust_ui_dismiss(ui_proc_home_t *proc)
@@ -229,6 +272,7 @@ void home_both_level_adjust_ui_dismiss(ui_proc_home_t *proc)
     if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
         return;
     }
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_BOTH_LEVEL_ADJUST_IDLE_EXIT_TASK_NAME);
 #if HOME_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
     LOG_WM("dismiss home both level adjust, back prev page.");
     home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_KEEP_PAGE);

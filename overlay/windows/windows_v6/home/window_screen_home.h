@@ -32,6 +32,11 @@ extern "C" {
 #endif
 #define HOME_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
 
+/// 力度调节页：非力度限制态无操作静默退出
+#define HOME_LEVEL_ADJUST_IDLE_TIMEOUT_MS      (5000) /// 5s
+/// 速度调节页：无操作静默退出
+#define HOME_SPEED_ADJUST_IDLE_TIMEOUT_MS      (5000) /// 5s
+
 /// 力度/速度调节页退出：1=回到上一页（保留 page_index），0=回本窗口首页（page_index 清零）
 #ifndef HOME_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
 #define HOME_ADJUST_EXIT_TO_PREV_PAGE_ENABLE   (0)
@@ -153,7 +158,7 @@ typedef struct {
     uint8_t both_level_arc[2]; /// 双边圆弧动画目标力度
     uint8_t both_level_over_limit; /// 双边力度过大提示中
     uint8_t both_level_inc_steps; /// 双边连续加档窗口内已加档次数
-    uint32_t level_adjust_time; /// 档位调节页最近操作时间
+    uint32_t level_adjust_time; /// 力度/速度调节页最近操作时间（静默退出计时）
     uint32_t level_over_limit_time; /// 过大提示计时起点（有调节刷新）
     uint32_t level_inc_window_time; /// 连续加档窗口起点
     uint32_t sub_mode_switch_time; /// 子模式切换提醒计时（力度/速度页共用）
@@ -204,13 +209,13 @@ int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase);
 void home_level_adjust_ui_exit(ui_proc_home_t *proc);
 void home_level_adjust_ui_dismiss(ui_proc_home_t *proc);
 
-/// 双边力度调节（无超时退出，短按 power 回首页；L+R 短按进入）
+/// 双边力度调节（非限制态无操作 5s 静默退出；L+R 短按进入）
 void show_home_both_level_adjust_ui(ui_proc_home_t *proc);
 int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase);
 void home_both_level_adjust_ui_exit(ui_proc_home_t *proc);
 void home_both_level_adjust_ui_dismiss(ui_proc_home_t *proc);
 
-/// 速度调节（无超时退出，短按 power 回首页）
+/// 速度调节（无操作 5s 静默退出）
 void show_home_speed_adjust_ui(ui_proc_home_t *proc);
 int home_pump_speed_adjust_handler(ui_proc_home_t *proc, bool is_increase);
 void home_speed_adjust_ui_exit(ui_proc_home_t *proc);

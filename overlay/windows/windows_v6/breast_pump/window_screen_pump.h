@@ -33,8 +33,6 @@ extern "C" {
 #define PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME      PUMP_RHYTHM_CONFIRM_SCHEME_1
 #endif
 
-/// 泵奶主界面档位调节展示时间
-#define PUMP_LEVEL_DISPLAY_TIMEOUT             (3000) /// 3s
 /// 单边力度连续加档限制窗口 / 过大提示时长
 #define PUMP_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
 #define PUMP_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
@@ -47,6 +45,11 @@ extern "C" {
 #define PUMP_MODE_SELECT_IDLE_EXIT_ENABLE      (1)
 #endif
 #define PUMP_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
+
+/// 力度调节页：非力度限制态无操作静默退出
+#define PUMP_LEVEL_ADJUST_IDLE_TIMEOUT_MS      (5000) /// 5s
+/// 速度调节页：无操作静默退出
+#define PUMP_SPEED_ADJUST_IDLE_TIMEOUT_MS      (5000) /// 5s
 
 /// 力度/速度调节页退出：1=回到上一页（保留 page_index），0=回本窗口首页（page_index 清零）
 #ifndef PUMP_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
@@ -183,12 +186,12 @@ typedef struct {
     uint8_t sub_mode_type; /// 当前子模式 pump_mode_type_e（力度/速度页共用）
     uint8_t sub_mode_switch; /// 子模式切换提醒中（力度/速度页共用）
     int sub_mode_time_index; /// 调节页缓存的 mode step index，读写 setting 用
-    uint32_t level_adjust_time; /// 档位调节页最近操作时间
+    uint32_t level_adjust_time; /// 力度/速度调节页最近操作时间（静默退出计时）
     uint32_t level_over_limit_time; /// 过大提示计时起点（有调节刷新）
     uint32_t level_inc_window_time; /// 连续加档窗口起点
     uint32_t sub_mode_switch_time; /// 子模式切换提醒计时（力度/速度页共用）
 
-    /// 双边力度调节（无超时退出，短按 power 回泵奶首页）
+    /// 双边力度调节
     uint8_t both_level_value[2]; /// 双边实际/展示力度（过大提示时不变）
     uint8_t both_level_arc[2]; /// 双边圆弧动画目标力度
     uint8_t both_level_over_limit; /// 双边力度过大提示中
@@ -271,13 +274,13 @@ int pump_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
 void pump_level_adjust_ui_exit(ui_proc_pump_t *proc);
 void pump_level_adjust_ui_dismiss(ui_proc_pump_t *proc);
 
-/// 双边力度调节（同时短按 L+R 进入，无超时退出，短按 power 回泵奶首页）
+/// 双边力度调节（同时短按 L+R 进入，非限制态无操作 5s 静默退出）
 void show_pump_both_level_adjust_ui(ui_proc_pump_t *proc);
 int pump_both_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
 void pump_both_level_adjust_ui_exit(ui_proc_pump_t *proc);
 void pump_both_level_adjust_ui_dismiss(ui_proc_pump_t *proc);
 
-/// 速度调节（无超时退出，短按 power 回泵奶首页）
+/// 速度调节（无操作 5s 静默退出）
 void show_pump_speed_adjust_ui(ui_proc_pump_t *proc);
 int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
 void pump_speed_adjust_ui_exit(ui_proc_pump_t *proc);
