@@ -102,6 +102,9 @@ void show_pump_stop_hold_ui(ui_proc_pump_t *proc)
     proc->current_ui_type = PUMP_UI_TYPE_STOP_HOLD;
     proc->stop_hold_holding = 1;
     proc->stop_hold_ignore_click = 0;
+    if (proc->led) {
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+    }
 }
 
 void pump_stop_hold_ui_exit(ui_proc_pump_t *proc)
