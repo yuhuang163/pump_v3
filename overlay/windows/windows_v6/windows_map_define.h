@@ -85,6 +85,10 @@ const char *to_window_name(uint8_t window_id);
 
 /// 窗口状态列表相关.
 void get_window_state_hdr_list(window_context_handle_t **list, uint16_t *list_len);
+
+/// 窗口引导相关.
+bool is_need_show_guide_window(window_manager_context_t *wm);
+
 #ifdef __cplusplus
 }
 #endif

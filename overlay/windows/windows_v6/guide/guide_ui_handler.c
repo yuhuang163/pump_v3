@@ -55,13 +55,6 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
         return;
     }
 
-    airplane_mode_context_t *airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
-    if (airplane && airplane->is_on_airplane_mode()) {
-        LOG_WM("goto airplane mode screen");
-        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
