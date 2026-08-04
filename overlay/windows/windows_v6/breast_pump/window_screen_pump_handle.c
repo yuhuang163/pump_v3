@@ -4,6 +4,7 @@
 */
 #include "breast_pump_manager.h" // IWYU pragma: keep
 #include "input_key_code.h"
+#include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_pump.h"// IWYU pragma: keep
 #include "windows_manager.h"
 
@@ -45,10 +46,87 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void pump_window_async_evt_handler_cb(void *user_data)
+static void pump_async_level_adjust(ui_proc_pump_t *proc, uint8_t side, uint8_t level)
 {
+    uint8_t level_max;
+    int time_index;
+    uint8_t i;
 
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    pump_sub_mode_state_init(proc, 1);
+    time_index = proc->sub_mode_time_index;
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    level_max = home_level_adjust_max_get(proc->sub_mode_type);
+    if (level > level_max) {
+        level = level_max;
+    }
 
+    LOG_WM("async level adjust side=%d level=%d max=%d", side, level, level_max);
+    if (side >= 2) {
+        for (i = 0; i < BREAST_PUMP_NUM; i++) {
+            proc->setting.level[i] = level;
+        }
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+        show_pump_both_level_adjust_ui(proc);
+    } else {
+        proc->setting.level[side] = level;
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+        show_pump_level_adjust_ui(proc, side == 0);
+    }
+}
+
+static void pump_async_speed_adjust(ui_proc_pump_t *proc, uint8_t speed)
+{
+    int time_index;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    pump_sub_mode_state_init(proc, 0);
+    time_index = proc->sub_mode_time_index;
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    if (speed >= BREAST_PUMP_SPEED_MAX) {
+        speed = BREAST_PUMP_SPEED_MAX - 1;
+    }
+
+    LOG_WM("async speed adjust speed=%d", speed);
+    proc->setting.speed = speed;
+    WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+    show_pump_speed_adjust_ui(proc);
+}
+
+static int pump_window_async_evt_handler_cb(struct window_event_data *evt_data)
+{
+    window_context_t *w_ctx = (window_context_t *)evt_data->window_ctx;
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)w_ctx->user_data;
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
+    switch (evt_data->evt_id) {
+        case WINDOW_ASYNC_EVT_LEVEL_ADJUST: {
+            window_evt_level_t *data = (window_evt_level_t *)evt_data->user_data;
+            if (!data) {
+                LOG_WM("pump level evt user_data null.");
+                break;
+            }
+            pump_async_level_adjust(proc, data->side, data->level);
+            break;
+        }
+        case WINDOW_ASYNC_EVT_SPEED_ADJUST: {
+            window_evt_speed_t *data = (window_evt_speed_t *)evt_data->user_data;
+            if (!data) {
+                LOG_WM("pump speed evt user_data null.");
+                break;
+            }
+            pump_async_speed_adjust(proc, data->speed);
+            break;
+        }
+        default:
+            LOG_WM("unknow async evt: %u", evt_data->evt_id);
+            break;
+    }
+    return 0;
 }
 
 static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *result)
@@ -574,11 +652,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
         proc->pump->add_breast_pump_result_listener(proc, on_breast_pump_result_cb);
     }
     
-    /// 设置窗口异步事件处理回调.
-    if (proc->wm) {
-        proc->wm->priv.window_private[window_id] = pump_window_async_evt_handler_cb;
-    }
-
     /// 设置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
@@ -586,7 +659,8 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
     w_ctx->is_popup_window = 0;
-    w_ctx->user_data = NULL;
+    w_ctx->user_data = proc;
+    w_ctx->async_evt_handler_cb = pump_window_async_evt_handler_cb;
     wm->dispatch_new_window(w_ctx);
     
     return ID_WINDOW_DISPLAY_OK;

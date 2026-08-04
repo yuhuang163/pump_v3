@@ -108,6 +108,9 @@ typedef struct window_manager_context {
     void (*window_scheduling_start)(void);
     /// 发送消息到窗口
     int (*post_msg_to_window)(const char *tag, multi_func_msg_data_t *msg);
+    /// 发送窗口异步事件（user_data 可带扩展结构体；flags 含 FREE 时由 WM 释放）
+    int (*post_window_event)(const char *tag, uint8_t window_id, uint32_t evt_id,
+        void *user_data, uint8_t flags);
     /// 等待窗口准备就绪
     bool (*wait_window_ready)(int wait_dummy);
     /// 是否当前窗口

@@ -80,13 +80,38 @@ typedef struct {
     int (*popup_exit_cb)(void *user_data, int args1, int args2); /// 弹出框退出回调.
 } window_entry_extra_t;
 
+/// 窗口异步事件 ID（window_event_data.evt_id）
+typedef enum {
+    WINDOW_ASYNC_EVT_NONE = 0,
+    WINDOW_ASYNC_EVT_LEVEL_ADJUST = 1, /// user_data: window_evt_level_t *（home/pump）
+    WINDOW_ASYNC_EVT_SPEED_ADJUST = 2, /// user_data: window_evt_speed_t *（home/pump）
+} window_async_evt_id_e;
+
+/// 窗口事件 flags
+#define WINDOW_EVT_FLAG_FREE_USER_DATA   (1u << 0) /// 处理完后由 WM 释放 user_data
+
+/// 力度调节事件参数（home/pump 共用）
+typedef struct {
+    uint8_t side;   /// 0左/1右/2双边
+    uint8_t level;
+} window_evt_level_t;
+
+/// 速度调节事件参数（home/pump 共用）
+typedef struct {
+    uint8_t speed;
+} window_evt_speed_t;
+
 /// 描述窗口事件结构.
+/// 小参数用 args1/args2；超出 int 或结构化数据走 user_data（堆内存 + FREE 标志）.
 typedef struct window_event_data {
     uint8_t window_id;
-    uint32_t args1;
-    uint32_t args2;
-    void *user_data;
-    void *wm;   /// window_manager
+    uint8_t flags;       /// WINDOW_EVT_FLAG_xxx
+    uint16_t rsv;
+    uint32_t evt_id;     /// window_async_evt_id_e
+    uint32_t args1;      /// 可选小参数
+    uint32_t args2;      /// 可选小参数
+    void *user_data;     /// 可选扩展数据指针
+    void *wm;            /// window_manager
     void *window_ctx;
 } window_event_data_t;
 

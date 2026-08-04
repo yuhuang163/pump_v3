@@ -13,6 +13,8 @@
 *****************************************************************************************
 */
 #define BLE_PUMP_POLICY_SHELL_CMD              "#pump"
+#define BLE_PUMP_LEVEL_SHELL_CMD               "#pumpLvl"
+#define BLE_PUMP_SPEED_SHELL_CMD               "#pumpSpd"
 #define BLE_PUMP_CTRL_SHELL_CMD                "#pCtrl"
 #define BLE_VALVE_CTRL_SHELL_CMD               "#vCtrl"
 #define BLE_SYSTEM_RESET_SHELL_CMD             "#sysRst"
@@ -25,7 +27,7 @@
 #define BLE_GLOBAL_ADAPTIVE_DIMMING_SWITCH_SHELL_CMD "#GlobalAdaptive"
 #define BLE_NIGHT_LIGHT_GEAR_SHELL_CMD         "#NightLightGear"
 #define BLE_BACK_LIGHT_LEVEL_SHELL_CMD         "#BackLightLevel"
-#define BLE_NIGHT_LIGHT_LEVEL_SHELL_CMD         "#NightLightLevel"
+#define BLE_NIGHT_LIGHT_LEVEL_SHELL_CMD        "#NightLightLevel"
 #define BLE_LCD_BACKLIGHT_SHELL_CMD            "#lcdBk"
 #define BLE_LED_NIGHT_LIGHT_SHELL_CMD          "#ledNightLight"
 #define BLE_LIGHT_SENSOR_CTL_SHELL_CMD         "#LsSmpCtrl"
@@ -41,6 +43,8 @@
 *****************************************************************************************
 */
 static void ble_shell_pump_policy(const uint8_t *param, uint16_t len);
+static void ble_shell_pump_level(const uint8_t *param, uint16_t len);
+static void ble_shell_pump_speed(const uint8_t *param, uint16_t len);
 static void ble_shell_pump_ctrl(const uint8_t *param, uint16_t len);
 static void ble_shell_valve_ctrl(const uint8_t *param, uint16_t len);
 static void ble_shell_system_reset(const uint8_t *param, uint16_t len);
@@ -65,14 +69,17 @@ static void ble_shell_custom_mode_step_info_clear(const uint8_t *param, uint16_t
 static void ble_shell_triple_write(const uint8_t *param, uint16_t len);
 static void ble_shell_triple_set_field(uint8_t *dst, uint8_t *dst_len, uint16_t max_len, const char *src);
 static const ble_factory_shell_t shell_list[] = {
+    /// 较长命令放前面，避免前缀误匹配（匹配逻辑也会校验命令边界）
+    {BLE_PUMP_LEVEL_SHELL_CMD,    ble_shell_pump_level},
+    {BLE_PUMP_SPEED_SHELL_CMD,    ble_shell_pump_speed},
     {BLE_PUMP_POLICY_SHELL_CMD,   ble_shell_pump_policy},
     {BLE_PUMP_CTRL_SHELL_CMD,     ble_shell_pump_ctrl},
     {BLE_VALVE_CTRL_SHELL_CMD,    ble_shell_valve_ctrl},
     {BLE_SYSTEM_RESET_SHELL_CMD,  ble_shell_system_reset},
     {BLE_FORBID_SLEEP_SHELL_CMD,  ble_shell_forbid_sleep},
     {BLE_IMG_TEST_SHELL_CMD,      ble_shell_img_test},
-    {BLE_ALGO_SAMPLING_DATA_SHELL_CMD, ble_shell_algo_sampling_control},
     {BLE_ALGO_SAMPLING_INTERVAL_SHELL_CMD, ble_shell_algo_sampling_interval},
+    {BLE_ALGO_SAMPLING_DATA_SHELL_CMD, ble_shell_algo_sampling_control},
     {BLE_NIGHT_LIGHT_ADAPTIVE_SHELL_CMD, ble_shell_night_light_adaptive}, /// @deprecated
     {BLE_NIGHT_LIGHT_SWITCH_SHELL_CMD, ble_shell_night_light_switch},
     {BLE_GLOBAL_ADAPTIVE_DIMMING_SWITCH_SHELL_CMD, ble_shell_global_adaptive_dimming_switch},
@@ -145,6 +152,70 @@ static void ble_shell_pump_ctrl(const uint8_t *param, uint16_t len)
         MOTOR_USER_DEBUG_PUMP_OFF : MOTOR_USER_DEBUG_PUMP_ON, &para);
 }
 
+static uint8_t ble_shell_get_level_speed_window_id(window_manager_context_t *wm)
+{
+    if (wm->is_current_window(wm, ID_WINDOW_HOME)) {
+        return ID_WINDOW_HOME;
+    }
+    if (wm->is_current_window(wm, ID_WINDOW_PUMP)) {
+        return ID_WINDOW_PUMP;
+    }
+    return ID_WINDOW_INVALID;
+}
+
+/// #pumpLvl <side> <level>  side: 0左/1右/2双边（home/pump 当前窗口）
+static void ble_shell_pump_level(const uint8_t *param, uint16_t len)
+{
+    int side = 0, level = 0;
+    window_manager_context_t *wm;
+    window_evt_level_t *data;
+    uint8_t window_id;
+
+    sscanf((const char *)param, "%d %d", &side, &level);
+    LOG_BLE("shell level side %d, level %d", side, level);
+
+    wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_VOID(wm && wm->post_window_event);
+    window_id = ble_shell_get_level_speed_window_id(wm);
+    if (window_id == ID_WINDOW_INVALID) {
+        LOG_BLE("not home/pump window, ignore level adjust.");
+        return;
+    }
+
+    data = u_malloz(sizeof(*data));
+    EXCEPTION_CHECK_VOID(data);
+    data->side = (uint8_t)side;
+    data->level = (uint8_t)level;
+    wm->post_window_event(__func__, window_id, WINDOW_ASYNC_EVT_LEVEL_ADJUST,
+        data, WINDOW_EVT_FLAG_FREE_USER_DATA);
+}
+
+/// #pumpSpd <speed>（home/pump 当前窗口）
+static void ble_shell_pump_speed(const uint8_t *param, uint16_t len)
+{
+    int speed = 0;
+    window_manager_context_t *wm;
+    window_evt_speed_t *data;
+    uint8_t window_id;
+
+    sscanf((const char *)param, "%d", &speed);
+    LOG_BLE("shell speed %d", speed);
+
+    wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_VOID(wm && wm->post_window_event);
+    window_id = ble_shell_get_level_speed_window_id(wm);
+    if (window_id == ID_WINDOW_INVALID) {
+        LOG_BLE("not home/pump window, ignore speed adjust.");
+        return;
+    }
+
+    data = u_malloz(sizeof(*data));
+    EXCEPTION_CHECK_VOID(data);
+    data->speed = (uint8_t)speed;
+    wm->post_window_event(__func__, window_id, WINDOW_ASYNC_EVT_SPEED_ADJUST,
+        data, WINDOW_EVT_FLAG_FREE_USER_DATA);
+}
+
 static void ble_shell_valve_ctrl(const uint8_t *param, uint16_t len)
 {
     motor_manager_context_t *motor = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
@@ -204,10 +275,17 @@ static int ble_factory_shell_cmd_handle(const uint8_t *param, uint16_t len)
             continue;
         }
 
-        if (memcmp(param, shell_list[i].cmd_str, strlen(shell_list[i].cmd_str)) == 0) {
-            shell_list[i].cmd_fun(param + str_len, len - str_len);
-            return 0;
+        if (memcmp(param, shell_list[i].cmd_str, str_len) != 0) {
+            continue;
         }
+        /// 命令边界：结束或空白，避免 "#pump" 误匹配 "#pumpLvl"
+        if (str_len < len && param[str_len] != ' ' && param[str_len] != '\t' &&
+            param[str_len] != '\r' && param[str_len] != '\n' && param[str_len] != '\0') {
+            continue;
+        }
+
+        shell_list[i].cmd_fun(param + str_len, len - str_len);
+        return 0;
     }
     return -1;
 }

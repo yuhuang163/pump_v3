@@ -336,25 +336,37 @@ static int window_switch(window_manager_context_t *wm, multi_func_msg_data_t *ms
     return 0;
 }
 
+static void window_evt_release_user_data(window_event_data_t *evt)
+{
+    if (evt && (evt->flags & WINDOW_EVT_FLAG_FREE_USER_DATA) && evt->user_data) {
+        u_free(evt->user_data);
+        evt->user_data = NULL;
+    }
+}
+
 static int window_post_async_msg(window_manager_context_t *wm, multi_func_msg_data_t *msg)
 {
-    int window_id = wm->is_valid_window_id(msg->union_body.window_evt_data.window_id);
+    window_event_data_t *evt = &msg->union_body.window_evt_data;
+    int window_id = wm->is_valid_window_id(evt->window_id);
     if (window_id == ID_WINDOW_INVALID) {
         LOGE("%d window is invalid", window_id);
+        window_evt_release_user_data(evt);
         return -1;
     }
 
     window_context_t *win_ctx = wm->priv.window_private[window_id];
     if (win_ctx) {
-        LOG_WM("win_ctx: %p", win_ctx);
+        LOG_WM("win_ctx: %p, evt_id: %u", win_ctx, evt->evt_id);
         if (win_ctx->async_evt_handler_cb) {
-            msg->union_body.window_evt_data.window_ctx = win_ctx;
-            win_ctx->async_evt_handler_cb(&msg->union_body.window_evt_data);
+            evt->window_ctx = win_ctx;
+            evt->wm = wm;
+            win_ctx->async_evt_handler_cb(evt);
         }
     } else {
         LOGE("win_ctx: %d not found.", window_id);
     }
 
+    window_evt_release_user_data(evt);
     return 0;
 }
 
@@ -498,8 +510,26 @@ static int post_async_msg_to_window(const char *tag, multi_func_msg_data_t *msg)
 
         LOG_WM("tag:%s, msg_type: (%d)", tag, msg->msg_type);
         MSG_QUEUE_SEND(thiz->priv.window_dispatch_thd.msg_id, msg, 0);
+        return 0;
     }
-    return 0;
+
+    if (msg->msg_type == MSG_TYPE_WIN_EVENT || msg->msg_type == 0) {
+        window_evt_release_user_data(&msg->union_body.window_evt_data);
+    }
+    return -1;
+}
+
+static int post_window_event(const char *tag, uint8_t window_id, uint32_t evt_id,
+    void *user_data, uint8_t flags)
+{
+    multi_func_msg_data_t msg = {0};
+
+    msg.msg_type = MSG_TYPE_WIN_EVENT;
+    msg.union_body.window_evt_data.window_id = window_id;
+    msg.union_body.window_evt_data.evt_id = evt_id;
+    msg.union_body.window_evt_data.user_data = user_data;
+    msg.union_body.window_evt_data.flags = flags;
+    return post_async_msg_to_window(tag, &msg);
 }
 
 static bool wait_window_ready(int wait_dummy)
@@ -741,6 +771,7 @@ void *register_module_for_window_manager_new(list_head_t *list_head)
     ptr->dispatch_new_window = dispatch_new_window;
     ptr->window_scheduling_start = window_scheduling_start;
     ptr->post_msg_to_window = post_async_msg_to_window;
+    ptr->post_window_event = post_window_event;
     ptr->wait_window_ready = wait_window_ready;
     ptr->to_window_name = to_window_name;
     ptr->get_current_window_id = get_current_window_id;
