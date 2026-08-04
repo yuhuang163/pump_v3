@@ -249,6 +249,69 @@ int read_utc_timestamp_from_flash(store_func_args_t args)
     return ret;
 }
 
+int write_sys_reboot_reason_to_flash(store_func_args_t args)
+{
+    int ret = 0;
+    EXCEPTION_CHECK_INT(args.ctx);
+    sys_reboot_reason_storage_t *store = u_malloz(sizeof(sys_reboot_reason_storage_t));
+    EXCEPTION_CHECK_INT(store);
+    store->magic = STORAGE_SYS_REBOOT_REASON_MAGIC_NUM;
+    store->reboot_reason = (uint8_t)args.arg1;
+    memset(store->resv, 0, sizeof(store->resv));
+    store->crc = CRC16(&store->reboot_reason, sizeof(store->reboot_reason) + sizeof(store->resv));
+    ret = user_database_put(args.ctx, PERSIST_KEY_SYS_REBOOT_REASON, (uint8_t *)store,
+        sizeof(sys_reboot_reason_storage_t));
+    if (ret != 0) {
+        LOGE("write sys reboot reason failure! ret: %d", ret);
+    } else {
+        args.ctx->priv.sys_info.reboot_reason = store->reboot_reason;
+        LOG_STORE_WRAP("write sys reboot reason flash: %d", store->reboot_reason);
+    }
+    u_free(store);
+    return ret;
+}
+
+int read_sys_reboot_reason_from_flash(store_func_args_t args)
+{
+    int ret = 0;
+    EXCEPTION_CHECK_INT(args.ctx);
+    uint8_t *out = (uint8_t *)args.val;
+    EXCEPTION_CHECK_INT(out);
+    sys_reboot_reason_storage_t *store = u_malloz(sizeof(sys_reboot_reason_storage_t));
+    EXCEPTION_CHECK_INT(store);
+    ret = user_database_get(args.ctx, PERSIST_KEY_SYS_REBOOT_REASON, (uint8_t *)store,
+        sizeof(sys_reboot_reason_storage_t));
+    uint16_t crc = CRC16(&store->reboot_reason, sizeof(store->reboot_reason) + sizeof(store->resv));
+    if (ret == 0 && store->magic == STORAGE_SYS_REBOOT_REASON_MAGIC_NUM && store->crc == crc) {
+        *out = store->reboot_reason;
+        args.ctx->priv.sys_info.reboot_reason = store->reboot_reason;
+    } else {
+        *out = CORE_BOOT_CAUSE_NULL;
+        args.ctx->priv.sys_info.reboot_reason = CORE_BOOT_CAUSE_NULL;
+        LOGE("read sys reboot reason failure! ret: %d, magic: %d, crc: %d, expect_crc: %d",
+             ret, store->magic, store->crc, crc);
+    }
+    u_free(store);
+    return ret;
+}
+
+int write_sys_reboot_reason_to_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    args.ctx->priv.sys_info.reboot_reason = (uint8_t)args.arg1;
+    LOG_STORE_WRAP("write sys reboot reason ram: %d", args.arg1);
+    return 0;
+}
+
+int read_sys_reboot_reason_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    int *tmp = (int *)args.val;
+    EXCEPTION_CHECK_INT(tmp);
+    *tmp = args.ctx->priv.sys_info.reboot_reason;
+    return 0;
+}
+
 int write_sys_time_zone_to_ram(store_func_args_t args)
 {
     EXCEPTION_CHECK_INT(args.ctx);

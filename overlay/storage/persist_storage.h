@@ -369,6 +369,51 @@ typedef struct {
     uint16_t crc[ROOT_BREAST_PUMP_DATA_BODY_NUM + 1];  
 } breast_pump_data_head_t;
 
+/** 系统重启原因（数字编号，用于埋点 error_data；前段对应 PMU，后段对应 SW bootmode） */
+typedef enum {
+    /* PMU / 硬件启动原因 */
+    CORE_BOOT_CAUSE_NULL                 = 0,
+    CORE_BOOT_CAUSE_POWER_KEY            = 1,
+    CORE_BOOT_CAUSE_DIG_WDT              = 2,
+    CORE_BOOT_CAUSE_DIG_REBOOT           = 3,
+    CORE_BOOT_CAUSE_AC_IN                = 4,
+    CORE_BOOT_CAUSE_AC_OUT               = 5,
+    CORE_BOOT_CAUSE_RTC                  = 6,
+    CORE_BOOT_CAUSE_PMU_WDT              = 7,
+    CORE_BOOT_CAUSE_RESET_KEY            = 8,
+    CORE_BOOT_CAUSE_LONG_PRESS           = 9,
+    CORE_BOOT_CAUSE_VCHG_COMMAND         = 10,
+    CORE_BOOT_CAUSE_VCORE_LOW            = 11,
+    CORE_BOOT_CAUSE_VBAT_OVP             = 12,
+    /* 软件 bootmode（对应 HAL_SW_BOOTMODE_*） */
+    SOFT_BOOT_ROM_RESERVED_4             = 13,
+    SOFT_BOOT_ROM_RESERVED_5             = 14,
+    SOFT_BOOT_ROM_RESERVED_6             = 15,
+    SOFT_BOOT_FORCE_USB_DLD              = 16,
+    SOFT_BOOT_FORCE_UART_DLD             = 17,
+    SOFT_BOOT_DLD_TRANS_UART             = 18,
+    SOFT_BOOT_SKIP_FLASH_BOOT            = 19,
+    SOFT_BOOT_CHIP_TEST                  = 20,
+    SOFT_BOOT_FACTORY                    = 21,
+    SOFT_BOOT_CALIB                      = 22,
+    SOFT_BOOT_RAM_BOOT                   = 23,
+    SOFT_BOOT_FLASH_BOOT                 = 24,
+    SOFT_BOOT_REBOOT                     = 25,
+    SOFT_BOOT_ROM_RESERVED_17            = 26,
+    SOFT_BOOT_FORCE_USB_PLUG_IN          = 27,
+    SOFT_BOOT_POWER_DOWN_WAKEUP          = 28,
+    SOFT_BOOT_TEST_MODE                  = 29,
+    SOFT_BOOT_TEST_SIGNALINGMODE         = 30,
+    SOFT_BOOT_TEST_NOSIGNALINGMODE       = 31,
+    SOFT_BOOT_ENTER_HIDE_BOOT            = 32,
+    SOFT_BOOT_CUSTOM_OP1_AFTER_REBOOT    = 33,
+    SOFT_BOOT_REBOOT_FROM_CRASH          = 34,
+    SOFT_BOOT_SINGLE_LINE_DOWNLOAD       = 35,
+    SOFT_BOOT_CUSTOM_OP2_AFTER_REBOOT    = 36,
+    SOFT_BOOT_CDC_OR_TEST_NORMAL         = 37, /* HAL: CDC_COMM / TEST_NORMAL_MODE */
+    SOFT_BOOT_A7_OR_BT_ON                = 38, /* HAL: A7_REBOOT / REBOOT_BT_ON */
+    SOFT_BOOT_WARM_OR_ANC_ON             = 39, /* HAL: PMU_WARM_BOOT / REBOOT_ANC_ON */
+} sys_reboot_reason_e;
 /// 描述系统信息
 typedef struct sys_persist_info {
     sys_config_info_t config;
@@ -377,6 +422,7 @@ typedef struct sys_persist_info {
     sys_pump_mode_info_t mode_info;
     user_bind_info_t bind_info;
     sys_buried_info_list_t buried_info_list;
+    uint8_t reboot_reason; /// 系统重启原因 sys_reboot_reason_e
 } sys_persist_info_t;
 
 /// 描述板子信息

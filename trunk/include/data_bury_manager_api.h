@@ -58,6 +58,7 @@ typedef enum {
     DATA_BURY_ERROR_FLANGE_NOT_DETECTED = 0x53,
     DATA_BURY_ERROR_FLANGE_ABNORMAL = 0x54,
     DATA_BURY_ERROR_FLANGE_SHORT = 0x55,
+    DATA_BURY_ERROR_SYSTEM_ERROR_REBOOT = 0x61,
 } data_bury_error_code_e;
 
 typedef enum {

@@ -31,6 +31,11 @@ int user_is_binded_from_ram(store_func_args_t args);
 /// UTC时间接口
 int write_utc_timestamp_to_flash(store_func_args_t args);
 int read_utc_timestamp_from_flash(store_func_args_t args);
+/// 系统重启原因
+int write_sys_reboot_reason_to_flash(store_func_args_t args);
+int read_sys_reboot_reason_from_flash(store_func_args_t args);
+int write_sys_reboot_reason_to_ram(store_func_args_t args);
+int read_sys_reboot_reason_from_ram(store_func_args_t args);
 /// 系统时区
 int write_sys_time_zone_to_ram(store_func_args_t args);
 int read_sys_time_zone_from_ram(store_func_args_t args);
