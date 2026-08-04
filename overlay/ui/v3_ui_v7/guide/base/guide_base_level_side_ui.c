@@ -20,7 +20,7 @@
 #define GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT                  "Left Level"
 #define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "Right Level"
 
-#define GUIDE_LEVEL_SIDE_TIP_H                          (63)
+#define GUIDE_LEVEL_SIDE_TIP_H                          (49)
 #define GUIDE_LEVEL_SIDE_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_LEVEL_SIDE_TIP_H - 8)
 #define GUIDE_LEVEL_SIDE_TIP_BASE_OPA                   (LV_OPA_70)
 
@@ -170,7 +170,7 @@ static lv_draw_buf_t *guide_level_side_tip_predecode(guide_base_ui_info_t *info)
     if (info->level_side.tip_buf != NULL) {
         return info->level_side.tip_buf;
     }
-    tip = ui_font_img_level_adjust_tip_get();
+    tip = ui_font_img_mode_select_tip_get();
     if (tip == NULL || tip->data == NULL || tip->size == 0U) {
         return NULL;
     }
