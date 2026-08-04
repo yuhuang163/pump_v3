@@ -21,12 +21,20 @@ static uint8_t long_press_flag = 0;
 static uint8_t s_key_code_size = 0;
 static uint16_t key_idle_count = 0;
 static uint32_t timer_flag = 0;
+/** 已确认激活的组合键掩码：组合键完全松开前，抑制其组成单键误报短按 */
+static uint32_t s_combo_active_mask = 0;
 static uint32_t *long_press_count = NULL;
 static scan_key_ctrl_data_t *scan_key_ctrl = NULL;
 static scan_key_data_t *scan_key_data = NULL;
 
 static rt_device_node_t *s_key_dev = NULL;
 static os_timer_id g_input_key_timer_id = NULL;
+
+/** 多 bit 为组合键 */
+static inline uint8_t scan_key_is_combo(uint32_t code_value)
+{
+    return (code_value & (code_value - 1)) != 0;
+}
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -86,26 +94,60 @@ static void scan_common_key_cb(scan_key_data_t* scan_key, uint8_t code_index)
 static void scan_key_read(scan_key_ctrl_data_t *key_ctrl, scan_key_data_t *key_data, uint8_t code_size)
 {
     uint8_t key_change = 0;
-    uint32_t key_value = platform_all_key_value(); 
+    uint32_t key_value = platform_all_key_value();
     // LOG_KEY("key_value: %x", key_value);
     /// 按键空闲计数
     if (key_value == 0) {
         long_press_flag = 0; // 释放所有按键后,长按标志位清零
+        s_combo_active_mask = 0;
         key_idle_count ++;
     } else {
         key_idle_count = 0;
     }
+
+    /* 先维护组合键会话掩码，避免单键/组合键在表中的顺序影响抑制结果 */
     for (uint8_t i = 0; i < code_size; i++) {
-        if (key_value == key_data[i].code_value) {
-            key_data[i].level = 1; ///  用于记录激活的按键数据,按键按下表示激活,对应位置1
-        } else {
-            key_data[i].level = 0;
+        const uint32_t code = key_data[i].code_value;
+        if (!scan_key_is_combo(code)) {
+            continue;
         }
-        key_data[i].up_status = (key_value & key_data[i].code_value) == 0 ? 1 : 0; ///  记录按键抬起状态, 限制组合按键触发时上报单键释放事件
-        key_change         = key_data[i].level ^ key_ctrl[i].hold; ///  记录当前和上次不同状态的按键数据,对应位为1表示此按键电平对比上次有变动
-        key_ctrl[i].hold   = key_data[i].level; ///  保存本次激活的位
-        key_ctrl[i].triger = key_data[i].level & key_change; ///  当前激活的位是否包含,当前激活和上次激活的不同的位;也就是上次未激活,当前激活的位
-        key_ctrl[i].reset  = key_change & (~key_data[i].level); ///  记录由按下到抬起的触发
+        if (key_value == code) {
+            s_combo_active_mask |= code;
+        } else if ((s_combo_active_mask & code) == code) {
+            /* 粘滞中：组成键仍有按下且无额外键 → 保持；否则结束会话 */
+            if ((key_value & code) == 0 || (key_value & ~code) != 0) {
+                s_combo_active_mask &= ~code;
+            }
+        }
+    }
+
+    for (uint8_t i = 0; i < code_size; i++) {
+        const uint32_t code = key_data[i].code_value;
+        const uint8_t is_combo = scan_key_is_combo(code);
+        uint8_t level = 0;
+
+        if (key_value == code) {
+            level = 1;
+        } else if (is_combo && ((s_combo_active_mask & code) == code)) {
+            /*
+             * 组合键粘滞：已激活的组合键在组成键全部松开前保持激活，
+             * 避免先后松开时先断匹配、残留单键被当成新短按。
+             */
+            level = 1;
+        }
+
+        /* 组合键会话未结束时，抑制其组成单键，防止残留键上报短按 */
+        if (!is_combo && (code & s_combo_active_mask)) {
+            level = 0;
+        }
+
+        key_data[i].level = level;
+        /* 组成键全部松开后才允许上报 click，配合粘滞保证组合键短按完整 */
+        key_data[i].up_status = (key_value & code) == 0 ? 1 : 0;
+        key_change         = key_data[i].level ^ key_ctrl[i].hold;
+        key_ctrl[i].hold   = key_data[i].level;
+        key_ctrl[i].triger = key_data[i].level & key_change;
+        key_ctrl[i].reset  = key_change & (~key_data[i].level);
     }
 }
 
@@ -127,6 +169,7 @@ static void scan_key_timer_cb(const void *args)
 static void scan_key_init(const uint32_t *code_value, uint8_t key_code_size)
 {
     EXCEPTION_CHECK_VOID(code_value);
+    s_combo_active_mask = 0;
     memset(scan_key_ctrl, 0, sizeof(scan_key_ctrl_data_t) * s_key_code_size);
     memset(scan_key_data, 0, sizeof(scan_key_data_t) * s_key_code_size);
     for (uint8_t i = 0; i < s_key_code_size; i++) {
