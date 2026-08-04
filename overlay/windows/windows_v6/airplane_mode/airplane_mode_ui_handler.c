@@ -10,6 +10,7 @@
 *****************************************************************************************
 */
 #define AIRPLANE_MODE_EXIT_TASK_NAME            "airplane_mode_exit_task"
+#define AIRPLANE_MODE_POWER_OFF_TASK_NAME       "airplane_mode_power_off"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -57,10 +58,49 @@ static void airplane_mode_exit_cb(hdr_post_args_t *args)
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
+static void airplane_mode_power_off_cb(hdr_post_args_t *args)
+{
+    ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore power off.");
+        return;
+    }
+    LOG_WM("airplane mode timeout, goto power off.");
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_AUTO;
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
+}
+
+static void airplane_mode_power_off_idle_timeout_tick(ui_proc_airplane_mode_t *proc)
+{
+    uint32_t time_diff;
+
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        return;
+    }
+    if (proc->power_off_idle_time == 0) {
+        proc->power_off_idle_time = get_timestamp();
+        return;
+    }
+    time_diff = get_timestamp_ms(proc->power_off_idle_time);
+    if (time_diff < AIRPLANE_MODE_TIMEOUT_TIME) {
+        return;
+    }
+    proc->power_off_idle_time = get_timestamp();
+    LOG_WM("airplane mode idle timeout: %u", time_diff);
+    POST_WM_TASK_HANDLER_NO_DELAY(airplane_mode_power_off_cb, proc,
+        AIRPLANE_MODE_POWER_OFF_TASK_NAME);
+}
+
 static void airplane_mode_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
+    (void)index;
+    airplane_mode_power_off_idle_timeout_tick(proc);
     ui_display_airplane_mode_process(ui);
 }
 
@@ -112,6 +152,7 @@ void start_airplane_mode_ui(ui_proc_airplane_mode_t *proc)
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);
     proc->last_progress_ani_time = get_timestamp();
+    proc->power_off_idle_time = get_timestamp();
     if (proc->current_ui_type == AIRPLANE_MODE_UI_TYPE_HOME) {
         return;
     }
@@ -168,5 +209,6 @@ void airplane_mode_pump_policy(ui_proc_airplane_mode_t *proc)
 void airplane_mode_ui_hdr_remove(void)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_MODE_EXIT_TASK_NAME);
+    REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_MODE_POWER_OFF_TASK_NAME);
 }
 

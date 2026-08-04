@@ -13,12 +13,10 @@
 #define PAGE_NAME_STR                           "airplane_mode"
 #define AIRPLANE_MODE_UI_KEY_CODE               (KEY_CODE_TRAVEL_LOCK)
 #define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
-#define AIRPLANE_MODE_POWER_OFF_TASK_NAME       "airplane_mode_power_off"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
-    REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_MODE_POWER_OFF_TASK_NAME); \
 } while (0)
 
 /*
@@ -48,21 +46,6 @@ static int airplane_mode_window_async_evt_handler_cb(struct window_event_data *e
     return 0;
 }
 
-static void airplane_mode_power_off_cb(hdr_post_args_t *args)
-{
-    ui_proc_airplane_mode_t *proc = (ui_proc_airplane_mode_t *)args->user_data;
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_AIRPLANE_MODE);
-    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
-        LOG_WM("wm not running, ignore power off.");
-        return;
-    }
-    LOG_WM("airplane mode timeout, goto power off.");
-    multi_func_msg_data_t msg = {0};
-    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
-    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_AUTO;
-    proc->wm->dispatch_new_window_args(proc->wm, &msg);
-}
-
 static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_airplane_mode_t *proc = user_data;
@@ -71,6 +54,8 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
         LOG_WM("wm not running, ignore.");
         return 0;
     }
+    /// 按键操作刷新关机倒计时
+    proc->power_off_idle_time = get_timestamp();
     if (keytype == KEY_EVENT_DOWN) {
         proc->popup_ui_type = ID_POPUP_UI_AIRPLANE_MODE_PROMPT;
     } else if (keytype == KEY_EVENT_UP) {
@@ -119,8 +104,6 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         airplane_mode_led_policy(proc, 1);
         airplane_mode_pump_policy(proc);
         start_airplane_mode_ui(proc);
-        POST_WM_TASK_HANDLER_DELAYED_ARG1(airplane_mode_power_off_cb, AIRPLANE_MODE_TIMEOUT_TIME,
-            proc, AIRPLANE_MODE_POWER_OFF_TASK_NAME);
     }
     
     return 0;
@@ -180,7 +163,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
-    proc->show_countdown_time = 0;
+    proc->power_off_idle_time = 0;
     /// 配置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
@@ -194,6 +177,5 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
 
     return ID_WINDOW_DISPLAY_OK;
 }
-
 
 
