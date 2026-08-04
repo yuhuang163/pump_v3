@@ -49,30 +49,20 @@ static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
 {
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_BATTERY);
     multi_func_msg_data_t msg = {0};
-
-#if IS_SUPPORT_THEME_GUIDE_WINDOW
-    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
-        LOG_WM("goto none theme screen");
-        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+    
+#if IS_SUPPORT_GUIDE_WINDOW
+    ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    if (proc->wm->is_window_guidance_deployed() == 0) {
+        LOG_WM("goto guide screen");
+        msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
+    }
+#else
+    if (proc->wm->is_window_guidance_deployed() == 0) {
+        proc->wm->set_window_guidance_deployed_flag(true);
     }
 #endif
-
-    if (proc->wm->is_window_factory_test_deployed() == 0) {
-        LOG_WM("goto factory test screen");
-        msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-
-    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
-        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
-        LOG_WM("vbus plug in, goto charge screen");
-        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
 
     if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
         LOG_WM("goto airplane mode screen");
@@ -80,23 +70,6 @@ static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-
-#if IS_SUPPORT_GUIDE_WINDOW
-    {
-        ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
-        if (proc->wm->is_window_guidance_deployed() == 0 ||
-            (ble && ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE)) {
-            LOG_WM("goto guide screen");
-            msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
-            proc->wm->dispatch_new_window_args(proc->wm, &msg);
-            return;
-        }
-    }
-#else
-    if (proc->wm->is_window_guidance_deployed() == 0) {
-        proc->wm->set_window_guidance_deployed_flag(true);
-    }
-#endif
 
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;

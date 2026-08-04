@@ -54,16 +54,6 @@ static int charge_window_async_evt_handler_cb(struct window_event_data *evt_data
 static void charge_display_exit_cb(ui_proc_charge_t *proc)
 {
     multi_func_msg_data_t msg = {0};
-
-#if IS_SUPPORT_THEME_GUIDE_WINDOW
-    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
-        LOG_WM("goto none theme screen");
-        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-#endif
-
     if (proc->battery && proc->battery->is_low_battery()) {
         LOG_WM("battery is low power, goto battery screen");
         msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
@@ -71,16 +61,8 @@ static void charge_display_exit_cb(ui_proc_charge_t *proc)
         return;
     }
 
-    if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
-        LOG_WM("goto airplane mode screen");
-        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-
 #if IS_SUPPORT_GUIDE_WINDOW
-    if (proc->wm->is_window_guidance_deployed() == 0 ||
-        (proc->ble && proc->ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE)) {
+    if (proc->wm->is_window_guidance_deployed() == 0) {
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
@@ -91,6 +73,13 @@ static void charge_display_exit_cb(ui_proc_charge_t *proc)
         proc->wm->set_window_guidance_deployed_flag(true);
     }
 #endif
+
+    if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
+        LOG_WM("goto airplane mode screen");
+        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
 
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
