@@ -164,6 +164,17 @@ static void pump_knob_right_event_cb(ui_proc_pump_t *proc)
     }
 }
 
+#if PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE
+static bool pump_adjust_key_exit_protected(ui_proc_pump_t *proc)
+{
+    if (get_timestamp_ms(proc->level_adjust_time) < PUMP_ADJUST_KEY_EXIT_PROTECT_MS) {
+        LOG_WM("adjust key exit protect %ums.", PUMP_ADJUST_KEY_EXIT_PROTECT_MS);
+        return true;
+    }
+    return false;
+}
+#endif
+
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
@@ -187,6 +198,15 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
             pump_mode_key_event_cb(proc, BREAST_PUMP_LACTATION_MODE);
             break;
         case KEY_CODE_FREQUENCY:
+            if (proc->current_ui_type == PUMP_UI_TYPE_SPEED_ADJUST) {
+#if PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE
+                if (pump_adjust_key_exit_protected(proc)) {
+                    break;
+                }
+#endif
+                pump_speed_adjust_ui_dismiss(proc);
+                break;
+            }
             show_pump_speed_adjust_ui(proc);
             break;
         case KEY_CODE_POWER:
@@ -196,12 +216,41 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
             pump_start_key_event_handler(proc);
             break;
         case KEY_CODE_RIGHT_CONTROL:
+            if (proc->current_ui_type == PUMP_UI_TYPE_LEVEL_ADJUST &&
+                proc->level_adjust_side == PUMP_LEVEL_ADJUST_SIDE_RIGHT) {
+#if PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE
+                if (pump_adjust_key_exit_protected(proc)) {
+                    break;
+                }
+#endif
+                pump_level_adjust_ui_dismiss(proc);
+                break;
+            }
             show_pump_level_adjust_ui(proc, false);
             break;
         case KEY_CODE_LEFT_CONTROL:
+            if (proc->current_ui_type == PUMP_UI_TYPE_LEVEL_ADJUST &&
+                proc->level_adjust_side == PUMP_LEVEL_ADJUST_SIDE_LEFT) {
+#if PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE
+                if (pump_adjust_key_exit_protected(proc)) {
+                    break;
+                }
+#endif
+                pump_level_adjust_ui_dismiss(proc);
+                break;
+            }
             show_pump_level_adjust_ui(proc, true);
             break;
         case KEY_CODE_BOTH_CONTROL:
+            if (proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL_ADJUST) {
+#if PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE
+                if (pump_adjust_key_exit_protected(proc)) {
+                    break;
+                }
+#endif
+                pump_both_level_adjust_ui_dismiss(proc);
+                break;
+            }
             show_pump_both_level_adjust_ui(proc);
             break;
         case KEY_CODE_KNOB_LEFT:

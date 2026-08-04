@@ -180,6 +180,17 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
     LOG_WM("ignore key event.");
 }
 
+#if HOME_ADJUST_KEY_EXIT_PROTECT_ENABLE
+static bool home_adjust_key_exit_protected(ui_proc_home_t *proc)
+{
+    if (get_timestamp_ms(proc->level_adjust_time) < HOME_ADJUST_KEY_EXIT_PROTECT_MS) {
+        LOG_WM("adjust key exit protect %ums.", HOME_ADJUST_KEY_EXIT_PROTECT_MS);
+        return true;
+    }
+    return false;
+}
+#endif
+
 static void home_click_event_cb(ui_proc_home_t *proc, uint16_t keycode)
 {
     switch (keycode) {
@@ -193,6 +204,15 @@ static void home_click_event_cb(ui_proc_home_t *proc, uint16_t keycode)
             home_power_key_event_cb(proc);
             break;
         case KEY_CODE_FREQUENCY:
+            if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
+#if HOME_ADJUST_KEY_EXIT_PROTECT_ENABLE
+                if (home_adjust_key_exit_protected(proc)) {
+                    break;
+                }
+#endif
+                home_speed_adjust_ui_dismiss(proc);
+                break;
+            }
             show_home_speed_adjust_ui(proc);
             break;
         case KEY_CODE_START:
@@ -205,12 +225,41 @@ static void home_click_event_cb(ui_proc_home_t *proc, uint16_t keycode)
             home_knob_right_event_cb(proc);
             break;
         case KEY_CODE_RIGHT_CONTROL:
-            show_home_level_adjust_ui(proc, false);            
+            if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST &&
+                proc->level_adjust_side == HOME_LEVEL_ADJUST_SIDE_RIGHT) {
+#if HOME_ADJUST_KEY_EXIT_PROTECT_ENABLE
+                if (home_adjust_key_exit_protected(proc)) {
+                    break;
+                }
+#endif
+                home_level_adjust_ui_dismiss(proc);
+                break;
+            }
+            show_home_level_adjust_ui(proc, false);
             break;
         case KEY_CODE_LEFT_CONTROL:
+            if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST &&
+                proc->level_adjust_side == HOME_LEVEL_ADJUST_SIDE_LEFT) {
+#if HOME_ADJUST_KEY_EXIT_PROTECT_ENABLE
+                if (home_adjust_key_exit_protected(proc)) {
+                    break;
+                }
+#endif
+                home_level_adjust_ui_dismiss(proc);
+                break;
+            }
             show_home_level_adjust_ui(proc, true);
             break;
         case KEY_CODE_BOTH_CONTROL:
+            if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+#if HOME_ADJUST_KEY_EXIT_PROTECT_ENABLE
+                if (home_adjust_key_exit_protected(proc)) {
+                    break;
+                }
+#endif
+                home_both_level_adjust_ui_dismiss(proc);
+                break;
+            }
             show_home_both_level_adjust_ui(proc);
             break;
         default:

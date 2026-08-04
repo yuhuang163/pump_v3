@@ -51,6 +51,13 @@ extern "C" {
 /// 速度调节页：无操作静默退出
 #define PUMP_SPEED_ADJUST_IDLE_TIMEOUT_MS      (5000) /// 5s
 
+/// 力度/速度调节页：进入后再次点击对应按键退出的防抖保护
+#ifndef PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE
+#define PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE    (1)
+#endif
+#define PUMP_ADJUST_KEY_EXIT_PROTECT_MS        (100) /// 100ms
+
+
 /// 力度/速度调节页退出：1=回到上一页（保留 page_index），0=回本窗口首页（page_index 清零）
 #ifndef PUMP_ADJUST_EXIT_TO_PREV_PAGE_ENABLE
 #define PUMP_ADJUST_EXIT_TO_PREV_PAGE_ENABLE   (0)
