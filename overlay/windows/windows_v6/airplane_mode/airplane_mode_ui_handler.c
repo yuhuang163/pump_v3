@@ -145,7 +145,7 @@ void airplane_mode_led_policy(ui_proc_airplane_mode_t *proc, uint8_t status)
             proc->led->hook->set_key_backlight(proc->led, 0);
         }
         proc->led->set_led_level(PUMP_MODE_BL, LED_LEVEL_MAX);
-        proc->led->set_led_level(PUMP_BREASTFEEDING_BL, LED_LEVEL_MAX);
+        proc->led->set_led_level(PUMP_FREQ_SET_BL, LED_LEVEL_MAX);
 
     } else {
         if (proc->led->hook && proc->led->hook->set_key_backlight) {

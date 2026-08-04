@@ -24,7 +24,7 @@
 #define AIRPLANE_MODE_HOLDING_CONTENT_SHIFT_Y             (52)
 
 #define AIRPLANE_MODE_TITLE_TEXT                          "Device locked"
-#define AIRPLANE_MODE_HINT_TEXT                           "Press and hold for 5\nseconds to unlock,"
+#define AIRPLANE_MODE_HINT_TEXT                           "Press and hold for 5\nseconds to unlock"
 
 #define AIRPLANE_MODE_STIM_KEY_ICON_X                     (99)
 #define AIRPLANE_MODE_STIM_KEY_ICON_Y                     (267)
