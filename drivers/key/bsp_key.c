@@ -44,7 +44,7 @@ static const uint32_t key_code_value[SCAN_KEY_CODE_MAX] = {
     SCAN_KEY_CODE_6_VALUE, /// 左控制键
     SCAN_KEY_CODE_7_VALUE, /// 右控制键
     SCAN_KEY_CODE_24_VALUE, /// 恢复出厂设置键
-    SCAN_KEY_CODE_35_VALUE, /// 旅行锁键
+    SCAN_KEY_CODE_34_VALUE, /// 旅行锁键
     SCAN_KEY_CODE_67_VALUE, /// 双边控制键
 };
 #else
