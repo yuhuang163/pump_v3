@@ -355,7 +355,13 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
     switch (proc->page_index) {
         case GUIDE_PAGE_QRCODE:
             if (keycode == KEY_CODE_POWER) {
-                guide_page_advance(proc, GUIDE_PAGE_INTRO);
+                /// 引导已部署时仅展示二维码，短按 power 直接退出
+                if (proc->wm && proc->wm->is_window_guidance_deployed() != 0) {
+                    LOG_WM("guide deployed, exit from qrcode page");
+                    guide_exit_to_home(proc);
+                } else {
+                    guide_page_advance(proc, GUIDE_PAGE_INTRO);
+                }
             }
             break;
         case GUIDE_PAGE_INTRO:

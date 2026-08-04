@@ -104,11 +104,15 @@ static void system_abnormal_exit_cb(ui_proc_system_abnormal_t *proc)
     }
 
 #if IS_SUPPORT_GUIDE_WINDOW
-    if (proc->wm->is_window_guidance_deployed() == 0) {
-        LOG_WM("goto guide screen");
-        msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
+    {
+        ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+        if (proc->wm->is_window_guidance_deployed() == 0 ||
+            (ble && ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE)) {
+            LOG_WM("goto guide screen");
+            msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
+            proc->wm->dispatch_new_window_args(proc->wm, &msg);
+            return;
+        }
     }
 #else
     if (proc->wm->is_window_guidance_deployed() == 0) {
