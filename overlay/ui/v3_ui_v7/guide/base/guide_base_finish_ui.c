@@ -12,11 +12,13 @@
 *****************************************************************************************
 */
 #define GUIDE_FINISH_QRCODE_SIZE                        (120)
+#define GUIDE_FINISH_QRCODE_PAD                         (8)     /// 二维码四周留白
+#define GUIDE_FINISH_QRCODE_INNER_SIZE                  (GUIDE_FINISH_QRCODE_SIZE - GUIDE_FINISH_QRCODE_PAD * 2)
 #define GUIDE_FINISH_QRCODE_RADIUS                      (11)
 #define GUIDE_FINISH_QRCODE_ALIGN_Y                     (56)
 #define GUIDE_FINISH_QRCODE_BG_COLOR                    (0xFFFFFF)
 #define GUIDE_FINISH_QRCODE_FG_COLOR                    (0x000000)
-#define GUIDE_FINISH_QRCODE_TEXT                        "www.baidu.com"
+#define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
 
 #define GUIDE_FINISH_DESC_Y                             (197)
 #define GUIDE_FINISH_DESC_COLOR                         (0xFFFFFF)
@@ -130,7 +132,7 @@ static void guide_finish_qrcode_create(guide_base_ui_info_t *info)
         page->qrcode = lv_qrcode_create(page->qr_cont);
         EXCEPTION_CHECK_VOID(page->qrcode);
     }
-    lv_qrcode_set_size(page->qrcode, GUIDE_FINISH_QRCODE_SIZE);
+    lv_qrcode_set_size(page->qrcode, GUIDE_FINISH_QRCODE_INNER_SIZE);
     lv_qrcode_set_dark_color(page->qrcode, lv_color_hex(GUIDE_FINISH_QRCODE_FG_COLOR));
     lv_qrcode_set_light_color(page->qrcode, lv_color_hex(GUIDE_FINISH_QRCODE_BG_COLOR));
     lv_qrcode_update(page->qrcode, page->qr_str, strlen(page->qr_str));
