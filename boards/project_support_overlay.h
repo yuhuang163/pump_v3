@@ -207,6 +207,10 @@ extern "C" {
 /// 支持旋钮按键触发后的电源键去抖（抑制误触）
 #define IS_SUPPORT_KNOB_POWER_KEY_DEBOUNCE               (1)
 
+/// 泵同步方式：同档同步 / 同频同步（二者互斥，优先同频）
+#define PUMP_LEVEL_SYNC_ENABLE                           (0)
+#define PUMP_FREQ_SYNC_ENABLE                            (1)
+
 #ifdef __cplusplus
 }
 #endif
