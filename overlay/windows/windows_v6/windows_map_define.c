@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "ble_manager_api.h"
 #include "root_common_api.h" // IWYU pragma: keep
 #include "windows_manager.h" // IWYU pragma: keep
 #include "windows_map_define.h" // IWYU pragma: keep
@@ -125,4 +126,21 @@ void get_window_state_hdr_list(window_context_handle_t **list, uint16_t *list_le
 {
     *list = (window_context_handle_t *)g_process_handle_list;
     *list_len = LENGTH_OF_ARRAY(g_process_handle_list);
+}
+
+bool is_need_show_guide_window(window_manager_context_t *wm)
+{
+    static bool display_guide_window = false;
+    if (wm->is_window_guidance_deployed() == 0) {
+        display_guide_window = true;
+        return true;
+    }
+
+    ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    if (ble && ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE &&
+        display_guide_window == false) {
+        display_guide_window = true;
+        return true;
+    }
+    return false;
 }
