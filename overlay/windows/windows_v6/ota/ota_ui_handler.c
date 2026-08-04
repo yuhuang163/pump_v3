@@ -31,6 +31,13 @@ static void ota_display_completed_cb(hdr_post_args_t *args)
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_OTA_UPGRADE);
     multi_func_msg_data_t msg = {0};
 
+    if (proc->wm->is_window_factory_test_deployed() == 0) {
+        LOG_WM("goto factory test screen");
+        msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
 #if IS_SUPPORT_THEME_GUIDE_WINDOW
     if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
         LOG_WM("goto none theme screen");
@@ -40,20 +47,6 @@ static void ota_display_completed_cb(hdr_post_args_t *args)
     }
 #endif
 
-    if (proc->battery && proc->battery->is_low_battery()) {
-        LOG_WM("battery is low power, goto battery screen");
-        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-
-    if (proc->wm->is_window_factory_test_deployed() == 0) {
-        LOG_WM("goto factory test screen");
-        msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
         proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
         LOG_WM("vbus plug in, goto charge screen");
@@ -62,16 +55,15 @@ static void ota_display_completed_cb(hdr_post_args_t *args)
         return;
     }
 
-    if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
-        LOG_WM("goto airplane mode screen");
-        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
+    if (proc->battery && proc->battery->is_low_battery()) {
+        LOG_WM("battery is low power, goto battery screen");
+        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
 
 #if IS_SUPPORT_GUIDE_WINDOW
-    if (proc->wm->is_window_guidance_deployed() == 0 ||
-        (proc->ble && proc->ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE)) {
+    if (proc->wm->is_window_guidance_deployed() == 0) {
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
@@ -82,6 +74,13 @@ static void ota_display_completed_cb(hdr_post_args_t *args)
         proc->wm->set_window_guidance_deployed_flag(true);
     }
 #endif
+
+    if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
+        LOG_WM("goto airplane mode screen");
+        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
 
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;

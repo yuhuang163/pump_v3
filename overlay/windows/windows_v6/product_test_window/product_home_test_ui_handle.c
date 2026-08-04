@@ -25,16 +25,6 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
     multi_func_msg_data_t msg = {0};    
-
-#if IS_SUPPORT_THEME_GUIDE_WINDOW
-    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
-        LOG_WM("goto none theme screen");
-        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-#endif
-
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
         proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
         LOG_WM("vbus plug in, goto charge screen");
@@ -43,27 +33,12 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
         return;
     }
 
-    if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
-        LOG_WM("goto airplane mode screen");
-        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
+    if (proc->battery && proc->battery->is_low_battery()) {
+        LOG_WM("battery is low power, goto battery screen");
+        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-
-#if IS_SUPPORT_GUIDE_WINDOW
-    if (proc->wm->is_window_guidance_deployed() == 0 ||
-        (proc->ble && proc->ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE)) {
-        LOG_WM("goto guide screen");
-        msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-#else
-    if (proc->wm->is_window_guidance_deployed() == 0) {
-        proc->wm->set_window_guidance_deployed_flag(true);
-    }
-#endif
-
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);

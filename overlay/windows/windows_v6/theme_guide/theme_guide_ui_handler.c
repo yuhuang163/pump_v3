@@ -25,19 +25,6 @@ static void theme_guide_display_completed_cb(hdr_post_args_t *args)
             RES_THEME_TYPE_BASE : RES_THEME_TYPE_CUSTOM);
     }
     multi_func_msg_data_t msg = {0};
-    if (proc->battery && proc->battery->is_low_battery()) {
-        LOG_WM("battery is low power, goto battery screen");
-        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-
-    if (proc->wm->is_window_factory_test_deployed() == 0) {
-        LOG_WM("goto factory test screen");
-        msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
 
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
         proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
@@ -47,23 +34,19 @@ static void theme_guide_display_completed_cb(hdr_post_args_t *args)
         return;
     }
 
-    if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
-        LOG_WM("goto airplane mode screen");
-        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
+    if (proc->battery && proc->battery->is_low_battery()) {
+        LOG_WM("battery is low power, goto battery screen");
+        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
 
 #if IS_SUPPORT_GUIDE_WINDOW
-    {
-        ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
-        if (proc->wm->is_window_guidance_deployed() == 0 ||
-            (ble && ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE)) {
-            LOG_WM("goto guide screen");
-            msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
-            proc->wm->dispatch_new_window_args(proc->wm, &msg);
-            return;
-        }
+    if (proc->wm->is_window_guidance_deployed() == 0) {
+        LOG_WM("goto guide screen");
+        msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
     }
 #else
     if (proc->wm->is_window_guidance_deployed() == 0) {
@@ -71,6 +54,12 @@ static void theme_guide_display_completed_cb(hdr_post_args_t *args)
     }
 #endif
 
+    if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
+        LOG_WM("goto airplane mode screen");
+        msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_MODE_UNSELECT;
