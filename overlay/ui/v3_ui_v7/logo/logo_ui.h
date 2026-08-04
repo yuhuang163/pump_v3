@@ -15,7 +15,7 @@ extern "C" {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-/// 开机LOGO页面
+/// 开机LOGO icon 页面
 void ui_display_logo_prepare(ui_manager_context_t *thiz);
 void ui_display_logo_remove(ui_manager_context_t *thiz);
 int ui_display_logo_process(ui_manager_context_t *thiz);
@@ -23,5 +23,4 @@ int ui_display_logo_process(ui_manager_context_t *thiz);
 #ifdef __cplusplus
 }
 #endif
-#endif// __UI_DISPLAY_H__
-
+#endif// __LOGO_UI_H__

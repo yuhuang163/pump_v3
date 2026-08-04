@@ -4,7 +4,7 @@
 */
 #include "input_key_code.h" // IWYU pragma: keep
 #include "root_common_api.h" // IWYU pragma: keep
-#include "windows_manager.h" 
+#include "windows_manager.h"
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "window_screen_logo.h" // IWYU pragma: keep
 
@@ -28,11 +28,6 @@ do { \
 *****************************************************************************************
 */
 INIT_WINDOW_CONTEXT();
-
-/*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -113,8 +108,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *old_scr)
 {
     ui_proc_logo_t *proc = CONTAINER_OF(thiz, ui_proc_logo_t, w_ctx);
-    window_manager_context_t *wm = proc->wm;
-    ui_manager_context_t *ui = proc->ui;
+    (void)old_scr;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         #if (IS_SUPPORT_LOGO_UI_TEST || IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST)
         if (proc->key) {
@@ -204,4 +198,3 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
 
     return ID_WINDOW_DISPLAY_OK;
 }
-

@@ -70,7 +70,8 @@ static void ota_display_completed_cb(hdr_post_args_t *args)
     }
 
 #if IS_SUPPORT_GUIDE_WINDOW
-    if (proc->wm->is_window_guidance_deployed() == 0) {
+    if (proc->wm->is_window_guidance_deployed() == 0 ||
+        (proc->ble && proc->ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE)) {
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);

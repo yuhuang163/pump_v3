@@ -1,7 +1,7 @@
 /*
 * INCLUDE FILES
 *****************************************************************************************
-*/ 
+*/
 #include "ui_page_define.h"  // IWYU pragma: keep
 #include "window_screen_logo.h" // IWYU pragma: keep
 
@@ -10,16 +10,6 @@
 *****************************************************************************************
 */
 #define LOGO_DISPLAY_TASK_NAME              "logo_display_cmp"
-
-/*
-* LOCAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-
-/*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -71,13 +61,14 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     }
 
 #if IS_SUPPORT_GUIDE_WINDOW
-    if (proc->wm->is_window_guidance_deployed() == 0) {
+    if (proc->wm->is_window_guidance_deployed() == 0 ||
+        (proc->ble && proc->ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE)) {
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-#else   
+#else
     if (proc->wm->is_window_guidance_deployed() == 0) {
         proc->wm->set_window_guidance_deployed_flag(true);
     }
@@ -92,6 +83,7 @@ static void logo_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_logo_t *proc = (ui_proc_logo_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
+    (void)index;
     ui_display_logo_process(ui);
 #if (IS_SUPPORT_LOGO_UI_TEST == 0)
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
@@ -99,7 +91,7 @@ static void logo_ui_after_policy(ui_manager_context_t *ui, int index)
         proc->last_progress_ani_time = get_timestamp();
         LOG_UI("logo ui timeout: %d", time_diff);
         POST_WM_TASK_HANDLER_NO_DELAY(logo_display_completed_cb, proc, LOGO_DISPLAY_TASK_NAME);
-    } 
+    }
 #endif
 }
 

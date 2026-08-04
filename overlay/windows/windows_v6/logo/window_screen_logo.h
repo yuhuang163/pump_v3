@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 /// logo动画展示时间
-#define LOGO_ANIMATION_DISPLAY_TIME         (2000) /// 2s
+#define LOGO_ANIMATION_DISPLAY_TIME         (3000) /// 3s
 
 /// logo UI类型枚举
 typedef enum {
@@ -65,5 +65,3 @@ void stop_logo_ui_animation(ui_proc_logo_t *proc);
 #endif
 
 #endif 
-
-
