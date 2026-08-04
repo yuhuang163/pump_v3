@@ -30,6 +30,18 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static int theme_guide_window_async_evt_handler_cb(struct window_event_data *evt_data)
+{
+    window_context_t *w_ctx = (window_context_t *)evt_data->window_ctx;
+    ui_proc_theme_guide_t *proc = (ui_proc_theme_guide_t *)w_ctx->user_data;
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_THEME_GUIDE, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+    return 0;
+}
+
 static void theme_guide_knob_event_handler(ui_proc_theme_guide_t *proc, bool is_left)
 {
     proc->is_operated = 1;
@@ -159,6 +171,8 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
     w_ctx->is_popup_window = 0;
+    w_ctx->user_data = proc;
+    w_ctx->async_evt_handler_cb = theme_guide_window_async_evt_handler_cb;
     wm->dispatch_new_window(w_ctx);
 
     return ID_WINDOW_DISPLAY_OK;

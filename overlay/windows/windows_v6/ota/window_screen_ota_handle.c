@@ -41,6 +41,18 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static int ota_window_async_evt_handler_cb(struct window_event_data *evt_data)
+{
+    window_context_t *w_ctx = (window_context_t *)evt_data->window_ctx;
+    ui_proc_ota_t *proc = (ui_proc_ota_t *)w_ctx->user_data;
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_OTA_UPGRADE, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+    return 0;
+}
+
 static void ota_ui_switch_cb(hdr_post_args_t *args)
 {
     ui_proc_ota_t *proc = args->user_data;
@@ -204,6 +216,8 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
     w_ctx->is_popup_window = 0;
+    w_ctx->user_data = proc;
+    w_ctx->async_evt_handler_cb = ota_window_async_evt_handler_cb;
     wm->dispatch_new_window(w_ctx);
     
     return ID_WINDOW_DISPLAY_OK;

@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "input_key_code.h" // IWYU pragma: keep
+#include "ui_page_define.h" // IWYU pragma: keep
 #include "windows_manager.h" 
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
@@ -42,6 +43,89 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void home_async_level_adjust(ui_proc_home_t *proc, uint8_t side, uint8_t level)
+{
+    uint8_t level_max;
+    int time_index;
+    uint8_t i;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    home_sub_mode_state_init(proc, 1);
+    time_index = proc->sub_mode_time_index;
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    level_max = home_level_adjust_max_get(proc->sub_mode_type);
+    if (level > level_max) {
+        level = level_max;
+    }
+
+    LOG_WM("async level adjust side=%d level=%d max=%d", side, level, level_max);
+    if (side >= 2) {
+        for (i = 0; i < BREAST_PUMP_NUM; i++) {
+            proc->setting.level[i] = level;
+        }
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+        show_home_both_level_adjust_ui(proc);
+    } else {
+        proc->setting.level[side] = level;
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+        show_home_level_adjust_ui(proc, side == 0);
+    }
+}
+
+static void home_async_speed_adjust(ui_proc_home_t *proc, uint8_t speed)
+{
+    int time_index;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    home_sub_mode_state_init(proc, 0);
+    time_index = proc->sub_mode_time_index;
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    if (speed >= BREAST_PUMP_SPEED_MAX) {
+        speed = BREAST_PUMP_SPEED_MAX - 1;
+    }
+
+    LOG_WM("async speed adjust speed=%d", speed);
+    proc->setting.speed = speed;
+    WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+    show_home_speed_adjust_ui(proc);
+}
+
+static int home_window_async_evt_handler_cb(struct window_event_data *evt_data)
+{
+    window_context_t *w_ctx = (window_context_t *)evt_data->window_ctx;
+    ui_proc_home_t *proc = (ui_proc_home_t *)w_ctx->user_data;
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_HOME, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
+    switch (evt_data->evt_id) {
+        case WINDOW_ASYNC_EVT_LEVEL_ADJUST: {
+            window_evt_level_t *data = (window_evt_level_t *)evt_data->user_data;
+            if (!data) {
+                LOG_WM("home level evt user_data null.");
+                break;
+            }
+            home_async_level_adjust(proc, data->side, data->level);
+            break;
+        }
+        case WINDOW_ASYNC_EVT_SPEED_ADJUST: {
+            window_evt_speed_t *data = (window_evt_speed_t *)evt_data->user_data;
+            if (!data) {
+                LOG_WM("home speed evt user_data null.");
+                break;
+            }
+            home_async_speed_adjust(proc, data->speed);
+            break;
+        }
+        default:
+            LOG_WM("unknow async evt: %u", evt_data->evt_id);
+            break;
+    }
+    return 0;
+}
+
 static void home_start_key_event_handler(ui_proc_home_t *proc)
 {
     if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
@@ -527,12 +611,16 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->receiver.id.code |= ID_BROADCAST_SYS_STATE_CHANGE;
     proc->receiver.receiver_cb = on_home_ui_broadcast_receive_cb;
     register_broadcast_receiver(&proc->receiver);
+
+    /// 设置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
     w_ctx->evt_cb_entry = entry_event_cb;
     w_ctx->evt_cb_exit = exit_event_cb;
     w_ctx->not_push_history = 1;
     w_ctx->is_popup_window = 0;
+    w_ctx->user_data = proc;
+    w_ctx->async_evt_handler_cb = home_window_async_evt_handler_cb;
     wm->dispatch_new_window(w_ctx);
     
     return ID_WINDOW_DISPLAY_OK;
