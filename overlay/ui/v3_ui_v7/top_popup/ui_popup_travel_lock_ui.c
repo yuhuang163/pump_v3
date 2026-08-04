@@ -11,7 +11,7 @@
 #define TRAVEL_LOCK_TITLE_Y                               (148)
 #define TRAVEL_LOCK_TITLE_COLOR                           (0xFFFFFF)
 #define TRAVEL_LOCK_TITLE_LINE_SPACE                      (4)
-#define TRAVEL_LOCK_ARC_DONE_COLOR                        (0xEF4C4E)
+#define TRAVEL_LOCK_ARC_DONE_COLOR                        (0xFFFFFF)
 
 /*
 * LOCAL VARIABLE DEFINITIONS

@@ -51,7 +51,6 @@ static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
     multi_func_msg_data_t msg = {0};
     
 #if IS_SUPPORT_GUIDE_WINDOW
-    ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     if (proc->wm->is_window_guidance_deployed() == 0) {
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
