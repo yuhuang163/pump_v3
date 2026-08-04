@@ -13,15 +13,34 @@
 #define PUMP_MODE_PAGE_DOT_COLOR_ACTIVE             (0xFFFFFF)
 #define PUMP_MODE_PAGE_DOT_COLOR_INACTIVE           (0x4D4D4D)
 
-#define PUMP_MODE_PAGE_ICON_Y                       (100)
-#define PUMP_MODE_PAGE_TITLE_Y                      (214)
+/** 常规模式（刺激/吸乳）是否显示时长；默认关闭，开启后同韵律展示 ≈ Nmin */
+#ifndef IS_SUPPORT_PUMP_MODE_PAGE_COMMON_DURATION
+#define IS_SUPPORT_PUMP_MODE_PAGE_COMMON_DURATION   (0)
+#endif
+/** 刺激/吸乳时长文案固定分钟数 */
+#define PUMP_MODE_PAGE_COMMON_DURATION_MIN          (30)
+
+/** 刺激：ICON / 文案 / 时间 */
+#define PUMP_MODE_PAGE_STIM_ICON_Y                  (87)
+#define PUMP_MODE_PAGE_STIM_TITLE_Y                 (195)
+#define PUMP_MODE_PAGE_STIM_DURATION_Y              (242)
+/** 吸乳：ICON / 文案 / 时间 */
+#define PUMP_MODE_PAGE_EXPR_ICON_Y                  (89)
+#define PUMP_MODE_PAGE_EXPR_TITLE_Y                 (195)
+#define PUMP_MODE_PAGE_EXPR_DURATION_Y              (242)
+/** 韵律单行：ICON / 文案 / 时间 */
+#define PUMP_MODE_PAGE_RHYTHM_1L_ICON_Y             (88)
+#define PUMP_MODE_PAGE_RHYTHM_1L_TITLE_Y            (195)
+#define PUMP_MODE_PAGE_RHYTHM_1L_DURATION_Y         (242)
+/** 韵律两行：ICON / 文案 / 时间 */
+#define PUMP_MODE_PAGE_RHYTHM_2L_ICON_Y             (67)
+#define PUMP_MODE_PAGE_RHYTHM_2L_TITLE_Y            (168)
+#define PUMP_MODE_PAGE_RHYTHM_2L_DURATION_Y         (262)
+
 #define PUMP_MODE_PAGE_TITLE_COLOR                  (0xFFFFFF)
-#define PUMP_MODE_PAGE_DURATION_Y                   (246)
 #define PUMP_MODE_PAGE_DURATION_COLOR               (0x999999)
-/** 模式标题单行超宽则换行；换行后按间距重排 ICON / 时间文案 */
+/** 模式标题单行超宽则换行；换行后按单/双行固定坐标排 ICON / 时间文案 */
 #define PUMP_MODE_PAGE_TITLE_MAX_W                  (290)
-#define PUMP_MODE_PAGE_ICON_TITLE_GAP               (22)
-#define PUMP_MODE_PAGE_TITLE_DURATION_GAP           (6)
 /** 标题最长 32 字符；超出则裁进 shown 并启用 "..." */
 #define PUMP_MODE_PAGE_TITLE_MAX_CHARS              (32 - 6)
 #define PUMP_MODE_PAGE_TITLE_BUF_LEN                (PUMP_MODE_PAGE_TITLE_MAX_CHARS + 1)
@@ -680,9 +699,45 @@ static void pump_mode_chrome_visibility_apply(pump_home_base_ui_info_t *info)
     }
 }
 
+/** 按模式与是否两行文案取 ICON / 标题 / 时间 Y */
+static void pump_mode_page_layout_y_get(uint8_t mode, bool multi_line,
+    lv_coord_t *icon_y, lv_coord_t *title_y, lv_coord_t *duration_y)
+{
+    switch (mode) {
+        case BREAST_PUMP_STIMULATION_MODE:
+            *icon_y = PUMP_MODE_PAGE_STIM_ICON_Y;
+            *title_y = PUMP_MODE_PAGE_STIM_TITLE_Y;
+            *duration_y = PUMP_MODE_PAGE_STIM_DURATION_Y;
+            break;
+        case BREAST_PUMP_LACTATION_MODE:
+            *icon_y = PUMP_MODE_PAGE_EXPR_ICON_Y;
+            *title_y = PUMP_MODE_PAGE_EXPR_TITLE_Y;
+            *duration_y = PUMP_MODE_PAGE_EXPR_DURATION_Y;
+            break;
+        case BREAST_PUMP_MILK_BOOST_MODE:
+        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+        case BREAST_PUMP_CUSTOM_MODE:
+            if (multi_line) {
+                *icon_y = PUMP_MODE_PAGE_RHYTHM_2L_ICON_Y;
+                *title_y = PUMP_MODE_PAGE_RHYTHM_2L_TITLE_Y;
+                *duration_y = PUMP_MODE_PAGE_RHYTHM_2L_DURATION_Y;
+            } else {
+                *icon_y = PUMP_MODE_PAGE_RHYTHM_1L_ICON_Y;
+                *title_y = PUMP_MODE_PAGE_RHYTHM_1L_TITLE_Y;
+                *duration_y = PUMP_MODE_PAGE_RHYTHM_1L_DURATION_Y;
+            }
+            break;
+        default:
+            *icon_y = PUMP_MODE_PAGE_RHYTHM_1L_ICON_Y;
+            *title_y = PUMP_MODE_PAGE_RHYTHM_1L_TITLE_Y;
+            *duration_y = PUMP_MODE_PAGE_RHYTHM_1L_DURATION_Y;
+            break;
+    }
+}
+
 /**
- * 模式标题超 290px 自动换行；两行仍不够则第二行加 "..."。
- * 单行：固定 Y；多行：ICON+标题(+时间) 相对单行设计块垂直居中，避免整体下移。
+ * 模式标题超宽自动换行；两行仍不够则第二行加 "..."。
+ * ICON / 文案 / 时间按模式与单双行使用固定 Y。
  */
 static void pump_mode_page_hero_layout(pump_home_base_mode_page_ctx_t *ctx)
 {
@@ -690,12 +745,10 @@ static void pump_mode_page_hero_layout(pump_home_base_mode_page_ctx_t *ctx)
     int32_t letter_space;
     int32_t line_space;
     lv_point_t size;
-    lv_coord_t title_y = PUMP_MODE_PAGE_TITLE_Y;
-    lv_coord_t icon_y = PUMP_MODE_PAGE_ICON_Y;
-    lv_coord_t duration_y = PUMP_MODE_PAGE_DURATION_Y;
-    lv_coord_t icon_h = 0;
+    lv_coord_t title_y;
+    lv_coord_t icon_y;
+    lv_coord_t duration_y;
     lv_coord_t title_h = 0;
-    lv_coord_t duration_h = 0;
     bool has_duration = false;
     bool multi_line = false;
     char display[PUMP_MODE_PAGE_TITLE_DISPLAY_LEN];
@@ -727,37 +780,10 @@ static void pump_mode_page_hero_layout(pump_home_base_mode_page_ctx_t *ctx)
     lv_obj_update_layout(ctx->title);
     title_h = lv_obj_get_height(ctx->title);
     multi_line = (title_h > font->line_height) || (strchr(display, '\n') != NULL);
-
-    if (ctx->icon != NULL && lv_obj_is_valid(ctx->icon)) {
-        lv_obj_update_layout(ctx->icon);
-        icon_h = lv_obj_get_height(ctx->icon);
-    }
     has_duration = (ctx->duration != NULL && lv_obj_is_valid(ctx->duration) &&
         !lv_obj_has_flag(ctx->duration, LV_OBJ_FLAG_HIDDEN));
-    if (has_duration) {
-        lv_obj_update_layout(ctx->duration);
-        duration_h = lv_obj_get_height(ctx->duration);
-    }
 
-    if (multi_line) {
-        /* ICON + 标题 (+ 时间) 整体绕单行设计中心展开 */
-        lv_coord_t block_h = icon_h + PUMP_MODE_PAGE_ICON_TITLE_GAP + title_h;
-        lv_coord_t ref_bottom;
-        lv_coord_t ref_center;
-        lv_coord_t top;
-
-        if (has_duration) {
-            block_h += PUMP_MODE_PAGE_TITLE_DURATION_GAP + duration_h;
-            ref_bottom = PUMP_MODE_PAGE_DURATION_Y + duration_h;
-        } else {
-            ref_bottom = PUMP_MODE_PAGE_TITLE_Y + font->line_height;
-        }
-        ref_center = (PUMP_MODE_PAGE_ICON_Y + ref_bottom) / 2;
-        top = ref_center - block_h / 2;
-        icon_y = top;
-        title_y = top + icon_h + PUMP_MODE_PAGE_ICON_TITLE_GAP;
-        duration_y = title_y + title_h + PUMP_MODE_PAGE_TITLE_DURATION_GAP;
-    }
+    pump_mode_page_layout_y_get(ctx->mode, multi_line, &icon_y, &title_y, &duration_y);
 
     lv_obj_align(ctx->title, LV_ALIGN_TOP_MID, 0, title_y);
     if (ctx->icon != NULL && lv_obj_is_valid(ctx->icon)) {
@@ -832,9 +858,18 @@ static void pump_mode_page_title_build(pump_home_base_ui_info_t *info, pump_home
 
 static bool pump_mode_page_has_duration(uint8_t mode)
 {
-    return mode == BREAST_PUMP_MILK_BOOST_MODE ||
-           mode == BREAST_PUMP_PP_MILK_TRACK_MODE ||
-           mode == BREAST_PUMP_CUSTOM_MODE;
+    if (mode == BREAST_PUMP_MILK_BOOST_MODE ||
+        mode == BREAST_PUMP_PP_MILK_TRACK_MODE ||
+        mode == BREAST_PUMP_CUSTOM_MODE) {
+        return true;
+    }
+#if IS_SUPPORT_PUMP_MODE_PAGE_COMMON_DURATION
+    if (mode == BREAST_PUMP_STIMULATION_MODE ||
+        mode == BREAST_PUMP_LACTATION_MODE) {
+        return true;
+    }
+#endif
+    return false;
 }
 
 static void pump_mode_page_duration_text_get(pump_home_base_ui_info_t *info, uint8_t mode,
@@ -849,6 +884,12 @@ static void pump_mode_page_duration_text_get(pump_home_base_ui_info_t *info, uin
     if (!pump_mode_page_has_duration(mode)) {
         return;
     }
+#if IS_SUPPORT_PUMP_MODE_PAGE_COMMON_DURATION
+    if (mode == BREAST_PUMP_STIMULATION_MODE || mode == BREAST_PUMP_LACTATION_MODE) {
+        snprintf(buf, buf_len, "≈ %dmin", PUMP_MODE_PAGE_COMMON_DURATION_MIN);
+        return;
+    }
+#endif
     if (info != NULL && info->st != NULL) {
         info->st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, mode, 0, &pump_time);
     }
