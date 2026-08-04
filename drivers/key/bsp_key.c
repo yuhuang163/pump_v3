@@ -18,12 +18,22 @@
 #else
 #define KEY_CODE_SIZE (6 + 1 + 2) // 6个按键 + 1个电源键 + 2个组合按键
 #endif
+
+#if IS_SUPPORT_KNOB_POWER_KEY_DEBOUNCE
+#define POWER_KEY_FORBIDDEN_TIME_MS      (100)
+#endif
+
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
 static rt_device_node_t *node = NULL;
 static key_input_evt_cb_fptr key_cb = NULL;
+#if IS_SUPPORT_KNOB_POWER_KEY_DEBOUNCE
+static uint32_t knob_button_trigger_time = 0;
+static bool power_key_forbidden = false;
+#endif
+
 #if V3_UX_VERSION == V3_UX_V6
 static const uint32_t key_code_value[SCAN_KEY_CODE_MAX] = {
     SCAN_KEY_CODE_1_VALUE, /// 电源键
@@ -171,7 +181,17 @@ int platform_read_key_value(int type, int index)
 
 int platform_all_key_value(void)
 {
-    return bsp_read_all_key_value();
+    int key_value = bsp_read_all_key_value();
+#if IS_SUPPORT_KNOB_POWER_KEY_DEBOUNCE
+    if (power_key_forbidden) {
+        if (get_timestamp() - knob_button_trigger_time > POWER_KEY_FORBIDDEN_TIME_MS) {
+            power_key_forbidden = false;
+            BSP_LOG("power key", "forbidden reset");
+        }
+        key_value &= 0xFFFE;
+    }
+#endif
+    return key_value;
 }
 
 void key_irq_event_callback(int index)
@@ -190,7 +210,11 @@ bool touch_key_is_upgrading(void)
 
 void knob_button_event_handler(int arg1, int arg2, void *param)
 {
-    LOG_PBUS("knob button event: arg1=%d, arg2=%d", arg1, arg2);
+    // LOG_PBUS("knob button event: arg1=%d, arg2=%d", arg1, arg2);
+#if IS_SUPPORT_KNOB_POWER_KEY_DEBOUNCE
+    knob_button_trigger_time = get_timestamp();
+    power_key_forbidden = true;
+#endif
     int keycode = arg1 == 0 ? KEY_CODE_11 : KEY_CODE_12;
     key_cb(node, keycode, KEY_EVENT_CLICK);
 }
