@@ -259,17 +259,6 @@ static void guide_ui_hdr_remove(void)
     REMOVE_TASK_HANDLER_DIRECTLY(GUIDE_POWER_OFF_HOLD_COMPLETE_TASK_NAME);
 }
 
-static void guide_knob_advance_step(ui_proc_guide_t *proc)
-{
-    switch (proc->page_index) {
-        case GUIDE_PAGE_PUMP_START_GUIDE:
-            guide_page_advance(proc, GUIDE_PAGE_PUMP_HOME_GUIDE);
-            break;
-        default:
-            break;
-    }
-}
-
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -442,9 +431,6 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
             }
             break;
         default:
-            if (GUIDE_PAGE_IS_GUIDE_STEP(proc->page_index)) {
-                guide_knob_advance_step(proc);
-            }
             break;
     }
 }
@@ -482,11 +468,6 @@ void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left)
 
     if (proc->page_index == GUIDE_PAGE_SPEED) {
         guide_pump_speed_adjust_handler(proc, !is_left);
-        return;
-    }
-
-    if (GUIDE_PAGE_IS_GUIDE_STEP(proc->page_index)) {
-        guide_knob_advance_step(proc);
         return;
     }
 
