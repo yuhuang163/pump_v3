@@ -104,9 +104,9 @@ static void ui_power_off_bg_update(ui_manager_context_t *thiz)
 
 static const char *ui_power_off_text_get(power_off_text_type_e text_type)
 {
-    if (text_type == POWER_OFF_TEXT_AUTO_SHUT_OFF) {
-        return POWER_OFF_TEXT_AUTO_SHUT_OFF_STR;
-    }
+    // if (text_type == POWER_OFF_TEXT_AUTO_SHUT_OFF) {
+    //     return POWER_OFF_TEXT_AUTO_SHUT_OFF_STR;
+    // }
     return POWER_OFF_TEXT_POWERING_OFF_STR;
 }
 
