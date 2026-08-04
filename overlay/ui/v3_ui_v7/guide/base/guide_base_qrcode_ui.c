@@ -11,6 +11,8 @@
 *****************************************************************************************
 */
 #define GUIDE_QRCODE_SIZE                           (120)
+#define GUIDE_QRCODE_PAD                            (4)     /// 二维码四周留白
+#define GUIDE_QRCODE_INNER_SIZE                     (GUIDE_QRCODE_SIZE - GUIDE_QRCODE_PAD * 2)
 #define GUIDE_QRCODE_RADIUS                         (11)
 #define GUIDE_QRCODE_ALIGN_Y                        (74)
 #define GUIDE_QRCODE_BG_COLOR                       (0xFFFFFF)
@@ -34,6 +36,10 @@ const static char *bind_qr_str[] = {
     "https://qr.momcozy.com/apps/?v=1&type=device&model=V3&sn=",
 };
 
+const static char *unbind_qr_str[] = {
+    "https://qr.momcozy.com/apps/?v=1&type=device&model=V3&sn=0123456789abcdefghijklmn",
+};
+
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -55,12 +61,11 @@ static void guide_qrcode_str_prepare(guide_base_ui_info_t *info)
             }
             snprintf(info->qrcode.qr_str, sizeof(info->qrcode.qr_str), "%s%.*s", bind_qr_str[0],
                      (int)sn_n, (const char *)dev_info->sn);
-        } else {
-            snprintf(info->qrcode.qr_str, sizeof(info->qrcode.qr_str), "%s", bind_qr_str[0]);
+            LOG_UI("%s", info->qrcode.qr_str);
+            return;         
         }
-    } else {
-        snprintf(info->qrcode.qr_str, sizeof(info->qrcode.qr_str), "%s", bind_qr_str[0]);
     }
+    snprintf(info->qrcode.qr_str, sizeof(info->qrcode.qr_str), "%s", unbind_qr_str[0]);
     LOG_UI("%s", info->qrcode.qr_str);
 }
 
@@ -92,7 +97,7 @@ static void guide_qrcode_widget_create(guide_base_ui_info_t *info)
         EXCEPTION_CHECK_VOID(qr->qrcode);
     }
 
-    lv_qrcode_set_size(qr->qrcode, GUIDE_QRCODE_SIZE);
+    lv_qrcode_set_size(qr->qrcode, GUIDE_QRCODE_INNER_SIZE);
     lv_qrcode_set_dark_color(qr->qrcode, lv_color_hex(GUIDE_QRCODE_FG_COLOR));
     lv_qrcode_set_light_color(qr->qrcode, lv_color_hex(GUIDE_QRCODE_BG_COLOR));
     lv_qrcode_update(qr->qrcode, qr->qr_str, strlen(qr->qr_str));

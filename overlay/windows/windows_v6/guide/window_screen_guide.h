@@ -30,7 +30,7 @@ extern "C" {
 /// 双边力度调节-减页：左侧档位 <= 目标档位后开始结算
 #define GUIDE_LEVEL_BOTH_DECREASE_TARGET        (BREAST_PUMP_LEVEL_1)
 /// 双边力度调节-加/减页：到达目标档位后的结算时长，结算完成后跳转
-#define GUIDE_LEVEL_BOTH_SETTLE_MS               (1000) /// 1s
+#define GUIDE_LEVEL_BOTH_SETTLE_MS              (1000) /// 1s
 #define GUIDE_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
 #define GUIDE_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 /// 力度调节后，展示页面停留时间
