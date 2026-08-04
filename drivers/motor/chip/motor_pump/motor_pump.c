@@ -48,6 +48,7 @@ typedef struct {
     uint8_t is_running;               /// 定时器运行状态，0：停止，1：运行
     motor_pump_status_e action;       /// 动作
     uint32_t start_time;              /// 开始时间
+    uint32_t action_count;            /// 动作计数
 } motor_pump_timer_status_t;
 
 /*
@@ -105,6 +106,7 @@ static void bsp_motor_pump_timer_start(motor_pump_id_e id, uint32_t period, moto
         LOGE("pump_id is out range: %d", id);
         return;
     }
+
     if (hwtimer_active(timer_status[id].time_id)) {
 #if IS_SUPPORT_PUMP_DEBUG_LOG
         PRINT_LOG("timer stop:%d\r\n", id);
@@ -124,7 +126,9 @@ static void bsp_motor_pump_timer_start(motor_pump_id_e id, uint32_t period, moto
         return;
     }
 #if IS_SUPPORT_PUMP_DEBUG_LOG
-    PRINT_LOG("timer start:%d/%s/%d\r\n", id, bsp_motor_pump_action_to_string(action), period);
+    timer_status[id].action_count++;
+    PRINT_LOG("timer start:%d/%s/%d/%d\r\n", id, 
+        bsp_motor_pump_action_to_string(action), period, timer_status[id].action_count);
 #endif
     timer_status[id].is_running = true;
 }

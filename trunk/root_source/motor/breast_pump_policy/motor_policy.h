@@ -14,7 +14,6 @@ extern "C" {
 
 #define PUMP_POLICY_RUN_TIME_INTERVAL            20  /// 策略运行时间间隔，单位ms
 #define IS_SUPPORT_RELATIVE_RUN_TIME             1   /// 支持相对运行时间
-#define IS_SUPPORT_PUMP_SYNC                     1   /// 支持泵同步
 
 #define IS_SUPPORT_PUMP_POLICY_KICKOFF_OPT       1   /// 同轮kickoff优化开关：1启用新流程，0使用旧流程
 #if IS_SUPPORT_PUMP_POLICY_KICKOFF_OPT

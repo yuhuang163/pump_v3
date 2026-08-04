@@ -178,9 +178,8 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 mapping->mode_type, mapping->level, mapping->speed);
         }
     } else {
-#if IS_SUPPORT_PUMP_SYNC
         runtime->freq_sync_flag = true;
-        #if 0
+#if PUMP_FREQ_SYNC_ENABLE
         /// 同频同步
         for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
             if (runtime->pump_freq[i] != runtime->pump_freq[0] && runtime->current_mode_type != PUMP_MODE_MIX) {
@@ -188,7 +187,15 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 break;
             }
         }
-        #else
+
+        if (runtime->freq_sync_flag) {
+            for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+                if (runtime->info[i].state.policy_update_lock) {
+                    return 0;
+                }
+            }
+        }
+#elif PUMP_LEVEL_SYNC_ENABLE
         /// 同档同步
         for (uint8_t i = 1; i < BREAST_PUMP_NUM; i++) {
             if (runtime->pump_level[i] != runtime->pump_level[0] || runtime->pump_freq[i] != runtime->pump_freq[0]) {
@@ -196,7 +203,6 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 break;
             }
         }
-        #endif
 
         if (runtime->freq_sync_flag) {
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
