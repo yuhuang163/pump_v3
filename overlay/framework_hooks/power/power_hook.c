@@ -41,6 +41,21 @@ static bool is_power_off_by_charging(void)
     return false;
 }
 
+/** OTA / 蓝牙测试不记；其余重启原因都记 */
+static bool is_reboot_reason_need_bury(int reason)
+{
+    switch (reason) {
+        case SOFT_BOOT_ENTER_HIDE_BOOT:      /* OTA / hide boot */
+        case SOFT_BOOT_TEST_MODE:            /* 蓝牙测试 */
+        case SOFT_BOOT_TEST_SIGNALINGMODE:
+        case SOFT_BOOT_TEST_NOSIGNALINGMODE:
+        case SOFT_BOOT_CDC_OR_TEST_NORMAL:
+            return false;
+        default:
+            return reason != CORE_BOOT_CAUSE_NULL;
+    }
+}
+
 static void system_power_off(struct power_manager_context *ctx)
 {
     LOG_PM("system_power_off");
@@ -127,6 +142,19 @@ static void system_power_event_cb(hdr_post_args_t *args)
             msg.union_body.extra.window_id = ID_WINDOW_LOGO;
             LOG_PM("goto logo screen");
             wm->dispatch_new_window_args(wm, &msg); 
+            /// 记录重启原因到 RAM 并埋点 0x61（排除 OTA / 蓝牙测试 /）
+            if (platform_is_startup_caused_by_reboot()) {
+                int reason = (int)platform_get_sys_reboot_reason();
+                if (is_reboot_reason_need_bury(reason)) {
+                    storage_manager_context_t *st =
+                        (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+                    if (st && st->put_store_ram_val) {
+                        st->put_store_ram_val(STORE_ID_SYS_REBOOT_REASON, reason, 0, NULL);
+                    }
+                    DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_SYSTEM_ERROR_REBOOT, reason);
+                    LOG_PM("record system reboot reason: %d", reason);
+                }
+            }
             break;
         case HDR_ACTION_POWER_ON_BY_CHARGING:    
             LOG_PM("%s action:%d", args->name, action);

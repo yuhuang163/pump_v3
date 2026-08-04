@@ -36,6 +36,7 @@ const static put_store_process_handle_t put_store_process_list[] = {
     {STORE_ID_FACTORY_FLAG_INFO, write_factory_flag_info_to_flash},
     {STORE_ID_SYS_CONFIG_INFO, write_sys_config_info_to_flash},
     {STORE_ID_SYS_UTC_TIMESTAMP, write_utc_timestamp_to_flash},
+    {STORE_ID_SYS_REBOOT_REASON, write_sys_reboot_reason_to_flash},
     {STORE_ID_SYS_STATE_INFO, write_sys_state_info_to_flash},    
     {STORE_ID_USER_BIND_INFO, write_user_bind_info_to_flash},
     {STORE_ID_FACTORY_DEV_INFO, write_factory_dev_info_to_flash},
@@ -55,6 +56,7 @@ const static get_store_process_handle_t get_store_process_list[] = {
     {STORE_ID_FACTORY_FLAG_INFO, read_factory_flag_info_from_flash},
     {STORE_ID_SYS_CONFIG_INFO, read_sys_config_info_from_flash},
     {STORE_ID_SYS_UTC_TIMESTAMP, read_utc_timestamp_from_flash},
+    {STORE_ID_SYS_REBOOT_REASON, read_sys_reboot_reason_from_flash},
     {STORE_ID_SYS_STATE_INFO, read_sys_state_info_from_flash},    
     {STORE_ID_USER_BIND_INFO, read_user_bind_info_from_flash},
     {STORE_ID_BREAST_PUMP_DATA_HEAD, read_pump_data_head_from_flash},
@@ -76,6 +78,7 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_SYS_UI_STYLE, write_sys_ui_style_to_ram},
     {STORE_ID_SYS_LOG_SWITCH, write_log_switch_to_ram},
     {STORE_ID_SYS_LANGUAGE, write_language_to_ram},
+    {STORE_ID_SYS_REBOOT_REASON, write_sys_reboot_reason_to_ram},
     {STORE_ID_SYS_GUIDE_DEPLOYED, write_guide_deployed_to_ram},
     {STORE_ID_SYS_BATTERY_HEALTH, write_battery_health_to_ram},
     {STORE_ID_SYS_SYNC_SYS_TIME, write_sync_sys_time_to_ram},
@@ -121,6 +124,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_SYS_UI_STYLE, read_sys_ui_style_from_ram},
     {STORE_ID_SYS_LOG_SWITCH, read_log_switch_from_ram},
     {STORE_ID_SYS_LANGUAGE, read_language_from_ram},
+    {STORE_ID_SYS_REBOOT_REASON, read_sys_reboot_reason_from_ram},
     {STORE_ID_SYS_GUIDE_DEPLOYED, read_guide_deployed_from_ram},
     {STORE_ID_SYS_BATTERY_HEALTH, read_battery_health_from_ram},
     {STORE_ID_SYS_SYNC_SYS_TIME, read_sync_sys_time_from_ram},
@@ -196,6 +200,8 @@ static int init_system_persist_info(storage_manager_context_t *ctx)
     msleep(10);
     args.val = &sys_info->bind_info;
     read_user_bind_info_from_flash(args);  /// 读取用户绑定信息
+    args.val = &sys_info->reboot_reason;
+    read_sys_reboot_reason_from_flash(args);  /// 读取系统重启原因
     args.val = &sys_info->pump_info;
     read_pump_info_from_flash(args);  /// 读取泵奶配置信息
     msleep(10);

@@ -57,6 +57,7 @@ typedef enum {
     PERSIST_KEY_IMG_RES_OTA_INFO,
 
     PERSIST_KEY_UTC_TIMESTEMP = 150,             /// 系统时间戳
+    PERSIST_KEY_SYS_REBOOT_REASON,               /// 系统重启原因
 
     PERSIST_KEY_BREAST_PUMP_INFO = 180,
     PERSIST_KEY_BREAST_PUMP_MODE_STEPS_INFO,
@@ -157,6 +158,14 @@ typedef struct {
     uint32_t utc_timestamp;
     uint16_t crc;
 } utc_timestamp_storage_t;
+
+/// 描述系统重启原因
+typedef struct {
+    uint32_t magic;
+    uint8_t reboot_reason;  /// sys_reboot_reason_e
+    uint8_t resv[3];
+    uint16_t crc;
+} sys_reboot_reason_storage_t;
 
 /// 描述图片资源OTA状态信息
 typedef struct {
