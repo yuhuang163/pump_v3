@@ -14,9 +14,9 @@
 #define IS_SUPPORT_PUMP_FINISH_COMP_BG                         (0)
 #define COMPLETE_TIP_TEXT_COUNT                                (2)
 
-#define PUMP_FINISH_ICON_Y                                     (55)
-#define PUMP_FINISH_TITLE_Y                                    (165)
-#define PUMP_FINISH_CONTENT_Y                                  (207)
+#define PUMP_FINISH_ICON_Y                                     (73)
+#define PUMP_FINISH_TITLE_Y                                    (179)
+#define PUMP_FINISH_CONTENT_Y                                  (221)
 #define FINISH_TIP_TITLE_COLOR                                 (0xFFFFFF)
 #define FINISH_TIP_CONTENT_COLOR                               (0x999999)
 
@@ -47,8 +47,8 @@ typedef struct {
 static complete_tip_display_info_t *finish_info;
 
 const static complete_tip_text_info_t complete_tip_text_infos[COMPLETE_TIP_TEXT_COUNT] = {
-    { "Pump finished", PUMP_FINISH_TITLE_Y, &lv_font_aeonik_soft_26_medium, 0, FINISH_TIP_TITLE_COLOR},
-    { "Open the Momcozy\napp to track your milk\noutput", PUMP_FINISH_CONTENT_Y,
+    { "Pumping complete.", PUMP_FINISH_TITLE_Y, &lv_font_aeonik_soft_26_medium, 0, FINISH_TIP_TITLE_COLOR},
+    { "Open the Momcozy App\nto log your milk output.", PUMP_FINISH_CONTENT_Y,
         &lv_font_aeonik_soft_26_medium, 10, FINISH_TIP_CONTENT_COLOR},
 };
 

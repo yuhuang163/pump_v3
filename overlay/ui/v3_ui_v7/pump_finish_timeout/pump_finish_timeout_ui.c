@@ -14,12 +14,12 @@
 */
 #define PUMP_FINISH_TIMEOUT_ARC_DONE_COLOR             (0xEF4C4E)
 
-#define PUMP_FINISH_TIMEOUT_ICON_Y                     (94)
-#define PUMP_FINISH_TIMEOUT_TITLE1_Y                   (202)
-#define PUMP_FINISH_TIMEOUT_TITLE_GAP                  (10)
+#define PUMP_FINISH_TIMEOUT_ICON_Y                     (77)
+#define PUMP_FINISH_TIMEOUT_TITLE1_Y                   (183 + 2)
+#define PUMP_FINISH_TIMEOUT_TITLE_GAP                  (10 + 2)
 #define PUMP_FINISH_TIMEOUT_TITLE_COLOR                (0xFFFFFF)
-#define PUMP_FINISH_TIMEOUT_TITLE1_TEXT                "Pumping Timeout"
-#define PUMP_FINISH_TIMEOUT_TITLE2_TEXT                "Ending automatically"
+#define PUMP_FINISH_TIMEOUT_TITLE1_TEXT                "Pumping Ended"
+#define PUMP_FINISH_TIMEOUT_TITLE2_TEXT                "Automatically\nending..."
 
 /** 页面展示倒计时（与 stop_hold 一致，文案为 3s/2s/1s） */
 #define PUMP_FINISH_TIMEOUT_DURATION_MS                (2000)
@@ -112,6 +112,7 @@ static void pump_finish_timeout_title_update(void)
     lv_obj_set_style_text_font(finish_info->title1, &lv_font_aeonik_soft_26_medium, 0);
     lv_obj_set_style_text_align(finish_info->title1, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(finish_info->title1, LV_ALIGN_TOP_MID, 0, PUMP_FINISH_TIMEOUT_TITLE1_Y);
+    lv_obj_set_style_text_line_space(finish_info->title1, 8, 0);
 
     if (finish_info->title2 == NULL || !lv_obj_is_valid(finish_info->title2)) {
         finish_info->title2 = lv_label_create(finish_info->root);
@@ -123,6 +124,7 @@ static void pump_finish_timeout_title_update(void)
     lv_obj_set_style_text_align(finish_info->title2, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align_to(finish_info->title2, finish_info->title1, LV_ALIGN_OUT_BOTTOM_MID,
         0, PUMP_FINISH_TIMEOUT_TITLE_GAP);
+    lv_obj_set_style_text_line_space(finish_info->title2, 8, 0);
 }
 
 /*

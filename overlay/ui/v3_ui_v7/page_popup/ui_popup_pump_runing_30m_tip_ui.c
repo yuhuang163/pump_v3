@@ -11,7 +11,7 @@
 #define PUMP_RUNING_30M_TIP_ICON_Y                             (113)
 #define PUMP_RUNING_30M_TIP_TITLE_Y                            (182)
 #define PUMP_RUNING_30M_TIP_TITLE_COLOR                        (0xFFFFFF)
-#define PUMP_RUNING_30M_TIP_TITLE_LINE_SPACE                   (4)
+#define PUMP_RUNING_30M_TIP_TITLE_LINE_SPACE                   (8)
 #define PUMP_RUNING_30M_TIP_COUNTDOWN_Y                        (324)
 #define PUMP_RUNING_30M_TIP_COUNTDOWN_COLOR                    (0x999999)
 
