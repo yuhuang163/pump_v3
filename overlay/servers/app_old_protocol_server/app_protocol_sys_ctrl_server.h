@@ -23,8 +23,15 @@ typedef struct {
     uint8_t screem_lock_light_level;
     uint16_t motor_Duration;
     uint8_t adaptive_dimming_switch;
-    uint8_t device_bind_status;
+    uint8_t device_bind_status; /// app_old_comm_bind_status_e
 } app_old_comm_sys_status_ctrl;
+
+/// 协议绑定状态，需转译到本地 BLE_BIND_STATE_*
+typedef enum {
+    APP_OLD_COMM_BIND_STATUS_UNBIND = 0,    /// 未绑定/绑定失败
+    APP_OLD_COMM_BIND_STATUS_BINDING,       /// 绑定中
+    APP_OLD_COMM_BIND_STATUS_COMPLETE,      /// 绑定完成
+} app_old_comm_bind_status_e;
 
 #define APP_OLD_COMM_LIGHT_LEVEL_MAX  100  /// 协议亮度档位上限（0~100，与驱动百分比一致）
 
