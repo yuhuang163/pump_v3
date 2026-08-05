@@ -17,8 +17,10 @@
 
 #define GUIDE_LEVEL_SIDE_DIR_Y                          (210)
 #define GUIDE_LEVEL_SIDE_DIR_COLOR                      (0x999999)
+#define GUIDE_LEVEL_SIDE_DIR_LINE_SPACE                 (8)
 #define GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT                  "Left Level"
 #define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "Right Level"
+#define GUIDE_LEVEL_SIDE_OVER_LIMIT_TEXT                "For safety,\nUp to 3 levels at a time."
 
 #define GUIDE_LEVEL_SIDE_TIP_H                          (49)
 #define GUIDE_LEVEL_SIDE_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_LEVEL_SIDE_TIP_H - 8)
@@ -142,25 +144,55 @@ static void guide_level_side_dir_update(guide_base_ui_info_t *info, ui_proc_guid
     guide_base_level_side_info_t *page = &info->level_side;
     lv_obj_t *parent = guide_page_parent_get(info);
     const char *text;
+    const lv_font_t *font;
+    uint32_t color;
+    uint32_t expect_color;
+    uint32_t accent = home_level_adjust_accent_color_get(guide_level_side_mode_get(proc));
 
     EXCEPTION_CHECK_VOID(parent);
     if (page->dir_label == NULL || !lv_obj_is_valid(page->dir_label)) {
         page->dir_label = lv_label_create(parent);
         EXCEPTION_CHECK_VOID(page->dir_label);
         page->shown_side = 0xFF;
+        page->shown_over_limit = 0xFF;
     }
-    if (info->force_update == false && page->shown_side == proc->level_adjust_side) {
+
+    if (proc->level_over_limit) {
+        expect_color = accent;
+    } else {
+        expect_color = GUIDE_LEVEL_SIDE_DIR_COLOR;
+    }
+    if (info->force_update == false &&
+        page->shown_side == proc->level_adjust_side &&
+        page->shown_over_limit == proc->level_over_limit &&
+        page->shown_dir_color == expect_color) {
         return;
     }
 
-    text = (proc->level_adjust_side == GUIDE_LEVEL_ADJUST_SIDE_RIGHT) ?
-        GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT : GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT;
+    if (proc->level_over_limit) {
+        text = GUIDE_LEVEL_SIDE_OVER_LIMIT_TEXT;
+        color = accent;
+        font = &lv_font_aeonik_soft_22_medium;
+    } else if (proc->level_adjust_side == GUIDE_LEVEL_ADJUST_SIDE_RIGHT) {
+        text = GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT;
+        color = GUIDE_LEVEL_SIDE_DIR_COLOR;
+        font = &lv_font_aeonik_soft_26_medium;
+    } else {
+        text = GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT;
+        color = GUIDE_LEVEL_SIDE_DIR_COLOR;
+        font = &lv_font_aeonik_soft_26_medium;
+    }
+
     lv_label_set_text(page->dir_label, text);
-    lv_obj_set_style_text_color(page->dir_label, lv_color_hex(GUIDE_LEVEL_SIDE_DIR_COLOR), 0);
-    lv_obj_set_style_text_font(page->dir_label, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_color(page->dir_label, lv_color_hex(color), 0);
+    lv_obj_set_style_text_font(page->dir_label, font, 0);
     lv_obj_set_style_text_align(page->dir_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(page->dir_label, LV_ALIGN_TOP_MID, 0, GUIDE_LEVEL_SIDE_DIR_Y);
+    lv_obj_set_style_text_line_space(page->dir_label, GUIDE_LEVEL_SIDE_DIR_LINE_SPACE, 0);
     page->shown_side = proc->level_adjust_side;
+    page->shown_over_limit = proc->level_over_limit;
+    page->shown_dir_color = color;
+    page->accent_color = accent;
 }
 
 static lv_draw_buf_t *guide_level_side_tip_predecode(guide_base_ui_info_t *info)
@@ -253,6 +285,7 @@ void guide_level_side_ui_build(guide_base_ui_info_t *info)
     memset(&info->level_side, 0, sizeof(info->level_side));
     info->level_side.shown_level = 0xFF;
     info->level_side.shown_side = 0xFF;
+    info->level_side.shown_over_limit = 0xFF;
     ui_progress_arc_reset(&info->level_side.arc);
 }
 

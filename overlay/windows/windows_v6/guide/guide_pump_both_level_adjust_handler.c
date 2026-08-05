@@ -55,6 +55,8 @@ void guide_pump_both_level_page_enter_sync(ui_proc_guide_t *proc)
 
 void guide_pump_both_level_over_limit_tick(ui_proc_guide_t *proc)
 {
+    uint32_t elapsed;
+
     EXCEPTION_CHECK_VOID(proc);
     if (proc->page_index != GUIDE_PAGE_LEVEL_BOTH) {
         return;
@@ -62,10 +64,19 @@ void guide_pump_both_level_over_limit_tick(ui_proc_guide_t *proc)
     if (proc->both_level_over_limit == 0) {
         return;
     }
-    if (get_timestamp_ms(proc->both_level_over_limit_time) < GUIDE_LEVEL_OVER_LIMIT_WINDOW_MS) {
-        return;
+    elapsed = get_timestamp_ms(proc->both_level_over_limit_time);
+    /* 1s：进度条开始回退到实际力度 */
+    if (elapsed >= GUIDE_LEVEL_OVER_LIMIT_ARC_ROLLBACK_MS) {
+        if (proc->both_level_arc[0] != proc->both_level_value[0] ||
+            proc->both_level_arc[1] != proc->both_level_value[1]) {
+            proc->both_level_arc[0] = proc->both_level_value[0];
+            proc->both_level_arc[1] = proc->both_level_value[1];
+        }
     }
-    guide_both_level_over_limit_clear(proc);
+    /* 2s：过大提醒文案消失 */
+    if (elapsed >= GUIDE_LEVEL_OVER_LIMIT_TIP_CLEAR_MS) {
+        guide_both_level_over_limit_clear(proc);
+    }
 }
 
 int guide_pump_both_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase)

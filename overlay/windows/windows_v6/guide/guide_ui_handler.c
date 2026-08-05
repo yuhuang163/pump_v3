@@ -213,6 +213,7 @@ static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
 
         guide_guide_step_timeout_handler(proc);
         guide_pump_level_idle_timeout_handler(proc);
+        guide_pump_level_over_limit_tick(proc);
         guide_pump_both_level_over_limit_tick(proc);
         guide_finish_timeout_handler(proc);
     }
@@ -407,11 +408,9 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
         case GUIDE_PAGE_LEVEL_SIDE_GUIDE:
             if (keycode == KEY_CODE_POWER) {
                 guide_page_advance(proc, GUIDE_PAGE_LEVEL_BOTH_GUIDE);
-            } else if (keycode == KEY_CODE_LEFT_CONTROL || keycode == KEY_CODE_RIGHT_CONTROL) {
-                proc->level_adjust_side = (keycode == KEY_CODE_LEFT_CONTROL) ?
-                    GUIDE_LEVEL_ADJUST_SIDE_LEFT : GUIDE_LEVEL_ADJUST_SIDE_RIGHT;
-                proc->level_value = proc->setting.level[proc->level_adjust_side];
-                proc->level_arc_level = proc->level_value;
+            } else if (keycode == KEY_CODE_LEFT_CONTROL) {
+                proc->level_adjust_side = GUIDE_LEVEL_ADJUST_SIDE_LEFT;
+                guide_pump_level_page_enter_sync(proc);
                 guide_page_advance(proc, GUIDE_PAGE_LEVEL_SIDE);
             }
             break;

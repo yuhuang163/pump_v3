@@ -65,7 +65,29 @@ static void guide_led_backlight_lr_set(ui_proc_guide_t *proc, uint8_t level)
     proc->led->set_led_level(PUMP_RIGHT_CONTROL_BL, level);
 }
 
+static void guide_led_backlight_left_set(ui_proc_guide_t *proc, uint8_t level)
+{
+    if (proc->led == NULL) {
+        return;
+    }
+    proc->led->set_led_level(PUMP_LEFT_CONTROL_BL, level);
+}
+
 static void guide_led_backlight_level_side_guide_update(ui_proc_guide_t *proc)
+{
+    const bool blink_on = proc->state_blink_visible != 0;
+
+    guide_led_backlight_all_off(proc);
+    guide_led_backlight_left_set(proc, blink_on ? LED_LEVEL_MAX : 0);
+}
+
+static void guide_led_backlight_level_side_update(ui_proc_guide_t *proc)
+{
+    guide_led_backlight_all_off(proc);
+    guide_led_backlight_left_set(proc, LED_LEVEL_MAX);
+}
+
+static void guide_led_backlight_level_both_guide_update(ui_proc_guide_t *proc)
 {
     const bool blink_on = proc->state_blink_visible != 0;
 
@@ -73,7 +95,7 @@ static void guide_led_backlight_level_side_guide_update(ui_proc_guide_t *proc)
     guide_led_backlight_lr_set(proc, blink_on ? LED_LEVEL_MAX : 0);
 }
 
-static void guide_led_backlight_level_side_update(ui_proc_guide_t *proc)
+static void guide_led_backlight_level_both_update(ui_proc_guide_t *proc)
 {
     guide_led_backlight_all_off(proc);
     guide_led_backlight_lr_set(proc, LED_LEVEL_MAX);
@@ -111,6 +133,9 @@ void guide_led_backlight_blink_tick(ui_proc_guide_t *proc)
 
     switch (proc->page_index) {
         case GUIDE_PAGE_LEVEL_SIDE_GUIDE:
+            guide_led_backlight_left_set(proc,
+                proc->state_blink_visible ? LED_LEVEL_MAX : 0);
+            break;
         case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
             guide_led_backlight_lr_set(proc,
                 proc->state_blink_visible ? LED_LEVEL_MAX : 0);
@@ -151,12 +176,16 @@ void guide_led_backlight_update(ui_proc_guide_t *proc)
             guide_led_backlight_all_off(proc);
             break;
         case GUIDE_PAGE_LEVEL_SIDE_GUIDE:
-        case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
             guide_led_backlight_level_side_guide_update(proc);
             break;
+        case GUIDE_PAGE_LEVEL_BOTH_GUIDE:
+            guide_led_backlight_level_both_guide_update(proc);
+            break;
         case GUIDE_PAGE_LEVEL_SIDE:
-        case GUIDE_PAGE_LEVEL_BOTH:
             guide_led_backlight_level_side_update(proc);
+            break;
+        case GUIDE_PAGE_LEVEL_BOTH:
+            guide_led_backlight_level_both_update(proc);
             break;
         case GUIDE_PAGE_SPEED_GUIDE:
             guide_led_backlight_speed_guide_update(proc);
