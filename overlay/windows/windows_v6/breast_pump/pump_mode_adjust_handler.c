@@ -191,8 +191,12 @@ int pump_mode_rhythm_confirm_needed(ui_proc_pump_t *proc)
     }
 
 #if (PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME == PUMP_RHYTHM_CONFIRM_SCHEME_1)
-    /// 方案1：切到韵律（模式→韵律 / 韵律→韵律），本次泵奶首次才确认
-    if (proc->rhythm_confirm_shown != 0) {
+    /// 方案1：模式→韵律、韵律→韵律各自本次泵奶首次才确认
+    if (PUMP_IS_BREASTFEEDING_MODE(work_mode)) {
+        if (proc->rhythm_confirm_shown & PUMP_RHYTHM_CONFIRM_SHOWN_RHYTHM_TO_RHYTHM) {
+            return -1;
+        }
+    } else if (proc->rhythm_confirm_shown & PUMP_RHYTHM_CONFIRM_SHOWN_MODE_TO_RHYTHM) {
         return -1;
     }
 #elif (PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME == PUMP_RHYTHM_CONFIRM_SCHEME_2)
