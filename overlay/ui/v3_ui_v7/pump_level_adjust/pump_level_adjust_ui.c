@@ -184,7 +184,8 @@ static void pump_level_arc_anim_sync(uint8_t target_level, uint8_t level_max, bo
 {
     uint16_t target_sweep = ui_progress_arc_sweep_from_progress(target_level, level_max);
 
-    if (level_info->force_update || snap) {
+    /* 仅首次进入/切换左右侧硬切；模式切换与调档一律从当前视觉位置插值 */
+    if (snap || level_info->anim_to_level == 0xFF) {
         level_info->anim_from_sweep = target_sweep;
         level_info->anim_to_sweep = target_sweep;
         level_info->anim_to_level = target_level;
@@ -571,6 +572,7 @@ void ui_display_pump_level_adjust_prepare(ui_manager_context_t *thiz)
     level_info->shown_over_limit = 0xFF;
     level_info->shown_mode_switch = 0xFF;
     level_info->shown_mode_type = 0xFF;
+    level_info->anim_to_level = 0xFF;
     level_info->shown_dir_color = 0;
     level_info->shown_hours = 0xFF;
     level_info->shown_minutes = 0xFF;
@@ -624,9 +626,9 @@ int ui_display_pump_level_adjust_process(ui_manager_context_t *thiz)
     level_max = home_level_adjust_max_get(proc->sub_mode_type);
     if (level_info->mode_type != proc->sub_mode_type ||
         level_info->level_max != level_max) {
+        /* 模式切换：数字可跳变，进度条从当前扫角渐进到新目标，不硬切 */
         level_info->mode_type = proc->sub_mode_type;
         level_info->level_max = level_max;
-        level_info->force_update = true;
     }
 
     pump_level_arc_update(proc, level_info->level_max, level_info->accent_color);
