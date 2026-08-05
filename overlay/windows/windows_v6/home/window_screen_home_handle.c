@@ -401,7 +401,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
-    if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_DOWN) { 
+    if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_LONG_2S) { 
         if (proc->airplane_mode && proc->airplane_mode->hook && 
             proc->airplane_mode->hook->travel_lock_key_event_handler) {
             proc->airplane_mode->hook->travel_lock_key_event_handler(proc->airplane_mode, proc->wm);

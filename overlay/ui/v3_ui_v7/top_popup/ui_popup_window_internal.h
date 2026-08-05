@@ -23,6 +23,8 @@ extern "C" {
 #define POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME                      (100)
 /// 圆环进度提前结束的步数（每步 POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME ms）
 #define POPUP_WINDOW_STATUS_ARC_RING_PROGRESS_LEAD_STEPS           (4)
+/// 旅行锁倒计时弹窗进入时进度条预跑时长（与 LONG_2S 触发后剩余约 4s 对齐）
+#define POPUP_TRAVEL_LOCK_COUNTDOWN_PRE_ELAPSED_MS                 (1000)
 
 /// 支持窗口背景图片
 #define IS_SUPPORT_POPUP_WINDOW_COMP_BG                            (0)
