@@ -67,6 +67,11 @@ extern "C" {
 #define PUMP_ADJUST_EXIT_TO_PREV_PAGE_ENABLE   (0)
 #endif
 
+/// 泵奶暂停时：点击刺激/吸乳模式键切换模式并启动泵奶
+#ifndef PUMP_PAUSE_MODE_KEY_START_ENABLE
+#define PUMP_PAUSE_MODE_KEY_START_ENABLE       (1)
+#endif
+
 /// 子模式同步场景（力度/速度页共用）
 typedef enum {
     PUMP_SUB_MODE_SYNC_LEVEL = 0,      /// 单边力度
