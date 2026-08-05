@@ -15,9 +15,9 @@
 #define GUIDE_PUMP_FINISH_GUIDE_PAGE_NUM_TOTAL                  (7)
 
 #define GUIDE_PUMP_FINISH_GUIDE_TITLE_Y                         (79)
-#define GUIDE_PUMP_FINISH_GUIDE_TITLE_LINE_SPACE                (4)
+#define GUIDE_PUMP_FINISH_GUIDE_TITLE_LINE_SPACE                (8)
 #define GUIDE_PUMP_FINISH_GUIDE_TITLE_COLOR                     (0xFFFFFF)
-#define GUIDE_PUMP_FINISH_GUIDE_TITLE_TEXT                      "Long Press knob to\nfinish"
+#define GUIDE_PUMP_FINISH_GUIDE_TITLE_TEXT                      "Press and hold the\nknob to end pumping."
 
 #define GUIDE_PUMP_FINISH_GUIDE_ICON_Y                          (169)
 #define GUIDE_PUMP_FINISH_GUIDE_ICON_RES_ID                     (BASE_RES_ID_GUIDE_POWER_KEY_ICON)

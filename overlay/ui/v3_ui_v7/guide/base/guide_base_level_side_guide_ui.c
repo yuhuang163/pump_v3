@@ -14,20 +14,21 @@
 #define GUIDE_LEVEL_SIDE_GUIDE_PAGE_NUM_CURRENT             (5)
 #define GUIDE_LEVEL_SIDE_GUIDE_PAGE_NUM_TOTAL               (7)
 
-#define GUIDE_LEVEL_SIDE_GUIDE_PRESS_Y                      (111)
+#define GUIDE_LEVEL_SIDE_GUIDE_PRESS_Y                      (95 + 2)
 #define GUIDE_LEVEL_SIDE_GUIDE_PRESS_TEXT                   "Press"
+#define GUIDE_LEVEL_SIDE_GUIDE_OR_Y                         (148 + 2)
 #define GUIDE_LEVEL_SIDE_GUIDE_OR_TEXT                      "or"
-#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_Y                     (218)
-#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_TEXT                  "to adjust level"
+#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_Y                     (201 + 2)
+#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_TEXT                  "to adjust left/right\nsuction."
 #define GUIDE_LEVEL_SIDE_GUIDE_TEXT_COLOR                   (0xFFFFFF)
-#define GUIDE_LEVEL_SIDE_GUIDE_TEXT_LINE_SPACE              (4)
+#define GUIDE_LEVEL_SIDE_GUIDE_TEXT_LINE_SPACE              (8)
 
 #define GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_X                  (92)
-#define GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_Y                  (147)
+#define GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_Y                  (132)
 #define GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_RES_ID             (BASE_RES_ID_GUIDE_LEFT_KEY_ICON)
 
-#define GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_X                 (204)
-#define GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_Y                 (147)
+#define GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_X                 (206)
+#define GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_Y                 (132)
 #define GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_RES_ID            (BASE_RES_ID_GUIDE_RIGHT_KEY_ICON)
 
 #define GUIDE_LEVEL_SIDE_GUIDE_TIP_H                        (63)
@@ -163,7 +164,7 @@ static void guide_level_side_guide_texts_create(guide_base_ui_info_t *info)
     guide_level_side_guide_label_create(&info->level_side_guide.press, parent,
         GUIDE_LEVEL_SIDE_GUIDE_PRESS_TEXT, LV_ALIGN_TOP_MID, GUIDE_LEVEL_SIDE_GUIDE_PRESS_Y);
     guide_level_side_guide_label_create(&info->level_side_guide.or_text, parent,
-        GUIDE_LEVEL_SIDE_GUIDE_OR_TEXT, LV_ALIGN_CENTER, 0);
+        GUIDE_LEVEL_SIDE_GUIDE_OR_TEXT, LV_ALIGN_TOP_MID, GUIDE_LEVEL_SIDE_GUIDE_OR_Y);
     guide_level_side_guide_label_create(&info->level_side_guide.adjust, parent,
         GUIDE_LEVEL_SIDE_GUIDE_ADJUST_TEXT, LV_ALIGN_TOP_MID, GUIDE_LEVEL_SIDE_GUIDE_ADJUST_Y);
 }

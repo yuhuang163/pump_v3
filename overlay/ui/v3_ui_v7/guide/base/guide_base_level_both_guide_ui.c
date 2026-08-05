@@ -14,28 +14,28 @@
 #define GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_CURRENT             (6)
 #define GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_TOTAL               (7)
 
-#define GUIDE_LEVEL_BOTH_GUIDE_PRESS_X                      (27)
-#define GUIDE_LEVEL_BOTH_GUIDE_PRESS_Y                      (130)
-#define GUIDE_LEVEL_BOTH_GUIDE_PRESS_TEXT                   "Press both"
+#define GUIDE_LEVEL_BOTH_GUIDE_PRESS_X                      (59)
+#define GUIDE_LEVEL_BOTH_GUIDE_PRESS_Y                      (131)
+#define GUIDE_LEVEL_BOTH_GUIDE_PRESS_TEXT                   "Press"
 #define GUIDE_LEVEL_BOTH_GUIDE_PRESS_LINE_SPACE             (4)
 
-#define GUIDE_LEVEL_BOTH_GUIDE_AND_X                        (226)
-#define GUIDE_LEVEL_BOTH_GUIDE_AND_Y                        (128)
+#define GUIDE_LEVEL_BOTH_GUIDE_AND_X                        (197)
+#define GUIDE_LEVEL_BOTH_GUIDE_AND_Y                        (131)
 #define GUIDE_LEVEL_BOTH_GUIDE_AND_TEXT                     "and"
 #define GUIDE_LEVEL_BOTH_GUIDE_AND_LINE_SPACE               (4)
 
-#define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_Y                     (175)
-#define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_TEXT                  "on the right to adjust\nlevel simultaneously"
+#define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_Y                     (176)
+#define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_TEXT                  "together to adjust\nboth sides."
 #define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_LINE_SPACE            (8)
 
 #define GUIDE_LEVEL_BOTH_GUIDE_TEXT_COLOR                   (0xFFFFFF)
 
-#define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_X                  (283)
-#define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y                  (119)
+#define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_X                  (255)
+#define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y                  (121)
 #define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_RES_ID             (BASE_RES_ID_GUIDE_LEFT_KEY_MIN_ICON)
 
-#define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_X                 (166)
-#define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y                 (119)
+#define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_X                 (138)
+#define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y                 (121)
 #define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_RES_ID            (BASE_RES_ID_GUIDE_RIGHT_KEY_MIN_ICON)
 
 #define GUIDE_LEVEL_BOTH_GUIDE_TIP_H                        (63)
