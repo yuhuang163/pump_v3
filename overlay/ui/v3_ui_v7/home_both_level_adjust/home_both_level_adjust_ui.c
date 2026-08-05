@@ -227,7 +227,8 @@ static void home_both_level_arc_anim_sync(home_both_level_side_arc_t *side,
 {
     uint16_t target_sweep = home_both_level_arc_sweep_from_level(target_level, level_max, track_deg);
 
-    if (both_info->force_update || snap) {
+    /* 仅首次进入硬切；模式切换与调档一律从当前视觉位置插值 */
+    if (snap || side->anim_to_level == 0xFF) {
         side->anim_from_sweep = target_sweep;
         side->anim_to_sweep = target_sweep;
         side->anim_visual_sweep = target_sweep;
@@ -646,6 +647,8 @@ void ui_display_home_both_level_adjust_prepare(ui_manager_context_t *thiz)
     both_info->shown_over_limit = 0xFF;
     both_info->shown_mode_switch = 0xFF;
     both_info->shown_mode_type = 0xFF;
+    both_info->side[0].anim_to_level = 0xFF;
+    both_info->side[1].anim_to_level = 0xFF;
     both_info->shown_accent_color = 0;
     both_info->shown_over_limit_color = 0;
     home_both_level_adjust_root_init();
@@ -682,9 +685,9 @@ int ui_display_home_both_level_adjust_process(ui_manager_context_t *thiz)
     level_max = home_level_adjust_max_get(proc->sub_mode_type);
     if (both_info->mode_type != proc->sub_mode_type ||
         both_info->level_max != level_max) {
+        /* 模式切换：数字可跳变，进度条从当前扫角渐进到新目标，不硬切 */
         both_info->mode_type = proc->sub_mode_type;
         both_info->level_max = level_max;
-        both_info->force_update = true;
     }
 
     home_both_level_adjust_bg_update(thiz);
