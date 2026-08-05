@@ -131,15 +131,26 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
 static void app_old_comm_set_device_bind_status(uint8_t device_bind_status)
 {
     ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    uint8_t local_state;
+
     EXCEPTION_CHECK_VOID(ble);
-    ///底层有三个状态 1需要加1对齐到绑定状态
-    if (device_bind_status == true) {
-        device_bind_status = BLE_BIND_STATE_COMPLETE;
+    /// 协议 app_old_comm_bind_status_e → 本地 BLE_BIND_STATE_*
+    switch (device_bind_status) {
+        case APP_OLD_COMM_BIND_STATUS_UNBIND:
+            local_state = BLE_BIND_STATE_INIT;
+            break;
+        case APP_OLD_COMM_BIND_STATUS_BINDING:
+            local_state = BLE_BIND_STATE_KEY_GENERATE;
+            break;
+        case APP_OLD_COMM_BIND_STATUS_COMPLETE:
+            local_state = BLE_BIND_STATE_COMPLETE;
+            break;
+        default:
+            LOG_SRV(" Device bind status invalid: %d", device_bind_status);
+            return;
     }
-    //if (ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE) {
-        ble->ble_bind_state_set(device_bind_status);
-        LOG_SRV(" Device bind status set: %d", device_bind_status);
-    //}
+    ble->ble_bind_state_set(local_state);
+    LOG_SRV(" Device bind status set: proto=%d local=%d", device_bind_status, local_state);
 }
 
 // Get parse result string for logging
