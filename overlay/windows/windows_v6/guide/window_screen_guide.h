@@ -62,6 +62,11 @@ extern "C" {
 #define IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM         (0)
 #endif
 
+/// 引导已部署标记设置时机：1=进入引导页时，0=退出引导页时
+#ifndef GUIDE_SET_DEPLOYED_FLAG_ON_ENTER
+#define GUIDE_SET_DEPLOYED_FLAG_ON_ENTER           (1)
+#endif
+
 /// 主界面UI动作枚举
 typedef enum {
     GUIDE_HDR_ACTION_MAX
@@ -192,6 +197,7 @@ typedef struct {
     uint8_t stop_hold_ignore_click; /// 完成进度松手后忽略紧随的 CLICK
     uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
     uint8_t power_off_hold_ignore_click; /// 松手后忽略紧随的 power CLICK
+    uint8_t qrcode_only_session; /// 进入前已部署：本会话仅展示二维码
     uint32_t last_adjust_time; /// 上次力度调节时间
     uint32_t level_knob_ready_time; /// 左/右力度页：非 0 表示倒计时已锁定；双边力度页：到达目标档位后的计时起点
     uint32_t page_enter_time; /// 当前页面进入时间
