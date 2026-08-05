@@ -65,7 +65,7 @@ static void home_settings_success_ui_display_prepare(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_settings_success_prepare(ui);
+    ui_display_settings_success_prepare(ui, SETTINGS_SUCCESS_STYLE_DEFAULT);
 }
 
 static void home_settings_success_ui_display_remove(void *user_data)

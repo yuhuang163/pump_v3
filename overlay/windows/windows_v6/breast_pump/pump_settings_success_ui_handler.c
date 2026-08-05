@@ -70,8 +70,12 @@ static void pump_settings_success_animation_progress_cb(void *user_data, int ind
 static void pump_settings_success_ui_display_prepare(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
+    ui_proc_pump_t *proc;
+
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_settings_success_prepare(ui);
+    proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
+    EXCEPTION_CHECK_VOID(proc);
+    ui_display_settings_success_prepare(ui, proc->settings_success_style);
 }
 
 static void pump_settings_success_ui_display_remove(void *user_data)
@@ -93,6 +97,12 @@ void show_pump_settings_success_ui(ui_proc_pump_t *proc)
     pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS) {
         return;
+    }
+    /// 从韵律确认页进入时使用 Program switched 文案，其它入口保持 Success
+    if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
+        proc->settings_success_style = SETTINGS_SUCCESS_STYLE_PROGRAM_SWITCHED;
+    } else {
+        proc->settings_success_style = SETTINGS_SUCCESS_STYLE_DEFAULT;
     }
     pump_ui_change_hdr_remove(proc);
 
