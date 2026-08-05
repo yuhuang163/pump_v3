@@ -12,7 +12,7 @@
 */
 #define PAGE_STATIC_NAME                            factory_reset
 #define PAGE_NAME_STR                               "factory_reset"
-/** 含 L+R 组合键，短按可跳转 home 对应功能页 */
+/** 含 L+R 组合键；短按除 power/旋钮外回 home（或旧策略跳子页） */
 #define FACTORY_RESET_UI_KEY_CODE                   (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL)
 #define FACTORY_RESET_UI_KEY_TYPE                   (KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_CLICK)
 #define FACTORY_RESET_EXIT_TASK_NAME                "factory_reset_exit_task"
@@ -77,6 +77,7 @@ static void factory_reset_exit_task_cb(hdr_post_args_t *args)
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
+#if FACTORY_RESET_CONFIRM_KEY_TO_HOME_SUB_UI_ENABLE
 static void factory_reset_goto_home_sub_ui(ui_proc_factory_reset_t *proc, int sub_ui, int arg2)
 {
     multi_func_msg_data_t msg = {0};
@@ -89,6 +90,7 @@ static void factory_reset_goto_home_sub_ui(ui_proc_factory_reset_t *proc, int su
     msg.union_body.extra.arg2 = arg2;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
+#endif
 
 static void factory_power_key_event_handler(ui_proc_factory_reset_t *proc, uint16_t keytype)
 {
@@ -106,6 +108,8 @@ static void factory_power_key_event_handler(ui_proc_factory_reset_t *proc, uint1
 
 static void factory_function_key_click_handler(ui_proc_factory_reset_t *proc, uint16_t keycode)
 {
+#if FACTORY_RESET_CONFIRM_KEY_TO_HOME_SUB_UI_ENABLE
+    /// 旧策略：短按功能键跳转 home 对应功能子页
     switch (keycode) {
         case KEY_CODE_LEFT_CONTROL:
             /// arg2: 0=左, 1=右（与 home_level_adjust_side_e 一致）
@@ -134,6 +138,14 @@ static void factory_function_key_click_handler(ui_proc_factory_reset_t *proc, ui
         default:
             break;
     }
+#else
+    /// 新策略：短按除 power/旋钮外的按键，统一回 home 首页
+    if (keycode == KEY_CODE_KNOB_LEFT || keycode == KEY_CODE_KNOB_RIGHT) {
+        return;
+    }
+    LOG_WM("factory reset confirm key click goto home, keycode:0x%x", keycode);
+    factory_reset_request_exit(proc);
+#endif
 }
 
 static int on_factory_reset_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)

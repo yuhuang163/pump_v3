@@ -27,6 +27,11 @@ extern "C" {
 /// 工厂重置确认页空闲超时，超时走原退出路由
 #define FACTORY_RESET_CONFIRM_TIMEOUT_MS             (5000)
 
+/// 确认页短按功能键跳转：1=按键对应跳转 home 功能子页（旧）；0=统一回 home 首页（新，除 power/旋钮）
+#ifndef FACTORY_RESET_CONFIRM_KEY_TO_HOME_SUB_UI_ENABLE
+#define FACTORY_RESET_CONFIRM_KEY_TO_HOME_SUB_UI_ENABLE  (0)
+#endif
+
 /// 系统UI类型枚举
 typedef enum {
     FACTORY_RESET_UI_TYPE_NONE = 0,
