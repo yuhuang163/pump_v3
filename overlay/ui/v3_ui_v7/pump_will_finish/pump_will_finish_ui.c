@@ -13,13 +13,13 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_WILL_FINISH_ICON_Y                       (94)
-#define PUMP_WILL_FINISH_TITLE1_Y                     (198)
-#define PUMP_WILL_FINISH_TITLE_GAP                    (10)
+#define PUMP_WILL_FINISH_ICON_Y                       (56)
+#define PUMP_WILL_FINISH_TITLE1_Y                     (162 + 2)
+#define PUMP_WILL_FINISH_TITLE_GAP                    (10 + 2)
 #define PUMP_WILL_FINISH_TITLE_COLOR                  (0xFFFFFF)
 #define PUMP_WILL_FINISH_TITLE2_COLOR                 (0x999999)
-#define PUMP_WILL_FINISH_TITLE1_TEXT                  "Program ending soon"
-#define PUMP_WILL_FINISH_TITLE2_TEXT                  "Continue pumping?"
+#define PUMP_WILL_FINISH_TITLE1_TEXT                  "Your pumping program is\nabout to end."
+#define PUMP_WILL_FINISH_TITLE2_TEXT                  "Press the knob to\ncontinue pumping."
 
 /** 底部提示图：与 home_speed_adjust 一致 */
 #define PUMP_WILL_FINISH_TIP_H                        (49)
@@ -77,7 +77,7 @@ static void pump_will_finish_icon_update(ui_manager_context_t *thiz)
     }
     if (will_finish_info->icon_buf == NULL) {
         will_finish_info->icon_buf = ui_img_baj_theme_decode_draw_buf(thiz,
-            BASE_RES_ID_QUANDARY_ICON, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+            BASE_RES_ID_PUMP_WILL_FINISH_TIP_ICON, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
     }
     if (will_finish_info->icon_buf != NULL) {
         lv_image_set_src(will_finish_info->icon, will_finish_info->icon_buf);
@@ -103,6 +103,7 @@ static void pump_will_finish_title_update(void)
         lv_color_hex(PUMP_WILL_FINISH_TITLE_COLOR), 0);
     lv_obj_set_style_text_font(will_finish_info->title1, &lv_font_aeonik_soft_26_medium, 0);
     lv_obj_set_style_text_align(will_finish_info->title1, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_line_space(will_finish_info->title1, 8, 0);
     lv_obj_align(will_finish_info->title1, LV_ALIGN_TOP_MID, 0, PUMP_WILL_FINISH_TITLE1_Y);
 
     if (will_finish_info->title2 == NULL || !lv_obj_is_valid(will_finish_info->title2)) {
@@ -116,6 +117,7 @@ static void pump_will_finish_title_update(void)
     lv_obj_set_style_text_align(will_finish_info->title2, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align_to(will_finish_info->title2, will_finish_info->title1,
         LV_ALIGN_OUT_BOTTOM_MID, 0, PUMP_WILL_FINISH_TITLE_GAP);
+    lv_obj_set_style_text_line_space(will_finish_info->title2, 8, 0);
 }
 
 static lv_draw_buf_t *pump_will_finish_tip_predecode(void)

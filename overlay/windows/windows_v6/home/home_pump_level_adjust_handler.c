@@ -26,13 +26,21 @@ static void home_level_over_limit_clear(ui_proc_home_t *proc)
 
 static void home_level_over_limit_tick(ui_proc_home_t *proc)
 {
+    uint32_t elapsed;
+
     if (proc->level_over_limit == 0) {
         return;
     }
-    if (get_timestamp_ms(proc->level_over_limit_time) < HOME_LEVEL_OVER_LIMIT_WINDOW_MS) {
-        return;
+    elapsed = get_timestamp_ms(proc->level_over_limit_time);
+    /* 1s：进度条开始回退到实际力度 */
+    if (elapsed >= HOME_LEVEL_OVER_LIMIT_ARC_ROLLBACK_MS &&
+        proc->level_arc_level != proc->level_value) {
+        proc->level_arc_level = proc->level_value;
     }
-    home_level_over_limit_clear(proc);
+    /* 2s：过大提醒文案消失 */
+    if (elapsed >= HOME_LEVEL_OVER_LIMIT_TIP_CLEAR_MS) {
+        home_level_over_limit_clear(proc);
+    }
 }
 
 static void home_level_adjust_idle_exit_cb(hdr_post_args_t *args)
