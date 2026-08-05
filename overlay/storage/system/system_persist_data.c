@@ -209,6 +209,43 @@ int read_user_bind_info_from_flash(store_func_args_t args)
     return ret;
 }
 
+int write_bind_status_to_flash(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    user_bind_info_t *bind_info = &args.ctx->priv.sys_info.bind_info;
+    store_func_args_t flash_args = {
+        .ctx = args.ctx,
+        .arg1 = 0,
+        .arg2 = 0,
+        .val = bind_info,
+    };
+
+    bind_info->bind_status = (uint8_t)args.arg1;
+    LOG_STORE_WRAP("write bind status flash: %d", args.arg1);
+    return write_user_bind_info_to_flash(flash_args);
+}
+
+int read_bind_status_from_flash(store_func_args_t args)
+{
+    int ret;
+    int *tmp;
+    store_func_args_t flash_args;
+    user_bind_info_t *bind_info;
+
+    EXCEPTION_CHECK_INT(args.ctx);
+    tmp = (int *)args.val;
+    EXCEPTION_CHECK_INT(tmp);
+    bind_info = &args.ctx->priv.sys_info.bind_info;
+    flash_args.ctx = args.ctx;
+    flash_args.arg1 = 0;
+    flash_args.arg2 = 0;
+    flash_args.val = bind_info;
+    ret = read_user_bind_info_from_flash(flash_args);
+    *tmp = bind_info->bind_status;
+    LOG_STORE_WRAP("read bind status flash: %d", *tmp);
+    return ret;
+}
+
 int write_utc_timestamp_to_flash(store_func_args_t args)
 {
     int ret = 0;

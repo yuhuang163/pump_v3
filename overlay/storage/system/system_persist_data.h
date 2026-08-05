@@ -27,6 +27,9 @@ int read_sys_state_info_from_flash(store_func_args_t args);
 void reset_user_bind_info(storage_manager_context_t *ctx, user_bind_info_t *user_bind);
 int write_user_bind_info_to_flash(store_func_args_t args);
 int read_user_bind_info_from_flash(store_func_args_t args);
+/// 绑定状态（落盘复用 USER_BIND_INFO）
+int write_bind_status_to_flash(store_func_args_t args);
+int read_bind_status_from_flash(store_func_args_t args);
 int user_is_binded_from_ram(store_func_args_t args);
 /// UTC时间接口
 int write_utc_timestamp_to_flash(store_func_args_t args);
