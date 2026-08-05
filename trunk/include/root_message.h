@@ -90,10 +90,14 @@ typedef enum {
 /// 窗口事件 flags
 #define WINDOW_EVT_FLAG_FREE_USER_DATA   (1u << 0) /// 处理完后由 WM 释放 user_data
 
-/// 力度调节事件参数（home/pump 共用）
+/// 力度调节事件参数（home/pump 共用）：level[0]左 level[1]右
+#define WINDOW_EVT_LEVEL_SIDE_LEFT      0
+#define WINDOW_EVT_LEVEL_SIDE_RIGHT     1
+#define WINDOW_EVT_LEVEL_SIDE_BOTH      2
+
 typedef struct {
-    uint8_t side;   /// 0左/1右/2双边
-    uint8_t level;
+    uint8_t level[2];   /// [0]左 [1]右
+    uint8_t side;       /// WINDOW_EVT_LEVEL_SIDE_*
 } window_evt_level_t;
 
 /// 速度调节事件参数（home/pump 共用）
