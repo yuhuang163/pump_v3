@@ -80,8 +80,19 @@ void show_pump_rhythm_confirm_ui(ui_proc_pump_t *proc)
     };
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_RHYTHM_CONFIRM;
-    /// 一次完整泵奶最多展示一次（方案1）
-    proc->rhythm_confirm_shown = 1;
+#if (PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME == PUMP_RHYTHM_CONFIRM_SCHEME_1)
+    {
+        int work_mode = 0;
+
+        /// 按当前工作模式区分：模式→韵律 / 韵律→韵律，各自记一次
+        READ_PUMP_WORK_MODE(proc->pump, work_mode);
+        if (PUMP_IS_BREASTFEEDING_MODE(work_mode)) {
+            proc->rhythm_confirm_shown |= PUMP_RHYTHM_CONFIRM_SHOWN_RHYTHM_TO_RHYTHM;
+        } else {
+            proc->rhythm_confirm_shown |= PUMP_RHYTHM_CONFIRM_SHOWN_MODE_TO_RHYTHM;
+        }
+    }
+#endif
 }
 
 void pump_rhythm_confirm_ui_exit(ui_proc_pump_t *proc)

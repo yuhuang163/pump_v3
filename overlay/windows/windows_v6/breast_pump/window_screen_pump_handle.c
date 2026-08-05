@@ -192,6 +192,17 @@ static void pump_mode_key_event_cb(ui_proc_pump_t *proc, uint8_t mode_index)
         proc->ui_mode_page_index = PUMP_MODE_PAGE_INDEX_NONE;
     }
     pump_mode_set_handler(proc, mode_index);
+#if PUMP_PAUSE_MODE_KEY_START_ENABLE
+    {
+        int pump_status = 0;
+
+        READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+        if (pump_status == BREAST_PUMP_PAUSE) {
+            LOG_WM("pause + mode key, switch mode and start pump. mode:%d", mode_index);
+            pump_start_key_event_handler(proc);
+        }
+    }
+#endif
 }
 
 static void pump_knob_left_event_cb(ui_proc_pump_t *proc)
