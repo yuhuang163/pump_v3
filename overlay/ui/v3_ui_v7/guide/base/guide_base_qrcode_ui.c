@@ -13,15 +13,15 @@
 #define GUIDE_QRCODE_SIZE                           (120)
 #define GUIDE_QRCODE_PAD                            (4)     /// 二维码四周留白
 #define GUIDE_QRCODE_INNER_SIZE                     (GUIDE_QRCODE_SIZE - GUIDE_QRCODE_PAD * 2)
-#define GUIDE_QRCODE_RADIUS                         (11)
-#define GUIDE_QRCODE_ALIGN_Y                        (74)
+#define GUIDE_QRCODE_RADIUS                         (12)
+#define GUIDE_QRCODE_ALIGN_Y                        (41)
 #define GUIDE_QRCODE_BG_COLOR                       (0xFFFFFF)
 #define GUIDE_QRCODE_FG_COLOR                       (0x000000)
 
-#define GUIDE_QRCODE_DESC_Y                         (218)
+#define GUIDE_QRCODE_DESC_Y                         (183)
 #define GUIDE_QRCODE_DESC_COLOR                     (0xFFFFFF)
 #define GUIDE_QRCODE_DESC_LINE_SPACE                (8)
-#define GUIDE_QRCODE_DESC_TEXT                      "Scan to download App to\nconnect to device"
+#define GUIDE_QRCODE_DESC_TEXT                      "Scan the QR code to\ndownload the app and\nconnect your pump."
 
 #define GUIDE_QRCODE_TIP_H                          (63)
 /** 底部提示图 Y：贴底留边（与 home 模式选择页一致） */

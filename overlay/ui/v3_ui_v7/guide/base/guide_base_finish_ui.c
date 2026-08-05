@@ -20,11 +20,11 @@
 #define GUIDE_FINISH_QRCODE_FG_COLOR                    (0x000000)
 #define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
 
-#define GUIDE_FINISH_DESC_Y                             (197)
+#define GUIDE_FINISH_DESC_Y                             (198)
 #define GUIDE_FINISH_DESC_COLOR                         (0xFFFFFF)
 #define GUIDE_FINISH_DESC_LINE_SPACE                    (8)
 #define GUIDE_FINISH_DESC_TEXT \
-    "The guide has ended; you can\nscan the code to review it\nagain."
+    "Tutorial complete. Scan the\nQR code anytime to view it\nagain."
 
 #define GUIDE_FINISH_TIP_H                              (49)
 #define GUIDE_FINISH_TIP_Y                              (PANLE_DISPLAY_H - GUIDE_FINISH_TIP_H - 8)

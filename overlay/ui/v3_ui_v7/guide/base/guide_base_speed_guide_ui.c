@@ -14,24 +14,19 @@
 #define GUIDE_SPEED_GUIDE_PAGE_NUM_CURRENT                  (7)
 #define GUIDE_SPEED_GUIDE_PAGE_NUM_TOTAL                    (7)
 
-#define GUIDE_SPEED_GUIDE_PRESS_X                           (34)
-#define GUIDE_SPEED_GUIDE_PRESS_Y                           (145)
+#define GUIDE_SPEED_GUIDE_PRESS_X                           (109)
+#define GUIDE_SPEED_GUIDE_PRESS_Y                           (146 + 2)
 #define GUIDE_SPEED_GUIDE_PRESS_TEXT                        "Press"
 #define GUIDE_SPEED_GUIDE_PRESS_LINE_SPACE                  (4)
 
-#define GUIDE_SPEED_GUIDE_ON_RIGHT_X                        (188)
-#define GUIDE_SPEED_GUIDE_ON_RIGHT_Y                        (145)
-#define GUIDE_SPEED_GUIDE_ON_RIGHT_TEXT                     "on the right"
-#define GUIDE_SPEED_GUIDE_ON_RIGHT_LINE_SPACE               (4)
-
-#define GUIDE_SPEED_GUIDE_ADJUST_Y                          (198)
-#define GUIDE_SPEED_GUIDE_ADJUST_TEXT                       "to adjust speed"
+#define GUIDE_SPEED_GUIDE_ADJUST_Y                          (199 + 2)
+#define GUIDE_SPEED_GUIDE_ADJUST_TEXT                       "to adjust cycle speed."
 #define GUIDE_SPEED_GUIDE_ADJUST_LINE_SPACE                 (8)
 
 #define GUIDE_SPEED_GUIDE_TEXT_COLOR                        (0xFFFFFF)
 
-#define GUIDE_SPEED_GUIDE_ICON_X                            (112)
-#define GUIDE_SPEED_GUIDE_ICON_Y                            (128)
+#define GUIDE_SPEED_GUIDE_ICON_X                            (187)
+#define GUIDE_SPEED_GUIDE_ICON_Y                            (129)
 #define GUIDE_SPEED_GUIDE_ICON_RES_ID                       (BASE_RES_ID_GUIDE_SPEED_KEY_ICON)
 
 #define GUIDE_SPEED_GUIDE_TIP_H                             (63)
@@ -167,9 +162,6 @@ static void guide_speed_guide_texts_create(guide_base_ui_info_t *info)
     guide_speed_guide_label_create(&info->speed_guide.press, parent,
         GUIDE_SPEED_GUIDE_PRESS_TEXT, GUIDE_SPEED_GUIDE_PRESS_X, GUIDE_SPEED_GUIDE_PRESS_Y,
         GUIDE_SPEED_GUIDE_PRESS_LINE_SPACE, false);
-    guide_speed_guide_label_create(&info->speed_guide.on_right, parent,
-        GUIDE_SPEED_GUIDE_ON_RIGHT_TEXT, GUIDE_SPEED_GUIDE_ON_RIGHT_X,
-        GUIDE_SPEED_GUIDE_ON_RIGHT_Y, GUIDE_SPEED_GUIDE_ON_RIGHT_LINE_SPACE, false);
     guide_speed_guide_label_create(&info->speed_guide.adjust, parent,
         GUIDE_SPEED_GUIDE_ADJUST_TEXT, 0, GUIDE_SPEED_GUIDE_ADJUST_Y,
         GUIDE_SPEED_GUIDE_ADJUST_LINE_SPACE, true);

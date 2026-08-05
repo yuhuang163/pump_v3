@@ -17,11 +17,11 @@
 #define GUIDE_MODE_SWITCH_GUIDE_PAGE_NUM_TOTAL                  (7)
 
 #define GUIDE_MODE_SWITCH_GUIDE_TITLE_Y                         (61)
-#define GUIDE_MODE_SWITCH_GUIDE_TITLE_LINE_SPACE                (4)
+#define GUIDE_MODE_SWITCH_GUIDE_TITLE_LINE_SPACE                (8)
 #define GUIDE_MODE_SWITCH_GUIDE_TITLE_COLOR                     (0xFFFFFF)
-#define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT                      "Rotate the knob to\nswitch more"
+#define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT                      "Turn the knob to\nexplore more options."
 
-#define GUIDE_MODE_SWITCH_GUIDE_ICON_Y                          (142)
+#define GUIDE_MODE_SWITCH_GUIDE_ICON_Y                          (143)
 #define GUIDE_MODE_SWITCH_GUIDE_ICON_RES_ID                     (BASE_RES_ID_GUIDE_KNOB_KEY_ICON)
 
 #define GUIDE_MODE_SWITCH_GUIDE_TIP_H                           (63)

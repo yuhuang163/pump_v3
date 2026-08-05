@@ -12,7 +12,7 @@
 #define GUIDE_INTRO_BG_RES_ID                       (BASE_RES_ID_SIMULATION_MODE_BG)
 #define GUIDE_INTRO_TITLE_COLOR                     (0xFFFFFF)
 #define GUIDE_INTRO_TITLE_LINE_SPACE                (8)
-#define GUIDE_INTRO_TITLE_TEXT                      "Let's start your\npumping journey."
+#define GUIDE_INTRO_TITLE_TEXT                      "Let's get started!"
 
 /*
 * LOCAL FUNCTION DEFINITIONS

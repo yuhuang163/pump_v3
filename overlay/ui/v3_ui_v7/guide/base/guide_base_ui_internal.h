@@ -227,7 +227,6 @@ typedef struct {
 typedef struct {
     lv_obj_t *bg;
     lv_obj_t *press;
-    lv_obj_t *on_right;
     lv_obj_t *adjust;
     lv_obj_t *icon;
     lv_draw_buf_t *icon_buf;
