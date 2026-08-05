@@ -12,7 +12,7 @@
 #define PAGE_STATIC_NAME                        airplane_mode
 #define PAGE_NAME_STR                           "airplane_mode"
 #define AIRPLANE_MODE_UI_KEY_CODE               (KEY_CODE_TRAVEL_LOCK)
-#define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
+#define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_UP | KEY_EVENT_LONG_2S)
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -56,7 +56,7 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
     }
     /// 按键操作刷新关机倒计时
     proc->power_off_idle_time = get_timestamp();
-    if (keytype == KEY_EVENT_DOWN) {
+    if (keytype == KEY_EVENT_LONG_2S) {
         proc->popup_ui_type = ID_POPUP_UI_AIRPLANE_MODE_PROMPT;
     } else if (keytype == KEY_EVENT_UP) {
         if (proc->popup_ui_type != ID_POPUP_UI_NONE) {
