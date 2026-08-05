@@ -24,7 +24,7 @@ extern "C" {
 
 /**
  * 切换韵律确认页策略（二选一，默认方案1）：
- * 方案1：模式→韵律、韵律→韵律各自本次泵奶首次弹确认页（两类互不影响）
+ * 方案1：目标为韵律（模式→韵律 / 韵律→韵律），且本次泵奶首次才弹确认页
  * 方案2：目标为韵律模式即弹确认页（每次切换都弹）
  */
 #define PUMP_RHYTHM_CONFIRM_SCHEME_1           (1)
@@ -32,9 +32,6 @@ extern "C" {
 #ifndef PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME
 #define PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME      PUMP_RHYTHM_CONFIRM_SCHEME_1
 #endif
-/// 方案1：节奏确认已展示标记（按切换类型分 bit）
-#define PUMP_RHYTHM_CONFIRM_SHOWN_MODE_TO_RHYTHM    (1 << 0) /// 模式→韵律
-#define PUMP_RHYTHM_CONFIRM_SHOWN_RHYTHM_TO_RHYTHM  (1 << 1) /// 韵律→韵律
 
 /// 单边/双边力度连续加档限制窗口时长
 #define PUMP_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
@@ -186,7 +183,7 @@ typedef struct {
     /// 模式相关
     uint16_t ui_mode_page_index; /// 当前UI模式页面索引（与 home 一致，驱动切页）
     uint32_t mode_select_idle_time; /// 模式选择页无操作计时起点
-    uint8_t rhythm_confirm_shown; /// 本次泵奶韵律确认已展示标记（PUMP_RHYTHM_CONFIRM_SHOWN_*）
+    uint8_t rhythm_confirm_shown; /// 本次泵奶是否已展示过切换韵律确认页
     uint8_t settings_success_style; /// settings success 文案样式 SETTINGS_SUCCESS_STYLE_*
 
     /// 长按停止确认
