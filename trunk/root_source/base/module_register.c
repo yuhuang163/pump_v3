@@ -29,14 +29,14 @@ static const module_register_fptr s_module_register[] = {
     #if IS_SUPPORT_MODULE_PBUS
     register_module_for_peripheral_bus_new,
     #endif
-    #if IS_SUPPORT_MODULE_BLE
-    register_module_for_ble_manager_new,
-    #endif
     #if IS_SUPPORT_MODULE_PM
     register_module_for_pm_new,
     #endif
     #if IS_SUPPORT_MODULE_STORAGE
     register_module_for_storage_new,
+    #endif
+    #if IS_SUPPORT_MODULE_BLE
+    register_module_for_ble_manager_new,
     #endif
     #if IS_SUPPORT_MODULE_RES
     register_module_for_res_manager_new,

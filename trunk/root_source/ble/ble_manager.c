@@ -177,7 +177,7 @@ static int ble_bind_state_set(uint8_t state)
     ble_obj->priv.ble_bind_state = state;
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     if (storage_ctx && storage_ctx->put_store_val) {
-        storage_ctx->put_store_val(STORE_ID_SYS_BIND_STATUS, 0, 0, &state);
+        storage_ctx->put_store_val(STORE_ID_SYS_BIND_STATUS, state, 0, NULL);
     }
     LOG_BLE("bind state: %d", state);
     return 0;
@@ -488,8 +488,10 @@ static int on_post_init(void *ptr)
     }
     /// 获取绑定状态
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    if (storage_ctx && storage_ctx->get_store_val) {
-        storage_ctx->get_store_val(STORE_ID_SYS_BIND_STATUS, 0, 0, &ctx->priv.ble_bind_state);
+    if (storage_ctx && storage_ctx->get_store_ram_val) {
+        int bind_state = 0;
+        storage_ctx->get_store_ram_val(STORE_ID_SYS_BIND_STATUS, 0, 0, &bind_state);
+        ctx->priv.ble_bind_state = (uint8_t)bind_state;
     }
 
     ctx->priv.bcreceiver = u_malloz(sizeof(broadcast_obj_t));
