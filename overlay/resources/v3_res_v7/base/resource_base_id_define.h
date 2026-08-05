@@ -67,6 +67,7 @@ typedef enum {
     BASE_RES_ID_PUMP_TIME_LABEL, /// 泵奶时间标签
     BASE_RES_ID_MODE_SELECT_TIP, /// 模式选择页提示文案图片
     BASE_RES_ID_TEXT_SHINE_MASK, /// 文案扫光蒙层
+    BASE_RES_ID_PUMP_WILL_FINISH_TIP_ICON, /// 泵奶即将结束提示图标
 
     /* 动画组 [1000..] */
     BASE_RES_ID_STIMULATION_ANIM_START = 1000, /// 刺激动画-开始
