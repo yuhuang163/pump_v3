@@ -90,6 +90,10 @@ static int exit_airplane_mode_route(struct airplane_mode_context *ctx, int exit_
 
 static void travel_lock_key_event_handler(struct airplane_mode_context *ctx, void *user_data)
 {
+#if ROOT_PRODUCT_ID == ROOT_PRODUCT_V3_ID
+    LOG_AIR("v3 product, ignore travel lock key event.");
+    return;
+#endif
     window_manager_context_t *wm = (window_manager_context_t *)user_data;
     EXCEPTION_CHECK_VOID(wm);
     if (ctx->priv.is_count_down_popup_show == false) {
