@@ -65,9 +65,10 @@
 
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_W                (220)
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_H                (50)
-#define PUMP_BOTH_LEVEL_OVER_LIMIT_Y                (68)
+#define PUMP_BOTH_LEVEL_OVER_LIMIT_Y                (60)
+#define PUMP_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE       (8)
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT \
-    "Max 3 levels at a time\nfor your safety"
+    "For safety,\nUp to 3 levels at a time."
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_W              (PANLE_DISPLAY_W)
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_H              (34)
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_Y              (78)
@@ -563,6 +564,7 @@ static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t col
         lv_obj_set_style_text_align(pump_both_info->over_limit_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_width(pump_both_info->over_limit_label, PUMP_BOTH_LEVEL_OVER_LIMIT_W);
         lv_obj_center(pump_both_info->over_limit_label);
+        lv_obj_set_style_text_line_space(pump_both_info->over_limit_label, PUMP_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE, 0);
     }
 
     if (pump_both_info->force_update == false &&

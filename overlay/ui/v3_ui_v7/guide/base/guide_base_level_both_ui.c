@@ -42,9 +42,10 @@
 
 #define GUIDE_BOTH_LEVEL_OVER_LIMIT_W                   (220)
 #define GUIDE_BOTH_LEVEL_OVER_LIMIT_H                   (50)
-#define GUIDE_BOTH_LEVEL_OVER_LIMIT_Y                   (68)
+#define GUIDE_BOTH_LEVEL_OVER_LIMIT_Y                   (60)
+#define GUIDE_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE          (8)
 #define GUIDE_BOTH_LEVEL_OVER_LIMIT_TEXT \
-    "Max 3 levels at a time\nfor your safety"
+    "For safety,\nUp to 3 levels at a time."
 
 #define GUIDE_BOTH_LEVEL_TIP_H                          (49)
 #define GUIDE_BOTH_LEVEL_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_BOTH_LEVEL_TIP_H - 8)
@@ -360,6 +361,7 @@ static void guide_both_level_over_limit_update(guide_base_ui_info_t *info, ui_pr
             GUIDE_BOTH_LEVEL_OVER_LIMIT_Y, GUIDE_BOTH_LEVEL_OVER_LIMIT_W,
             GUIDE_BOTH_LEVEL_OVER_LIMIT_H);
         EXCEPTION_CHECK_VOID(page->over_limit_box);
+        lv_obj_add_flag(page->over_limit_box, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
         page->shown_over_limit = 0xFF;
     }
     if (page->over_limit_label == NULL || !lv_obj_is_valid(page->over_limit_label)) {
@@ -369,6 +371,8 @@ static void guide_both_level_over_limit_update(guide_base_ui_info_t *info, ui_pr
         lv_obj_set_style_text_font(page->over_limit_label, &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_align(page->over_limit_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_width(page->over_limit_label, GUIDE_BOTH_LEVEL_OVER_LIMIT_W);
+        lv_obj_set_style_text_line_space(page->over_limit_label,
+            GUIDE_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE, 0);
         lv_obj_center(page->over_limit_label);
     }
 

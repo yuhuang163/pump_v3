@@ -33,8 +33,12 @@ extern "C" {
 #define PUMP_RHYTHM_SWITCH_CONFIRM_SCHEME      PUMP_RHYTHM_CONFIRM_SCHEME_1
 #endif
 
-/// 单边力度连续加档限制窗口 / 过大提示时长
+/// 单边/双边力度连续加档限制窗口时长
 #define PUMP_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
+/// 调节过大后静默，进度条开始回退
+#define PUMP_LEVEL_OVER_LIMIT_ARC_ROLLBACK_MS  (1000) /// 1s
+/// 调节过大后静默，过大提醒文案消失
+#define PUMP_LEVEL_OVER_LIMIT_TIP_CLEAR_MS     (2000) /// 2s
 #define PUMP_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 /// 子模式切换提醒时长
 #define PUMP_SUB_MODE_SWITCH_TIMEOUT_MS        (3000) /// 3s
@@ -175,6 +179,7 @@ typedef struct {
     uint16_t ui_mode_page_index; /// 当前UI模式页面索引（与 home 一致，驱动切页）
     uint32_t mode_select_idle_time; /// 模式选择页无操作计时起点
     uint8_t rhythm_confirm_shown; /// 本次泵奶是否已展示过切换韵律确认页
+    uint8_t settings_success_style; /// settings success 文案样式 SETTINGS_SUCCESS_STYLE_*
 
     /// 长按停止确认
     uint8_t stop_hold_holding; /// 停止确认页是否处于按住倒计时

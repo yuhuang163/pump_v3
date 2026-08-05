@@ -65,9 +65,10 @@
 
 #define HOME_BOTH_LEVEL_OVER_LIMIT_W                (220)
 #define HOME_BOTH_LEVEL_OVER_LIMIT_H                (50)
-#define HOME_BOTH_LEVEL_OVER_LIMIT_Y                (68)
+#define HOME_BOTH_LEVEL_OVER_LIMIT_Y                (60)
+#define HOME_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE       (8)
 #define HOME_BOTH_LEVEL_OVER_LIMIT_TEXT \
-    "Max 3 levels at a time\nfor your safety"
+    "For safety,\nUp to 3 levels at a time."
 #define HOME_BOTH_LEVEL_MODE_SWITCH_TEXT_FMT        "Switch to %s"
 
 /** 底部提示图：与速度调节一致 */
@@ -511,6 +512,7 @@ static void home_both_level_over_limit_update(ui_proc_home_t *proc, uint32_t col
         lv_obj_set_style_text_align(both_info->over_limit_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_width(both_info->over_limit_label, HOME_BOTH_LEVEL_OVER_LIMIT_W);
         lv_obj_center(both_info->over_limit_label);
+        lv_obj_set_style_text_line_space(both_info->over_limit_label, HOME_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE, 0);
     }
 
     if (both_info->force_update == false &&

@@ -26,11 +26,12 @@
 #define PUMP_LEVEL_VALUE_Y                          (127)
 #define PUMP_LEVEL_VALUE_COLOR                      (0xFFFFFF)
 
-#define PUMP_LEVEL_DIR_Y                            (210)
+#define PUMP_LEVEL_DIR_Y                            (206)
 #define PUMP_LEVEL_DIR_COLOR                        (0x999999)
+#define PUMP_LEVEL_DIR_LINE_SPACE                   (8)
 #define PUMP_LEVEL_DIR_LEFT_TEXT                    "Left Level"
 #define PUMP_LEVEL_DIR_RIGHT_TEXT                   "Right Level"
-#define PUMP_LEVEL_OVER_LIMIT_TEXT                  "Max 3 Levels at a time"
+#define PUMP_LEVEL_OVER_LIMIT_TEXT                  "For safety,\nUp to 3 levels at a time."
 #define PUMP_LEVEL_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 /** 泵奶时间组件参数与 pump_home_base_mode_page_ui 一致 */
@@ -246,6 +247,7 @@ static void pump_level_dir_update(ui_proc_pump_t *proc, uint32_t accent_color)
 {
     char switch_buf[32] = {0};
     const char *text;
+    const lv_font_t *font;
     uint32_t color;
     uint8_t mode_switch = proc->sub_mode_switch;
     uint32_t expect_color;
@@ -276,24 +278,29 @@ static void pump_level_dir_update(ui_proc_pump_t *proc, uint32_t accent_color)
     if (proc->level_over_limit) {
         text = PUMP_LEVEL_OVER_LIMIT_TEXT;
         color = accent_color;
+        font = &lv_font_aeonik_soft_22_medium;
     } else if (mode_switch) {
         snprintf(switch_buf, sizeof(switch_buf), PUMP_LEVEL_MODE_SWITCH_TEXT_FMT,
             home_level_adjust_mode_type_name_get(proc->sub_mode_type));
         text = switch_buf;
         color = accent_color;
+        font = &lv_font_aeonik_soft_26_medium;
     } else if (proc->level_adjust_side == PUMP_LEVEL_ADJUST_SIDE_RIGHT) {
         text = PUMP_LEVEL_DIR_RIGHT_TEXT;
         color = PUMP_LEVEL_DIR_COLOR;
+        font = &lv_font_aeonik_soft_26_medium;
     } else {
         text = PUMP_LEVEL_DIR_LEFT_TEXT;
         color = PUMP_LEVEL_DIR_COLOR;
+        font = &lv_font_aeonik_soft_26_medium;
     }
 
     lv_label_set_text(level_info->dir_label, text);
     lv_obj_set_style_text_color(level_info->dir_label, lv_color_hex(color), 0);
-    lv_obj_set_style_text_font(level_info->dir_label, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(level_info->dir_label, font, 0);
     lv_obj_set_style_text_align(level_info->dir_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(level_info->dir_label, LV_ALIGN_TOP_MID, 0, PUMP_LEVEL_DIR_Y);
+    lv_obj_set_style_text_line_space(level_info->dir_label, PUMP_LEVEL_DIR_LINE_SPACE, 0);
     level_info->shown_side = proc->level_adjust_side;
     level_info->shown_over_limit = proc->level_over_limit;
     level_info->shown_mode_switch = mode_switch;

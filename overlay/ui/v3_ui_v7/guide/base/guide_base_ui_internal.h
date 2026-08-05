@@ -274,12 +274,14 @@ typedef struct {
     uint8_t tip_predecoded;
     uint8_t shown_level;
     uint8_t shown_side;
+    uint8_t shown_over_limit;
     uint8_t anim_to_level;
     uint8_t level_max;
     uint16_t anim_from_sweep;
     uint16_t anim_to_sweep;
     uint32_t anim_start_time;
     uint32_t accent_color;
+    uint32_t shown_dir_color;
 } guide_base_level_side_info_t;
 
 typedef struct {

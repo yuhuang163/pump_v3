@@ -15,13 +15,13 @@
 */
 #define IS_SUPPORT_RHYTHM_CONFIRM_COMP_BG               (0) /// 是否启用对比背景图
 
-#define RHYTHM_CONFIRM_ICON_Y                           (89)
-#define RHYTHM_CONFIRM_TITLE_Y                          (198)
-#define RHYTHM_CONFIRM_SUBTITLE_Y                       (239)
+#define RHYTHM_CONFIRM_ICON_Y                           (90)
+#define RHYTHM_CONFIRM_TITLE_Y                          (196)
+#define RHYTHM_CONFIRM_SUBTITLE_Y                       (237)
 #define RHYTHM_CONFIRM_TITLE_COLOR                      (0xFFFFFF)
 #define RHYTHM_CONFIRM_SUBTITLE_COLOR                   (0x999999)
 #define RHYTHM_CONFIRM_TITLE_TEXT                       "Switch to Program?"
-#define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "Timer will restart"
+#define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "The timer will reset"
 
 #define RHYTHM_CONFIRM_TIP_H                            (49)
 /** 底部提示图 Y：贴底留边（与 home 模式选择页一致） */

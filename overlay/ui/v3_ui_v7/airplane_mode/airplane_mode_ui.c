@@ -195,7 +195,7 @@ static void airplane_mode_key_icons_update(ui_manager_context_t *thiz)
         LV_ALIGN_TOP_LEFT, AIRPLANE_MODE_ADD_ICON_X,
         airplane_mode_content_y(AIRPLANE_MODE_ADD_ICON_Y));
     airplane_mode_set_predecoded_icon(thiz, &airplane_info->expr_key_icon,
-        &airplane_info->expr_key_icon_buf, BASE_RES_ID_EXPRESSION_KEY_ICON,
+        &airplane_info->expr_key_icon_buf, BASE_RES_ID_GUIDE_RIGHT_KEY_ICON,
         LV_ALIGN_TOP_LEFT, AIRPLANE_MODE_EXPR_KEY_ICON_X,
         airplane_mode_content_y(AIRPLANE_MODE_EXPR_KEY_ICON_Y));
 }

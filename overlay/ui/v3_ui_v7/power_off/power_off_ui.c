@@ -21,7 +21,7 @@
 #define PROGRESS_ARC_TEXT_LINE_SPACE            (8)           /* 多行文案行间距 */
 
 #define POWER_OFF_TEXT_POWERING_OFF_STR         "Powering off..."
-#define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR        "Auto shut off in\nprogress"
+#define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR        "Auto Powering Off..."
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -104,9 +104,9 @@ static void ui_power_off_bg_update(ui_manager_context_t *thiz)
 
 static const char *ui_power_off_text_get(power_off_text_type_e text_type)
 {
-    // if (text_type == POWER_OFF_TEXT_AUTO_SHUT_OFF) {
-    //     return POWER_OFF_TEXT_AUTO_SHUT_OFF_STR;
-    // }
+    if (text_type == POWER_OFF_TEXT_AUTO_SHUT_OFF) {
+        return POWER_OFF_TEXT_AUTO_SHUT_OFF_STR;
+    }
     return POWER_OFF_TEXT_POWERING_OFF_STR;
 }
 

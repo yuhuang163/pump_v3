@@ -32,6 +32,10 @@ extern "C" {
 /// 双边力度调节-加/减页：到达目标档位后的结算时长，结算完成后跳转
 #define GUIDE_LEVEL_BOTH_SETTLE_MS              (1000) /// 1s
 #define GUIDE_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
+/// 调节过大后静默，进度条开始回退
+#define GUIDE_LEVEL_OVER_LIMIT_ARC_ROLLBACK_MS  (1000) /// 1s
+/// 调节过大后静默，过大提醒文案消失
+#define GUIDE_LEVEL_OVER_LIMIT_TIP_CLEAR_MS     (2000) /// 2s
 #define GUIDE_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 /// 力度调节后，展示页面停留时间
 #define GUIDE_GUIDE_STEP_ADVANCE_TIME_MS        (3000) /// 纯引导页自动翻页时间
@@ -168,9 +172,13 @@ typedef struct {
     uint8_t state_blink_visible; /// 状态闪烁可见: 0: 隐藏相, 1: 显示相.
     uint8_t level_knob_touched; /// 力度页是否已旋转过旋钮.
     uint8_t level_adjust_side; /// 单边力度调节侧 guide_level_adjust_side_e
-    uint8_t level_value; /// 单边力度展示值
-    uint8_t level_arc_level; /// 单边力度圆弧目标值
-    uint8_t both_level_value[2]; /// 双边实际/展示力度
+    uint8_t level_value; /// 单边力度展示值（过大提示时不变）
+    uint8_t level_arc_level; /// 单边力度圆弧目标值（可与 level_value 分离）
+    uint8_t level_over_limit; /// 单边力度过大提示中
+    uint8_t level_inc_window_base; /// 单边连续加档窗口起始力度
+    uint32_t level_inc_window_time; /// 单边加档窗口起始时间
+    uint32_t level_over_limit_time; /// 单边过大提示计时起点（有调节刷新）
+    uint8_t both_level_value[2]; /// 双边实际/展示力度（过大提示时不变）
     uint8_t both_level_arc[2]; /// 双边圆弧目标力度
     uint8_t both_level_over_limit; /// 双边过大提示
     uint8_t both_level_inc_steps; /// 双边加档窗口内步数
@@ -199,7 +207,9 @@ void stop_guide_ui_animation(ui_proc_guide_t *proc);
 void guide_led_backlight_update(ui_proc_guide_t *proc);
 void guide_led_backlight_blink_tick(ui_proc_guide_t *proc);
 void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page);
+void guide_pump_level_page_enter_sync(ui_proc_guide_t *proc);
 int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase);
+void guide_pump_level_over_limit_tick(ui_proc_guide_t *proc);
 void guide_pump_level_idle_timeout_handler(ui_proc_guide_t *proc);
 uint8_t guide_pump_level_idle_remain_sec_get(const ui_proc_guide_t *proc);
 void guide_pump_both_level_page_enter_sync(ui_proc_guide_t *proc);

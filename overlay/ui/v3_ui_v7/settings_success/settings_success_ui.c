@@ -13,10 +13,20 @@
 */
 #define IS_SUPPORT_SETTINGS_SUCCESS_COMP_BG             (0) /// 是否启用对比背景图
 
-#define SETTINGS_SUCCESS_ICON_Y                         (104)
+/** 默认样式：Success */
+#define SETTINGS_SUCCESS_ICON_Y                         (107)
 #define SETTINGS_SUCCESS_TITLE_Y                        (212)
 #define SETTINGS_SUCCESS_TITLE_COLOR                    (0xFFFFFF)
 #define SETTINGS_SUCCESS_TITLE_TEXT                     "Success"
+
+/** 韵律切换成功样式：Program switched / Timer reset */
+#define SETTINGS_SUCCESS_PROGRAM_ICON_Y                 (90)
+#define SETTINGS_SUCCESS_PROGRAM_TITLE_Y                (196)
+#define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_Y             (238)
+#define SETTINGS_SUCCESS_PROGRAM_TITLE_COLOR            (0xFFFFFF)
+#define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_COLOR         (0x999999)
+#define SETTINGS_SUCCESS_PROGRAM_TITLE_TEXT             "Program switched"
+#define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_TEXT          "Timer reset"
 
 typedef struct {
     lv_obj_t *root;
@@ -25,8 +35,10 @@ typedef struct {
 #endif
     lv_obj_t *icon;
     lv_obj_t *title;
+    lv_obj_t *subtitle;
+    uint8_t style;
     uint8_t force_update;
-    uint8_t rsv[15];
+    uint8_t rsv[14];
 } settings_success_ui_info_t;
 
 /*
@@ -97,6 +109,8 @@ static void settings_success_bg_update(ui_manager_context_t *thiz)
 
 static void settings_success_icon_update(ui_manager_context_t *thiz)
 {
+    int16_t icon_y = SETTINGS_SUCCESS_ICON_Y;
+
     if (success_info->force_update == false) {
         return;
     }
@@ -107,7 +121,10 @@ static void settings_success_icon_update(ui_manager_context_t *thiz)
     }
     ui_img_baj_theme_set_src(thiz, success_info->icon, BASE_RES_ID_SUCCESS_ICON,
         RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-    lv_obj_align(success_info->icon, LV_ALIGN_TOP_MID, 0, SETTINGS_SUCCESS_ICON_Y);
+    if (success_info->style == SETTINGS_SUCCESS_STYLE_PROGRAM_SWITCHED) {
+        icon_y = SETTINGS_SUCCESS_PROGRAM_ICON_Y;
+    }
+    lv_obj_align(success_info->icon, LV_ALIGN_TOP_MID, 0, icon_y);
 }
 
 static void settings_success_title_update(void)
@@ -120,24 +137,62 @@ static void settings_success_title_update(void)
         success_info->title = lv_label_create(success_info->root);
         EXCEPTION_CHECK_VOID(success_info->title);
     }
-    lv_label_set_text(success_info->title, SETTINGS_SUCCESS_TITLE_TEXT);
-    lv_obj_set_style_text_color(success_info->title, lv_color_hex(SETTINGS_SUCCESS_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(success_info->title, &lv_font_aeonik_soft_33_medium, 0);
-    lv_obj_set_style_text_align(success_info->title, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(success_info->title, LV_ALIGN_TOP_MID, 0, SETTINGS_SUCCESS_TITLE_Y);
+
+    if (success_info->style == SETTINGS_SUCCESS_STYLE_PROGRAM_SWITCHED) {
+        lv_label_set_text(success_info->title, SETTINGS_SUCCESS_PROGRAM_TITLE_TEXT);
+        lv_obj_set_style_text_color(success_info->title,
+            lv_color_hex(SETTINGS_SUCCESS_PROGRAM_TITLE_COLOR), 0);
+        lv_obj_set_style_text_font(success_info->title, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_align(success_info->title, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(success_info->title, LV_ALIGN_TOP_MID, 0, SETTINGS_SUCCESS_PROGRAM_TITLE_Y);
+    } else {
+        lv_label_set_text(success_info->title, SETTINGS_SUCCESS_TITLE_TEXT);
+        lv_obj_set_style_text_color(success_info->title,
+            lv_color_hex(SETTINGS_SUCCESS_TITLE_COLOR), 0);
+        lv_obj_set_style_text_font(success_info->title, &lv_font_aeonik_soft_33_medium, 0);
+        lv_obj_set_style_text_align(success_info->title, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(success_info->title, LV_ALIGN_TOP_MID, 0, SETTINGS_SUCCESS_TITLE_Y);
+    }
+}
+
+static void settings_success_subtitle_update(void)
+{
+    if (success_info->force_update == false) {
+        return;
+    }
+
+    if (success_info->style != SETTINGS_SUCCESS_STYLE_PROGRAM_SWITCHED) {
+        if (success_info->subtitle != NULL && lv_obj_is_valid(success_info->subtitle)) {
+            lv_obj_add_flag(success_info->subtitle, LV_OBJ_FLAG_HIDDEN);
+        }
+        return;
+    }
+
+    if (success_info->subtitle == NULL || !lv_obj_is_valid(success_info->subtitle)) {
+        success_info->subtitle = lv_label_create(success_info->root);
+        EXCEPTION_CHECK_VOID(success_info->subtitle);
+    }
+    lv_obj_clear_flag(success_info->subtitle, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(success_info->subtitle, SETTINGS_SUCCESS_PROGRAM_SUBTITLE_TEXT);
+    lv_obj_set_style_text_color(success_info->subtitle,
+        lv_color_hex(SETTINGS_SUCCESS_PROGRAM_SUBTITLE_COLOR), 0);
+    lv_obj_set_style_text_font(success_info->subtitle, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_align(success_info->subtitle, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(success_info->subtitle, LV_ALIGN_TOP_MID, 0, SETTINGS_SUCCESS_PROGRAM_SUBTITLE_Y);
 }
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void ui_display_settings_success_prepare(ui_manager_context_t *thiz)
+void ui_display_settings_success_prepare(ui_manager_context_t *thiz, uint8_t style)
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (success_info == NULL) {
         success_info = (settings_success_ui_info_t *)u_malloz(sizeof(settings_success_ui_info_t));
         EXCEPTION_CHECK_VOID(success_info);
     }
+    success_info->style = style;
     success_info->force_update = true;
     settings_success_root_init();
     thiz->priv.fps_count = 0;
@@ -159,6 +214,7 @@ int ui_display_settings_success_process(ui_manager_context_t *thiz)
     settings_success_bg_update(thiz);
     settings_success_icon_update(thiz);
     settings_success_title_update();
+    settings_success_subtitle_update();
     success_info->force_update = false;
 
     thiz->priv.fps_count++;

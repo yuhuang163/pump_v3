@@ -19,11 +19,15 @@ extern "C" {
 /// 主界面绑定二维码展示时长
 #define HOME_BIND_QRCODE_DISPLAY_TIMEOUT       (3000) /// 3s
 
-/// 单边力度连续加档限制窗口 / 过大提示时长
+/// 单边/双边力度连续加档限制窗口时长
 #define HOME_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
+/// 调节过大后静默，进度条开始回退
+#define HOME_LEVEL_OVER_LIMIT_ARC_ROLLBACK_MS  (1000) /// 1s
+/// 调节过大后静默，过大提醒文案消失
+#define HOME_LEVEL_OVER_LIMIT_TIP_CLEAR_MS     (2000) /// 2s
 #define HOME_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
 /// 子模式切换提醒时长
-#define HOME_SUB_MODE_SWITCH_TIMEOUT_MS      (3000) /// 3s
+#define HOME_SUB_MODE_SWITCH_TIMEOUT_MS        (3000) /// 3s
 
 /// 模式选择页无操作静默回首页（page_index 非 0 时计时，超时仅复位预览；
 /// 不更换工作模式，模式落地仅由 power 确认触发）
@@ -66,10 +70,10 @@ typedef enum {
 #define HOME_NIGHT_LIGHT_ADJUST_SYNC_TIMEOUT   (3000) /// 3s
 
 /// UTC 校准失效时间
-#define HOME_UTC_CALIB_EXPIRE_INTERVAL_SEC      (20 * 24 * 3600)
+#define HOME_UTC_CALIB_EXPIRE_INTERVAL_SEC     (20 * 24 * 3600)
 
 /// 主界面状态闪烁半周期(ms)，与泵奶界面同频
-#define HOME_BLINK_PERIOD                       (500)
+#define HOME_BLINK_PERIOD                      (500)
 
 /// 主界面UI类型枚举
 typedef enum {
