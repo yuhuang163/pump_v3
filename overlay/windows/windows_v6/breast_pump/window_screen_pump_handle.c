@@ -46,32 +46,48 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void pump_async_level_adjust(ui_proc_pump_t *proc, uint8_t side, uint8_t level)
+static void pump_async_level_adjust(ui_proc_pump_t *proc, const window_evt_level_t *data)
 {
     uint8_t level_max;
     int time_index;
     uint8_t i;
 
-    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    EXCEPTION_CHECK_VOID(proc && proc->pump && data);
     pump_sub_mode_state_init(proc, 1);
     time_index = proc->sub_mode_time_index;
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     level_max = home_level_adjust_max_get(proc->sub_mode_type);
-    if (level > level_max) {
-        level = level_max;
-    }
 
-    LOG_WM("async level adjust side=%d level=%d max=%d", side, level, level_max);
-    if (side >= 2) {
+    if (data->side == WINDOW_EVT_LEVEL_SIDE_BOTH) {
         for (i = 0; i < BREAST_PUMP_NUM; i++) {
+            uint8_t level = data->level[i];
+            if (level > level_max) {
+                level = level_max;
+            }
             proc->setting.level[i] = level;
         }
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+        LOG_WM("async level adjust side=%d L=%d R=%d max=%d",
+            data->side, proc->setting.level[0], proc->setting.level[1], level_max);
         show_pump_both_level_adjust_ui(proc);
-    } else {
-        proc->setting.level[side] = level;
+    } else if (data->side == WINDOW_EVT_LEVEL_SIDE_LEFT) {
+        uint8_t level = data->level[0];
+        if (level > level_max) {
+            level = level_max;
+        }
+        proc->setting.level[0] = level;
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-        show_pump_level_adjust_ui(proc, side == 0);
+        LOG_WM("async level adjust side=%d L=%d max=%d", data->side, level, level_max);
+        show_pump_level_adjust_ui(proc, true);
+    } else {
+        uint8_t level = data->level[1];
+        if (level > level_max) {
+            level = level_max;
+        }
+        proc->setting.level[1] = level;
+        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+        LOG_WM("async level adjust side=%d R=%d max=%d", data->side, level, level_max);
+        show_pump_level_adjust_ui(proc, false);
     }
 }
 
@@ -110,7 +126,7 @@ static int pump_window_async_evt_handler_cb(struct window_event_data *evt_data)
                 LOG_WM("pump level evt user_data null.");
                 break;
             }
-            pump_async_level_adjust(proc, data->side, data->level);
+            pump_async_level_adjust(proc, data);
             break;
         }
         case WINDOW_ASYNC_EVT_SPEED_ADJUST: {

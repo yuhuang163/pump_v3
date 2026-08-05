@@ -163,16 +163,28 @@ static uint8_t ble_shell_get_level_speed_window_id(window_manager_context_t *wm)
     return ID_WINDOW_INVALID;
 }
 
-/// #pumpLvl <side> <level>  side: 0左/1右/2双边（home/pump 当前窗口）
+/// #pumpLvl <side> <left> <right>  side: 0左/1右/2双边；level[0]左 level[1]右（home/pump 当前窗口）
 static void ble_shell_pump_level(const uint8_t *param, uint16_t len)
 {
-    int side = 0, level = 0;
+    int side = 0;
+    int left = 0;
+    int right = 0;
     window_manager_context_t *wm;
     window_evt_level_t *data;
     uint8_t window_id;
 
-    sscanf((const char *)param, "%d %d", &side, &level);
-    LOG_BLE("shell level side %d, level %d", side, level);
+    (void)len;
+    if (sscanf((const char *)param, "%d %d %d", &side, &left, &right) != 3) {
+        LOG_BLE("shell level param invalid, use: #pumpLvl <side> <left> <right>");
+        return;
+    }
+    if (side != WINDOW_EVT_LEVEL_SIDE_LEFT &&
+        side != WINDOW_EVT_LEVEL_SIDE_RIGHT &&
+        side != WINDOW_EVT_LEVEL_SIDE_BOTH) {
+        LOG_BLE("shell level side invalid: %d (0左/1右/2双边)", side);
+        return;
+    }
+    LOG_BLE("shell level side=%d L=%d R=%d", side, left, right);
 
     wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_VOID(wm && wm->post_window_event);
@@ -184,8 +196,9 @@ static void ble_shell_pump_level(const uint8_t *param, uint16_t len)
 
     data = u_malloz(sizeof(*data));
     EXCEPTION_CHECK_VOID(data);
+    data->level[0] = (uint8_t)left;
+    data->level[1] = (uint8_t)right;
     data->side = (uint8_t)side;
-    data->level = (uint8_t)level;
     wm->post_window_event(__func__, window_id, WINDOW_ASYNC_EVT_LEVEL_ADJUST,
         data, WINDOW_EVT_FLAG_FREE_USER_DATA);
 }
