@@ -129,22 +129,14 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        /// 引导已部署时进入仅为展示绑定二维码
-        if (wm->is_window_guidance_deployed() != 0) {
-            proc->page_index = GUIDE_PAGE_QRCODE;
-        } else {
-#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
-            proc->page_index = GUIDE_PAGE_WELCOME_ANIM;
-#else
-            {
-                int res_theme_type = RES_THEME_TYPE_BASE;
-                if (proc->ui && proc->ui->priv.res) {
-                    res_theme_type = proc->ui->priv.res->get_sys_theme_type();
-                }
-                proc->page_index = guide_page_initial_get(res_theme_type);
-            }
+        /// 进入后先展示二维码页，再读取部署标志并置位，用读取值决定是否继续后续引导
+        proc->page_index = GUIDE_PAGE_QRCODE;
+        const uint8_t already_deployed = (wm->is_window_guidance_deployed() != 0) ? 1 : 0;
+        proc->qrcode_only_session = already_deployed;
+#if GUIDE_SET_DEPLOYED_FLAG_ON_ENTER
+        wm->set_window_guidance_deployed_flag(true);
+        LOG_WM("set guidance deployed flag on enter, already_deployed:%d.", already_deployed);
 #endif
-        }
         proc->page_enter_time = get_timestamp();
         guide_led_backlight_update(proc);
         proc->mode_selected = 0;
