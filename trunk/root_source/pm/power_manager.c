@@ -405,10 +405,8 @@ static int on_post_pm_init(void *ptr)
     ctx->priv.pm_bcd->receiver_cb = on_pm_broadcast_receive;
     register_broadcast_receiver(ctx->priv.pm_bcd);
     /// 注册按键唤醒.
-    uint16_t keycode = KEY_CODE_1 | KEY_CODE_2 | KEY_CODE_3 | KEY_CODE_4 |
-     KEY_CODE_5 | KEY_CODE_6 | KEY_CODE_7 | KEY_CODE_8 | KEY_CODE_9 | KEY_CODE_10 | KEY_CODE_11;
-    uint16_t keytype = KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S |
-     KEY_EVENT_LONG_3S | KEY_EVENT_LONG_5S | KEY_EVENT_LONG_9S;
+    uint16_t keycode = KEY_CODE_ALL;
+    uint16_t keytype = KEY_TYPE_ALL;
     key_input_context_t *input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     ADD_KEYEVENT_CB_WITH_SHIELD_LEVEL(input, "pm", ctx, keycode, keytype, pm_key_event_handler,
         KEY_HANDLER_SHIELD_FORBIDDEN);
