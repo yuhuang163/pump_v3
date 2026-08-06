@@ -216,8 +216,10 @@ static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
 
         guide_guide_step_timeout_handler(proc);
         guide_pump_level_idle_timeout_handler(proc);
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
         guide_pump_level_over_limit_tick(proc);
         guide_pump_both_level_over_limit_tick(proc);
+#endif
         guide_finish_timeout_handler(proc);
     }
 

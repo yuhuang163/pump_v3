@@ -31,12 +31,18 @@ extern "C" {
 #define GUIDE_LEVEL_BOTH_DECREASE_TARGET        (BREAST_PUMP_LEVEL_1)
 /// 双边力度调节-加/减页：到达目标档位后的结算时长，结算完成后跳转
 #define GUIDE_LEVEL_BOTH_SETTLE_MS              (1000) /// 1s
+/// 力度调节过大限制与提示（单边/双边共用，默认打开）
+#ifndef GUIDE_LEVEL_OVER_LIMIT_ENABLE
+#define GUIDE_LEVEL_OVER_LIMIT_ENABLE           (1)
+#endif
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
 #define GUIDE_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
 /// 调节过大后静默，进度条开始回退
 #define GUIDE_LEVEL_OVER_LIMIT_ARC_ROLLBACK_MS  (1000) /// 1s
 /// 调节过大后静默，过大提醒文案消失
 #define GUIDE_LEVEL_OVER_LIMIT_TIP_CLEAR_MS     (2000) /// 2s
 #define GUIDE_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
+#endif
 /// 力度调节后，展示页面停留时间
 #define GUIDE_GUIDE_STEP_ADVANCE_TIME_MS        (3000) /// 纯引导页自动翻页时间
 #define GUIDE_PUMP_HOME_GUIDE_ADVANCE_TIME_MS   (3200) /// 第四页泵奶首页引导停留后切第五页
@@ -215,12 +221,16 @@ void guide_led_backlight_blink_tick(ui_proc_guide_t *proc);
 void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page);
 void guide_pump_level_page_enter_sync(ui_proc_guide_t *proc);
 int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase);
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
 void guide_pump_level_over_limit_tick(ui_proc_guide_t *proc);
+#endif
 void guide_pump_level_idle_timeout_handler(ui_proc_guide_t *proc);
 uint8_t guide_pump_level_idle_remain_sec_get(const ui_proc_guide_t *proc);
 void guide_pump_both_level_page_enter_sync(ui_proc_guide_t *proc);
 int guide_pump_both_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase);
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
 void guide_pump_both_level_over_limit_tick(ui_proc_guide_t *proc);
+#endif
 void guide_pump_speed_page_enter_sync(ui_proc_guide_t *proc);
 int guide_pump_speed_adjust_handler(ui_proc_guide_t *proc, bool is_increase);
 int guide_mode_switch_adjust_handler(ui_proc_guide_t *proc, bool is_left);

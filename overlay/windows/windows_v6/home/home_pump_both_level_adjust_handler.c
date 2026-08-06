@@ -15,6 +15,7 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
 static void home_both_level_over_limit_clear(ui_proc_home_t *proc)
 {
     if (proc->both_level_over_limit == 0) {
@@ -46,6 +47,7 @@ static void home_both_level_over_limit_tick(ui_proc_home_t *proc)
         home_both_level_over_limit_clear(proc);
     }
 }
+#endif
 
 static void home_both_level_adjust_idle_exit_cb(hdr_post_args_t *args)
 {
@@ -54,9 +56,11 @@ static void home_both_level_adjust_idle_exit_cb(hdr_post_args_t *args)
     if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
         return;
     }
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     if (proc->both_level_over_limit) {
         return;
     }
+#endif
     LOG_UI("home both level adjust idle timeout, silent exit");
     home_both_level_adjust_ui_dismiss(proc);
 }
@@ -68,10 +72,12 @@ static void home_both_level_adjust_idle_timeout_tick(ui_proc_home_t *proc)
     if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
         return;
     }
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     /// 力度限制态不静默退出，过大提示自行 2s 结束
     if (proc->both_level_over_limit) {
         return;
     }
+#endif
     time_diff = get_timestamp_ms(proc->level_adjust_time);
     if (time_diff < HOME_LEVEL_ADJUST_IDLE_TIMEOUT_MS) {
         return;
@@ -89,7 +95,9 @@ static void home_both_level_adjust_ui_after_policy(ui_manager_context_t *ui, int
     (void)index;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     home_sub_mode_sync_tick(proc, HOME_SUB_MODE_SYNC_BOTH_LEVEL);
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     home_both_level_over_limit_tick(proc);
+#endif
     home_sub_mode_switch_tick(proc);
     home_both_level_adjust_idle_timeout_tick(proc);
     ui_display_home_both_level_adjust_process(ui);
@@ -203,7 +211,9 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
     proc->level_adjust_time = get_timestamp();
 
     if (!is_increase) {
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
         home_both_level_over_limit_clear(proc);
+#endif
         for (i = 0; i < BREAST_PUMP_NUM; i++) {
             if (proc->both_level_value[i] > BREAST_PUMP_LEVEL_0) {
                 proc->both_level_value[i]--;
@@ -215,11 +225,14 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         if (changed) {
             WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
         }
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
         proc->both_level_inc_steps = 0;
         proc->both_level_inc_window_time = get_timestamp();
+#endif
         return 0;
     }
 
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     /* 加档：过大提示中仅推进圆弧，不改实际力度 */
     if (proc->both_level_over_limit) {
         for (i = 0; i < BREAST_PUMP_NUM; i++) {
@@ -235,6 +248,7 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         proc->both_level_inc_steps = 0;
         proc->both_level_inc_window_time = get_timestamp();
     }
+#endif
 
     next_l = proc->both_level_value[0];
     next_r = proc->both_level_value[1];
@@ -248,6 +262,7 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         return 0;
     }
 
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     if ((proc->both_level_inc_steps + 1) > HOME_LEVEL_OVER_LIMIT_MAX_STEP) {
         proc->both_level_over_limit = 1;
         proc->both_level_over_limit_time = get_timestamp();
@@ -255,6 +270,7 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         proc->both_level_arc[1] = next_r;
         return 0;
     }
+#endif
 
     if (next_l != proc->both_level_value[0] || next_r != proc->both_level_value[1]) {
         proc->both_level_value[0] = next_l;
@@ -262,7 +278,9 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         proc->setting.level[0] = next_l;
         proc->setting.level[1] = next_r;
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
         proc->both_level_inc_steps++;
+#endif
     }
     proc->both_level_arc[0] = proc->both_level_value[0];
     proc->both_level_arc[1] = proc->both_level_value[1];

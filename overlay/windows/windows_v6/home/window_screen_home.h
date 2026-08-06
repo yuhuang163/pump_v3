@@ -19,6 +19,11 @@ extern "C" {
 /// 主界面绑定二维码展示时长
 #define HOME_BIND_QRCODE_DISPLAY_TIMEOUT       (3000) /// 3s
 
+/// 力度调节过大限制与提示（单边/双边共用，默认关闭）
+#ifndef HOME_LEVEL_OVER_LIMIT_ENABLE
+#define HOME_LEVEL_OVER_LIMIT_ENABLE           (0)
+#endif
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
 /// 单边/双边力度连续加档限制窗口时长
 #define HOME_LEVEL_OVER_LIMIT_WINDOW_MS        (2000) /// 2s
 /// 调节过大后静默，进度条开始回退
@@ -26,6 +31,7 @@ extern "C" {
 /// 调节过大后静默，过大提醒文案消失
 #define HOME_LEVEL_OVER_LIMIT_TIP_CLEAR_MS     (2000) /// 2s
 #define HOME_LEVEL_OVER_LIMIT_MAX_STEP         (3)    /// 窗口内最多加 3 档
+#endif
 /// 子模式切换提醒时长
 #define HOME_SUB_MODE_SWITCH_TIMEOUT_MS        (3000) /// 3s
 
