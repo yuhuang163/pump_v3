@@ -179,15 +179,6 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
 }
 
 
-static void pump_mode_select_confirm_and_start(ui_proc_pump_t *proc)
-{
-    if (pump_mode_confirm_handler(proc) != 0) {
-        return;
-    }
-    pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
-    pump_start_pump_if_pause(proc);
-}
-
 static void pump_mode_key_event_cb(ui_proc_pump_t *proc, uint8_t mode_index)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD) {
@@ -195,15 +186,11 @@ static void pump_mode_key_event_cb(ui_proc_pump_t *proc, uint8_t mode_index)
         return;
     }
 
-    /// 韵律确认页 / 模式选择页：确认模式或韵律，仅暂停态启动泵奶
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
-        (proc->current_ui_type == PUMP_UI_TYPE_HOME &&
-         proc->ui_mode_page_index > PUMP_MODE_PAGE_INDEX_NONE)) {
-        pump_mode_select_confirm_and_start(proc);
-        return;
-    }
-
-    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
+        proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS) {
+        /* 退出确认/成功页后按按键模式落地，不沿用当前预览页 */
+        pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
+    } else if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
         /* 从力度/速度等子页回首页时清导航栈，避免残留 page_index 被 start 误恢复 */
         pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
     } else {
