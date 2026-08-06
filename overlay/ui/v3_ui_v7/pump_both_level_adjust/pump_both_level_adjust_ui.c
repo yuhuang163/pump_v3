@@ -73,6 +73,10 @@
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE       (8)
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT \
     "For safety,\nUp to 3 levels at a time."
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+#define PUMP_BOTH_LEVEL_RELAX_LOCK_TEXT \
+    "In Relax mode,\nlevel cannot be adjusted."
+#endif
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_W              (PANLE_DISPLAY_W)
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_H              (34)
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_Y              (78)
@@ -558,6 +562,8 @@ static void pump_both_level_mode_switch_update(ui_proc_pump_t *proc, uint32_t ac
 
 static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t color)
 {
+    const char *text = PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT;
+
     if (pump_both_info->over_limit_box == NULL || !lv_obj_is_valid(pump_both_info->over_limit_box)) {
         pump_both_info->over_limit_box = pump_both_level_box_create(
             (PANLE_DISPLAY_W - PUMP_BOTH_LEVEL_OVER_LIMIT_W) / 2,
@@ -569,7 +575,6 @@ static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t col
     if (pump_both_info->over_limit_label == NULL || !lv_obj_is_valid(pump_both_info->over_limit_label)) {
         pump_both_info->over_limit_label = lv_label_create(pump_both_info->over_limit_box);
         EXCEPTION_CHECK_VOID(pump_both_info->over_limit_label);
-        lv_label_set_text(pump_both_info->over_limit_label, PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT);
         lv_obj_set_style_text_font(pump_both_info->over_limit_label,
             &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_align(pump_both_info->over_limit_label, LV_TEXT_ALIGN_CENTER, 0);
@@ -578,12 +583,19 @@ static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t col
         lv_obj_set_style_text_line_space(pump_both_info->over_limit_label, PUMP_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE, 0);
     }
 
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+    if (proc->sub_mode_type == PUMP_MODE_IDLE) {
+        text = PUMP_BOTH_LEVEL_RELAX_LOCK_TEXT;
+    }
+#endif
+
     if (pump_both_info->force_update == false &&
         pump_both_info->shown_over_limit == proc->both_level_over_limit &&
         pump_both_info->shown_over_limit_color == color) {
         return;
     }
 
+    lv_label_set_text(pump_both_info->over_limit_label, text);
     lv_obj_set_style_text_color(pump_both_info->over_limit_label, lv_color_hex(color), 0);
     if (proc->both_level_over_limit) {
         lv_obj_clear_flag(pump_both_info->over_limit_box, LV_OBJ_FLAG_HIDDEN);

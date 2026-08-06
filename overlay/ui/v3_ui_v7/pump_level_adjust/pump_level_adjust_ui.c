@@ -36,6 +36,9 @@
 #define PUMP_LEVEL_DIR_LEFT_TEXT                    "Left Level"
 #define PUMP_LEVEL_DIR_RIGHT_TEXT                   "Right Level"
 #define PUMP_LEVEL_OVER_LIMIT_TEXT                  "For safety,\nUp to 3 levels at a time."
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+#define PUMP_LEVEL_RELAX_LOCK_TEXT                   "In Relax mode,\nlevel cannot be adjusted."
+#endif
 #define PUMP_LEVEL_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 /** 泵奶时间组件参数与 pump_home_base_mode_page_ui 一致 */
@@ -287,7 +290,14 @@ static void pump_level_dir_update(ui_proc_pump_t *proc, uint32_t accent_color)
     }
 
     if (proc->level_over_limit) {
-        text = PUMP_LEVEL_OVER_LIMIT_TEXT;
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+        if (proc->sub_mode_type == PUMP_MODE_IDLE) {
+            text = PUMP_LEVEL_RELAX_LOCK_TEXT;
+        } else
+#endif
+        {
+            text = PUMP_LEVEL_OVER_LIMIT_TEXT;
+        }
         color = accent_color;
         font = &lv_font_aeonik_soft_22_medium;
     } else if (mode_switch) {
