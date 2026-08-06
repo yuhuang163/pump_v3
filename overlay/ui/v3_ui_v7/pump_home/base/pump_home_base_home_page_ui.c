@@ -130,7 +130,7 @@ static void pump_home_main_mode_title_get(pump_home_base_ui_info_t *info, uint8_
             snprintf(buf, buf_len, "Power Pumping");
             break;
         case BREAST_PUMP_CUSTOM_MODE:
-            snprintf(buf, buf_len, "Customized %s", info->mode.custom_id_str);
+            snprintf(buf, buf_len, "%s", info->mode.custom_id_str);
             break;
         default:
             snprintf(buf, buf_len, "");
@@ -242,7 +242,7 @@ static void pump_home_main_bg_update(pump_home_base_ui_info_t *info, uint8_t mod
 
 static void pump_home_main_mode_title_update(pump_home_base_ui_info_t *info, uint8_t mode)
 {
-    char title[24] = {0};
+    char title[PUMP_HOME_BASE_CUSTOM_MODE_NAME_LEN] = {0};
 
     pump_home_main_mode_title_get(info, mode, title, sizeof(title));
     if (info->main.mode_title == NULL || !lv_obj_is_valid(info->main.mode_title)) {

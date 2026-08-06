@@ -385,6 +385,11 @@ static void pump_algo_compensation_callback(void *user_data, algo_breast_pump_da
     motor_manager_context_t *thiz = (motor_manager_context_t *)user_data;
     EXCEPTION_CHECK_VOID(thiz);
     motor_policy_runtime_t *runtime = &thiz->priv.runtime;
+    if (!thiz->priv.is_suction_compensation_enabled) {
+        //LOG_MOTOR("suction compensation is disabled");
+        return;
+    }
+    
     if (thiz->get_motor_state() == 0) {
         return;
     }

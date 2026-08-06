@@ -22,6 +22,8 @@ extern "C" {
 *****************************************************************************************
 */
 #define IS_SUPPORT_BASE_HOME_COMP_BG                 (0)
+/** App 个性化模式名称缓冲长度（含 '\0'，UI 侧略大于存储上限） */
+#define HOME_BASE_CUSTOM_MODE_NAME_LEN               (24)
 #define HOME_BASE_MAIN_TIME_DIGIT_COUNT              (2)
 #define HOME_BASE_MAIN_TIME_COLON_COUNT              (2)
 /** 主页提示扫光宽度（像素，CPU 软边剖面） */
@@ -78,7 +80,7 @@ typedef struct {
     uint8_t new_index; /// 当前泵奶模式
     uint8_t custom_mode_active; /// 个性化模式是否激活
     uint32_t custom_mode_id; /// 个性化模式 ID
-    char custom_id_str[8]; /// 个性化模式 ID 字符串
+    char custom_id_str[HOME_BASE_CUSTOM_MODE_NAME_LEN]; /// App 下发的个性化模式名称（已含展示前缀）
 } home_base_mode_info_t;
 
 typedef struct {
@@ -121,7 +123,7 @@ typedef struct {
     uint8_t shown_speed;
     uint8_t shown_left_level;
     uint8_t shown_right_level;
-    char shown_title[24];
+    char shown_title[HOME_BASE_CUSTOM_MODE_NAME_LEN];
 } home_base_main_page_info_t;
 
 /// 模式选择页固定层（挂 root，不参与切页位移动画）
