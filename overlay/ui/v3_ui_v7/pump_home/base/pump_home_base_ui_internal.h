@@ -24,6 +24,8 @@ extern "C" {
 */
 #define IS_SUPPORT_BASE_PUMP_HOME_COMP_BG                (0)
 #define IS_SUPPORT_BASE_TIME_3SEG_TEST                   (0)
+/** App 个性化模式名称缓冲长度（含 '\0'，UI 侧略大于存储上限） */
+#define PUMP_HOME_BASE_CUSTOM_MODE_NAME_LEN              (24)
 
 #define PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT             (2)
 #define PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT             (2)
@@ -81,7 +83,7 @@ typedef struct {
     uint8_t new_mode_type; /// 当前运行韵律类型
     uint8_t custom_mode_active; /// 个性化模式是否激活
     uint32_t custom_mode_id; /// 个性化模式 ID
-    char custom_id_str[8]; /// 个性化模式 ID 字符串
+    char custom_id_str[PUMP_HOME_BASE_CUSTOM_MODE_NAME_LEN]; /// App 下发的个性化模式名称（已含展示前缀）
 } pump_home_base_mode_info_t;
 
 typedef enum {
@@ -152,7 +154,7 @@ typedef struct {
     uint8_t tracked_pump_mode;          /// 用于区分韵律内子模式切换 / 工作模式切换
     uint8_t tip_mode_type;              /// 提醒文案对应的子模式
     uint32_t mode_switch_time;          /// 子模式切换提醒起始时间
-    char shown_title[24];
+    char shown_title[PUMP_HOME_BASE_CUSTOM_MODE_NAME_LEN];
 } pump_home_base_main_page_info_t;
 
 /// 模式选择页固定层（挂 root，不参与切页位移动画；无文案提示/扫光）

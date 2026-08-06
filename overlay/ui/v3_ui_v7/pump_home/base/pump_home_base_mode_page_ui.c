@@ -166,7 +166,7 @@ static void pump_mode_page_title_get(pump_home_base_ui_info_t *info, uint8_t mod
             snprintf(buf, buf_len, "Power Pumping");
             break;
         case BREAST_PUMP_CUSTOM_MODE:
-            snprintf(buf, buf_len, "Customized %s", info->mode.custom_id_str);
+            snprintf(buf, buf_len, "%s", info->mode.custom_id_str);
             break;
         default:
             snprintf(buf, buf_len, "");
@@ -1068,7 +1068,7 @@ void pump_home_mode_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
         return;
     }
 
-    /// 个性化 ID 变化时刷新 Customized 文案
+    /// 个性化模式：刷新 App 下发的名称
     if (ctx->mode == BREAST_PUMP_CUSTOM_MODE || info->force_update) {
         pump_mode_page_title_get(info, ctx->mode, title, sizeof(title));
         need_ellipsis = (strlen(title) > PUMP_MODE_PAGE_TITLE_MAX_CHARS) ? 1U : 0U;
