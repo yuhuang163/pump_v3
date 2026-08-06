@@ -44,7 +44,8 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
 /// 负压释放
 void negative_pressure_release(struct motor_manager_context *thiz, uint16_t wait_time_ms);
 /// 爬升策略
-int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map);
+int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map, 
+    uint8_t pump_id, uint32_t period_ms);
 /// 体验模式用户策略
 int taste_mode_user_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map, uint8_t pump_id);
 /// 获取模式类型

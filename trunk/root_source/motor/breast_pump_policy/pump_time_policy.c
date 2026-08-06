@@ -161,6 +161,10 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 pump_policy_info_reset(thiz, runtime, i);
             }
 
+            #if IS_SUPPORT_CLIMB_POLICY
+            memset(runtime->climb, 0, sizeof(pump_climb_policy_t) * BREAST_PUMP_NUM);
+            #endif
+
             if (!runtime->taste_run_flag) {
                 if (thiz->priv.pump_ctx) {
                     thiz->priv.pump_ctx->priv.m_info.step_index = runtime->current_timed_policy_index;

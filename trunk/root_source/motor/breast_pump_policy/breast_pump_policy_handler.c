@@ -213,11 +213,6 @@ static void breast_pump_start_prepare(struct motor_manager_context *thiz, const 
     body->policy_running_time_ms = 0;
     body->time_policy_remaining_time = body->timed_policy->duration_seconds;
     body->time_policy_target_time =  body->timed_policy->duration_seconds;
-#if IS_SUPPORT_CLIMB_POLICY
-    body->climb.onoff = 1;
-    body->climb.count = 0;  
-    body->climb.start_time = 0;
-#endif
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
         memcpy(&body->policy[i], &body->manager->head.policy, sizeof(motor_policy_node_t));
     }
@@ -256,13 +251,16 @@ void negative_pressure_release(struct motor_manager_context *thiz, uint16_t wait
         motor.un.pump.action = MOTOR_PUMP_OFF_AND_VALVE_ON;
         DEVICE_IOCTL_ARGS(thiz->priv.motor_dev, OP_CODE_MOTOR_START_PLAY, &motor);
     }
+
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
         pump_policy_info_reset(thiz, &thiz->priv.runtime, i);
     }
+
     while (wait_time_ms) {
         msleep(10);
         wait_time_ms = wait_time_ms > 10 ? wait_time_ms - 10 : 0;
     }
+    
     LOG_MOTOR("-->step 3");
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
         motor.un.pump.pulse_width = 0;
@@ -289,23 +287,27 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
         breast_pump_start_prepare(thiz, policy_obj);
         thiz->notify_motor_status_change(MOTOR_STATUS_EVT_TASTE_START);
         LOG_MOTOR("user debug policy");
-        return;
+        goto PREPARE_EXIT;
     } else if (action == MOTOR_POLICY_CONTINUE && body->breast_pump_mode == pump_mode) {
         LOG_MOTOR("continue %s policy, step_index: %d", mode_name, body->current_timed_policy_index);
         negative_pressure_release(thiz, 200);
-        return;
+        goto PREPARE_EXIT;
     } else {
         body->policy_running_time_ms = 0;
         body->breast_pump_mode = pump_mode;
+        policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
+        LOG_MOTOR("%s mode policy", mode_name);
+        if (!is_valid_motor_policy_obj(policy_obj)) {
+            LOGE("invalid policy obj: %p, mode: %s/%d", policy_obj, mode_name, body->breast_pump_mode);
+            // goto PREPARE_EXIT; 不返回, 触发重启复现问题
+        }
+        breast_pump_start_prepare(thiz, policy_obj);
     }
-    policy_obj = breast_pump_mode_policy_get(thiz, body->breast_pump_mode);
-    LOG_MOTOR("%s mode policy", mode_name);
-    if (!is_valid_motor_policy_obj(policy_obj)) {
-        LOGE("invalid policy obj: %p, mode: %s/%d",
-            policy_obj, mode_name, body->breast_pump_mode);
-        // return; /// 不返回, 触发重启复现问题
-    }
-    breast_pump_start_prepare(thiz, policy_obj);
+
+PREPARE_EXIT:
+#if IS_SUPPORT_CLIMB_POLICY
+    memset(body->climb, 0, sizeof(pump_climb_policy_t) * BREAST_PUMP_NUM);
+#endif
 }
 
 int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_task_para_t *play_para)
