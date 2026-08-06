@@ -15,6 +15,27 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+static void pump_speed_relax_lock_clear(ui_proc_pump_t *proc)
+{
+    if (proc->level_over_limit == 0) {
+        return;
+    }
+    proc->level_over_limit = 0;
+}
+
+static void pump_speed_relax_lock_tick(ui_proc_pump_t *proc)
+{
+    if (proc->level_over_limit == 0) {
+        return;
+    }
+    if (get_timestamp_ms(proc->level_over_limit_time) < PUMP_LEVEL_OVER_LIMIT_TIP_CLEAR_MS) {
+        return;
+    }
+    pump_speed_relax_lock_clear(proc);
+}
+#endif
+
 static void pump_speed_adjust_idle_exit_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
@@ -22,6 +43,11 @@ static void pump_speed_adjust_idle_exit_cb(hdr_post_args_t *args)
     if (proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
         return;
     }
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+    if (proc->level_over_limit) {
+        return;
+    }
+#endif
     LOG_UI("pump speed adjust idle timeout, silent exit");
     pump_speed_adjust_ui_dismiss(proc);
 }
@@ -33,6 +59,12 @@ static void pump_speed_adjust_idle_timeout_tick(ui_proc_pump_t *proc)
     if (proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
         return;
     }
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+    /// 放松锁定提示中不静默退出，提示自行 2s 结束
+    if (proc->level_over_limit) {
+        return;
+    }
+#endif
     time_diff = get_timestamp_ms(proc->level_adjust_time);
     if (time_diff < PUMP_SPEED_ADJUST_IDLE_TIMEOUT_MS) {
         return;
@@ -50,6 +82,9 @@ static void pump_speed_adjust_ui_after_policy(ui_manager_context_t *ui, int inde
     (void)index;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     pump_sub_mode_sync_tick(proc, PUMP_SUB_MODE_SYNC_SPEED);
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+    pump_speed_relax_lock_tick(proc);
+#endif
     pump_sub_mode_switch_tick(proc);
     pump_speed_adjust_idle_timeout_tick(proc);
     ui_display_pump_speed_adjust_process(ui);
@@ -93,6 +128,15 @@ static void pump_speed_adjust_ui_remove(void *user_data)
 static void pump_speed_adjust_state_sync(ui_proc_pump_t *proc)
 {
     pump_sub_mode_state_init(proc, 0);
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+    if (proc->sub_mode_type == PUMP_MODE_IDLE) {
+        if (proc->setting.speed != BREAST_PUMP_SPEED_LOW) {
+            proc->setting.speed = BREAST_PUMP_SPEED_LOW;
+            WRITE_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, true, proc->setting);
+        }
+    }
+    proc->level_over_limit = 0;
+#endif
     if (proc->setting.speed >= BREAST_PUMP_SPEED_MAX) {
         proc->setting.speed = BREAST_PUMP_SPEED_MAX - 1;
     }
@@ -146,6 +190,17 @@ int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase)
     time_index = proc->sub_mode_time_index;
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     proc->level_adjust_time = get_timestamp();
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+    if (proc->sub_mode_type == PUMP_MODE_IDLE) {
+        if (proc->setting.speed != BREAST_PUMP_SPEED_LOW) {
+            proc->setting.speed = BREAST_PUMP_SPEED_LOW;
+            WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+        }
+        proc->level_over_limit = 1;
+        proc->level_over_limit_time = get_timestamp();
+        return 0;
+    }
+#endif
     if (is_increase) {
         if (proc->setting.speed < BREAST_PUMP_SPEED_MAX - 1) {
             proc->setting.speed++;
@@ -164,6 +219,9 @@ void pump_speed_adjust_ui_exit(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     proc->sub_mode_switch = 0;
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+    proc->level_over_limit = 0;
+#endif
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SPEED_ADJUST_IDLE_EXIT_TASK_NAME);
 }
 
