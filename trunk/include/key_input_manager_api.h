@@ -88,6 +88,15 @@ typedef enum {
     KEY_CODE_MAX
 } key_type_enum_e;
 
+#define KEY_CODE_ALL \
+    (KEY_CODE_1 | KEY_CODE_2 | KEY_CODE_3 | KEY_CODE_4 | KEY_CODE_5 | KEY_CODE_6 | KEY_CODE_7 | \
+    KEY_CODE_8 | KEY_CODE_9 | KEY_CODE_10 | KEY_CODE_11 | KEY_CODE_12)
+    
+#define KEY_TYPE_ALL \
+    (KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_CLICK | KEY_EVENT_DOUBLE | KEY_EVENT_LONG_2S | \
+        KEY_EVENT_LONG_3S | KEY_EVENT_LONG_4S | KEY_EVENT_LONG_5S | KEY_EVENT_LONG_6S | KEY_EVENT_LONG_7S | \
+        KEY_EVENT_LONG_8S | KEY_EVENT_LONG_9S | KEY_EVENT_LONG_10S | KEY_EVENT_LONG_AFTER_DOWN | KEY_EVENT_LONG_AFTER_CLICK)
+
 struct rt_device_node;
 struct broadcast_obj;
 typedef struct key_input_context {
