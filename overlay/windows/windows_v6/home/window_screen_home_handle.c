@@ -144,11 +144,17 @@ static int home_window_async_evt_handler_cb(struct window_event_data *evt_data)
 
 static void home_start_key_event_handler(ui_proc_home_t *proc)
 {
-    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT ||
-        proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
-        LOG_WM("current ui type is %d, ignore start key.", proc->current_ui_type);
+    if (proc->current_ui_type == HOME_UI_TYPE_PUMP_RESULT) {
+        LOG_WM("pump result, ignore start key.");
         return;
     }
+
+#if 0
+    if (proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
+        LOG_WM("settings success, ignore start key.");
+        return;
+    }
+#endif
     home_start_pump_handler(proc);
 }
 
@@ -209,8 +215,23 @@ static void home_knob_right_event_cb(ui_proc_home_t *proc)
     }
 }
 
+static bool home_mode_key_start_pump_allowed(const ui_proc_home_t *proc)
+{
+    switch (proc->current_ui_type) {
+        case HOME_UI_TYPE_HOME_IDLE:
+        case HOME_UI_TYPE_PUMP_RESULT:
+        case HOME_UI_TYPE_NIGHT_LIGHT_ADJUST:
+        case HOME_UI_TYPE_POWER_OFF_HOLD:
+            return false;
+        default:
+            return true;
+    }
+}
+
 static void home_mode_key_event_cb(ui_proc_home_t *proc, uint8_t mode_index)
 {
+    const bool start_pump = home_mode_key_start_pump_allowed(proc);
+
     if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
         proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
         start_home_ui_animation(proc);
@@ -218,6 +239,10 @@ static void home_mode_key_event_cb(ui_proc_home_t *proc, uint8_t mode_index)
         proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
     }
     home_mode_set_handler(proc, mode_index);
+
+    if (start_pump) {
+        home_start_pump_handler(proc);
+    }
 }
 
 static void home_power_key_event_cb(ui_proc_home_t *proc)
@@ -249,9 +274,9 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
 
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         if (proc->ui_mode_page_index > HOME_MODE_PAGE_INDEX_NONE) {
-            /// 模式选择页短按 power：确认模式 → 成功提示，超时后启动泵奶
+            /// 模式选择页短按 power：确认模式 → 成功提示 → 启动泵奶
             home_mode_confirm_handler(proc);
-            show_home_settings_success_ui(proc);
+            show_home_settings_success_ui(proc, true);
         } else {
             home_start_pump_handler(proc);
         }
