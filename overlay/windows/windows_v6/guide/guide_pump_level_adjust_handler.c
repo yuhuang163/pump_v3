@@ -24,6 +24,7 @@ static uint8_t guide_level_side_level_max_get(const ui_proc_guide_t *proc)
     return home_level_adjust_max_get(mode_type);
 }
 
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
 static void guide_level_over_limit_clear(ui_proc_guide_t *proc)
 {
     if (proc->level_over_limit == 0) {
@@ -32,6 +33,7 @@ static void guide_level_over_limit_clear(ui_proc_guide_t *proc)
     proc->level_over_limit = 0;
     proc->level_arc_level = proc->level_value;
 }
+#endif
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -46,12 +48,15 @@ void guide_pump_level_page_enter_sync(ui_proc_guide_t *proc)
     proc->level_value = proc->setting.level[proc->level_adjust_side];
     proc->level_arc_level = proc->level_value;
     proc->level_over_limit = 0;
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
     proc->level_inc_window_base = proc->level_value;
     proc->level_inc_window_time = get_timestamp();
+#endif
     proc->last_adjust_time = get_timestamp();
     proc->level_knob_touched = 0;
 }
 
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
 void guide_pump_level_over_limit_tick(ui_proc_guide_t *proc)
 {
     uint32_t elapsed;
@@ -74,6 +79,7 @@ void guide_pump_level_over_limit_tick(ui_proc_guide_t *proc)
         guide_level_over_limit_clear(proc);
     }
 }
+#endif
 
 int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase)
 {
@@ -98,18 +104,23 @@ int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase)
     proc->level_knob_touched = 1;
 
     if (!is_increase) {
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
         guide_level_over_limit_clear(proc);
+#endif
         if (cur > BREAST_PUMP_LEVEL_0) {
             cur--;
             proc->setting.level[index] = cur;
             proc->level_value = cur;
         }
         proc->level_arc_level = proc->level_value;
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
         proc->level_inc_window_base = proc->level_value;
         proc->level_inc_window_time = get_timestamp();
+#endif
         return 0;
     }
 
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
     /* 加档：过大提示中仅推进圆弧，不改实际力度 */
     if (proc->level_over_limit) {
         next = proc->level_arc_level;
@@ -125,12 +136,14 @@ int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase)
         proc->level_inc_window_base = cur;
         proc->level_inc_window_time = get_timestamp();
     }
+#endif
 
     next = cur;
     if (next < level_max) {
         next++;
     }
 
+#if GUIDE_LEVEL_OVER_LIMIT_ENABLE
     if ((next - proc->level_inc_window_base) > GUIDE_LEVEL_OVER_LIMIT_MAX_STEP) {
         proc->level_over_limit = 1;
         proc->level_over_limit_time = get_timestamp();
@@ -138,6 +151,7 @@ int guide_pump_level_adjust_handler(ui_proc_guide_t *proc, bool is_increase)
         /* 实际力度不变 */
         return 0;
     }
+#endif
 
     if (next != cur) {
         proc->setting.level[index] = next;

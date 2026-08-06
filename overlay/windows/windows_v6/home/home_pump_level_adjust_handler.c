@@ -15,6 +15,7 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
 static void home_level_over_limit_clear(ui_proc_home_t *proc)
 {
     if (proc->level_over_limit == 0) {
@@ -42,6 +43,7 @@ static void home_level_over_limit_tick(ui_proc_home_t *proc)
         home_level_over_limit_clear(proc);
     }
 }
+#endif
 
 static void home_level_adjust_idle_exit_cb(hdr_post_args_t *args)
 {
@@ -50,9 +52,11 @@ static void home_level_adjust_idle_exit_cb(hdr_post_args_t *args)
     if (proc->current_ui_type != HOME_UI_TYPE_LEVEL_ADJUST) {
         return;
     }
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     if (proc->level_over_limit) {
         return;
     }
+#endif
     LOG_UI("home level adjust idle timeout, silent exit");
     home_level_adjust_ui_dismiss(proc);
 }
@@ -64,10 +68,12 @@ static void home_level_adjust_idle_timeout_tick(ui_proc_home_t *proc)
     if (proc->current_ui_type != HOME_UI_TYPE_LEVEL_ADJUST) {
         return;
     }
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     /// 力度限制态不静默退出，过大提示自行 2s 结束
     if (proc->level_over_limit) {
         return;
     }
+#endif
     time_diff = get_timestamp_ms(proc->level_adjust_time);
     if (time_diff < HOME_LEVEL_ADJUST_IDLE_TIMEOUT_MS) {
         return;
@@ -85,7 +91,9 @@ static void home_level_adjust_ui_after_policy(ui_manager_context_t *ui, int inde
     (void)index;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_HOME);
     home_sub_mode_sync_tick(proc, HOME_SUB_MODE_SYNC_LEVEL);
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     home_level_over_limit_tick(proc);
+#endif
     home_sub_mode_switch_tick(proc);
     home_level_adjust_idle_timeout_tick(proc);
     ui_display_home_level_adjust_process(ui);
@@ -204,7 +212,9 @@ int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
     proc->level_adjust_time = get_timestamp();
 
     if (!is_increase) {
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
         home_level_over_limit_clear(proc);
+#endif
         if (cur > BREAST_PUMP_LEVEL_0) {
             cur--;
             proc->setting.level[index] = cur;
@@ -212,11 +222,14 @@ int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
             proc->level_value = cur;
         }
         proc->level_arc_level = proc->level_value;
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
         proc->level_inc_window_base = proc->level_value;
         proc->level_inc_window_time = get_timestamp();
+#endif
         return 0;
     }
 
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     /* 加档：先刷新过大提示倒计时（若已在提示中） */
     if (proc->level_over_limit) {
         next = proc->level_arc_level;
@@ -232,12 +245,14 @@ int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         proc->level_inc_window_base = cur;
         proc->level_inc_window_time = get_timestamp();
     }
+#endif
 
     next = cur;
     if (next < level_max) {
         next++;
     }
 
+#if HOME_LEVEL_OVER_LIMIT_ENABLE
     if ((next - proc->level_inc_window_base) > HOME_LEVEL_OVER_LIMIT_MAX_STEP) {
         proc->level_over_limit = 1;
         proc->level_over_limit_time = get_timestamp();
@@ -245,6 +260,7 @@ int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         /* 实际力度不变 */
         return 0;
     }
+#endif
 
     if (next != cur) {
         proc->setting.level[index] = next;
