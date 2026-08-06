@@ -179,6 +179,8 @@ static int on_post_motor_init(void *ptr)
     if (thiz->hook && thiz->hook->on_post_init_route) {
         thiz->hook->on_post_init_route(thiz);
     }
+    /// V3PRO吸力补偿开关 默认开启
+    thiz->priv.is_suction_compensation_enabled = true;
 
     MUTEX_INIT(&thiz->priv.status_evt_lock, motor_status_evt_mutex);
     USE_INIT_LIST_HEAD(&thiz->priv.status_evt_client_list);
@@ -365,6 +367,15 @@ static uint8_t get_local_suction_table(factory_suction_para_t **suction_para)
     return 1;
 }
 
+static void set_suction_compensation_enabled(bool enabled)
+{
+    motor_obj->priv.is_suction_compensation_enabled = enabled;
+}
+
+static bool get_suction_compensation_enabled(void)
+{
+    return motor_obj->priv.is_suction_compensation_enabled;
+}
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -387,6 +398,8 @@ void *register_module_for_motor_manager_new(list_head_t *list_head)
     ptr->add_motor_status_evt_listener = add_motor_status_evt_listener;
     ptr->remove_motor_status_evt_listener = remove_motor_status_evt_listener;
     ptr->notify_motor_status_change = notify_motor_status_change;
+    ptr->set_suction_compensation_enabled = set_suction_compensation_enabled;
+    ptr->get_suction_compensation_enabled = get_suction_compensation_enabled;
     motor_obj = ptr;
     
     return ADD_MODULE("motor", ID_MODULE_MOTOR, 0, on_post_motor_init, 
