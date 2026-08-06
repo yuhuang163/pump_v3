@@ -15,9 +15,9 @@
 #define IS_SUPPORT_SYS_ABNORMAL_COMP_BG                          (0) /// 是否启用对比背景图
 
 /// 系统错误（存储故障 / 通信丢失）
-#define SYS_ABNORMAL_ICON_Y_SYS_ERROR                            (90)
-#define SYS_ABNORMAL_TITLE_Y_SYS_ERROR                           (196)
-#define SYS_ABNORMAL_CONTENT_Y_SYS_ERROR                         (238)
+#define SYS_ABNORMAL_ICON_Y_SYS_ERROR                            (73)
+#define SYS_ABNORMAL_TITLE_Y_SYS_ERROR                           (179)
+#define SYS_ABNORMAL_CONTENT_Y_SYS_ERROR                         (221)
 /// 电池温度过高
 #define SYS_ABNORMAL_ICON_Y_TEMP_ERROR                           (77)
 #define SYS_ABNORMAL_TITLE_Y_TEMP_ERROR                          (179)
@@ -54,7 +54,7 @@ static sys_abnormal_disp_info_t *s_abnormal_info;
 const static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
     { "System error", SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
         &lv_font_aeonik_soft_26_medium, SYS_ABNORMAL_TITLE_COLOR, 0 },
-    { "Press and hold knob\n10s to restart", SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
+    { "Please unplug the\npower.", SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
         &lv_font_aeonik_soft_26_medium, SYS_ABNORMAL_CONTENT_COLOR, 0 },
 };
 

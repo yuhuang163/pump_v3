@@ -52,7 +52,7 @@ static charge_adapter_display_info_t *adapter_info;
 static const charge_adapter_text_info_t charge_adapter_text_infos[CHARGE_ADAPTER_TEXT_COUNT] = {
     { "Incompatible adapter", CHARGE_ADAPTER_TITLE_Y,
         &lv_font_aeonik_soft_26_medium, CHARGE_ADAPTER_TITLE_COLOR, 0 },
-    { "Unable to charge.", CHARGE_ADAPTER_SUBTITLE_Y,
+    { "Unable to use", CHARGE_ADAPTER_SUBTITLE_Y,
         &lv_font_aeonik_soft_26_medium, CHARGE_ADAPTER_SUBTITLE_COLOR, 0 },
 };
 
