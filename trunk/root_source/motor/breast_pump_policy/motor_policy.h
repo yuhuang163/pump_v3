@@ -278,9 +278,10 @@ typedef struct motor_policy_manager {
 } motor_policy_manager_t;
 
 typedef struct {
-    uint8_t onoff; /// 开关状态
-    uint8_t count; /// 爬升计数
-    uint32_t start_time; /// 爬升策略开始时间，单位ms
+    uint8_t count;          /// 爬升步数
+    uint8_t target_level;   /// 目标力度
+    uint8_t level;          /// 当前实际力度
+    uint8_t start_level;    /// 爬升起始力度
 } pump_climb_policy_t;
 
 /// 吸乳马达状态
@@ -292,7 +293,7 @@ typedef struct {
     uint8_t breast_pump_mode; /// 泵奶模式
     uint8_t current_timed_policy_index; /// 当前定时策略索引
 #if IS_SUPPORT_CLIMB_POLICY
-    pump_climb_policy_t climb; /// 爬升策略状态
+    pump_climb_policy_t climb[BREAST_PUMP_NUM]; /// 爬升策略状态
 #endif
     motor_policy_manager_t *manager; /// 总策略管理器
     motor_timed_policy_node_t *timed_policy; /// 时间策略
