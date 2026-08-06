@@ -23,10 +23,8 @@ static void home_settings_success_display_completed_cb(hdr_post_args_t *args)
         LOG_UI("settings success ui, ignore display completed.");
         return;
     }
-    /// 模式确认成功提示超时后立即启动泵奶；启动失败则回首页
-    if (home_start_pump_handler(proc) != 0) {
-        home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_RESET_PAGE);
-    }
+    /// 模式确认成功提示超时后回首页
+    home_ui_nav_back(proc, HOME_UI_NAV_BACK_HOME_RESET_PAGE);
 }
 
 static void home_settings_success_ui_after_policy(ui_manager_context_t *ui, int index)
@@ -79,7 +77,7 @@ static void home_settings_success_ui_display_remove(void *user_data)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void show_home_settings_success_ui(ui_proc_home_t *proc)
+void show_home_settings_success_ui(ui_proc_home_t *proc, bool is_need_start_pump)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui && ui->hook && ui->hook->ui_animation_play_init);
@@ -89,7 +87,9 @@ void show_home_settings_success_ui(ui_proc_home_t *proc)
         return;
     }
     home_ui_change_hdr_remove(proc);
-
+    if (is_need_start_pump) {
+        home_start_pump_handler(proc);
+    }
     ui_play_info_t play_info = {
         .tag = "home_settings_success_screen",
         .fps = HOME_ANIMATION_FREQ,
