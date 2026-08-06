@@ -36,9 +36,9 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
         int time_index = 0;
         WRITE_PUMP_WORK_MODE(proc->pump, BREAST_PUMP_MILK_BOOST_MODE, false, false);
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, false);
-        proc->setting.level[0] = BREAST_PUMP_LEVEL_1;
-        proc->setting.level[1] = BREAST_PUMP_LEVEL_1;
-        proc->setting.speed = BREAST_PUMP_SPEED_MID;
+        proc->setting.level[0] = DEFAULT_LEVEL_VALUE;
+        proc->setting.level[1] = DEFAULT_LEVEL_VALUE;
+        proc->setting.speed = DEFAULT_SPEED_VALUE;
         READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
