@@ -134,6 +134,8 @@ extern "C" {
 #define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (0)
 /// 支持泵奶档位实时调节
 #define IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST           (1)
+/// 泵奶韵律放松阶段（PUMP_MODE_IDLE）力度锁定：进入力度页显示 0/速度 1，调节仅虚动进度条并提示
+#define IS_SUPPORT_RELAX_MODE_LEVEL_LOCK                 (0)
 /// 支持泵奶韵律模式选择
 #define IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT               (1)
 

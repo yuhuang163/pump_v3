@@ -64,6 +64,12 @@
 #define PUMP_MODE_TIME_2SEG_ICON_X                  (133)
 #define PUMP_MODE_TIME_2SEG_M_X                     (168)
 #define PUMP_MODE_TIME_COLON_W_FALLBACK             (8)
+#if IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM
+/** 时间胶囊入场：淡入 + 上移（无抖动/缩放） */
+#define PUMP_MODE_TIME_ENTER_ANIM_MS                (280)
+#define PUMP_MODE_TIME_ENTER_Y_OFFSET               (24)
+#define PUMP_MODE_TIME_ENTER_PROGRESS_FULL          (256)
+#endif
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -639,13 +645,119 @@ static void pump_mode_chrome_time_content_update(pump_home_base_ui_info_t *info,
         info->force_update != 0);
 }
 
+#if IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM
+static void pump_mode_chrome_time_obj_style_apply(lv_obj_t *obj, lv_opa_t opa, lv_coord_t y_off)
+{
+    if (obj == NULL || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    lv_obj_set_style_opa(obj, opa, 0);
+    lv_obj_set_style_translate_y(obj, y_off, 0);
+    lv_obj_set_style_transform_scale(obj, PUMP_MODE_PAGE_SCALE_FULL, 0);
+}
+
+static void pump_mode_chrome_time_visual_apply(pump_home_base_ui_info_t *info, lv_opa_t opa,
+    lv_coord_t y_off)
+{
+    pump_home_base_mode_chrome_info_t *chrome = &info->mode_chrome;
+    uint8_t i;
+
+    pump_mode_chrome_time_obj_style_apply(chrome->time_label, opa, y_off);
+    pump_mode_chrome_time_obj_style_apply(chrome->status_icon, opa, y_off);
+    for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_COLON_COUNT; i++) {
+        pump_mode_chrome_time_obj_style_apply(chrome->time_colon[i], opa, y_off);
+    }
+    for (i = 0; i < PUMP_HOME_BASE_MODE_TIME_DIGIT_COUNT; i++) {
+        pump_mode_chrome_time_obj_style_apply(chrome->time_h[i], opa, y_off);
+        pump_mode_chrome_time_obj_style_apply(chrome->time_m[i], opa, y_off);
+        pump_mode_chrome_time_obj_style_apply(chrome->time_s[i], opa, y_off);
+    }
+}
+
+static void pump_mode_chrome_time_enter_anim_exec(void *var, int32_t progress)
+{
+    pump_home_base_ui_info_t *info = (pump_home_base_ui_info_t *)var;
+    lv_opa_t opa;
+    lv_coord_t y_off;
+
+    if (info == NULL) {
+        return;
+    }
+    if (progress < 0) {
+        progress = 0;
+    } else if (progress > PUMP_MODE_TIME_ENTER_PROGRESS_FULL) {
+        progress = PUMP_MODE_TIME_ENTER_PROGRESS_FULL;
+    }
+
+    opa = (lv_opa_t)((progress * LV_OPA_COVER) / PUMP_MODE_TIME_ENTER_PROGRESS_FULL);
+    y_off = (lv_coord_t)((PUMP_MODE_TIME_ENTER_Y_OFFSET *
+        (PUMP_MODE_TIME_ENTER_PROGRESS_FULL - progress)) / PUMP_MODE_TIME_ENTER_PROGRESS_FULL);
+    pump_mode_chrome_time_visual_apply(info, opa, y_off);
+}
+
+static void pump_mode_chrome_time_enter_anim_ready(lv_anim_t *anim)
+{
+    pump_home_base_ui_info_t *info;
+
+    if (anim == NULL) {
+        return;
+    }
+    info = (pump_home_base_ui_info_t *)anim->var;
+    if (info == NULL) {
+        return;
+    }
+    info->mode_chrome.time_enter_animating = 0;
+    pump_mode_chrome_time_visual_apply(info, LV_OPA_COVER, 0);
+}
+
+static void pump_mode_chrome_time_enter_anim_stop(pump_home_base_ui_info_t *info)
+{
+    if (info == NULL) {
+        return;
+    }
+    lv_anim_delete(info, pump_mode_chrome_time_enter_anim_exec);
+    info->mode_chrome.time_enter_animating = 0;
+    pump_mode_chrome_time_visual_apply(info, LV_OPA_COVER, 0);
+}
+
+static void pump_mode_chrome_time_enter_anim_start(pump_home_base_ui_info_t *info)
+{
+    lv_anim_t anim;
+
+    EXCEPTION_CHECK_VOID(info);
+    lv_anim_delete(info, pump_mode_chrome_time_enter_anim_exec);
+    info->mode_chrome.time_enter_animating = 1;
+    pump_mode_chrome_time_visual_apply(info, LV_OPA_TRANSP, PUMP_MODE_TIME_ENTER_Y_OFFSET);
+
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, info);
+    lv_anim_set_time(&anim, PUMP_MODE_TIME_ENTER_ANIM_MS);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&anim, pump_mode_chrome_time_enter_anim_exec);
+    lv_anim_set_completed_cb(&anim, pump_mode_chrome_time_enter_anim_ready);
+    lv_anim_set_values(&anim, 0, PUMP_MODE_TIME_ENTER_PROGRESS_FULL);
+    lv_anim_start(&anim);
+}
+#endif /* IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM */
+
 static void pump_mode_chrome_visibility_apply(pump_home_base_ui_info_t *info)
 {
     pump_home_base_mode_chrome_info_t *chrome = &info->mode_chrome;
     const uint8_t shown = info->page.shown_page_index;
     const bool transitioning = info->page.transitioning != 0;
-    /* page0 静止：隐藏；离 page0 动画一开始即显示定位点/时间 */
-    const bool chrome_show = !(shown == PUMP_HOME_PAGE_MAIN && !transitioning);
+    /*
+     * 离 page0：目标已非 MAIN 即显示；滑回 page0：目标为 MAIN 即隐藏，
+     * 不等整段过渡结束，避免时间胶囊滞留过久。
+     */
+    const bool chrome_show = transitioning ?
+        (info->page.page_index != PUMP_HOME_PAGE_MAIN) :
+        (shown != PUMP_HOME_PAGE_MAIN);
+#if IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM
+    const bool time_rising = chrome_show && (chrome->time_shown == 0);
+    /* 仅从 page0 滑出时播入场位移；直达/模式页间切换保持稳态 */
+    const bool time_enter_anim = time_rising && transitioning &&
+        (shown == PUMP_HOME_PAGE_MAIN);
+#endif
     uint8_t i;
 
     for (i = 0; i < PUMP_HOME_BASE_MODE_PAGE_DOT_MAX; i++) {
@@ -696,7 +808,19 @@ static void pump_mode_chrome_visibility_apply(pump_home_base_ui_info_t *info)
                 lv_obj_move_foreground(chrome->time_s[i]);
             }
         }
+#if IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM
+        if (time_enter_anim) {
+            pump_mode_chrome_time_enter_anim_start(info);
+        } else if (time_rising) {
+            pump_mode_chrome_time_enter_anim_stop(info);
+        }
+    } else {
+        pump_mode_chrome_time_enter_anim_stop(info);
     }
+    chrome->time_shown = chrome_show ? 1 : 0;
+#else
+    }
+#endif
 }
 
 /** 按模式与是否两行文案取 ICON / 标题 / 时间 Y */
@@ -973,6 +1097,9 @@ void pump_home_mode_chrome_remove(pump_home_base_ui_info_t *info)
     uint8_t i;
 
     EXCEPTION_CHECK_VOID(info);
+#if IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM
+    pump_mode_chrome_time_enter_anim_stop(info);
+#endif
     for (i = 0; i < PUMP_HOME_BASE_MODE_PAGE_DOT_MAX; i++) {
         LVGL_OBJ_DELETE(info->mode_chrome.dots[i]);
         info->mode_chrome.dots[i] = NULL;

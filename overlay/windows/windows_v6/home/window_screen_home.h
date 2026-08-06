@@ -253,7 +253,7 @@ void home_pump_result_ui_exit(ui_proc_home_t *proc);
 int home_start_pump_handler(ui_proc_home_t *proc);
 
 /// 模式切换成功页
-void show_home_settings_success_ui(ui_proc_home_t *proc);
+void show_home_settings_success_ui(ui_proc_home_t *proc, bool is_need_start_pump);
 void home_settings_success_ui_exit(ui_proc_home_t *proc);
 
 /// 夜灯调节界面处理

@@ -16,6 +16,10 @@
 */
 #define IS_SUPPORT_PUMP_BOTH_LEVEL_ADJUST_COMP_BG   (0) /// 是否启用对比背景图
 #define IS_SUPPORT_PUMP_BOTH_LEVEL_TIME_3SEG_TEST   (0)
+/** 进入双边力度调节页：时间胶囊淡入 + 上移；默认开启 */
+#ifndef IS_SUPPORT_PUMP_BOTH_LEVEL_TIME_ENTER_ANIM
+#define IS_SUPPORT_PUMP_BOTH_LEVEL_TIME_ENTER_ANIM  (1)
+#endif
 
 /** 圆弧：直径 352，线宽 11，当前/剩余间距 8px≈3° */
 #define PUMP_BOTH_LEVEL_ARC_SIZE                    (352)
@@ -69,6 +73,10 @@
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE       (8)
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT \
     "For safety,\nUp to 3 levels at a time."
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+#define PUMP_BOTH_LEVEL_RELAX_LOCK_TEXT \
+    "In Relax mode,\nlevel cannot be adjusted."
+#endif
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_W              (PANLE_DISPLAY_W)
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_H              (34)
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_Y              (78)
@@ -88,6 +96,12 @@
 #define PUMP_BOTH_LEVEL_TIME_2SEG_ICON_X                 (133)
 #define PUMP_BOTH_LEVEL_TIME_2SEG_M_X                    (168)
 #define PUMP_BOTH_LEVEL_TIME_COLON_W_FALLBACK            (8)
+#if IS_SUPPORT_PUMP_BOTH_LEVEL_TIME_ENTER_ANIM
+#define PUMP_BOTH_LEVEL_TIME_ENTER_ANIM_MS               (280)
+#define PUMP_BOTH_LEVEL_TIME_ENTER_Y_OFFSET              (24)
+#define PUMP_BOTH_LEVEL_TIME_ENTER_PROGRESS_FULL         (256)
+#define PUMP_BOTH_LEVEL_TIME_SCALE_FULL                  (256)
+#endif
 
 #define PUMP_BOTH_LEVEL_ARC_ANIM_MS                 (220)
 
@@ -548,6 +562,8 @@ static void pump_both_level_mode_switch_update(ui_proc_pump_t *proc, uint32_t ac
 
 static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t color)
 {
+    const char *text = PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT;
+
     if (pump_both_info->over_limit_box == NULL || !lv_obj_is_valid(pump_both_info->over_limit_box)) {
         pump_both_info->over_limit_box = pump_both_level_box_create(
             (PANLE_DISPLAY_W - PUMP_BOTH_LEVEL_OVER_LIMIT_W) / 2,
@@ -559,7 +575,6 @@ static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t col
     if (pump_both_info->over_limit_label == NULL || !lv_obj_is_valid(pump_both_info->over_limit_label)) {
         pump_both_info->over_limit_label = lv_label_create(pump_both_info->over_limit_box);
         EXCEPTION_CHECK_VOID(pump_both_info->over_limit_label);
-        lv_label_set_text(pump_both_info->over_limit_label, PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT);
         lv_obj_set_style_text_font(pump_both_info->over_limit_label,
             &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_align(pump_both_info->over_limit_label, LV_TEXT_ALIGN_CENTER, 0);
@@ -568,12 +583,19 @@ static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t col
         lv_obj_set_style_text_line_space(pump_both_info->over_limit_label, PUMP_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE, 0);
     }
 
+#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
+    if (proc->sub_mode_type == PUMP_MODE_IDLE) {
+        text = PUMP_BOTH_LEVEL_RELAX_LOCK_TEXT;
+    }
+#endif
+
     if (pump_both_info->force_update == false &&
         pump_both_info->shown_over_limit == proc->both_level_over_limit &&
         pump_both_info->shown_over_limit_color == color) {
         return;
     }
 
+    lv_label_set_text(pump_both_info->over_limit_label, text);
     lv_obj_set_style_text_color(pump_both_info->over_limit_label, lv_color_hex(color), 0);
     if (proc->both_level_over_limit) {
         lv_obj_clear_flag(pump_both_info->over_limit_box, LV_OBJ_FLAG_HIDDEN);
@@ -817,12 +839,106 @@ static void pump_both_level_time_content_update(ui_proc_pump_t *proc)
         pump_both_info->force_update != 0);
 }
 
+#if IS_SUPPORT_PUMP_BOTH_LEVEL_TIME_ENTER_ANIM
+static void pump_both_level_time_obj_style_apply(lv_obj_t *obj, lv_opa_t opa, lv_coord_t y_off)
+{
+    if (obj == NULL || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    lv_obj_set_style_opa(obj, opa, 0);
+    lv_obj_set_style_translate_y(obj, y_off, 0);
+    lv_obj_set_style_transform_scale(obj, PUMP_BOTH_LEVEL_TIME_SCALE_FULL, 0);
+}
+
+static void pump_both_level_time_visual_apply(lv_opa_t opa, lv_coord_t y_off)
+{
+    uint8_t i;
+
+    if (pump_both_info == NULL) {
+        return;
+    }
+    pump_both_level_time_obj_style_apply(pump_both_info->time_label, opa, y_off);
+    pump_both_level_time_obj_style_apply(pump_both_info->status_icon, opa, y_off);
+    for (i = 0; i < PUMP_BOTH_LEVEL_TIME_COLON_COUNT; i++) {
+        pump_both_level_time_obj_style_apply(pump_both_info->time_colon[i], opa, y_off);
+    }
+    for (i = 0; i < PUMP_BOTH_LEVEL_TIME_DIGIT_COUNT; i++) {
+        pump_both_level_time_obj_style_apply(pump_both_info->time_h[i], opa, y_off);
+        pump_both_level_time_obj_style_apply(pump_both_info->time_m[i], opa, y_off);
+        pump_both_level_time_obj_style_apply(pump_both_info->time_s[i], opa, y_off);
+    }
+}
+
+static void pump_both_level_time_enter_anim_exec(void *var, int32_t progress)
+{
+    lv_opa_t opa;
+    lv_coord_t y_off;
+
+    (void)var;
+    if (pump_both_info == NULL) {
+        return;
+    }
+    if (progress < 0) {
+        progress = 0;
+    } else if (progress > PUMP_BOTH_LEVEL_TIME_ENTER_PROGRESS_FULL) {
+        progress = PUMP_BOTH_LEVEL_TIME_ENTER_PROGRESS_FULL;
+    }
+
+    opa = (lv_opa_t)((progress * LV_OPA_COVER) / PUMP_BOTH_LEVEL_TIME_ENTER_PROGRESS_FULL);
+    y_off = (lv_coord_t)((PUMP_BOTH_LEVEL_TIME_ENTER_Y_OFFSET *
+        (PUMP_BOTH_LEVEL_TIME_ENTER_PROGRESS_FULL - progress)) /
+        PUMP_BOTH_LEVEL_TIME_ENTER_PROGRESS_FULL);
+    pump_both_level_time_visual_apply(opa, y_off);
+}
+
+static void pump_both_level_time_enter_anim_ready(lv_anim_t *anim)
+{
+    (void)anim;
+    if (pump_both_info == NULL) {
+        return;
+    }
+    pump_both_level_time_visual_apply(LV_OPA_COVER, 0);
+}
+
+static void pump_both_level_time_enter_anim_stop(void)
+{
+    if (pump_both_info == NULL) {
+        return;
+    }
+    lv_anim_delete(pump_both_info, pump_both_level_time_enter_anim_exec);
+    pump_both_level_time_visual_apply(LV_OPA_COVER, 0);
+}
+
+static void pump_both_level_time_enter_anim_start(void)
+{
+    lv_anim_t anim;
+
+    EXCEPTION_CHECK_VOID(pump_both_info);
+    lv_anim_delete(pump_both_info, pump_both_level_time_enter_anim_exec);
+    pump_both_level_time_visual_apply(LV_OPA_TRANSP, PUMP_BOTH_LEVEL_TIME_ENTER_Y_OFFSET);
+
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, pump_both_info);
+    lv_anim_set_time(&anim, PUMP_BOTH_LEVEL_TIME_ENTER_ANIM_MS);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&anim, pump_both_level_time_enter_anim_exec);
+    lv_anim_set_completed_cb(&anim, pump_both_level_time_enter_anim_ready);
+    lv_anim_set_values(&anim, 0, PUMP_BOTH_LEVEL_TIME_ENTER_PROGRESS_FULL);
+    lv_anim_start(&anim);
+}
+#endif /* IS_SUPPORT_PUMP_BOTH_LEVEL_TIME_ENTER_ANIM */
+
 static void pump_both_level_time_update(ui_proc_pump_t *proc)
 {
     if (pump_both_info->force_update) {
         pump_both_level_time_rebuild();
     }
     pump_both_level_time_content_update(proc);
+#if IS_SUPPORT_PUMP_BOTH_LEVEL_TIME_ENTER_ANIM
+    if (pump_both_info->force_update) {
+        pump_both_level_time_enter_anim_start();
+    }
+#endif
 }
 
 /*
@@ -897,6 +1013,9 @@ void ui_display_pump_both_level_adjust_remove(ui_manager_context_t *thiz)
     int i;
 
     EXCEPTION_CHECK_VOID(thiz && pump_both_info && pump_both_info->root);
+#if IS_SUPPORT_PUMP_BOTH_LEVEL_TIME_ENTER_ANIM
+    pump_both_level_time_enter_anim_stop();
+#endif
     ui_img_baj_release_decoded_buf(pump_both_info->time_label);
     LVGL_OBJ_DELETE(pump_both_info->time_label);
     pump_both_info->time_label = NULL;

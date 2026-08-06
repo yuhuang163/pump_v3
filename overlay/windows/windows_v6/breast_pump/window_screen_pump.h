@@ -258,6 +258,8 @@ void pump_sub_mode_sync_tick(ui_proc_pump_t *proc, pump_sub_mode_sync_e sync);
 void pump_power_key_event_handler(ui_proc_pump_t *proc);
 /// 开始按键事件处理
 void pump_start_key_event_handler(ui_proc_pump_t *proc);
+/// 模式/韵律确认后：仅吸乳暂停态启动泵奶
+void pump_start_pump_if_pause(ui_proc_pump_t *proc);
 
 /// 模式选择：旋钮预览 / 确认落地 / 直接设模式
 int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_left);
@@ -275,7 +277,7 @@ void show_pump_rhythm_confirm_ui(ui_proc_pump_t *proc);
 void pump_rhythm_confirm_ui_exit(ui_proc_pump_t *proc);
 
 /// 模式切换成功页
-void show_pump_settings_success_ui(ui_proc_pump_t *proc);
+void show_pump_settings_success_ui(ui_proc_pump_t *proc, bool is_need_start_pump);
 void pump_settings_success_ui_exit(ui_proc_pump_t *proc);
 
 /// 长按 power 停止泵奶确认页

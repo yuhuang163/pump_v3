@@ -185,7 +185,12 @@ static void pump_mode_key_event_cb(ui_proc_pump_t *proc, uint8_t mode_index)
         pump_stop_hold_dismiss(proc);
         return;
     }
-    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
+
+    if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
+        proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS) {
+        /* 退出确认/成功页后按按键模式落地，不沿用当前预览页 */
+        pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
+    } else if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
         /* 从力度/速度等子页回首页时清导航栈，避免残留 page_index 被 start 误恢复 */
         pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
     } else {

@@ -27,13 +27,20 @@
 
 static void switch_pump_status_handler(ui_proc_pump_t *proc)
 {
-    if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS ||
-        proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
+    if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
         proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH ||
         proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ) {
         LOG_WM("ignore start key %d", proc->current_ui_type);
         return;
     }
+
+#if 0
+    if (proc->current_ui_type == PUMP_UI_TYPE_SETTINGS_SUCCESS) {
+        LOG_WM("settings success, ignore start key.");
+        return;
+    }
+#endif
+
     switch_pump_status_ui(proc);
 }
 
@@ -291,15 +298,15 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
         return;
     }
 
-    /// 确认页：再次短按 power → 落地模式并跳转成功页（超时后启动泵奶）
+    /// 确认页：再次短按 power → 落地模式并跳转成功页（超时后仅暂停态启动泵奶）
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
         if (pump_mode_confirm_handler(proc) == 0) {
-            show_pump_settings_success_ui(proc);
+            show_pump_settings_success_ui(proc, true);
         }
         return;
     }
 
-    /// 模式选择页：满足条件先弹确认页，否则直接成功页（超时后启动泵奶）
+    /// 模式选择页：满足条件先弹确认页，否则直接成功页（超时后仅暂停态启动泵奶）
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
         if (proc->ui_mode_page_index > PUMP_MODE_PAGE_INDEX_NONE) {
             if (pump_mode_rhythm_confirm_needed(proc) == 0) {
@@ -307,7 +314,7 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
                 return;
             }
             if (pump_mode_confirm_handler(proc) == 0) {
-                show_pump_settings_success_ui(proc);
+                show_pump_settings_success_ui(proc, true);
             }
             return;
         }
@@ -349,6 +356,17 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
 void pump_start_key_event_handler(ui_proc_pump_t *proc)
 {
     switch_pump_status_handler(proc);
+}
+
+void pump_start_pump_if_pause(ui_proc_pump_t *proc)
+{
+    int pump_status = 0;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (pump_status == BREAST_PUMP_PAUSE) {
+        switch_pump_status_ui(proc);
+    }
 }
 
 uint8_t pump_sub_mode_type_get(ui_proc_pump_t *proc)

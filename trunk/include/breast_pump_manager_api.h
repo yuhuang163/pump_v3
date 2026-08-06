@@ -14,7 +14,7 @@ extern "C" {
    
 #if IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE
 #if IS_SUPPORT_PUMP_MODE_FAST_TEST
-#define TOTAL_PUMP_TIME_MAX                          (3 * 60 * 1000) /// 最大泵奶时间 3分钟
+#define TOTAL_PUMP_TIME_MAX                          (4 * 60 * 1000) /// 最大泵奶时间 4分钟
 #else
 #define TOTAL_PUMP_TIME_MAX                          (1.2 * 60 * 60 * 1000) /// 最大泵奶时间 1.2小时
 #endif

@@ -194,7 +194,7 @@
     {
       "resource_id": "BASE_RES_ID_CHARGE_ERROR_ICON",
       "description": "充电错误图标",
-      "file": "baj/icon_charge_error_85x84_a8_q99_444.baj",
+      "file": "baj/icon_charge_error_84x84_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },

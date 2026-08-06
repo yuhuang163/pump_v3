@@ -137,4 +137,10 @@ void ui_popup_update(ui_manager_context_t *thiz,
     } else {
         ui_popup_process(thiz, type);
     }
+
+    /* 页面 chrome（模式页圆点/时间等）会 move_foreground，弹窗需始终置顶 */
+    if (operation_info != NULL && operation_info->root.obj != NULL &&
+        lv_obj_is_valid(operation_info->root.obj)) {
+        lv_obj_move_foreground(operation_info->root.obj);
+    }
 }
