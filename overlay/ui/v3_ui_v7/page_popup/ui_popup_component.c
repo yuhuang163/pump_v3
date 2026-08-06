@@ -98,6 +98,7 @@ void ui_popup_root_init(ui_manager_context_t *thiz, lv_obj_t *parent)
         lv_obj_clear_flag(info->root.obj, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_clear_flag(info->root.obj, LV_OBJ_FLAG_SCROLLABLE);
     }
+    lv_obj_move_foreground(info->root.obj);
 }
 
 void ui_popup_components_hide_all(void)
