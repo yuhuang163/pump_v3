@@ -152,6 +152,7 @@ typedef struct motor_manager_context {
         uint8_t is_user_stoped;       /// 用户停止
         uint8_t user_debug_status;    /// 用户调试状态
         factory_suction_para_t *suction_para;
+        bool is_suction_compensation_enabled;    /// 吸力补偿开关 默认开启
     } priv;
 
 /// public
@@ -180,6 +181,10 @@ typedef struct motor_manager_context {
     void (*remove_motor_status_evt_listener)(on_motor_status_evt_cb_fptr cb);
     /// 分发马达状态事件
     void (*notify_motor_status_change)(motor_status_evt_type_e evt_type);
+    /// 设置吸力补偿开关
+    void (*set_suction_compensation_enabled)(bool enabled);
+    /// 获取吸力补偿开关
+    bool (*get_suction_compensation_enabled)(void);
     /// 外部钩子函数.
     struct __motor_manager_hook {
         int (*on_post_init_route)(struct motor_manager_context *ctx);
