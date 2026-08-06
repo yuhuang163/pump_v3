@@ -24,6 +24,10 @@ extern "C" {
 */
 #define IS_SUPPORT_BASE_PUMP_HOME_COMP_BG                (0)
 #define IS_SUPPORT_BASE_TIME_3SEG_TEST                   (0)
+/** 离 page0 进入模式选择：时间胶囊淡入 + 上移；默认开启 */
+#ifndef IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM
+#define IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM             (1)
+#endif
 
 #define PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT             (2)
 #define PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT             (2)
@@ -175,6 +179,10 @@ typedef struct {
     uint8_t shown_digit_size;           /// 2=MM:SS / 3=HH:MM:SS
     uint8_t shown_paused;
     uint16_t shown_status_icon_id;
+#if IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM
+    uint8_t time_shown;                 /// 时间层当前是否可见（入场动效用）
+    uint8_t time_enter_animating;       /// 离 page0 入场位移动画中
+#endif
 } pump_home_base_mode_chrome_info_t;
 
 /// 模式/韵律选择页控件（挂在 page user_data，避免切页过渡覆盖）
@@ -240,7 +248,8 @@ void pump_home_mode_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
 void pump_home_mode_page_ui_remove(pump_home_base_ui_info_t *info);
 /// 切换动画：圆背景显隐 + ICON/模式名缩放（圆不参与缩放）
 void pump_home_mode_page_transition_apply(lv_obj_t *page, int32_t hero_scale, bool transitioning);
-/// 定位点/时间固定层（root）：page0 隐藏；离 page0 动画起显示定位点
+/// 定位点/时间固定层（root）：page0 隐藏；离 page0 动画起显示；
+/// 时间入场位移由 IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM 控制
 void pump_home_mode_chrome_prepare(pump_home_base_ui_info_t *info);
 void pump_home_mode_chrome_remove(pump_home_base_ui_info_t *info);
 void pump_home_mode_chrome_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc);

@@ -16,6 +16,10 @@
 */
 #define IS_SUPPORT_PUMP_SPEED_ADJUST_COMP_BG        (0) /// 是否启用对比背景图
 #define IS_SUPPORT_PUMP_SPEED_TIME_3SEG_TEST        (0)
+/** 进入速度调节页：时间胶囊淡入 + 上移；默认开启 */
+#ifndef IS_SUPPORT_PUMP_SPEED_TIME_ENTER_ANIM
+#define IS_SUPPORT_PUMP_SPEED_TIME_ENTER_ANIM       (1)
+#endif
 
 /** 速度档位圆弧：与 HOME 速度调节页一致 */
 #define PUMP_SPEED_ARC_SIZE                         (352)
@@ -58,6 +62,12 @@
 #define PUMP_SPEED_TIME_2SEG_ICON_X                 (133)
 #define PUMP_SPEED_TIME_2SEG_M_X                    (168)
 #define PUMP_SPEED_TIME_COLON_W_FALLBACK            (8)
+#if IS_SUPPORT_PUMP_SPEED_TIME_ENTER_ANIM
+#define PUMP_SPEED_TIME_ENTER_ANIM_MS               (280)
+#define PUMP_SPEED_TIME_ENTER_Y_OFFSET              (24)
+#define PUMP_SPEED_TIME_ENTER_PROGRESS_FULL         (256)
+#define PUMP_SPEED_TIME_SCALE_FULL                  (256)
+#endif
 
 typedef struct {
     lv_obj_t *root;
@@ -512,12 +522,105 @@ static void pump_speed_time_content_update(ui_proc_pump_t *proc)
     pump_speed_time_layout_apply(hours, minutes, seconds, digit_size, speed_info->force_update != 0);
 }
 
+#if IS_SUPPORT_PUMP_SPEED_TIME_ENTER_ANIM
+static void pump_speed_time_obj_style_apply(lv_obj_t *obj, lv_opa_t opa, lv_coord_t y_off)
+{
+    if (obj == NULL || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    lv_obj_set_style_opa(obj, opa, 0);
+    lv_obj_set_style_translate_y(obj, y_off, 0);
+    lv_obj_set_style_transform_scale(obj, PUMP_SPEED_TIME_SCALE_FULL, 0);
+}
+
+static void pump_speed_time_visual_apply(lv_opa_t opa, lv_coord_t y_off)
+{
+    uint8_t i;
+
+    if (speed_info == NULL) {
+        return;
+    }
+    pump_speed_time_obj_style_apply(speed_info->time_label, opa, y_off);
+    pump_speed_time_obj_style_apply(speed_info->status_icon, opa, y_off);
+    for (i = 0; i < PUMP_SPEED_TIME_COLON_COUNT; i++) {
+        pump_speed_time_obj_style_apply(speed_info->time_colon[i], opa, y_off);
+    }
+    for (i = 0; i < PUMP_SPEED_TIME_DIGIT_COUNT; i++) {
+        pump_speed_time_obj_style_apply(speed_info->time_h[i], opa, y_off);
+        pump_speed_time_obj_style_apply(speed_info->time_m[i], opa, y_off);
+        pump_speed_time_obj_style_apply(speed_info->time_s[i], opa, y_off);
+    }
+}
+
+static void pump_speed_time_enter_anim_exec(void *var, int32_t progress)
+{
+    lv_opa_t opa;
+    lv_coord_t y_off;
+
+    (void)var;
+    if (speed_info == NULL) {
+        return;
+    }
+    if (progress < 0) {
+        progress = 0;
+    } else if (progress > PUMP_SPEED_TIME_ENTER_PROGRESS_FULL) {
+        progress = PUMP_SPEED_TIME_ENTER_PROGRESS_FULL;
+    }
+
+    opa = (lv_opa_t)((progress * LV_OPA_COVER) / PUMP_SPEED_TIME_ENTER_PROGRESS_FULL);
+    y_off = (lv_coord_t)((PUMP_SPEED_TIME_ENTER_Y_OFFSET *
+        (PUMP_SPEED_TIME_ENTER_PROGRESS_FULL - progress)) / PUMP_SPEED_TIME_ENTER_PROGRESS_FULL);
+    pump_speed_time_visual_apply(opa, y_off);
+}
+
+static void pump_speed_time_enter_anim_ready(lv_anim_t *anim)
+{
+    (void)anim;
+    if (speed_info == NULL) {
+        return;
+    }
+    pump_speed_time_visual_apply(LV_OPA_COVER, 0);
+}
+
+static void pump_speed_time_enter_anim_stop(void)
+{
+    if (speed_info == NULL) {
+        return;
+    }
+    lv_anim_delete(speed_info, pump_speed_time_enter_anim_exec);
+    pump_speed_time_visual_apply(LV_OPA_COVER, 0);
+}
+
+static void pump_speed_time_enter_anim_start(void)
+{
+    lv_anim_t anim;
+
+    EXCEPTION_CHECK_VOID(speed_info);
+    lv_anim_delete(speed_info, pump_speed_time_enter_anim_exec);
+    pump_speed_time_visual_apply(LV_OPA_TRANSP, PUMP_SPEED_TIME_ENTER_Y_OFFSET);
+
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, speed_info);
+    lv_anim_set_time(&anim, PUMP_SPEED_TIME_ENTER_ANIM_MS);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&anim, pump_speed_time_enter_anim_exec);
+    lv_anim_set_completed_cb(&anim, pump_speed_time_enter_anim_ready);
+    lv_anim_set_values(&anim, 0, PUMP_SPEED_TIME_ENTER_PROGRESS_FULL);
+    lv_anim_start(&anim);
+}
+#endif /* IS_SUPPORT_PUMP_SPEED_TIME_ENTER_ANIM */
+
 static void pump_speed_time_update(ui_proc_pump_t *proc)
 {
     if (speed_info->force_update) {
         pump_speed_time_rebuild();
     }
     pump_speed_time_content_update(proc);
+#if IS_SUPPORT_PUMP_SPEED_TIME_ENTER_ANIM
+    if (speed_info->force_update) {
+        pump_speed_time_enter_anim_start();
+    }
+#endif
 }
 
 /*
@@ -567,6 +670,9 @@ void ui_display_pump_speed_adjust_remove(ui_manager_context_t *thiz)
     int i;
 
     EXCEPTION_CHECK_VOID(thiz && speed_info && speed_info->root);
+#if IS_SUPPORT_PUMP_SPEED_TIME_ENTER_ANIM
+    pump_speed_time_enter_anim_stop();
+#endif
     ui_img_baj_release_decoded_buf(speed_info->time_label);
     LVGL_OBJ_DELETE(speed_info->time_label);
     speed_info->time_label = NULL;
