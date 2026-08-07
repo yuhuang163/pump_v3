@@ -90,16 +90,17 @@ resolve_root_device_name() {
 
 resolve_root_res_path() {
 	# 优先根据 GNUmakefile 的 ROOT_UI_VERSION 推导 ROOT_RES_PATH（与 product_info.h 中 ROOT_RES_PATH 的判断一致）
-	# product_info.h 当前依据 ROOT_UI_VERSION 在 V2/V3/V4/V5/V6 间切换 ROOT_RES_PATH。
+	# product_info.h 当前依据 ROOT_UI_VERSION 在 V2/V3/V4/V5/V6/V7 间切换 ROOT_RES_PATH。
 	local makefile="$PROJECT_DIR/GNUmakefile"
 	if [[ -f "$makefile" ]]; then
-		local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value root_ui_v5_value root_ui_v6_value
+		local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value root_ui_v5_value root_ui_v6_value root_ui_v7_value
 		root_ui_token=$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")
 		root_ui_v2_value=$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")
 		root_ui_v3_value=$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")
 		root_ui_v4_value=$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")
 		root_ui_v5_value=$(awk '/^ROOT_UI_V5[[:space:]]*\?=/{print $3; exit}' "$makefile")
 		root_ui_v6_value=$(awk '/^ROOT_UI_V6[[:space:]]*\?=/{print $3; exit}' "$makefile")
+		root_ui_v7_value=$(awk '/^ROOT_UI_V7[[:space:]]*\?=/{print $3; exit}' "$makefile")
 
 		case "$root_ui_token" in
 			'$(ROOT_UI_V2)') printf "%s" "V2"; return 0 ;;
@@ -107,6 +108,7 @@ resolve_root_res_path() {
 			'$(ROOT_UI_V4)') printf "%s" "V4"; return 0 ;;
 			'$(ROOT_UI_V5)') printf "%s" "V5"; return 0 ;;
 			'$(ROOT_UI_V6)') printf "%s" "V6"; return 0 ;;
+			'$(ROOT_UI_V7)') printf "%s" "V7"; return 0 ;;
 			"$root_ui_v2_value")
 				if [[ -n "${root_ui_token:-}" ]]; then
 					printf "%s" "V2"
@@ -134,6 +136,12 @@ resolve_root_res_path() {
 			"$root_ui_v6_value")
 				if [[ -n "${root_ui_token:-}" ]]; then
 					printf "%s" "V6"
+					return 0
+				fi
+				;;
+			"$root_ui_v7_value")
+				if [[ -n "${root_ui_token:-}" ]]; then
+					printf "%s" "V7"
 					return 0
 				fi
 				;;
@@ -179,7 +187,7 @@ resolve_root_res_path() {
 }
 
 resolve_root_res_version() {
-	# 与 product_info.h 中 ROOT_UI_VERSION 分支一致：V2->102, V3->103, V4->104, V5->105, V6->106
+	# 与 product_info.h 中 ROOT_UI_VERSION 分支一致：V2->102, V3->103, V4->104, V5->105, V6->106, V7->107
 	local res_path
 	res_path=$(resolve_root_res_path "$@")
 	case "$res_path" in
@@ -188,6 +196,7 @@ resolve_root_res_version() {
 		V4) printf "%s" "104" ;;
 		V5) printf "%s" "105" ;;
 		V6) printf "%s" "106" ;;
+		V7) printf "%s" "107" ;;
 		*)
 			# 回退：带 ROOT_UI_* 宏预处理 ROOT_RES_VERSION
 			local info_file="${1:-$PROJECT_DIR/boards/product_info.h}"
@@ -223,7 +232,7 @@ collect_product_info_cpp_flags() {
 	local makefile="${1:-$PROJECT_DIR/GNUmakefile}"
 	[[ -f "$makefile" ]] || return 0
 
-	local root_ui_token root_ui_v2 root_ui_v3 root_ui_v4 root_ui_v5 root_ui_v6 resolved_ui=""
+	local root_ui_token root_ui_v2 root_ui_v3 root_ui_v4 root_ui_v5 root_ui_v6 root_ui_v7 resolved_ui=""
 	local v3_id v3pro_id product_id_token product_id_value=""
 
 	root_ui_token=$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")
@@ -232,6 +241,7 @@ collect_product_info_cpp_flags() {
 	root_ui_v4=$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")
 	root_ui_v5=$(awk '/^ROOT_UI_V5[[:space:]]*\?=/{print $3; exit}' "$makefile")
 	root_ui_v6=$(awk '/^ROOT_UI_V6[[:space:]]*\?=/{print $3; exit}' "$makefile")
+	root_ui_v7=$(awk '/^ROOT_UI_V7[[:space:]]*\?=/{print $3; exit}' "$makefile")
 	v3_id=$(awk '/^ROOT_PRODUCT_V3_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")
 	v3pro_id=$(awk '/^ROOT_PRODUCT_V3PRO_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")
 	product_id_token=$(awk '/^ROOT_PRODUCT_ID[[:space:]]*\?=/{print $3; exit}' "$makefile")
@@ -248,6 +258,7 @@ collect_product_info_cpp_flags() {
 		'$(ROOT_UI_V4)') resolved_ui="$root_ui_v4" ;;
 		'$(ROOT_UI_V5)') resolved_ui="$root_ui_v5" ;;
 		'$(ROOT_UI_V6)') resolved_ui="$root_ui_v6" ;;
+		'$(ROOT_UI_V7)') resolved_ui="$root_ui_v7" ;;
 		*) resolved_ui="$root_ui_token" ;;
 	esac
 
@@ -256,6 +267,7 @@ collect_product_info_cpp_flags() {
 	[[ -n "${root_ui_v4:-}" ]] && printf '%s\n' "-DROOT_UI_V4=${root_ui_v4}"
 	[[ -n "${root_ui_v5:-}" ]] && printf '%s\n' "-DROOT_UI_V5=${root_ui_v5}"
 	[[ -n "${root_ui_v6:-}" ]] && printf '%s\n' "-DROOT_UI_V6=${root_ui_v6}"
+	[[ -n "${root_ui_v7:-}" ]] && printf '%s\n' "-DROOT_UI_V7=${root_ui_v7}"
 	[[ -n "${resolved_ui:-}" ]] && printf '%s\n' "-DROOT_UI_VERSION=${resolved_ui}"
 	[[ -n "${product_id_value:-}" ]] && printf '%s\n' "-DROOT_PRODUCT_ID=${product_id_value}"
 	[[ -n "${v3_id:-}" ]] && printf '%s\n' "-DROOT_PRODUCT_V3_ID=${v3_id}"
@@ -422,6 +434,11 @@ build_resource_bin_dirs() {
 					"$PROJECT_DIR/overlay/resources/bin/v3_res_v5"
 				)
 			fi
+			;;
+		V7)
+			RESOURCE_BIN_DIRS+=(
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v7"
+			)
 			;;
 		V3PRO_V2)
 			RESOURCE_BIN_DIRS+=(
@@ -758,7 +775,8 @@ do_rename_and_archive() {
 	# V4 资源：bin/v3_res_v4 或 bin/v3pro_res_v4（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
 	# V5 资源：bin/v3_res_v5 或 bin/v3pro_res_v5（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
 	# V6 资源：bin/v3_res_v6 或 bin/v3pro_res_v6（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
-	# ROOT_RES_VERSION 定义为 major*100 + minor（随 ROOT_UI_VERSION：V2->102/V01.02, V3->103, V4->104, V5->105, V6->106）
+	# V7 资源：bin/v3_res_v7（优先 base/*_RES_base.bin）
+	# ROOT_RES_VERSION 定义为 major*100 + minor（随 ROOT_UI_VERSION：V2->102, ..., V6->106, V7->107）
 	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file res_source_dir
 	local res_lookup_dir
 	local searched_res_dirs
@@ -781,9 +799,16 @@ do_rename_and_archive() {
 	searched_res_dirs=${searched_res_dirs% }
 	for res_dir in "${RESOURCE_BIN_DIRS[@]}"; do
 		if [[ -d "$res_dir" ]]; then
-			for res_lookup_dir in "$res_dir/all" "$res_dir"; do
+			# V7 以 base 主题包为主；其它版本优先 all，再回退 base/根目录
+			local -a lookup_dirs=()
+			if [[ "$res_path" == "V7" ]]; then
+				lookup_dirs=("$res_dir/base" "$res_dir/all" "$res_dir")
+			else
+				lookup_dirs=("$res_dir/all" "$res_dir/base" "$res_dir")
+			fi
+			for res_lookup_dir in "${lookup_dirs[@]}"; do
 				[[ -d "$res_lookup_dir" ]] || continue
-				# 优先取 all 目录下新的 *_RES_all.bin，找不到时再回退旧的 *_RES.bin。
+				# 优先取 all 目录下新的 *_RES_all.bin，找不到时再回退 base/*_RES_base.bin / 旧 *_RES.bin。
 				# 兼容 pack.sh 新旧前缀：V3Pro_* 与 V3PRO_*。
 				shopt -s nullglob
 				local prefix_candidates=("$device_title")
@@ -795,6 +820,7 @@ do_rename_and_archive() {
 				for prefix_item in "${prefix_candidates[@]}"; do
 					candidates+=(
 						"$res_lookup_dir"/${prefix_item}_*_V${res_major2}.${res_minor2}_*_RES_all.bin
+						"$res_lookup_dir"/${prefix_item}_*_V${res_major2}.${res_minor2}_*_RES_base.bin
 						"$res_lookup_dir"/${prefix_item}_*_V${res_major2}.${res_minor2}_*_RES.bin
 					)
 				done
@@ -869,6 +895,14 @@ do_rename_and_archive() {
 			else
 				res_out="Lute_${res_nores}_${hw_tag}_${res_md5}_RES_all.bin"
 			fi
+		elif [[ "$res_base" == *_RES_base.bin ]]; then
+			# 例：V3_20260807_V01.07_8c2a20b0_RES_base.bin -> Lute_V3_20260807_V01.07_H0.4_8c2a20b0_<md5>_RES_base.bin
+			local res_nores="${res_base%_RES_base.bin}"
+			if [[ "$res_nores" =~ ^(.*_V[0-9]{2}\.[0-9]{2})_(.*)$ ]]; then
+				res_out="Lute_${BASH_REMATCH[1]}_${hw_tag}_${BASH_REMATCH[2]}_${res_md5}_RES_base.bin"
+			else
+				res_out="Lute_${res_nores}_${hw_tag}_${res_md5}_RES_base.bin"
+			fi
 		elif [[ "$res_base" == *_RES.bin ]]; then
 			# 例：V3_20260120_V01.01_8e7a2e66_RES.bin -> Lute_V3_20260120_V01.01_H01.0_8e7a2e66_<md5>_RES.bin
 			# 规则：硬件版本追加在资源版本号之后（Vxx.xx_Hxx.x）
@@ -888,7 +922,7 @@ do_rename_and_archive() {
 		echo "RES 已归档(${res_path} V${res_major2}.${res_minor2}, source=${res_source_dir}): $target_dir/$res_out"
 		copied_any=true
 	else
-		echo "未找到 RES 资源(${res_path} V${res_major2}.${res_minor2}, product=${product_family})，已搜索: ${searched_res_dirs} (优先 all/*_RES_all.bin，回退 *_RES.bin)"
+		echo "未找到 RES 资源(${res_path} V${res_major2}.${res_minor2}, product=${product_family})，已搜索: ${searched_res_dirs} (优先 all/*_RES_all.bin / base/*_RES_base.bin，回退 *_RES.bin)"
 	fi
 
 	if [[ "$copied_any" == false ]]; then
