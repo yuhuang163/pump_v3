@@ -11,7 +11,7 @@
 */
 #define LOG_TAG "power_manager"
 #define PM_SUSPEND_WORK_PERIOD            (1000)
-#define MAX_LOCK_TIME_S                   (3600 * 2)
+#define WAKELOCK_TIMEOUT_FOREVER          (-1)
 
 #define MUTEX_LOCK_PM(tag, __lock) \
 do { \
@@ -112,7 +112,10 @@ static int pm_check_wakelock(power_manager_context_t *ctx)
     MUTEX_LOCK(ctx->priv.m_wake_lock);
     LIST_FOR_EACH(pos, &ctx->priv.wake_lock_list) {
         pm_wake_lock_node_t *node = CONTAINER_OF(pos, pm_wake_lock_node_t, list);
-        if (node->timeout_s == 0) {
+        if (node->timeout_s == WAKELOCK_TIMEOUT_FOREVER) {
+            /// 永久锁，不递减、不超时.
+            continue;
+        } else if (node->timeout_s == 0) {
             LOG_PM("Caller(%s) Timeout", node->caller);
         } else if (node->timeout_s > 0) {
             --node->timeout_s;
@@ -121,10 +124,10 @@ static int pm_check_wakelock(power_manager_context_t *ctx)
             }
         }
     }
-    /// 检查是否有未超时的锁.
+    /// 检查是否有未超时的锁(永久锁 timeout_s < 0 也挡休眠).
     LIST_FOR_EACH(pos, &ctx->priv.wake_lock_list) {
         pm_wake_lock_node_t *node = CONTAINER_OF(pos, pm_wake_lock_node_t, list);
-        if (node->timeout_s > 0) {
+        if (node->timeout_s != 0) {
             ret = 1;
             if (++counter % 5 == 0) {
                 LOGW("Current has wakelock(%s), block suspend(%d).",
@@ -463,16 +466,18 @@ static int pm_acquire_wakelock(const char *caller, int timeout_s)
     MUTEX_LOCK(ctx->priv.m_wake_lock);
     LIST_FOR_EACH(pos, &ctx->priv.wake_lock_list) {
         pm_wake_lock_node_t *node = CONTAINER_OF(pos, pm_wake_lock_node_t, list);
-        if ((strncmp(node->caller, caller, sizeof(node->caller) -1) == 0) && (node->timeout_s == timeout_s)) {
-            LOGW("LOG_PM dumplicate add, ignore(%s)", node->caller);
+        if (strncmp(node->caller, caller, sizeof(node->caller) - 1) == 0) {
+            node->timeout_s = timeout_s;
+            LOGW("LOG_PM refresh wakelock(%s/%d)", node->caller, node->timeout_s);
             MUTEX_UNLOCK(ctx->priv.m_wake_lock);
-            return -1;
+            set_suspend_counter("pm_acquire_wakelock", get_suspend_timeout(thiz), true);
+            return 0;
         }
     }
 
     pm_wake_lock_node_t *node = u_malloz(sizeof(pm_wake_lock_node_t));
     SEC_STRNCPY(node->caller, caller, sizeof(node->caller));
-    node->timeout_s = (timeout_s == -1) ? MAX_LOCK_TIME_S : timeout_s;
+    node->timeout_s = timeout_s;
     __list_add(&node->list, &ctx->priv.wake_lock_list);
     MUTEX_UNLOCK(ctx->priv.m_wake_lock);
     LOG_PM("NEW add(%s/%d)", node->caller, node->timeout_s);
