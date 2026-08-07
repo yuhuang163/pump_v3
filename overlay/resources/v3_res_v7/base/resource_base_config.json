@@ -87,6 +87,13 @@
       "y_offset": 0
     },
     {
+      "resource_id": "BASE_RES_ID_BLE_CONNECTING_TIP_ICON",
+      "description": "蓝牙连接中提示图标",
+      "file": "baj/icon_ble_connecting_tip_84x84_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
       "resource_id": "BASE_RES_ID_BLE_DISCONNECT_ICON",
       "description": "蓝牙断开图标",
       "file": "baj/icon_ble_disconnect_24x24_a8_q99_444.baj",
@@ -223,6 +230,13 @@
       "resource_id": "BASE_RES_ID_RELAX_TIP_ICON",
       "description": "放松提醒图标",
       "file": "baj/icon_relax_48x47_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_FORBIDDEN_TIP_ICON",
+      "description": "禁止提示图标",
+      "file": "baj/icon_forbidden_40x40_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },

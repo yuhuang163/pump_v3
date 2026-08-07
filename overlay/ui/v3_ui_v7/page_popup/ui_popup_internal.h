@@ -119,6 +119,7 @@ const char *ui_popup_name_get(ui_manager_context_t *thiz, uint16_t popup_type);
 uint16_t ui_popup_target_time_get(popup_ui_id_e type);
 
 void ui_popup_pump_runing_30m_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+void ui_popup_pump_rest_mode_adjust_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 
 #ifdef __cplusplus
 }

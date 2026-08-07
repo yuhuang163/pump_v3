@@ -44,6 +44,9 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
         case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
             LOG_WM("pump running 30m tip popup dismissed.");
             break;
+        case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
+            LOG_WM("pump rest mode adjust tip popup dismissed.");
+            break;
         default:
             break;
     }
