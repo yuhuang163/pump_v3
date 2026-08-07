@@ -395,12 +395,11 @@ static void home_click_event_cb(ui_proc_home_t *proc, uint16_t keycode)
 static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_home_t *proc = user_data;
-    WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_HOME, 0);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_HOME, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return 0;
     }
-
     LOG_WM("keyevent: %d, %d", keycode, keytype);
     /// 模式选择页倒计时中：任意按键刷新计时
     home_mode_select_idle_touch(proc);
@@ -558,6 +557,10 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     window_manager_context_t *wm = proc->wm;
     ui_manager_context_t *ui = proc->ui;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
+        /// 恢复按键屏蔽等级
+        if (proc->key) {
+            proc->key->set_keyevent_shield_level(KEY_HANDLER_SHIELD_LEVEL_1);
+        }
         ADD_KEYEVENT_CB(proc->key, "home_wm", proc, HOME_UI_KEY_CODE, HOME_UI_KEY_TYPE,
             on_home_ui_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_home_window_battery_state_change_cb);

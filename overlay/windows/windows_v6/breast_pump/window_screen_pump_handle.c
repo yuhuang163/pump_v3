@@ -421,7 +421,7 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_pump_t *proc = user_data;
-    WINDOW_CURRENT_ID_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
     if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
         LOG_WM("pump finish ui, ignore key event. type:%d code:%d", keytype, keycode);

@@ -75,8 +75,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     window_manager_context_t *wm = proc->wm;
     ui_manager_context_t *ui = proc->ui;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
-        ADD_KEYEVENT_CB(proc->key, "popup_wm", proc, POPUP_UI_KEY_CODE, POPUP_UI_KEY_TYPE,
-            on_popup_keyevent_hdr);
+        ADD_KEYEVENT_CB_WITH_SHIELD_LEVEL(proc->key, "popup_wm", proc, POPUP_UI_KEY_CODE, POPUP_UI_KEY_TYPE,
+            on_popup_keyevent_hdr, KEY_HANDLER_SHIELD_LEVEL_5);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
@@ -96,6 +96,9 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_popup_ui_animation(proc);
+            if (proc->key && proc->key->set_keyevent_shield_level) {
+                proc->key->set_keyevent_shield_level(KEY_HANDLER_SHIELD_LEVEL_1);
+            }
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
