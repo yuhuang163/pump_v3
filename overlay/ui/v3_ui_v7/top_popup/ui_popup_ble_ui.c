@@ -10,12 +10,12 @@
 */
 #define POPUP_WINDOW_BLE_TEXT_COLOR                             (0xFFFFFF)
 #define POPUP_WINDOW_BLE_CONNECT_ICON_Y                         (109)
-#define POPUP_WINDOW_BLE_CONNECT_TEXT_Y                         (216)
-#define POPUP_WINDOW_BLE_DISCONNECT_ICON_Y                      (90)
-#define POPUP_WINDOW_BLE_DISCONNECT_TEXT_Y                      (198)
-#define POPUP_WINDOW_BLE_DISCONNECT_LINE_SPACE                   (8)
-#define POPUP_WINDOW_BLE_CONNECTING_ICON_Y                      (126)
-#define POPUP_WINDOW_BLE_CONNECTING_TEXT_Y                      (210)
+#define POPUP_WINDOW_BLE_CONNECT_TEXT_Y                         (215)
+#define POPUP_WINDOW_BLE_DISCONNECT_ICON_Y                      (109)
+#define POPUP_WINDOW_BLE_DISCONNECT_TEXT_Y                      (215)
+#define POPUP_WINDOW_BLE_DISCONNECT_LINE_SPACE                  (8)
+#define POPUP_WINDOW_BLE_CONNECTING_ICON_Y                      (109)
+#define POPUP_WINDOW_BLE_CONNECTING_TEXT_Y                      (215)
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -42,13 +42,13 @@ const static popup_window_text_info_t ble_connect_infos[POPUP_WINDOW_TEXT_COUNT]
 };
 
 const static popup_window_text_info_t ble_disconnect_infos[POPUP_WINDOW_TEXT_COUNT] = {
-    {"Device\ndisconnected", 0, POPUP_WINDOW_BLE_DISCONNECT_TEXT_Y,
+    {"Device disconnected", 0, POPUP_WINDOW_BLE_DISCONNECT_TEXT_Y,
         &lv_font_aeonik_soft_29_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR,
         POPUP_WINDOW_BLE_DISCONNECT_LINE_SPACE},
 };
 
 const static popup_window_text_info_t ble_connecting_infos[POPUP_WINDOW_TEXT_COUNT] = {
-    {"Connecting", 0, POPUP_WINDOW_BLE_CONNECTING_TEXT_Y,
+    {"Device Connecting", 0, POPUP_WINDOW_BLE_CONNECTING_TEXT_Y,
         &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
 };
 
@@ -72,6 +72,7 @@ void popup_window_ble_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_
         case ID_POPUP_UI_BT_CONNECTING:
             popup_window_tip_ui_update(thiz, popup_type, ble_connecting_infos,
                 0, POPUP_WINDOW_BLE_CONNECTING_ICON_Y);
+            popup_window_ble_mask_opaque();
             break;
         default:
             break;
