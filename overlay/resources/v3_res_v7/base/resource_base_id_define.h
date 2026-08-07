@@ -17,6 +17,7 @@ typedef enum {
     BASE_RES_ID_HOUR_COLON_ICON, /// 小时冒号图标
     BASE_RES_ID_BLE_CONNECT_ICON, /// 蓝牙连接图标
     BASE_RES_ID_BLE_CONNECT_TIP_ICON, /// 蓝牙连接提示图标
+    BASE_RES_ID_BLE_CONNECTING_TIP_ICON, /// 蓝牙连接中提示图标
     BASE_RES_ID_BLE_DISCONNECT_ICON, /// 蓝牙断开图标
     BASE_RES_ID_BLE_DISCONNECT_TIP_ICON, /// 蓝牙断开提示图标
     BASE_RES_ID_SUCCESS_ICON, /// 成功图标
@@ -38,6 +39,7 @@ typedef enum {
     BASE_RES_ID_STIMULATION_KEY_ICON, /// 刺激按键图标
     BASE_RES_ID_EXPRESSION_KEY_ICON, /// 吸吮按键图标
     BASE_RES_ID_RELAX_TIP_ICON, /// 放松提醒图标
+    BASE_RES_ID_FORBIDDEN_TIP_ICON, /// 禁止提示图标
 
     /* 主界面组 [150..200] */
     BASE_RES_ID_START_LOGO_ICON = 150, /// 启动LOGO图标
