@@ -142,13 +142,15 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->mode_selected = 0;
         proc->ui_mode_index = BREAST_PUMP_STIMULATION_MODE;
         proc->last_adjust_time = get_timestamp();
-        proc->setting.level[0] = DEFAULT_LEVEL_VALUE;
-        proc->setting.level[1] = DEFAULT_LEVEL_VALUE;
-        proc->setting.speed = DEFAULT_SPEED_VALUE;
         if (proc->pump) {
-            int time_index = 0;
-            READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-            WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+            if (already_deployed == 0) {
+                proc->setting.level[0] = DEFAULT_LEVEL_VALUE;
+                proc->setting.level[1] = DEFAULT_LEVEL_VALUE;
+                proc->setting.speed = DEFAULT_SPEED_VALUE;
+                WRITE_PUMP_SETTING_INFO(proc->pump, 0, false, proc->setting);
+            } else {
+                READ_PUMP_SETTING_INFO(proc->pump, 0, proc->setting);
+            }
         }
         start_guide_ui_animation(proc);
     }
