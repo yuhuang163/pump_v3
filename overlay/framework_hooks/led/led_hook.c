@@ -528,8 +528,6 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
         case ID_BROADCAST_SYS_STATE_CHANGE:
             if (arg1 == SYSTEM_BROADCAST_POWER_OFF) {
                 thiz->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_OFF);
-            } else if (arg1 == SYSTEM_BROADCAST_POWER_ON) {
-                thiz->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_ON);
             }
             break;
         case ID_BROADCAST_PM_STATE_CHANGE:

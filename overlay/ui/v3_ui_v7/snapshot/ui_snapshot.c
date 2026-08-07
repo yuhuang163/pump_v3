@@ -40,6 +40,10 @@ static lv_draw_buf_t *lv_predecode_icon[UI_PREDECODE_ICON_COUNT] = {NULL};
 /// 文案扫光蒙层预解码（ARGB8888）
 static lv_draw_buf_t *lv_predecode_text_shine_mask = NULL;
 
+/// 0..(BG+ICON)，最后一档为 shine；完成后再 +1 表示 done
+#define UI_PREDECODE_STEP_DONE  (UI_PREDECODE_BG_COUNT + UI_PREDECODE_ICON_COUNT + 1)
+static uint8_t s_predecode_step = 0;
+
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -49,31 +53,24 @@ static lv_draw_buf_t *lv_predecode_text_shine_mask = NULL;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void ui_predecode_bg_prepare(ui_manager_context_t *thiz)
+static void ui_predecode_bg_one(ui_manager_context_t *thiz, uint8_t index)
 {
     EXCEPTION_CHECK_VOID(thiz);
-
-    for (uint8_t i = 0; i < UI_PREDECODE_BG_COUNT; i++) {
-        if (lv_predecode_bg[i] != NULL) {
-            continue;
-        }
-        lv_predecode_bg[i] = ui_img_png_theme_decode_draw_buf(thiz, predecode_bg_ids[i],
-            RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_NATIVE);
+    if (index >= UI_PREDECODE_BG_COUNT || lv_predecode_bg[index] != NULL) {
+        return;
     }
+    lv_predecode_bg[index] = ui_img_png_theme_decode_draw_buf(thiz, predecode_bg_ids[index],
+        RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_NATIVE);
 }
 
-static void ui_predecode_icon_prepare(ui_manager_context_t *thiz)
+static void ui_predecode_icon_one(ui_manager_context_t *thiz, uint8_t index)
 {
-#if 1
     EXCEPTION_CHECK_VOID(thiz);
-    for (uint8_t i = 0; i < UI_PREDECODE_ICON_COUNT; i++) {
-        if (lv_predecode_icon[i] != NULL) {
-            continue;
-        }
-        lv_predecode_icon[i] = ui_img_png_theme_decode_draw_buf(thiz, predecode_icon_ids[i],
-            RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888);
+    if (index >= UI_PREDECODE_ICON_COUNT || lv_predecode_icon[index] != NULL) {
+        return;
     }
-#endif
+    lv_predecode_icon[index] = ui_img_png_theme_decode_draw_buf(thiz, predecode_icon_ids[index],
+        RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888);
 }
 
 static void ui_predecode_text_shine_mask_prepare(ui_manager_context_t *thiz)
@@ -115,12 +112,32 @@ lv_draw_buf_t *get_predecoded_text_shine_mask(void)
     return lv_predecode_text_shine_mask;
 }
 
+bool ui_snap_shot_prepare_step(ui_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_BOOL(thiz);
+
+    if (s_predecode_step >= UI_PREDECODE_STEP_DONE) {
+        return false;
+    }
+
+    if (s_predecode_step < UI_PREDECODE_BG_COUNT) {
+        ui_predecode_bg_one(thiz, s_predecode_step);
+    } else if (s_predecode_step < (UI_PREDECODE_BG_COUNT + UI_PREDECODE_ICON_COUNT)) {
+        ui_predecode_icon_one(thiz, (uint8_t)(s_predecode_step - UI_PREDECODE_BG_COUNT));
+    } else {
+        ui_predecode_text_shine_mask_prepare(thiz);
+    }
+
+    s_predecode_step++;
+    if (s_predecode_step >= UI_PREDECODE_STEP_DONE) {
+        LOG_UI("snap shot predecode done");
+        return false;
+    }
+    return true;
+}
+
 void ui_snap_shot_perpare(struct ui_manager_context *thiz)
 {
-    /// 三张模式背景：直接 PNG 预解码为 NATIVE，不走 snapshot
-    ui_predecode_bg_prepare(thiz);
-    /// 三张模式 ICON：直接 PNG 预解码为 ARGB8888
-    ui_predecode_icon_prepare(thiz);
-    /// 文案扫光蒙层：PNG 预解码为 ARGB8888
-    ui_predecode_text_shine_mask_prepare(thiz);
+    while (ui_snap_shot_prepare_step(thiz)) {
+    }
 }

@@ -25,6 +25,7 @@ typedef struct {
 
 lv_draw_buf_t *get_lvgl_snap_shot(ui_snap_shot_id_e snapshot_id);
 void ui_snap_shot_perpare(ui_manager_context_t *thiz);
+bool ui_snap_shot_prepare_step(ui_manager_context_t *thiz);
 
 #ifdef __cplusplus
 }
