@@ -143,6 +143,14 @@ int pump_mode_set_handler(ui_proc_pump_t *proc, uint8_t mode_index)
         };
         DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
         WRITE_PUMP_WORK_MODE(proc->pump, mode_index, true, 1);
+        /// 切换到韵律
+        if (pump_mode_is_program_target(mode_index)) {
+            servers_manager_context_t *srv =
+                (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+            if (srv && srv->dispatch_servers_event_wrapper) {
+                srv->dispatch_servers_event_wrapper(srv, SERVERS_PUBLISH_DATA_RHYTHM_SWITCHED_REPORT);
+            }
+        }
     }
     READ_PUMP_MODE_NAME(proc->pump, mode_index, &mode_name);
     LOG_UI("pump set %s mode:%d", mode_name, mode_index);

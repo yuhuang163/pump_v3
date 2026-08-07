@@ -30,11 +30,6 @@ static void on_servers_manager_receiver(broadcast_mask_id_t id, void *context, i
 {
     servers_manager_context_t *ctx = context;
     switch (id.code) {
-        case ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE:
-            ctx->dispatch_servers_event_wrapper(ctx, arg1 == 1 ? 
-                SERVERS_PUBLISH_DATA_AIRPLANE_MODE_ENTER_REPORT : SERVERS_PUBLISH_DATA_AIRPLANE_MODE_EXIT_REPORT);
-            break;
-
         case ID_BROADCAST_BLE_STATE_CHANGE:
             break;
         default:
@@ -80,6 +75,7 @@ static int on_post_servers_init(void *ptr)
     ctx->priv.bcd->name = "product_protocol_thread";
     ctx->priv.bcd->id.code |= ID_BROADCAST_BLE_STATE_CHANGE;
     ctx->priv.bcd->id.code |= ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE;
+    ctx->priv.bcd->id.code |= ID_BROADCAST_BREAST_PUMP_STATE_CHANGE;
     ctx->priv.bcd->receiver_cb = on_servers_manager_receiver;
     register_broadcast_receiver(ctx->priv.bcd);
     LOG_SRV("on_post_servers_init");

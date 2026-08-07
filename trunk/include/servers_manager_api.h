@@ -39,6 +39,8 @@ typedef enum {
     SERVERS_PUBLISH_DATA_LIGHT_STATUS_CHANGE,           /// 灯光状态变化上报
     SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_REPORT, /// 电池仅低电低功耗运行上报
     SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_RELEASE, /// 电池仅低电低功耗运行解除上报
+    SERVERS_PUBLISH_DATA_RHYTHM_SWITCHED_REPORT,      /// 已切换韵律,吸乳重新计时
+    SERVERS_PUBLISH_DATA_PUMP_OVER_30MIN_REPORT,      /// 吸奶超过30分钟,建议稍作休息
 
     /* Momcozy 数据埋点 Data Service EVT_001~EVT_019（svc=0x07） */
     SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_STARTUP = 600,       /// EVT_001 泵启动
