@@ -176,7 +176,7 @@ extern "C" {
 #define IS_SUPPORT_LOGO_UI_TEST                          (0)
 /// 支持LOGO界面按键背光自适应测试
 #define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (0)    
-/// 开机优化：logo 亮屏后再分步预解码；按键灯在 POWER_ON 路径同步点亮，避免抢占导致逐颗不一致
+/// 开机优化：logo 亮屏后再分步预解码
 #ifndef IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
 #define IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE            (1)
 #endif
