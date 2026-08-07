@@ -17,8 +17,14 @@
 
 #define HOME_SAVER_SCREEN_W                                 (360)
 
+#if 1
+#define HOME_SAVER_HINT_Y                                   (88)
+#define HOME_SAVER_HINT_TEXT                                "Press anywhere to wake up"
+#else
 #define HOME_SAVER_HINT_Y                                   (90)
 #define HOME_SAVER_HINT_TEXT                                "Press the knob to unlock"
+#endif
+
 #if IS_SUPPORT_HOME_SCREEN_SAVER_COMP_BG
 #define HOME_SAVER_HINT_COLOR                               (0x00FF00)
 #else
