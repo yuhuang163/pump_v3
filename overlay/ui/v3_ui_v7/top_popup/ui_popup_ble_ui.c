@@ -49,7 +49,7 @@ const static popup_window_text_info_t ble_disconnect_infos[POPUP_WINDOW_TEXT_COU
 
 const static popup_window_text_info_t ble_connecting_infos[POPUP_WINDOW_TEXT_COUNT] = {
     {"Device Connecting", 0, POPUP_WINDOW_BLE_CONNECTING_TEXT_Y,
-        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
+        &lv_font_aeonik_soft_29_medium, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
 };
 
 /*
@@ -60,8 +60,8 @@ void popup_window_ble_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_
 {
     switch (popup_type) {
         case ID_POPUP_UI_BT_CONNECT:
-            popup_window_tip_ui_update(thiz, popup_type, ble_connect_infos,
-                BASE_RES_ID_BLE_CONNECT_TIP_ICON, POPUP_WINDOW_BLE_CONNECT_ICON_Y);
+            popup_window_tip_ui_update(thiz, popup_type, ble_connecting_infos,
+                BASE_RES_ID_BLE_CONNECTING_TIP_ICON, POPUP_WINDOW_BLE_CONNECT_ICON_Y);
             popup_window_ble_mask_opaque();
             break;
         case ID_POPUP_UI_BT_DISCONNECT:
@@ -71,7 +71,7 @@ void popup_window_ble_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_
             break;
         case ID_POPUP_UI_BT_CONNECTING:
             popup_window_tip_ui_update(thiz, popup_type, ble_connecting_infos,
-                0, POPUP_WINDOW_BLE_CONNECTING_ICON_Y);
+                BASE_RES_ID_BLE_CONNECTING_TIP_ICON, POPUP_WINDOW_BLE_CONNECTING_ICON_Y);
             popup_window_ble_mask_opaque();
             break;
         default:
