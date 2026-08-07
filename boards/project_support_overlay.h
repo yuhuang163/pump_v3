@@ -134,8 +134,6 @@ extern "C" {
 #define IS_SUPPORT_PUMP_GLOBAL_PARAM_SETTING             (0)
 /// 支持泵奶档位实时调节
 #define IS_SUPPORT_PUMP_LEVEL_REAL_TIME_ADJUST           (1)
-/// 泵奶韵律放松阶段（PUMP_MODE_IDLE）力度锁定：进入力度页显示 0/速度 1，调节仅虚动进度条并提示
-#define IS_SUPPORT_RELAX_MODE_LEVEL_LOCK                 (0)
 /// 支持泵奶韵律模式选择
 #define IS_SUPPORT_PUMP_RHYTHM_MODE_SELECT               (1)
 
@@ -178,6 +176,10 @@ extern "C" {
 #define IS_SUPPORT_LOGO_UI_TEST                          (0)
 /// 支持LOGO界面按键背光自适应测试
 #define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (0)    
+/// 开机优化：logo 亮屏后再分步预解码；按键灯在 POWER_ON 路径同步点亮，避免抢占导致逐颗不一致
+#ifndef IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
+#define IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE            (1)
+#endif
 /// 支持引导界面
 #define IS_SUPPORT_GUIDE_WINDOW                          (1)    
 /// 支持主题选择界面

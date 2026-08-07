@@ -70,3 +70,14 @@ void ui_snap_shot_perpare(struct ui_manager_context *thiz)
     ui_img_resource_deinit(thiz, &snap_shot_info);
     LVGL_OBJ_DELETE(snap_shot_obj);
 }
+
+bool ui_snap_shot_prepare_step(ui_manager_context_t *thiz)
+{
+    static bool done = false;
+    if (done) {
+        return false;
+    }
+    ui_snap_shot_perpare(thiz);
+    done = true;
+    return false;
+}

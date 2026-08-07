@@ -39,6 +39,12 @@ lv_draw_buf_t *get_predecoded_text_shine_mask(void);
 
 void ui_snap_shot_perpare(ui_manager_context_t *thiz);
 
+/**
+ * 分步预解码（供 logo 亮屏后异步推进，避免阻塞开机关键路径）。
+ * @return true 表示还有后续步骤，调用方应继续调度；false 表示已完成。
+ */
+bool ui_snap_shot_prepare_step(ui_manager_context_t *thiz);
+
 #ifdef __cplusplus
 }
 #endif

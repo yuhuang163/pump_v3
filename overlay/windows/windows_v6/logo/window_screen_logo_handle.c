@@ -118,10 +118,13 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         #endif
         #if IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST
         logo_test_key_backlight_on(proc);
-        #endif
-        #if IS_SUPPORT_LOGO_UI_TEST
+        #elif IS_SUPPORT_LOGO_UI_TEST
         if (proc->led) {
             proc->led->set_led_onoff(PUMP_START_BL, LED_STATUS_ON);
+        }
+        #else
+        if (proc->led && proc->led->set_led_onoff) {
+            proc->led->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_ON);
         }
         #endif
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;

@@ -19,6 +19,11 @@
 #define IS_PRINT_LVGL_MEM_MONITOR               0
 #endif
 #define UI_LVGL_MSG_QUEUE_NUM                   8
+#if IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
+/// logo 亮起后再延迟预解码，给开机同步点灯留出时间，避免抢占 LED I2C
+#define UI_SNAP_SHOT_PREPARE_DELAY_MS           400
+#define UI_SNAP_SHOT_PREPARE_TASK_NAME          "ui_snap_prepare"
+#endif
 
 #ifndef UI_THREAD_DBG_ENABLE
 #define UI_THREAD_DBG_ENABLE                    1
@@ -31,6 +36,9 @@ typedef enum {
     UI_LVGL_MSG_CMD_OVERLAY_DEINIT,
     UI_LVGL_MSG_CMD_PM_SUSPEND,
     UI_LVGL_MSG_CMD_PM_RESUME,
+#if IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
+    UI_LVGL_MSG_CMD_SNAP_SHOT_PREPARE, /// logo 亮屏后分步预解码首页资源
+#endif
 } ui_lvgl_msg_cmd_t;
 
 typedef struct {
@@ -253,6 +261,21 @@ static void change_images_cb(lv_timer_t *t)
     UI_DBG_SET_STEP(UI_DBG_STEP_CHANGE_IMAGES_EXIT);
 }
 
+#if IS_SUPPORT_LVGL && IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
+static void ui_snap_shot_prepare_delayed_cb(hdr_post_args_t *args)
+{
+    ui_manager_context_t *thiz = (ui_manager_context_t *)args->user_data;
+    EXCEPTION_CHECK_VOID(thiz);
+    if (thiz->priv.ui_hdr_thd.msg_id == NULL) {
+        return;
+    }
+    ui_lvgl_msg_t prep_msg = {0};
+    prep_msg.cmd = UI_LVGL_MSG_CMD_SNAP_SHOT_PREPARE;
+    MSG_QUEUE_SEND(thiz->priv.ui_hdr_thd.msg_id, &prep_msg, 0);
+    LOG_UI("start snap shot prepare after delay");
+}
+#endif
+
 static void ui_animation_play_init_on_ui_thread(struct ui_manager_context *thiz, 
     const ui_play_info_t *play_info)
 {
@@ -324,6 +347,15 @@ static void ui_animation_play_init_on_ui_thread(struct ui_manager_context *thiz,
     UI_DBG_SET_STEP(UI_DBG_STEP_ANIM_INIT_EXIT);
     LOG_UI("==>%s, lv_timer created, period: %lu, timer: %p",
            play_info->tag, (unsigned long)timer_period, thiz->priv.lv_timer);
+
+#if IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
+    /// logo 首帧就绪后延迟再预解码，避免与开机按键灯 I2C 抢占
+    if (play_info->tag && strcmp(play_info->tag, "logo_screen") == 0) {
+        POST_TASK_HANDLER_DELAYED_ARG1(ui_snap_shot_prepare_delayed_cb,
+            UI_SNAP_SHOT_PREPARE_DELAY_MS, thiz, UI_SNAP_SHOT_PREPARE_TASK_NAME);
+        LOG_UI("schedule snap shot prepare after %dms", UI_SNAP_SHOT_PREPARE_DELAY_MS);
+    }
+#endif
 }
 
 static void ui_animation_play_deinit_on_ui_thread(struct ui_manager_context *thiz)
@@ -527,6 +559,15 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
             case UI_LVGL_MSG_CMD_PM_RESUME:
                 ui_pm_resume_on_ui_thread(thiz);
                 break;
+#if IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
+            case UI_LVGL_MSG_CMD_SNAP_SHOT_PREPARE:
+                if (ui_snap_shot_prepare_step(thiz)) {
+                    ui_lvgl_msg_t again = {0};
+                    again.cmd = UI_LVGL_MSG_CMD_SNAP_SHOT_PREPARE;
+                    MSG_QUEUE_SEND(thiz->priv.ui_hdr_thd.msg_id, &again, 0);
+                }
+                break;
+#endif
             default:
                 break;
         }
@@ -682,7 +723,7 @@ static void ui_thread_init_route(struct ui_manager_context *thiz)
     UI_DBG_SET_STEP(UI_DBG_STEP_THREAD_INIT);
     CREATE_MSG_TYPE_QUEUE(&thiz->priv.ui_hdr_thd.msg_id, UI_LVGL_MSG_QUEUE_NUM, sizeof(ui_lvgl_msg_t));
     thiz->priv.lvgl_initialized = true;
-#if IS_SUPPORT_LVGL
+#if IS_SUPPORT_LVGL && !IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
     ui_snap_shot_perpare(thiz);
 #endif
     UI_DBG_SET_STEP(UI_DBG_STEP_THREAD_INIT_DONE);
