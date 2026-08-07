@@ -24,6 +24,7 @@ static bool ui_popup_is_supported(popup_ui_id_e popup_type)
 {
     switch (popup_type) {
         case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
+        case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
             return true;
         default:
             return false;
@@ -42,6 +43,9 @@ static void ui_popup_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_t
     switch (popup_type) {
         case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
             ui_popup_pump_runing_30m_tip_ui_update(thiz, popup_type);
+            break;
+        case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
+            ui_popup_pump_rest_mode_adjust_tip_ui_update(thiz, popup_type);
             break;
         default:
             break;

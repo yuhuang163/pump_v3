@@ -126,28 +126,6 @@ static void pump_level_adjust_ui_remove(void *user_data)
     ui_display_pump_level_adjust_remove(ui);
 }
 
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-static void pump_relax_mode_level_setting_force(ui_proc_pump_t *proc, int time_index)
-{
-    uint8_t i;
-    bool changed = false;
-
-    for (i = 0; i < BREAST_PUMP_NUM; i++) {
-        if (proc->setting.level[i] != BREAST_PUMP_LEVEL_0) {
-            proc->setting.level[i] = BREAST_PUMP_LEVEL_0;
-            changed = true;
-        }
-    }
-    if (proc->setting.speed != BREAST_PUMP_SPEED_LOW) {
-        proc->setting.speed = BREAST_PUMP_SPEED_LOW;
-        changed = true;
-    }
-    if (changed) {
-        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-    }
-}
-#endif
-
 static void pump_level_adjust_state_sync(ui_proc_pump_t *proc, uint8_t is_left)
 {
     uint8_t side = is_left ? PUMP_LEVEL_ADJUST_SIDE_LEFT : PUMP_LEVEL_ADJUST_SIDE_RIGHT;
@@ -157,15 +135,7 @@ static void pump_level_adjust_state_sync(ui_proc_pump_t *proc, uint8_t is_left)
     pump_sub_mode_state_init(proc, 1);
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     proc->level_adjust_side = side;
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-    if (proc->sub_mode_type == PUMP_MODE_IDLE) {
-        pump_relax_mode_level_setting_force(proc, proc->sub_mode_time_index);
-        proc->level_value = BREAST_PUMP_LEVEL_0;
-    } else
-#endif
-    {
-        proc->level_value = proc->setting.level[index];
-    }
+    proc->level_value = proc->setting.level[index];
     proc->level_arc_level = proc->level_value;
     proc->level_over_limit = 0;
     proc->level_inc_window_base = proc->level_value;
@@ -233,29 +203,6 @@ int pump_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase)
     level_max = home_level_adjust_max_get(proc->sub_mode_type);
     cur = proc->level_value;
     proc->level_adjust_time = get_timestamp();
-
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-    /* 放松模式：力度恒为 0、速度为 1，调节仅虚动进度条并提示 */
-    if (proc->sub_mode_type == PUMP_MODE_IDLE) {
-        pump_relax_mode_level_setting_force(proc, time_index);
-        proc->level_value = BREAST_PUMP_LEVEL_0;
-        if (!is_increase) {
-            pump_level_over_limit_clear(proc);
-            proc->level_arc_level = BREAST_PUMP_LEVEL_0;
-            proc->level_inc_window_base = BREAST_PUMP_LEVEL_0;
-            proc->level_inc_window_time = get_timestamp();
-            return 0;
-        }
-        next = proc->level_arc_level;
-        if (next < level_max) {
-            next++;
-        }
-        proc->level_arc_level = next;
-        proc->level_over_limit = 1;
-        proc->level_over_limit_time = get_timestamp();
-        return 0;
-    }
-#endif
 
     if (!is_increase) {
         pump_level_over_limit_clear(proc);

@@ -130,28 +130,6 @@ static void pump_both_level_adjust_ui_remove(void *user_data)
     ui_display_pump_both_level_adjust_remove(ui);
 }
 
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-static void pump_both_relax_mode_level_setting_force(ui_proc_pump_t *proc, int time_index)
-{
-    uint8_t i;
-    bool changed = false;
-
-    for (i = 0; i < BREAST_PUMP_NUM; i++) {
-        if (proc->setting.level[i] != BREAST_PUMP_LEVEL_0) {
-            proc->setting.level[i] = BREAST_PUMP_LEVEL_0;
-            changed = true;
-        }
-    }
-    if (proc->setting.speed != BREAST_PUMP_SPEED_LOW) {
-        proc->setting.speed = BREAST_PUMP_SPEED_LOW;
-        changed = true;
-    }
-    if (changed) {
-        WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
-    }
-}
-#endif
-
 static void pump_both_level_adjust_state_sync(ui_proc_pump_t *proc)
 {
     int pump_mode = 0;
@@ -159,20 +137,9 @@ static void pump_both_level_adjust_state_sync(ui_proc_pump_t *proc)
 
     pump_sub_mode_state_init(proc, 1);
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-    if (proc->sub_mode_type == PUMP_MODE_IDLE) {
-        pump_both_relax_mode_level_setting_force(proc, proc->sub_mode_time_index);
-        for (i = 0; i < BREAST_PUMP_NUM; i++) {
-            proc->both_level_value[i] = BREAST_PUMP_LEVEL_0;
-            proc->both_level_arc[i] = BREAST_PUMP_LEVEL_0;
-        }
-    } else
-#endif
-    {
-        for (i = 0; i < BREAST_PUMP_NUM; i++) {
-            proc->both_level_value[i] = proc->setting.level[i];
-            proc->both_level_arc[i] = proc->both_level_value[i];
-        }
+    for (i = 0; i < BREAST_PUMP_NUM; i++) {
+        proc->both_level_value[i] = proc->setting.level[i];
+        proc->both_level_arc[i] = proc->both_level_value[i];
     }
     proc->both_level_over_limit = 0;
     proc->both_level_inc_steps = 0;
@@ -235,33 +202,6 @@ int pump_both_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase)
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
     level_max = home_level_adjust_max_get(proc->sub_mode_type);
     proc->level_adjust_time = get_timestamp();
-
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-    /* 放松模式：力度恒为 0、速度为 1，调节仅虚动进度条并提示 */
-    if (proc->sub_mode_type == PUMP_MODE_IDLE) {
-        pump_both_relax_mode_level_setting_force(proc, time_index);
-        for (i = 0; i < BREAST_PUMP_NUM; i++) {
-            proc->both_level_value[i] = BREAST_PUMP_LEVEL_0;
-        }
-        if (!is_increase) {
-            pump_both_level_over_limit_clear(proc);
-            for (i = 0; i < BREAST_PUMP_NUM; i++) {
-                proc->both_level_arc[i] = BREAST_PUMP_LEVEL_0;
-            }
-            proc->both_level_inc_steps = 0;
-            proc->both_level_inc_window_time = get_timestamp();
-            return 0;
-        }
-        for (i = 0; i < BREAST_PUMP_NUM; i++) {
-            if (proc->both_level_arc[i] < level_max) {
-                proc->both_level_arc[i]++;
-            }
-        }
-        proc->both_level_over_limit = 1;
-        proc->both_level_over_limit_time = get_timestamp();
-        return 0;
-    }
-#endif
 
     if (!is_increase) {
         pump_both_level_over_limit_clear(proc);

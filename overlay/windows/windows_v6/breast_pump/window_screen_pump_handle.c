@@ -285,6 +285,33 @@ static bool pump_adjust_key_exit_protected(ui_proc_pump_t *proc)
 }
 #endif
 
+/** 韵律休息阶段（PUMP_MODE_IDLE，含暂停）：禁止进入力度/速度调节页 */
+static bool pump_rest_mode_blocks_adjust(ui_proc_pump_t *proc)
+{
+    int pump_mode = 0;
+    uint8_t mode_type;
+
+    EXCEPTION_CHECK_INT(proc && proc->pump);
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    mode_type = home_level_adjust_mode_type_resolve((uint8_t)pump_mode,
+        pump_sub_mode_type_get(proc));
+    return mode_type == PUMP_MODE_IDLE;
+}
+
+static void pump_show_rest_mode_adjust_tip(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
+        pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_KEEP_PAGE);
+    }
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP) {
+        ui_popup_hold_countdown_start(proc->ui);
+    } else {
+        pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP);
+    }
+    LOG_WM("rest mode, show cannot adjust tip.");
+}
+
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
@@ -317,6 +344,10 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
                 pump_speed_adjust_ui_dismiss(proc);
                 break;
             }
+            if (pump_rest_mode_blocks_adjust(proc)) {
+                pump_show_rest_mode_adjust_tip(proc);
+                break;
+            }
             show_pump_speed_adjust_ui(proc);
             break;
         case KEY_CODE_POWER:
@@ -336,6 +367,10 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
                 pump_level_adjust_ui_dismiss(proc);
                 break;
             }
+            if (pump_rest_mode_blocks_adjust(proc)) {
+                pump_show_rest_mode_adjust_tip(proc);
+                break;
+            }
             show_pump_level_adjust_ui(proc, false);
             break;
         case KEY_CODE_LEFT_CONTROL:
@@ -349,6 +384,10 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
                 pump_level_adjust_ui_dismiss(proc);
                 break;
             }
+            if (pump_rest_mode_blocks_adjust(proc)) {
+                pump_show_rest_mode_adjust_tip(proc);
+                break;
+            }
             show_pump_level_adjust_ui(proc, true);
             break;
         case KEY_CODE_BOTH_CONTROL:
@@ -359,6 +398,10 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
                 }
 #endif
                 pump_both_level_adjust_ui_dismiss(proc);
+                break;
+            }
+            if (pump_rest_mode_blocks_adjust(proc)) {
+                pump_show_rest_mode_adjust_tip(proc);
                 break;
             }
             show_pump_both_level_adjust_ui(proc);

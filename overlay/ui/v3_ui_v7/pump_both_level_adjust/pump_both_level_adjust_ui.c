@@ -73,10 +73,6 @@
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE       (8)
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT \
     "For safety,\nUp to 3 levels at a time."
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-#define PUMP_BOTH_LEVEL_RELAX_LOCK_TEXT \
-    "In Relax mode,\nlevel cannot be adjusted."
-#endif
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_W              (PANLE_DISPLAY_W)
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_H              (34)
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_Y              (78)
@@ -582,12 +578,6 @@ static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t col
         lv_obj_center(pump_both_info->over_limit_label);
         lv_obj_set_style_text_line_space(pump_both_info->over_limit_label, PUMP_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE, 0);
     }
-
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-    if (proc->sub_mode_type == PUMP_MODE_IDLE) {
-        text = PUMP_BOTH_LEVEL_RELAX_LOCK_TEXT;
-    }
-#endif
 
     if (pump_both_info->force_update == false &&
         pump_both_info->shown_over_limit == proc->both_level_over_limit &&

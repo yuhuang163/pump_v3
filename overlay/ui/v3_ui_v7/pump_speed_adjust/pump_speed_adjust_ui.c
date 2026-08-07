@@ -48,9 +48,6 @@
 #define PUMP_SPEED_LABEL_LINE_SPACE                 (8)
 #define PUMP_SPEED_LABEL_TEXT                       "Speed"
 #define PUMP_SPEED_MODE_SWITCH_TEXT_FMT             "Switch to %s"
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-#define PUMP_SPEED_RELAX_LOCK_TEXT                   "In Relax mode,\nspeed cannot be adjusted."
-#endif
 
 /** 泵奶时间组件参数与 pump_level_adjust_ui 一致 */
 #define PUMP_SPEED_TIME_DIGIT_COUNT                 (2)
@@ -95,7 +92,6 @@ typedef struct {
     uint8_t shown_selected;
     uint8_t shown_mode_switch;
     uint8_t shown_mode_type;
-    uint8_t shown_relax_lock;
     uint8_t shown_hours;
     uint8_t shown_minutes;
     uint8_t shown_seconds;
@@ -271,22 +267,16 @@ static void pump_speed_label_update(ui_proc_pump_t *proc, uint32_t accent_color)
     const lv_font_t *font;
     uint32_t color;
     uint8_t mode_switch = proc->sub_mode_switch;
-    uint8_t relax_lock = 0;
     uint32_t expect_color;
-
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-    relax_lock = (proc->sub_mode_type == PUMP_MODE_IDLE && proc->level_over_limit) ? 1 : 0;
-#endif
 
     if (speed_info->speed_label == NULL || !lv_obj_is_valid(speed_info->speed_label)) {
         speed_info->speed_label = lv_label_create(speed_info->root);
         EXCEPTION_CHECK_VOID(speed_info->speed_label);
         speed_info->shown_mode_switch = 0xFF;
         speed_info->shown_mode_type = 0xFF;
-        speed_info->shown_relax_lock = 0xFF;
     }
 
-    if (relax_lock || mode_switch) {
+    if (mode_switch) {
         expect_color = accent_color;
     } else {
         expect_color = PUMP_SPEED_LABEL_COLOR;
@@ -295,18 +285,10 @@ static void pump_speed_label_update(ui_proc_pump_t *proc, uint32_t accent_color)
     if (speed_info->force_update == false &&
         speed_info->shown_mode_switch == mode_switch &&
         speed_info->shown_mode_type == proc->sub_mode_type &&
-        speed_info->shown_relax_lock == relax_lock &&
         speed_info->shown_label_color == expect_color) {
         return;
     }
 
-#if IS_SUPPORT_RELAX_MODE_LEVEL_LOCK
-    if (relax_lock) {
-        text = PUMP_SPEED_RELAX_LOCK_TEXT;
-        color = accent_color;
-        font = &lv_font_aeonik_soft_22_medium;
-    } else
-#endif
     if (mode_switch) {
         snprintf(switch_buf, sizeof(switch_buf), PUMP_SPEED_MODE_SWITCH_TEXT_FMT,
             home_level_adjust_mode_type_name_get(proc->sub_mode_type));
@@ -327,7 +309,6 @@ static void pump_speed_label_update(ui_proc_pump_t *proc, uint32_t accent_color)
     lv_obj_align(speed_info->speed_label, LV_ALIGN_TOP_MID, 0, PUMP_SPEED_LABEL_Y);
     speed_info->shown_mode_switch = mode_switch;
     speed_info->shown_mode_type = proc->sub_mode_type;
-    speed_info->shown_relax_lock = relax_lock;
     speed_info->shown_label_color = color;
 }
 
@@ -683,7 +664,6 @@ void ui_display_pump_speed_adjust_prepare(ui_manager_context_t *thiz)
     speed_info->shown_selected = 0xFF;
     speed_info->shown_mode_switch = 0xFF;
     speed_info->shown_mode_type = 0xFF;
-    speed_info->shown_relax_lock = 0xFF;
     speed_info->shown_accent_color = 0;
     speed_info->shown_label_color = 0;
     speed_info->shown_hours = 0xFF;
