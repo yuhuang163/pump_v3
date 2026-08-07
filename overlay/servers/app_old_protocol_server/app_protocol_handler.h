@@ -45,13 +45,15 @@ typedef enum {
 /** V3 设备异常类型（配合 APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL 首字节） */
 typedef enum {
     OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START = 0x01, ///< 电量不足无法启动
-    OLD_PUBLISH_ABNORMAL_LOW_BATTERY = 0x02,           ///< 设备低电运行
+    OLD_PUBLISH_ABNORMAL_LOW_BATTERY = 0x02,           ///< 设备低电
     OLD_PUBLISH_ABNORMAL_LOW_BAT_SHUTDOWN_SOON = 0x03, ///< 低电即将关机
     OLD_PUBLISH_ABNORMAL_AIR_LEAK = 0x04,              ///< 设备漏气提醒
     OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK = 0x05,           ///< 进入旅行锁
     OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR = 0x06,         ///< 适配器异常
-    OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW = 0x07,          ///< 设备引导窗口不允许启动
-    OLD_PUBLISH_ABNORMAL_FAULT_WARNING = 0x08,        ///< 设备故障警告
+    OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW = 0x07,          ///< 设备处于用户引导窗口不允许启动
+    OLD_PUBLISH_ABNORMAL_FAULT_WARNING = 0x08,         ///< 设备故障
+    OLD_PUBLISH_ABNORMAL_RHYTHM_SWITCHED = 0x09,       ///< 已切换韵律,吸乳重新计时
+    OLD_PUBLISH_ABNORMAL_PUMP_OVER_30MIN = 0x0A,       ///< 吸奶超过30分钟,建议稍作休息
 } old_publish_abnormal_type_e;
 
 /** V3 设备异常状态（配合 APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL 次字节） */

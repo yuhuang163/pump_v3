@@ -165,6 +165,8 @@ static const char* app_old_comm_get_abnormal_type_str(old_publish_abnormal_type_
         case OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR: return "ADAPTER_ERROR";
         case OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW: return "GUIDE_WINDOW";
         case OLD_PUBLISH_ABNORMAL_FAULT_WARNING: return "FAULT_WARNING";
+        case OLD_PUBLISH_ABNORMAL_RHYTHM_SWITCHED: return "RHYTHM_SWITCHED";
+        case OLD_PUBLISH_ABNORMAL_PUMP_OVER_30MIN: return "PUMP_OVER_30MIN";
         default: return "UNKNOWN_ERROR";
     }
 }

@@ -38,7 +38,23 @@ static uint8_t s_power_off_sync_d0_done = 0;
 */
 static int on_servers_manager_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data)
 {
-   return on_master_app_old_protocol_receiver_route(id, context, arg1, arg2, user_data);
+    servers_manager_context_t *ctx = (servers_manager_context_t *)context;
+
+    EXCEPTION_CHECK_INT(ctx && ctx->dispatch_servers_event_wrapper);
+    switch (id.code) {
+        case ID_BROADCAST_AIRPLANE_MODE_STATE_CHANGE:
+            ctx->dispatch_servers_event_wrapper(ctx, arg1 == 1 ?
+                SERVERS_PUBLISH_DATA_AIRPLANE_MODE_ENTER_REPORT : SERVERS_PUBLISH_DATA_AIRPLANE_MODE_EXIT_REPORT);
+            break;
+        case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
+            if (arg1 == BREAST_PUMP_BROADCAST_RUNNING_30M_TIP) {
+                ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_OVER_30MIN_REPORT);
+            }
+            break;
+        default:
+            break;
+    }
+    return on_master_app_old_protocol_receiver_route(id, context, arg1, arg2, user_data);
 }
 
 static void on_airplane_mode_state_report(servers_manager_context_t *ctx, int state)
@@ -92,6 +108,28 @@ static void on_charge_error_report(servers_manager_context_t *ctx, int state)
         .arg2 =  state ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
         .val = NULL,
     };  
+    app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+}
+
+static void on_rhythm_switched_report(servers_manager_context_t *ctx, int state)
+{
+    EXCEPTION_CHECK_VOID(ctx);
+    servers_publish_data_args_t args_temp = {
+        .arg1 = OLD_PUBLISH_ABNORMAL_RHYTHM_SWITCHED,
+        .arg2 = state ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
+        .val = NULL,
+    };
+    app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+}
+
+static void on_pump_over_30min_report(servers_manager_context_t *ctx, int state)
+{
+    EXCEPTION_CHECK_VOID(ctx);
+    servers_publish_data_args_t args_temp = {
+        .arg1 = OLD_PUBLISH_ABNORMAL_PUMP_OVER_30MIN,
+        .arg2 = state ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
+        .val = NULL,
+    };
     app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
 }
 
@@ -266,6 +304,12 @@ static int servers_work_thread_route(servers_manager_context_t *ctx, servers_pub
             break;
         case SERVERS_PUBLISH_DATA_BATTERY_CHARGE_ERROR_REPORT:
             on_charge_error_report(ctx, servers_sys_info->battery.charge_status == CHARGE_STATE_ERROR);
+            break;
+        case SERVERS_PUBLISH_DATA_RHYTHM_SWITCHED_REPORT:
+            on_rhythm_switched_report(ctx, 1);
+            break;
+        case SERVERS_PUBLISH_DATA_PUMP_OVER_30MIN_REPORT:
+            on_pump_over_30min_report(ctx, 1);
             break;
         case SERVERS_PUBLISH_DATA_BATTERY_CHARGE_NORMAL_REPORT:
             on_charge_status_report(ctx, servers_sys_info->battery.charge_status);
