@@ -144,6 +144,12 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         if (BREAST_PUMP_START == next_status) {
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_START, 0, 0);
         }
+        
+        /// 启动时，点亮启动灯
+        if (proc->led && proc->led->set_led_level) {
+            proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+        }
+
         /// 状态变化 触发泵奶状态切换埋点事件
         {
             int control_source = 0;
