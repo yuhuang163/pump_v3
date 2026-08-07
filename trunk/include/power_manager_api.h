@@ -85,7 +85,7 @@ typedef struct power_manager_context {
 /// public:
     void (*init)(void);
     int (*is_pm_suspend)(void);
-    int (*acquire_wakelock)(const char *caller, int timeout_s);
+    int (*acquire_wakelock)(const char *caller, int timeout_s); /// timeout_s: >0 秒后自动释放, -1 永久持有直至 release.
     int (*release_wakelock)(const char *caller);
     void (*pm_wakeup)(pm_wakeup_reason_e reason);
     int (*enable_pmu_sleep)(const char *caller, bool enable);
