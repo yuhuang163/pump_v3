@@ -97,6 +97,13 @@ extern "C" {
 #define PRODUCT_SUB_ID_INDEX                           48
 
 /**
+ * 产品语言
+*/
+#define PRODUCT_LANGUAGE_EN                             0x00
+#define PRODUCT_LANGUAGE_ZH                             0x01
+#define PRODUCT_LANGUAGE_USED                           PRODUCT_LANGUAGE_EN
+
+/**
  * 产品固件编译时间戳
 */
 #define PRODUCT_BUILD_TIMESTAMP                        1757400154

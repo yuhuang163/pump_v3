@@ -55,7 +55,7 @@ void reset_sys_config_info(storage_manager_context_t *ctx, sys_config_info_t *sy
     sys_config->slient_upgrade_onoff   = 0;
     sys_config->sys_ui_style           = SYS_UI_STYLE_NONE;
     sys_config->log_switch             = 1;
-    sys_config->language               = SYS_LANGUANGE_CHINESE;
+    sys_config->language               = PRODUCT_LANGUAGE_USED;
     store_func_args_t args = {
         .ctx = ctx,
         .arg1 = 0,
