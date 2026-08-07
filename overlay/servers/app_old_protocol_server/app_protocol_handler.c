@@ -37,7 +37,7 @@ static void app_old_comm_poll_post_task_handler(hdr_post_args_t *args)
     LOG_SRV(" Poll timer triggered - reporting device status");
     app_old_comm_report_device_status(APP_OLD_COMM_LEFT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
     app_old_comm_report_device_status(APP_OLD_COMM_RIGHT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
-    POST_TASK_HANDLER_DELAYED_ARG0(app_old_comm_poll_post_task_handler, 30000, "app_old_comm_poll_post_task");
+    POST_TASK_HANDLER_DELAYED_ARG0(app_old_comm_poll_post_task_handler, 10000, "app_old_comm_poll_post_task");
 }
 
 /*
