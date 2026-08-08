@@ -46,6 +46,13 @@ static int on_servers_manager_receiver_route(broadcast_mask_id_t id, void *conte
             ctx->dispatch_servers_event_wrapper(ctx, arg1 == 1 ?
                 SERVERS_PUBLISH_DATA_AIRPLANE_MODE_ENTER_REPORT : SERVERS_PUBLISH_DATA_AIRPLANE_MODE_EXIT_REPORT);
             break;
+        case ID_BROADCAST_BLE_STATE_CHANGE:
+            if (arg1 == BLE_BROADCAST_CONNECTED) {
+                ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BLE_CONNECT_REPORT);
+            } else if (arg1 == BLE_BROADCAST_DISCONNECT) {
+                ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BLE_DISCONNECT_REPORT);
+            }
+            break;
         case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE:
             if (arg1 == BREAST_PUMP_BROADCAST_RUNNING_30M_TIP) {
                 ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_PUMP_OVER_30MIN_REPORT);
