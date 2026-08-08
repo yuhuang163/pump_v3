@@ -123,8 +123,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             proc->led->set_led_onoff(PUMP_START_BL, LED_STATUS_ON);
         }
         #else
-        if (proc->led && proc->led->set_led_onoff) {
-            proc->led->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_ON);
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
         }
         #endif
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
@@ -146,6 +146,9 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_logo_ui_animation(proc);
+            if (proc->ble) {
+                proc->ble->bt_adv_start_by_user();
+            }
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);
