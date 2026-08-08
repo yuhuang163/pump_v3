@@ -445,6 +445,12 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     pump_pause_idle_touch(proc);
 #endif
 
+#if PUMP_RHYTHM_CONFIRM_IDLE_EXIT_ENABLE
+    /// 韵律确认页：任意按键刷新静默返回计时
+    if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
+        proc->last_progress_ani_time = get_timestamp();
+    }
+#endif
     
     /// 韵律即将结束提示：仅短按 power 可退出，其它按键/长按/抬起均忽略
     if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {

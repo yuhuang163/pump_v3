@@ -216,12 +216,12 @@ void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)
 
 static bool pump_ui_blink_update(ui_proc_pump_t *proc)
 {
-    const uint8_t blink_visible =
-        ((get_timestamp_ms(proc->blink_start_time) / PUMP_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
-    if (proc->state_blink_visible == blink_visible) {
+    /// 相对半周期翻转，避免按绝对时间重算相位导致切页时抖动
+    if (get_timestamp_ms(proc->blink_start_time) < PUMP_BLINK_PERIOD) {
         return false;
     }
-    proc->state_blink_visible = blink_visible;
+    proc->blink_start_time = get_timestamp();
+    proc->state_blink_visible = proc->state_blink_visible ? 0 : 1;
     return true;
 }
 
@@ -365,6 +365,10 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
 
 void pump_start_key_event_handler(ui_proc_pump_t *proc)
 {
+    if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
+        pump_rhythm_confirm_start_key_handler(proc);
+        return;
+    }
     switch_pump_status_handler(proc);
 }
 
