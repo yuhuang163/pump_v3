@@ -98,6 +98,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         ADD_KEYEVENT_CB(proc->key, "airplane_mode_wm", proc, AIRPLANE_MODE_UI_KEY_CODE,
             AIRPLANE_MODE_UI_KEY_TYPE, on_airplane_mode_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_airplane_mode_window_battery_state_change_cb);
+        wm_ensure_ble_adv_started();
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);

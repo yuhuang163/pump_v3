@@ -122,6 +122,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     EXCEPTION_CHECK_INT(proc);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_battery_window_battery_state_change_cb);
+        wm_ensure_ble_adv_started();
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);

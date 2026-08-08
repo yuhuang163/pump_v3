@@ -144,3 +144,18 @@ bool is_need_show_guide_window(window_manager_context_t *wm)
     }
     return false;
 }
+
+void wm_ensure_ble_adv_started(void)
+{
+    ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    if (ble == NULL) {
+        return;
+    }
+    if (ble->ble_is_connected() > 0) {
+        return;
+    }
+    if (ble->get_adv_speed() == BLE_OPT_ADV_STOP || ble->get_adv_state() == 0) {
+        LOG_WM("ensure ble adv start");
+        ble->bt_adv_start_by_user();
+    }
+}

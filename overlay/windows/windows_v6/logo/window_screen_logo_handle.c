@@ -146,9 +146,6 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_logo_ui_animation(proc);
-            if (proc->ble) {
-                proc->ble->bt_adv_start_by_user();
-            }
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("%s window exit: u_free: %p", PAGE_NAME_STR, proc);

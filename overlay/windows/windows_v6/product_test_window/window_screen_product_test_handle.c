@@ -232,6 +232,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             PRODUCT_TEST_UI_KEY_TYPE, product_test_ui_keyevent_hdr);
         POST_WM_TASK_HANDLER_DELAYED_ARG2(product_test_ui_common_cb, 100, PRODUCT_TEST_HOME, proc,
             PRODUCT_TEST_HOME_TASK_NAME);
+        wm_ensure_ble_adv_started();
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>PRODUCT_TEST_ON_CREATE");

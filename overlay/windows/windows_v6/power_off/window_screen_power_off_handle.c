@@ -58,10 +58,26 @@ static void power_off_ble_teardown_cb(hdr_post_args_t *args)
         return;
     }
     LOG_WM("%s", args->name);
+    /// 关机/关机充电：延时后断开，确保上报事件完成；不开广播
     if (proc->ble->ble_is_connected() > 0) {
         proc->ble->set_adv_speed(BLE_OPT_ADV_STOP);
         proc->ble->disconnect_bt_by_user();
     } else {
+        proc->ble->bt_adv_stop_by_user();
+    }
+}
+
+/// 关机充电不开广播；已连接则延时1s断开，便于事件上报
+static void power_off_ble_policy(ui_proc_power_off_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc->ble);
+    if (proc->ble->ble_is_connected() > 0) {
+        LOG_WM("power off, delay 1s disconnect ble");
+        POST_WM_TASK_HANDLER_DELAYED_ARG1(power_off_ble_teardown_cb, 1000, proc,
+            POWER_OFF_BLE_TEARDOWN_TASK_NAME);
+    } else {
+        LOG_WM("power off, stop ble adv");
         proc->ble->bt_adv_stop_by_user();
     }
 }
@@ -203,8 +219,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->pm) {
             proc->pm->acquire_wakelock("power_off_screen", -1); /// 永久持有锁.
         }
-        /// 1S后停止ble
-        POST_WM_TASK_HANDLER_DELAYED_ARG1(power_off_ble_teardown_cb, 1000, proc, POWER_OFF_BLE_TEARDOWN_TASK_NAME);
+        power_off_ble_policy(proc);
         /// 插入关机数据埋点
         if (proc->extra.arg1 == PM_POWER_OFF_TYPE_MANUAL) {
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 1); 

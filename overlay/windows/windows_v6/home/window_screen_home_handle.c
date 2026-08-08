@@ -21,11 +21,13 @@
                                                      KEY_EVENT_DOWN | KEY_EVENT_LONG_5S)
 #define HOME_BROADCAST_TASK_NAME                    "home_broadcast_task"
 #define POWER_OFF_HOLD_COMPLETE_TASK_NAME           "power_off_hold_complete"
+#define HOME_BLE_ADV_RECOVER_TASK_NAME              "home_ble_adv_recover"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_BROADCAST_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_BLE_ADV_RECOVER_TASK_NAME); \
 } while (0)
 
 /*
@@ -552,6 +554,46 @@ static void on_home_window_battery_state_change_cb(void *user_data, battery_stat
     }
 }
 
+static void home_ble_adv_recover_cb(hdr_post_args_t *args)
+{
+    ui_proc_home_t *proc = args->user_data;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_HOME);
+    EXCEPTION_CHECK_VOID(proc->ble);
+    if (proc->margic != UI_WINDOW_MARGIC_CODE) {
+        LOG_WM("invalid margic, ignore");
+        return;
+    }
+    if (proc->ble->ble_is_connected() > 0) {
+        LOG_WM("ble still connected, skip adv recover");
+        return;
+    }
+    if (proc->ble->get_adv_speed() == BLE_OPT_ADV_STOP ||
+        proc->ble->get_adv_state() == 0) {
+        LOG_WM("ble adv recover, restart adv");
+        proc->ble->bt_adv_start_by_user();
+    }
+}
+
+static void home_ble_adv_check_and_recover(ui_proc_home_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc->ble);
+
+    if (proc->ble->ble_is_connected() > 0) {
+        if (proc->ble->get_adv_speed() == BLE_OPT_ADV_STOP) {
+            /// 断连进行中：先清 STOP，断连完成后由底层按 speed 处理，并延时兜底开广播
+            LOG_WM("ble disconnecting with adv stop, clear stop and delay recover");
+            proc->ble->set_adv_speed(BLE_OPT_ADV_FAST);
+            POST_WM_TASK_HANDLER_DELAYED_ARG1(home_ble_adv_recover_cb, 1000, proc,
+                HOME_BLE_ADV_RECOVER_TASK_NAME);
+        }
+        return;
+    }
+
+    /// logo 等页面不开广播，进入 home 后补开
+    wm_ensure_ble_adv_started();
+}
+
 static int entry_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *old_scr)
 {
@@ -566,6 +608,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_KEYEVENT_CB(proc->key, "home_wm", proc, HOME_UI_KEY_CODE, HOME_UI_KEY_TYPE,
             on_home_ui_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_home_window_battery_state_change_cb);
+        home_ble_adv_check_and_recover(proc);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);

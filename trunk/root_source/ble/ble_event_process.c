@@ -230,9 +230,11 @@ static void ble_event_periph_disconnect_suc(void *context, void *data, int data_
     int adv_speed = pble->get_adv_speed();
     LOG_BLE("adv_speed_flag: %d", adv_speed);
     if (adv_speed != BLE_OPT_ADV_STOP) {
+        /// V3 未适配调速开广播，与 ble_event_opt_adv_start 一致直接打开
         if (pble->priv.ble_dev->ioctl) {
-            uint32_t args[] = {(BLE_OPT_ADV_SLOW == adv_speed) ? 0 : 1};
-            DEVICE_IOCTL_ARGS(pble->priv.ble_dev, OP_CODE_BLE_ADV_SPEED_SET, args);
+            pble->priv.connect_timestamp_use = get_timestamp();
+            DEVICE_IOCTL(pble->priv.ble_dev, OP_CODE_BLE_ADV_OPEN);
+            LOG_BLE("ble adv reopen after disconnect");
         }
     } else {
         if (pble->priv.ble_dev->ioctl) {

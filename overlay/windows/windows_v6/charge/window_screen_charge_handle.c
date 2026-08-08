@@ -17,11 +17,13 @@
 #define CHARGE_UI_KEY_CODE                       (KEY_CODE_POWER)
 #define CHARGE_UI_KEY_TYPE                       (KEY_EVENT_LONG_3S | KEY_EVENT_LONG_10S)
 #define CHARGE_PAGE_POLICY_TASK_NAME             "charge_page_policy"
+#define CHARGE_BLE_TEARDOWN_TASK_NAME            "charge_ble_teardown"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(CHARGE_PAGE_POLICY_TASK_NAME);\
+    REMOVE_TASK_HANDLER_DIRECTLY(CHARGE_BLE_TEARDOWN_TASK_NAME);\
 } while (0)
 
 /*
@@ -107,6 +109,40 @@ static void charge_ui_common_cb(hdr_post_args_t *args)
     }
 }
 
+static void charge_ble_teardown_cb(hdr_post_args_t *args)
+{
+    ui_proc_charge_t *proc = args->user_data;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_CHARGE);
+    EXCEPTION_CHECK_VOID(proc->ble);
+    if (proc->margic != UI_WINDOW_MARGIC_CODE) {
+        LOG_WM("invalid margic, ignore");
+        return;
+    }
+    LOG_WM("%s", args->name);
+    /// 适配器不匹配：延时后断开，确保上报事件完成；不开广播
+    if (proc->ble->ble_is_connected() > 0) {
+        proc->ble->set_adv_speed(BLE_OPT_ADV_STOP);
+        proc->ble->disconnect_bt_by_user();
+    } else {
+        proc->ble->bt_adv_stop_by_user();
+    }
+}
+
+/// 适配器不匹配：不开广播；已连接则延时1s断开，便于事件上报
+static void charge_ble_adapter_mismatch_policy(ui_proc_charge_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    EXCEPTION_CHECK_VOID(proc->ble);
+    if (proc->ble->ble_is_connected() > 0) {
+        LOG_WM("adapter mismatch, delay 1s disconnect ble");
+        POST_WM_TASK_HANDLER_DELAYED_ARG1(charge_ble_teardown_cb, 1000, proc,
+            CHARGE_BLE_TEARDOWN_TASK_NAME);
+    } else {
+        LOG_WM("adapter mismatch, stop ble adv");
+        proc->ble->bt_adv_stop_by_user();
+    }
+}
+
 static void on_charge_window_battery_state_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_charge_t *proc = (ui_proc_charge_t *)user_data;
@@ -118,6 +154,7 @@ static void on_charge_window_battery_state_cb(void *user_data, battery_state_inf
 
     if (info && info->charge_status == CHARGE_STATE_ERROR) {
         show_charge_adapter_ui(proc);
+        charge_ble_adapter_mismatch_policy(proc);
     } else {
         POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
                 CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
@@ -163,7 +200,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_charge_window_battery_state_cb);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
-        LOG_WM("==>%s window on create", PAGE_NAME_STR);        
+        LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook) {
             if (proc->led->hook->set_key_backlight) {
                 proc->led->hook->set_key_backlight(proc->led, 0);
@@ -178,6 +215,7 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
 
         if (proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
             show_charge_adapter_ui(proc);
+            charge_ble_adapter_mismatch_policy(proc);
         } else {
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(charge_ui_common_cb, proc, 
                 CHARGE_HDR_EXIT_CHARGE_POLICY, CHARGE_PAGE_POLICY_TASK_NAME);
@@ -201,10 +239,21 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
             stop_charge_common_ui(proc);
-            if (proc->ble && proc->ble->ble_is_connected() == 0 &&
-                proc->ble->get_adv_state() == 0) {
+            /// 离开充电页前取消延时拆除，避免退出后再次关广播
+            REMOVE_TASK_HANDLER_DIRECTLY(CHARGE_BLE_TEARDOWN_TASK_NAME);
+            if (proc->ble && proc->ble->get_adv_speed() == BLE_OPT_ADV_STOP) {
+                if (proc->ble->ble_is_connected() == 0) {
+                    LOG_WM("ble adv speed stop, restart adv");
+                    proc->ble->bt_adv_start_by_user();
+                } else {
+                    /// 断连进行中：清 STOP，让 disconnect_suc 可重开广播
+                    LOG_WM("ble disconnecting with adv stop, clear stop flag");
+                    proc->ble->set_adv_speed(BLE_OPT_ADV_FAST);
+                }
+            } else if (proc->ble && proc->ble->ble_is_connected() == 0 &&
+                       proc->ble->get_adv_state() == 0) {
                 proc->ble->bt_adv_start_by_user();
-            }   
+            }
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
