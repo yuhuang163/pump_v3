@@ -40,6 +40,7 @@ extern "C" {
 #include "rhythm_confirm_ui.h" // IWYU pragma: keepin
 #include "pump_stop_hold_ui.h" // IWYU pragma: keepin
 #include "pump_finish_timeout_ui.h" // IWYU pragma: keepin
+#include "pump_pause_timeout_ui.h" // IWYU pragma: keepin
 #include "pump_will_finish_ui.h" // IWYU pragma: keepin
 #include "system_abnormal_ui.h" // IWYU pragma: keepin
 #include "ui_popup_window.h" // IWYU pragma: keep

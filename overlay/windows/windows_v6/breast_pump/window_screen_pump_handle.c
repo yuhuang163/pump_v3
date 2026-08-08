@@ -424,11 +424,34 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
-    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
-        proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
+    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
         LOG_WM("pump finish ui, ignore key event. type:%d code:%d", keytype, keycode);
         return 0;
     }
+
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+#if PUMP_PAUSE_TIMEOUT_SCHEME == PUMP_PAUSE_TIMEOUT_SCHEME_KEY_EXIT
+    /// 方案2：任意可响应按键先退出结算页，再执行对应功能（保持暂停态）
+    if (proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
+        if (keytype != KEY_EVENT_CLICK &&
+            !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) &&
+            !(keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) &&
+            !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_TRAVEL_LOCK)) {
+            LOG_WM("pump pause timeout ui, ignore key event. type:%d code:%d",
+                keytype, keycode);
+            return 0;
+        }
+        LOG_WM("pump pause timeout ui key exit, type:%d code:%d", keytype, keycode);
+        pump_pause_timeout_ui_dismiss(proc);
+    }
+#else
+    if (proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
+        LOG_WM("pump pause timeout ui, ignore key event. type:%d code:%d",
+            keytype, keycode);
+        return 0;
+    }
+#endif
+#endif
 
     if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_LONG_2S) {
         if (proc->airplane_mode && proc->airplane_mode->hook && 

@@ -227,7 +227,11 @@ static bool pump_ui_blink_update(ui_proc_pump_t *proc)
 
 static bool pump_pause_led_needs_update(const ui_proc_pump_t *proc)
 {
-    /* 结束类弹窗由窗口侧关灯，此处不抢控 */
+    /* 结束类弹窗/结算页由窗口侧关灯，此处不抢控 */
+    if (proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
+        return false;
+    }
     if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
         proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER ||
         proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
@@ -247,6 +251,10 @@ static void pump_pause_led_update(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->led);
 
+    if (proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
+        return;
+    }
     if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
         proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER ||
         proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
