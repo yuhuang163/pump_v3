@@ -100,6 +100,17 @@ void home_ui_nav_clear(ui_proc_home_t *proc)
     memset(&proc->ui_nav, 0, sizeof(proc->ui_nav));
 }
 
+void home_adjust_idle_touch(ui_proc_home_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->current_ui_type != HOME_UI_TYPE_LEVEL_ADJUST &&
+        proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST &&
+        proc->current_ui_type != HOME_UI_TYPE_SPEED_ADJUST) {
+        return;
+    }
+    proc->level_adjust_time = get_timestamp();
+}
+
 void home_ui_nav_back(ui_proc_home_t *proc, home_ui_nav_back_e policy)
 {
     home_ui_nav_frame_t frame = {0};

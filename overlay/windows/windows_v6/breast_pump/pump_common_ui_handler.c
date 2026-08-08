@@ -214,6 +214,17 @@ void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)
     proc->popup_ui_type = type;
 }
 
+void pump_adjust_idle_touch(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
+        proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST &&
+        proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
+        return;
+    }
+    proc->level_adjust_time = get_timestamp();
+}
+
 static bool pump_ui_blink_update(ui_proc_pump_t *proc)
 {
     /// 相对半周期翻转，避免按绝对时间重算相位导致切页时抖动

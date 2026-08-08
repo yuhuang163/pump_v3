@@ -403,6 +403,8 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     LOG_WM("keyevent: %d, %d", keycode, keytype);
     /// 模式选择页倒计时中：任意按键刷新计时
     home_mode_select_idle_touch(proc);
+    /// 力度/速度调节页倒计时中：任意按键刷新计时
+    home_adjust_idle_touch(proc);
 
     /// 待机页：短按 power 退出回首页，长按 power 可关机，其它按键不响应
     if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
