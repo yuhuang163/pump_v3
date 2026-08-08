@@ -212,7 +212,7 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         /// 用户设定力度与频率(速度)策略
         pump_user_policy_update(thiz, &map_para, pump_id);
     }
-    
+
 #if IS_USE_SPECTRA_SUCTION_CURVE
     uint8_t speed_max = get_suction_speed_max_by_mode(map_para.mode_type);
     runtime->pump_speed[pump_id] = map_para.speed >= speed_max ? (speed_max - 1) : map_para.speed;
@@ -223,6 +223,7 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
     runtime->reset_time[pump_id] = get_timestamp();
 
     /// 通过map参数获取吸力参数
+    uint8_t target_level = map_para.level;
     if (map_para.mode_type == SUCTION_MODE_SHORT || map_para.mode_type == SUCTION_MODE_MIX_SHORT) {
 #if IS_USE_SPECTRA_SUCTION_CURVE
         uint8_t short_pump_speed = runtime->pump_speed[pump_id] >= SHORT_SUCTION_SPEED_MAX ?
@@ -285,10 +286,10 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
             LOG_MOTOR("work period error");
         }
 #if IS_USE_SPECTRA_SUCTION_CURVE
-        LOG_MOTOR("short type:%d, time:%d/%d/%d/%d, setting:%d/%d/%d, config:%d/%d/%d(%d/%d)",
+        LOG_MOTOR("short type:%d, time:%d/%d/%d/%d, setting:%d(%d)/%d/%d, config:%d/%d/%d(%d/%d)",
             map_para.mode_type,
             info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time, info->original.hold_time,
-            runtime->pump_level[pump_id], info->original.pump_level, runtime->pump_speed[pump_id],
+            runtime->pump_level[pump_id], target_level, info->original.pump_level, runtime->pump_speed[pump_id],
             total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag,
             #if IS_SUPPORT_PUMP_TIME_COMPENSATION
             compensate_time, reset_time);
@@ -363,10 +364,10 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
             LOG_MOTOR("work period error");
         }
 #if IS_USE_SPECTRA_SUCTION_CURVE
-        LOG_MOTOR("long type:%d, time:%d/%d/%d/%d, setting:%d/%d/%d, config:%d/%d/%d(%d/%d)",
+        LOG_MOTOR("long type:%d, time:%d/%d/%d/%d, setting:%d(%d)/%d/%d, config:%d/%d/%d(%d/%d)",
             map_para.mode_type,
             info->original.sleep_time, info->original.pumping_time, info->original.valve_on_time, info->original.hold_time,
-            runtime->pump_level[pump_id], info->original.pump_level, runtime->pump_speed[pump_id],
+            runtime->pump_level[pump_id], target_level, info->original.pump_level, runtime->pump_speed[pump_id],
             total_time, runtime->pump_freq[pump_id], runtime->freq_sync_flag,
             #if IS_SUPPORT_PUMP_TIME_COMPENSATION
             compensate_time, reset_time);

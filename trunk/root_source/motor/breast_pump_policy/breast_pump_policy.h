@@ -44,8 +44,12 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
 /// 负压释放
 void negative_pressure_release(struct motor_manager_context *thiz, uint16_t wait_time_ms);
 /// 爬升策略
+#if IS_SUPPORT_CLIMB_POLICY
 int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map, 
     uint8_t pump_id, uint32_t period_ms);
+/// 自动调档：清空爬升状态，从低档重新爬升（须在 pump_policy_info_reset 之前调用）
+void pump_climb_policy_mark_auto(pump_climb_policy_t *climb);
+#endif
 /// 体验模式用户策略
 int taste_mode_user_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map, uint8_t pump_id);
 /// 获取模式类型

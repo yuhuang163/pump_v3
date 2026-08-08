@@ -216,7 +216,13 @@ static void breast_pump_start_prepare(struct motor_manager_context *thiz, const 
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
         memcpy(&body->policy[i], &body->manager->head.policy, sizeof(motor_policy_node_t));
     }
+#if IS_SUPPORT_CLIMB_POLICY
+    pump_climb_policy_mark_auto(body->climb); /// 须在 policy_info_reset 前，保证首拍即开始爬升
+#endif
     negative_pressure_release(thiz, 200);
+    for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+        pump_policy_info_reset(thiz, body, i);
+    }
     if (!body->taste_run_flag) {
         thiz->priv.pump_ctx->priv.m_info.step_index = 0;
     }
@@ -252,9 +258,8 @@ void negative_pressure_release(struct motor_manager_context *thiz, uint16_t wait
         DEVICE_IOCTL_ARGS(thiz->priv.motor_dev, OP_CODE_MOTOR_START_PLAY, &motor);
     }
 
-    for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-        pump_policy_info_reset(thiz, &thiz->priv.runtime, i);
-    }
+    /// 注意：此处不做 pump_policy_info_reset。
+    /// 退出路径上 change_motor_mode 可能已切换策略，若在此 reset 会用旧 climb 状态推进新策略，破坏渐变。
 
     while (wait_time_ms) {
         msleep(10);
@@ -290,7 +295,13 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
         goto PREPARE_EXIT;
     } else if (action == MOTOR_POLICY_CONTINUE && body->breast_pump_mode == pump_mode) {
         LOG_MOTOR("continue %s policy, step_index: %d", mode_name, body->current_timed_policy_index);
+#if IS_SUPPORT_CLIMB_POLICY
+        pump_climb_policy_mark_auto(body->climb);
+#endif
         negative_pressure_release(thiz, 200);
+        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+            pump_policy_info_reset(thiz, body, i);
+        }
         goto PREPARE_EXIT;
     } else {
         body->policy_running_time_ms = 0;
@@ -305,9 +316,7 @@ void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t acti
     }
 
 PREPARE_EXIT:
-#if IS_SUPPORT_CLIMB_POLICY
-    memset(body->climb, 0, sizeof(pump_climb_policy_t) * BREAST_PUMP_NUM);
-#endif
+    ;
 }
 
 int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, motor_task_para_t *play_para)
@@ -436,6 +445,9 @@ int change_motor_mode(struct motor_manager_context *thiz, uint8_t mode, bool is_
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
         memcpy(&body->policy[i], &body->timed_policy->policy, sizeof(motor_policy_node_t));
     }
+#if IS_SUPPORT_CLIMB_POLICY
+    pump_climb_policy_mark_auto(body->climb); /// 切模式时清空，避免退出路径误用旧 climb 状态
+#endif
     if (is_continue) {
         thiz->start_motor(MOTOR_POLICY_CHANGE_MODE);
     }

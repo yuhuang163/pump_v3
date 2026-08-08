@@ -156,14 +156,13 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
                 runtime->next_mode_type = runtime->current_mode_type;
             }
 
+#if IS_SUPPORT_CLIMB_POLICY
+            pump_climb_policy_mark_auto(runtime->climb); /// 须在 policy_info_reset 前
+#endif
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
                 memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t));
                 pump_policy_info_reset(thiz, runtime, i);
             }
-
-            #if IS_SUPPORT_CLIMB_POLICY
-            memset(runtime->climb, 0, sizeof(pump_climb_policy_t) * BREAST_PUMP_NUM);
-            #endif
 
             if (!runtime->taste_run_flag) {
                 if (thiz->priv.pump_ctx) {

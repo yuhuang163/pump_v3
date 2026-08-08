@@ -9,7 +9,19 @@
 - 调用：`pump_policy_info_reset()` 在算出 `period_ms`（`total_time`）后调用
 - 状态：每个泵独立维护 `climb[pump_id]`
 
-## 2. 状态结构
+## 2. 自动调档初始化（重要）
+
+`pump_climb_policy_mark_auto()` **必须在** `pump_policy_info_reset()` 之前调用。
+
+| 调用点 | 位置 |
+|--------|------|
+| 启停/切模式 | `breast_pump_start_prepare()` |
+| 继续播放 | `breast_pump_policy_prepare()` CONTINUE 分支 |
+| 时间策略步进 | `pump_time_policy.c` |
+
+若在 reset 之后清空，会出现首拍满档、下一拍掉档（如切刺激时 `4→1→2→4`）。
+
+## 3. 状态结构
 
 ```c
 typedef struct {
@@ -20,16 +32,16 @@ typedef struct {
 } pump_climb_policy_t;
 ```
 
-## 3. 关键参数
+## 4. 关键参数
 
 | 宏 | 值 | 含义 |
 |----|----|------|
 | `PUMP_CLIMB_MAX_COUNT` | 10 | 最大爬升步数 |
 | `PUMP_CLIMB_TOTAL_TIME_MS` | 6000 | 爬升总时长上限（ms） |
-| `PUMP_CLIMB_START_DIFF` | 2 | 启动爬升的最小力度差 |
+| `PUMP_CLIMB_START_DIFF` | 2 | 启动爬升的最小力度差（仅用于判断是否启动） |
 | `PUMP_CLIMB_MIN_STEP` | 1 | 每步最小增量 |
 
-## 4. 决策流程
+## 5. 决策流程
 
 ```
 输入: map->level (目标力度), climb->level (当前实际力度), period_ms (泵奶周期)
@@ -37,31 +49,36 @@ typedef struct {
 1. 目标 == 0
    → 清空爬升状态，输出 0
 
-2. 目标 − 当前 ≤ 2（含降档、小幅升档）
-   → 直接落地到目标，重置 count
+2. 目标 ≤ 当前（降档或已到目标）
+   → 直接落地
 
-3. 目标变化（目标 ≠ climb->target_level）
-   → 重置 count，记录 start_level
+3. 新目标且差值 ≤ 2
+   → 不启动爬升，直接落地
 
-4. count ≥ max_steps
-   → 直接落地到目标，重置 count
+4. 新目标且差值 > 2
+   → 启动爬升（重置 count，记录 start_level）
 
-5. 否则执行一次步进
-   step = max(1, ceil(剩余差值 / 剩余步数))
+5. 爬升进行中：按固定步进抬升（由 6 秒与 period 算出）
+
+6. count ≥ 10
+   → 直接落地到目标
+
+7. 否则执行一次步进
+   step = max(1, ceil((target-start) * period / 6000))
    new_level = min(当前 + step, 目标)
-   count++
-   到达目标则重置 count
 ```
 
-## 5. 步进计算
+## 6. 步进计算
 
 ```
-max_steps = min(10, max(1, 6000 / period_ms))
-step      = max(1, ceil(剩余力度差 / 剩余步数))
+step = max(1, ceil((target - start) * period_ms / 6000))
 new_level = min(current + step, target)
+最多 10 步，超时未到则直接落地
 ```
 
 按每个泵奶周期步进一次，周期之间可以不连续。
+
+示例（目标 15，period=1578）：`step=ceil(15*1578/6000)=4` → `4→8→12→15`（约 6 秒）。
 
 ---
 
