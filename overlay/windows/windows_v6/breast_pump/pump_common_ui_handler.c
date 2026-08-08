@@ -29,7 +29,9 @@ static void switch_pump_status_handler(ui_proc_pump_t *proc)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
         proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH ||
-        proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ) {
+        proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ||
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
         LOG_WM("ignore start key %d", proc->current_ui_type);
         return;
     }
@@ -153,6 +155,9 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc)
     pump_settings_success_ui_exit(proc);
     pump_stop_hold_ui_exit(proc);
     pump_finish_timeout_ui_exit(proc);
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+    pump_pause_timeout_ui_exit(proc);
+#endif
     pump_will_finish_ui_exit(proc);
     pump_level_adjust_ui_exit(proc);
     pump_both_level_adjust_ui_exit(proc);
@@ -181,6 +186,11 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
         case PUMP_UI_TYPE_FINISH_TIMEOUT:
             pump_finish_timeout_ui_exit(proc);
             break;
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+        case PUMP_UI_TYPE_PAUSE_TIMEOUT:
+            pump_pause_timeout_ui_exit(proc);
+            break;
+#endif
         case PUMP_UI_TYPE_WILL_FINISH:
             pump_will_finish_ui_exit(proc);
             break;
@@ -206,12 +216,12 @@ void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)
 
 static bool pump_ui_blink_update(ui_proc_pump_t *proc)
 {
-    const uint8_t blink_visible =
-        ((get_timestamp_ms(proc->blink_start_time) / PUMP_BLINK_PERIOD) % 2U) == 0U ? 1 : 0;
-    if (proc->state_blink_visible == blink_visible) {
+    /// 相对半周期翻转，避免按绝对时间重算相位导致切页时抖动
+    if (get_timestamp_ms(proc->blink_start_time) < PUMP_BLINK_PERIOD) {
         return false;
     }
-    proc->state_blink_visible = blink_visible;
+    proc->blink_start_time = get_timestamp();
+    proc->state_blink_visible = proc->state_blink_visible ? 0 : 1;
     return true;
 }
 
@@ -355,6 +365,10 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
 
 void pump_start_key_event_handler(ui_proc_pump_t *proc)
 {
+    if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
+        pump_rhythm_confirm_start_key_handler(proc);
+        return;
+    }
     switch_pump_status_handler(proc);
 }
 

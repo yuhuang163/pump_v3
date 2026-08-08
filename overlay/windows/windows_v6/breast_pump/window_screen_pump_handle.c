@@ -314,7 +314,8 @@ static void pump_show_rest_mode_adjust_tip(ui_proc_pump_t *proc)
 
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
-    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
+    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
         LOG_WM("pump finish ui, ignore key event.");
         return;
     }
@@ -423,7 +424,8 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
-    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
+    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
         LOG_WM("pump finish ui, ignore key event. type:%d code:%d", keytype, keycode);
         return 0;
     }
@@ -438,6 +440,17 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 
     /// 模式选择页倒计时中：任意按键刷新计时
     pump_mode_select_idle_touch(proc);
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+    /// 暂停无操作倒计时：任意按键刷新计时
+    pump_pause_idle_touch(proc);
+#endif
+
+#if PUMP_RHYTHM_CONFIRM_IDLE_EXIT_ENABLE
+    /// 韵律确认页：任意按键刷新静默返回计时
+    if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
+        proc->last_progress_ani_time = get_timestamp();
+    }
+#endif
     
     /// 韵律即将结束提示：仅短按 power 可退出，其它按键/长按/抬起均忽略
     if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
@@ -482,6 +495,9 @@ static void pump_runing_30m_tip_pause(ui_proc_pump_t *proc)
     };
     DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
     WRITE_PUMP_CONTROL_SOURCE(proc->pump, false);
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+    pump_pause_idle_start(proc);
+#endif
     LOG_WM("pump running 30m tip, pause pump. status:%d", pump_status);
 }
 
@@ -506,7 +522,8 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
         case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE: {
             int state = bcd_args->arg1;
             if (state == BREAST_PUMP_BROADCAST_COMPLETED) {
-                if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT) {
+                if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
+                    proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT) {
                     multi_func_msg_data_t msg = {0};
                     msg.union_body.extra.window_id = ID_WINDOW_HOME;
                     msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
@@ -514,7 +531,11 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
                     LOG_WM("pump finish, goto home window.");
                 }
             } else if (state == BREAST_PUMP_BROADCAST_TIMEOUT) {
-                if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT) {
+                if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
+                    proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT) {
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+                    pump_pause_idle_stop(proc);
+#endif
                     show_pump_finish_timeout_ui(proc);
                     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
                         proc->led->hook->set_key_backlight(proc->led, 0);
@@ -531,6 +552,9 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
                 LOG_WM("pump error, post pump error task.");
             } else if (state == BREAST_PUMP_BROADCAST_AUTO_PAUSE_REQUEST) {
                 proc->pump_status = BREAST_PUMP_PAUSE;
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+                pump_pause_idle_start(proc);
+#endif
                 pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_PAUSE_TIMEOUT);
             } else if (state == BREAST_PUMP_BROADCAST_RUNNING_30M_TIP) {
                 pump_runing_30m_tip_pause(proc);
@@ -596,6 +620,7 @@ static void on_pump_window_battery_state_change_cb(void *user_data, battery_stat
     if (info->charge_status == CHARGE_STATE_ERROR) {
         LOG_WM("charge status error");
         if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
+            proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
@@ -620,6 +645,7 @@ static void on_pump_window_battery_state_change_cb(void *user_data, battery_stat
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
         info->battery_state == BATTERY_STATE_FORBID_START) {
         if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
+            proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
@@ -673,6 +699,9 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+            pump_pause_idle_stop(proc);
+#endif
             REMOVE_ALL_HANDER_TASK();
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
