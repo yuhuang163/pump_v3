@@ -89,6 +89,9 @@ void get_window_state_hdr_list(window_context_handle_t **list, uint16_t *list_le
 /// 窗口引导相关.
 bool is_need_show_guide_window(window_manager_context_t *wm);
 
+/// 确保蓝牙广播已开启（未连接且广播关闭时开启；logo/充电异常/关机充电等场景除外由各页自行处理）.
+void wm_ensure_ble_adv_started(void);
+
 #ifdef __cplusplus
 }
 #endif
