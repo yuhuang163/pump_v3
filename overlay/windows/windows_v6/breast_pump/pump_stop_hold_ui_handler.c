@@ -35,6 +35,9 @@ static void pump_stop_hold_ui_after_policy(ui_manager_context_t *ui, int index)
     (void)index;
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+    pump_pause_idle_timeout_handler(proc);
+#endif
     ui_display_pump_stop_hold_process(ui);
 }
 
@@ -134,6 +137,7 @@ void pump_stop_hold_key_long_2s_handler(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     if (proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ||
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT ||
         proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
         return;
     }

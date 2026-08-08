@@ -60,6 +60,9 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
         pump_mode_page_index_clamp(proc);
         pump_mode_select_idle_timeout_handler(proc);
     }
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+    pump_pause_idle_timeout_handler(proc);
+#endif
     ui_display_pump_home_screen_process(ui);
     pump_pause_led_tick(proc);
 }
@@ -163,6 +166,9 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         }
         WRITE_PUMP_WORK_STATUS(proc->pump, next_status, 1);
         proc->pump_status = next_status;
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+        pump_pause_idle_stop(proc);
+#endif
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         LOG_UI("pump start: %d, page index: %d", pump_status, proc->ui_mode_page_index);
         /* 首页/力度/速度调节页：start 不改 page_index，也不回退导航栈 */
@@ -194,6 +200,8 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
             proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
             pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_KEEP_PAGE);
         }
-  
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+        pump_pause_idle_start(proc);
+#endif
     }
 }

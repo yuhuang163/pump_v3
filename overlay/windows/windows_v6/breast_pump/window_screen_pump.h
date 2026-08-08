@@ -72,6 +72,18 @@ extern "C" {
 #define PUMP_PAUSE_MODE_KEY_START_ENABLE       (1)
 #endif
 
+/// 泵奶暂停无操作倒计时：超时进入 PAUSE_TIMEOUT 页并自动关机（与 1.2h FINISH_TIMEOUT 区分）
+#ifndef PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+#define PUMP_PAUSE_IDLE_TIMEOUT_ENABLE         (1)
+#endif
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+#ifndef PUMP_PAUSE_IDLE_TIMEOUT_MS
+#define PUMP_PAUSE_IDLE_TIMEOUT_MS             PM_SUSPEND_TIME_S
+#endif
+#define PUMP_PAUSE_IDLE_LOG_INTERVAL_MS        (3000) /// 倒计时日志间隔
+#define PUMP_PAUSE_IDLE_WAKELOCK_NAME          "pump_pause_idle"
+#endif
+
 /// 子模式同步场景（力度/速度页共用）
 typedef enum {
     PUMP_SUB_MODE_SYNC_LEVEL = 0,      /// 单边力度
@@ -107,7 +119,8 @@ typedef enum {
     PUMP_UI_TYPE_LEVEL_ADJUST, /// 单边力度调节
     PUMP_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
     PUMP_UI_TYPE_SPEED_ADJUST, /// 速度调节
-    PUMP_UI_TYPE_FINISH_TIMEOUT, /// 泵奶超时结算
+    PUMP_UI_TYPE_FINISH_TIMEOUT, /// 泵奶超时结算（1.2h）
+    PUMP_UI_TYPE_PAUSE_TIMEOUT, /// 暂停无操作超时结算（→ 自动关机）
     PUMP_UI_TYPE_WILL_FINISH, /// 韵律即将结束提示
     PUMP_UI_TYPE_MAX
 } pump_ui_type_e;
@@ -220,7 +233,14 @@ typedef struct {
     uint8_t pump_light_status; /// 泵奶灯光状态 pump_light_status_e
     uint8_t state_blink_visible; /// 闪烁相位: 0 灭, 1 亮
     uint8_t pump_pause_blink_state; /// 暂停态 start 灯上次闪烁相位
-    uint32_t blink_start_time; /// 闪烁起始时间
+    uint32_t blink_start_time; /// 上次闪烁翻转时间（相对半周期）
+
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+    /// 暂停无操作倒计时（持 wakelock 防止系统先休眠；各 UI tick 按绝对时间检测）
+    uint32_t pause_idle_time; /// 暂停无操作计时起点，0=未在计时
+    uint32_t pause_idle_log_time; /// 上次倒计时日志时间
+    uint8_t pause_idle_wakelock_held; /// 是否已持有暂停倒计时锁
+#endif
 
 } ui_proc_pump_t;
 
@@ -305,9 +325,20 @@ int pump_speed_adjust_handler(ui_proc_pump_t *proc, bool is_increase);
 void pump_speed_adjust_ui_exit(ui_proc_pump_t *proc);
 void pump_speed_adjust_ui_dismiss(ui_proc_pump_t *proc);
 
-/// 泵奶超时结算页
+/// 泵奶超时结算页（1.2h → 首页结果页）
 void show_pump_finish_timeout_ui(ui_proc_pump_t *proc);
 void pump_finish_timeout_ui_exit(ui_proc_pump_t *proc);
+
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+/// 暂停无操作超时结算页（15min → 自动关机页）
+void show_pump_pause_timeout_ui(ui_proc_pump_t *proc);
+void pump_pause_timeout_ui_exit(ui_proc_pump_t *proc);
+/// 暂停无操作倒计时：进入/刷新/退出/tick（持休眠锁，绝对时间触发）
+void pump_pause_idle_start(ui_proc_pump_t *proc);
+void pump_pause_idle_touch(ui_proc_pump_t *proc);
+void pump_pause_idle_stop(ui_proc_pump_t *proc);
+void pump_pause_idle_timeout_handler(ui_proc_pump_t *proc);
+#endif
 
 /// 韵律即将结束提示页（短按 power 切吸吮并回首页；5s 超时仅回首页不切模式；其它按键不响应）
 void show_pump_will_finish_ui(ui_proc_pump_t *proc);

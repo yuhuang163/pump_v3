@@ -29,7 +29,9 @@ static void switch_pump_status_handler(ui_proc_pump_t *proc)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
         proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH ||
-        proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ) {
+        proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ||
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
         LOG_WM("ignore start key %d", proc->current_ui_type);
         return;
     }
@@ -153,6 +155,9 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc)
     pump_settings_success_ui_exit(proc);
     pump_stop_hold_ui_exit(proc);
     pump_finish_timeout_ui_exit(proc);
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+    pump_pause_timeout_ui_exit(proc);
+#endif
     pump_will_finish_ui_exit(proc);
     pump_level_adjust_ui_exit(proc);
     pump_both_level_adjust_ui_exit(proc);
@@ -181,6 +186,11 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
         case PUMP_UI_TYPE_FINISH_TIMEOUT:
             pump_finish_timeout_ui_exit(proc);
             break;
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+        case PUMP_UI_TYPE_PAUSE_TIMEOUT:
+            pump_pause_timeout_ui_exit(proc);
+            break;
+#endif
         case PUMP_UI_TYPE_WILL_FINISH:
             pump_will_finish_ui_exit(proc);
             break;

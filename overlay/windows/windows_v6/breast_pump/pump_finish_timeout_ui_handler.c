@@ -84,6 +84,9 @@ void show_pump_finish_timeout_ui(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
         return;
     }
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+    pump_pause_idle_stop(proc);
+#endif
     pump_ui_change_hdr_remove(proc);
 
     ui_play_info_t play_info = {
