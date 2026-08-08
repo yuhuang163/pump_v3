@@ -16,50 +16,31 @@ extern "C" {
 * DEFINES
 *****************************************************************************************
 */
-#define HOME_MODE_SELECT_EFFECT_TITLE_BLINK                 0 // 仅标题闪烁
-#define HOME_MODE_SELECT_EFFECT_CAPSULE                     1 // 胶囊 + 圆点指示器
-#define HOME_MODE_SELECT_EFFECT_CAROUSEL                    2 // 三标题横向轮播
-
-#ifndef HOME_MODE_SELECT_EFFECT
-#define HOME_MODE_SELECT_EFFECT                             HOME_MODE_SELECT_EFFECT_CAROUSEL
-#endif
-
-#if HOME_MODE_SELECT_EFFECT == HOME_MODE_SELECT_EFFECT_TITLE_BLINK
-#define HOME_MODE_TITLE_BLINK_ENABLE                        1
-#define HOME_MODE_SELECT_TRANSITION_ENABLE                  0
-#define HOME_MODE_SELECT_CAPSULE_ENABLE                     0
-#define HOME_MODE_SELECT_CAROUSEL_ENABLE                    0
-#elif HOME_MODE_SELECT_EFFECT == HOME_MODE_SELECT_EFFECT_CAPSULE
-#define HOME_MODE_TITLE_BLINK_ENABLE                        0
-#define HOME_MODE_SELECT_TRANSITION_ENABLE                  1
-#define HOME_MODE_SELECT_CAPSULE_ENABLE                     1
-#define HOME_MODE_SELECT_CAROUSEL_ENABLE                    0
-#elif HOME_MODE_SELECT_EFFECT == HOME_MODE_SELECT_EFFECT_CAROUSEL
-#define HOME_MODE_TITLE_BLINK_ENABLE                        0
-#define HOME_MODE_SELECT_TRANSITION_ENABLE                  1
-#define HOME_MODE_SELECT_CAPSULE_ENABLE                     0
-#define HOME_MODE_SELECT_CAROUSEL_ENABLE                    1
-#else
-#error "Invalid HOME_MODE_SELECT_EFFECT"
-#endif
-
-/// 胶囊样式（仅 CAPSULE 动效下使用）
 typedef enum {
-    HOME_MODE_CAPSULE_STYLE_NONE = 0,
-    HOME_MODE_CAPSULE_STYLE_COMMON,    
-    HOME_MODE_CAPSULE_STYLE_BF,        
-} home_mode_capsule_style_e;
+    HOME_PAGE_MAIN = 0,                                     /// 主页
+    HOME_PAGE_MODE_0,                                       /// 模式选择页 0
+    HOME_PAGE_MODE_1,                                       /// 模式选择页 1
+    HOME_PAGE_RHYTHM_0,                                     /// 韵律选择页 0
+    HOME_PAGE_RHYTHM_1,                                     /// 韵律选择页 1
+    HOME_PAGE_RHYTHM_2,                                     /// 韵律选择页 2（个性化，可动态禁用）
+    HOME_PAGE_MAX
+} home_page_id_e;
+
+typedef enum {
+    HOME_PAGE_SLIDE_NONE = 0,
+    HOME_PAGE_SLIDE_LEFT,                                   /// 内容往左移（旋钮右/下一页）
+    HOME_PAGE_SLIDE_RIGHT,                                  /// 内容往右移（旋钮左/上一页）
+} home_page_slide_dir_e;
 
 /*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
-/// 开机LOGO页面
 void ui_display_home_prepare(ui_manager_context_t *thiz);
 void ui_display_home_remove(ui_manager_context_t *thiz);
 int ui_display_home_process(ui_manager_context_t *thiz);
-   
+
 #ifdef __cplusplus
 }
 #endif
-#endif// __UI_DISPLAY_H__
+#endif// __HOME_UI_H__

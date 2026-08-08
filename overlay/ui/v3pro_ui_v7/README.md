@@ -140,11 +140,11 @@ if (res_theme_type == RES_THEME_TYPE_CUSTOM) {
 
 ```
 home/base/
-├── home_base_ui.c           # 根节点、prepare/remove/process 总控
-├── home_base_level_ui.c     # 左右力度调节
-├── home_base_mode_ui.c      # 模式选择与波形
-├── home_base_label_ui.c     # 标签与按钮
-└── home_base_ui_internal.h  # 页面私有数据结构与内部 API
+├── home_base_ui.c             # 根节点、prepare/remove/process 总控
+├── home_base_page_ui.c        # 多页轮播与切页过渡
+├── home_base_home_page_ui.c   # 主页内容
+├── home_base_animation.c      # 主页动画
+└── home_base_ui_internal.h    # 页面私有数据结构与内部 API
 ```
 
 ### 3.3 子模块组件（Module）

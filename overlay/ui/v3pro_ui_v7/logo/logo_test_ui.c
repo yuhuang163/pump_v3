@@ -48,37 +48,31 @@ typedef struct {
 static logo_display_info_t *logo_info = NULL;
 #if IS_SUPPORT_LOGO_IMG_TEST
 static PSRAM_DATA_LOC uint8_t logo_img_data1[] = {
-    #include "comparison_png2txt/pump_home_17_360x360.txt"
+    // #include "v3_res_v7/base/jpg2txt/bg_simulation_mode_352x352.txt"
+    #include "v3_res_v7/base/png2txt/bg_simulation_mode_360x360.txt"
 };    
 
 static PSRAM_DATA_LOC uint8_t logo_img_data2[] = {
-    #include "comparison_png2txt/pump_home_18_360x360.txt"
+    // #include "v3_res_v7/base/jpg2txt/bg_mixed_mode_352x352.txt"
+    #include "v3_res_v7/base/png2txt/bg_mixed_mode_360x360.txt"
 };    
 
 static PSRAM_DATA_LOC uint8_t logo_img_data3[] = {
-    #include "comparison_png2txt/pump_home_19_360x360.txt"
+    // #include "v3_res_v7/base/jpg2txt/bg_expression_mode_352x352.txt"
+    #include "v3_res_v7/base/png2txt/bg_expression_mode_360x360.txt"
 };    
-  
+    
 static PSRAM_DATA_LOC uint8_t logo_img_data4[] = {
-    #include "comparison_png2txt/pump_home_14_360x360.txt"
+    // #include "v3_res_v7/base/jpg2txt/bg_program_mode_352x352.txt"
+    #include "v3_res_v7/base/png2txt/bg_program_mode_360x360.txt"
 };   
 
-static PSRAM_DATA_LOC uint8_t logo_img_data5[] = {
-    #include "comparison_png2txt/pump_home_15_360x360.txt"
-};   
-
-static PSRAM_DATA_LOC uint8_t logo_img_data6[] = {
-    #include "comparison_png2txt/pump_home_16_360x360.txt"
-};   
-
-#define LOGO_IMG_COUNT 6
+#define LOGO_IMG_COUNT 4
 static ui_img_data_t logo_img[LOGO_IMG_COUNT] = {
     {logo_img_data1, sizeof(logo_img_data1)},
     {logo_img_data2, sizeof(logo_img_data2)},
     {logo_img_data3, sizeof(logo_img_data3)},
     {logo_img_data4, sizeof(logo_img_data4)},
-    {logo_img_data5, sizeof(logo_img_data5)},
-    {logo_img_data6, sizeof(logo_img_data6)},
 };
 #endif
 
@@ -99,8 +93,8 @@ static void ui_logo_root_init(void)
         logo_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(logo_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
-    // lv_obj_set_style_bg_color(logo_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
-    lv_obj_set_style_bg_color(logo_info->root, lv_color_hex(0xF44B77), 0);     /// 设置背景颜色为粉色
+    lv_obj_set_style_bg_color(logo_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
+    // lv_obj_set_style_bg_color(logo_info->root, lv_color_hex(0xF44B77), 0);     /// 设置背景颜色为粉色
     lv_obj_set_style_bg_opa(logo_info->root, LV_OPA_COVER, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(logo_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(logo_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）

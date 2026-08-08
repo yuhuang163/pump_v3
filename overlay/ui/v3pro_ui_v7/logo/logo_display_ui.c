@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "ui_img_define.h"   // IWYU pragma: keep
+#include "ui_img_resource.h" // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "ui_snapshot.h" // IWYU pragma: keep
@@ -13,11 +14,15 @@
 *****************************************************************************************
 */
 #define IS_SUPPORT_ROOT_LOGO_COMP_BG                (0)
+#define LOGO_ICON_SHOW_DELAY_MS                     (50)
 
 typedef struct {
     lv_obj_t * root;
     lv_obj_t * background;
     lv_obj_t * logo_icon;
+    res_img_info_t img_info;
+    uint32_t icon_create_time;
+    bool icon_shown;
 } logo_display_info_t;
 
 /*
@@ -79,32 +84,48 @@ static void logo_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void logo_root_bg_update(ui_manager_context_t *thiz)
 {
-    #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
-    EXCEPTION_CHECK_VOID(background_snapshot);
-    #endif
-    if (logo_info->background == NULL || !lv_obj_is_valid(logo_info->background)) {
-        logo_info->background = lv_image_create(logo_info->root);
-        EXCEPTION_CHECK_VOID(logo_info->background);
-        lv_obj_align(logo_info->background, LV_ALIGN_CENTER, 0, 0);
-        #if LV_USE_SNAPSHOT
-        lv_image_set_src(logo_info->background, background_snapshot);
-        #else
-        lv_obj_add_flag(logo_info->background, LV_OBJ_FLAG_HIDDEN); /// 隐藏
-        #endif
-    }
+
 }
 #endif
 
 static void logo_icon_update(ui_manager_context_t *thiz)
 {
-    if (logo_info->logo_icon == NULL || !lv_obj_is_valid(logo_info->logo_icon)) {
-        logo_info->logo_icon = lv_image_create(logo_info->root);
-        EXCEPTION_CHECK_VOID(logo_info->logo_icon);
-        ui_img_baj_theme_set_src(thiz, logo_info->logo_icon, BASE_RES_ID_START_LOGO_ICON,
-            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-        lv_obj_align(logo_info->logo_icon, LV_ALIGN_CENTER, 0, 0);
+    if (logo_info->logo_icon != NULL && lv_obj_is_valid(logo_info->logo_icon)) {
+        return;
     }
+
+    logo_info->logo_icon = lv_image_create(logo_info->root);
+    EXCEPTION_CHECK_VOID(logo_info->logo_icon);
+
+    ui_theme_img_resource_init(thiz, BASE_RES_ID_START_LOGO_ICON, RES_THEME_TYPE_BASE,
+        &logo_info->img_info);
+    EXCEPTION_CHECK_VOID(logo_info->img_info.data);
+
+    lv_fs_path_ex_t logo_img_path;
+    lv_fs_make_path_from_buffer(&logo_img_path, LV_FS_MEMFS_LETTER, logo_info->img_info.data,
+        logo_info->img_info.size, "baj");
+    lv_image_set_src(logo_info->logo_icon, (const void *)&logo_img_path);
+    lv_obj_align(logo_info->logo_icon, LV_ALIGN_CENTER, 0, 0);
+    /// 先建好再隐藏，等稳定后再显示
+    lv_obj_add_flag(logo_info->logo_icon, LV_OBJ_FLAG_HIDDEN);
+    logo_info->icon_create_time = get_timestamp();
+    logo_info->icon_shown = false;
+    LOG_UI("[logo_flash] icon created+hidden t=%u", logo_info->icon_create_time);
+}
+
+static void logo_icon_show_if_ready(void)
+{
+    if (logo_info->icon_shown || logo_info->logo_icon == NULL ||
+        !lv_obj_is_valid(logo_info->logo_icon)) {
+        return;
+    }
+    if (get_timestamp_ms(logo_info->icon_create_time) < LOGO_ICON_SHOW_DELAY_MS) {
+        return;
+    }
+    lv_obj_clear_flag(logo_info->logo_icon, LV_OBJ_FLAG_HIDDEN);
+    logo_info->icon_shown = true;
+    LOG_UI("[logo_flash] icon show after %ums t=%u",
+        (unsigned)LOGO_ICON_SHOW_DELAY_MS, get_timestamp());
 }
 
 /*
@@ -121,12 +142,13 @@ void logo_display_ui_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     logo_root_init();
+    logo_icon_update(thiz);
 }
 
 void logo_display_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && logo_info && logo_info->root);
-    ui_img_baj_release_decoded_buf(logo_info->logo_icon);
+    ui_img_resource_deinit(thiz, &logo_info->img_info);
     LVGL_OBJ_DELETE(logo_info->root);
     u_free(logo_info);
     logo_info = NULL;
@@ -137,6 +159,7 @@ int logo_display_ui_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(thiz && logo_info && logo_info->root);
     logo_root_bg_update(thiz);
     logo_icon_update(thiz);
+    logo_icon_show_if_ready();
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();

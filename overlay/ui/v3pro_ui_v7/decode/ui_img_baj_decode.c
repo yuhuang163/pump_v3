@@ -193,3 +193,40 @@ int ui_img_baj_theme_set_src(ui_manager_context_t *thiz, lv_obj_t *obj, uint16_t
     ui_img_resource_deinit(thiz, &img_info);
     return ret;
 }
+
+lv_draw_buf_t *ui_img_baj_decode_draw_buf(const uint8_t *baj_data, size_t baj_size,
+    ui_img_baj_decode_fmt_e fmt)
+{
+    ui_img_baj_decode_result_t dec;
+    int ret;
+
+    if (baj_data == NULL || baj_size == 0U) {
+        return NULL;
+    }
+
+    ret = ui_img_baj_decode(baj_data, baj_size, fmt, &dec);
+    if (ret != 0) {
+        return NULL;
+    }
+    return dec.draw_buf;
+}
+
+lv_draw_buf_t *ui_img_baj_theme_decode_draw_buf(ui_manager_context_t *thiz, uint16_t resource_id,
+    res_theme_type_e theme_type, ui_img_baj_decode_fmt_e fmt)
+{
+    res_img_info_t img_info = {0};
+    lv_draw_buf_t *draw_buf;
+
+    if (thiz == NULL) {
+        return NULL;
+    }
+
+    ui_theme_img_resource_init(thiz, resource_id, theme_type, &img_info);
+    if (img_info.data == NULL) {
+        return NULL;
+    }
+
+    draw_buf = ui_img_baj_decode_draw_buf(img_info.data, img_info.size, fmt);
+    ui_img_resource_deinit(thiz, &img_info);
+    return draw_buf;
+}

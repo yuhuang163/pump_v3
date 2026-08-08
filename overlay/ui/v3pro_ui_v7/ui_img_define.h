@@ -19,6 +19,8 @@ typedef struct {
     uint32_t size;
 } ui_img_data_t;
 
+#define UI_IMG_RES_ID_NONE                        (0)
+
 #ifdef __cplusplus
 }
 #endif

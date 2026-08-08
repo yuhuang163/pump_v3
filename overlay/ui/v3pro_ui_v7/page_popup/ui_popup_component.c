@@ -98,6 +98,7 @@ void ui_popup_root_init(ui_manager_context_t *thiz, lv_obj_t *parent)
         lv_obj_clear_flag(info->root.obj, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_clear_flag(info->root.obj, LV_OBJ_FLAG_SCROLLABLE);
     }
+    lv_obj_move_foreground(info->root.obj);
 }
 
 void ui_popup_components_hide_all(void)
@@ -300,7 +301,7 @@ void ui_popup_num_update(ui_manager_context_t *thiz, int16_t y_offset)
     snprintf(num_buf, sizeof(num_buf), "%d", show_num == 0 ? 1 : show_num);
     lv_label_set_text(info->countdown.label, num_buf);
     lv_obj_set_style_text_color(info->countdown.label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(info->countdown.label, &lv_font_quicksand_96_bold, 0);
+    lv_obj_set_style_text_font(info->countdown.label, &lv_font_aeonik_soft_26_medium, 0);
     lv_obj_set_style_text_align(info->countdown.label, LV_TEXT_ALIGN_CENTER, 0);
     if (y_offset == 0) {
         lv_obj_align(info->countdown.label, LV_ALIGN_CENTER, 0, 0);
@@ -349,22 +350,8 @@ typedef struct {
 } ui_popup_name_info_t;
 
 const static ui_popup_name_info_t ui_popup_name_infos[] = {
-    { ID_POPUP_UI_PUMP_FINISH_TIMEOUT, "pump Ending" },
-    { ID_POPUP_UI_PUMP_WILL_FINISH_TIP, "pump Will Finish Tip" },
-    { ID_POPUP_UI_PUMP_FINISH_MANUAL, "pump Manual Ending" },
-    { ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR, "Incompatible adapter" },
-    { ID_POPUP_UI_PUMP_FINISH_LOW_POWER, "Low power" },
-    { ID_POPUP_UI_PUMP_PAUSE_SETTLE, "pump Pausing Settle" },
-    { ID_POPUP_UI_PUMP_PAUSE_TIMEOUT, "pump 30 Minutes Pausing" },
-    { ID_POPUP_UI_PUMP_PAUSE_MANUAL, "pump Manual Pausing" },
     { ID_POPUP_UI_PUMP_RUNING_30M_TIP, "pump Running 30 Minutes" },
-    { ID_POPUP_UI_OP_SUCCESS, "operation success" },
-    { ID_POPUP_UI_OP_FAILED, "operation failed" },
-    { ID_POPUP_UI_AIRPLANE_MODE_PROMPT, "airplane mode prompt" },
-    { ID_POPUP_UI_FACTORY_RESET_CONFIRM, "factory reset confirm" },
-    { ID_POPUP_UI_GUIDE_EXIT_CONFIRM, "guide exit confirm" },
-    { ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN, "guide exit countdown" },
-    { ID_POPUP_UI_THEME_RESELECT, "theme reselect" },
+    { ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP, "pump Rest Mode Cannot Adjust" },
 };
 
 const char *ui_popup_name_get(ui_manager_context_t *thiz, uint16_t popup_type)
@@ -382,19 +369,9 @@ const char *ui_popup_name_get(ui_manager_context_t *thiz, uint16_t popup_type)
 uint16_t ui_popup_target_time_get(popup_ui_id_e type)
 {
     switch (type) {
-        case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
-            return 5000;
-        case ID_POPUP_UI_FACTORY_RESET_CONFIRM:
-        case ID_POPUP_UI_GUIDE_EXIT_CONFIRM:
-        case ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN:
-        case ID_POPUP_UI_PUMP_FINISH_MANUAL:
-        case ID_POPUP_UI_THEME_RESELECT:
+        case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
+        case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
             return 3000;
-        case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
-            return 10000;
-        case ID_POPUP_UI_OP_SUCCESS:
-        case ID_POPUP_UI_OP_FAILED:
-            return 1000;
         default:
             return 3000;
     }

@@ -18,39 +18,21 @@ extern "C" {
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_HOME_MODE_SELECT_EFFECT_TITLE_BLINK            0 // 仅标题闪烁
-#define PUMP_HOME_MODE_SELECT_EFFECT_CAPSULE                1 // 胶囊 + 圆点指示器
-#define PUMP_HOME_MODE_SELECT_EFFECT_CAROUSEL               2 // 三标题横向轮播
-
-#ifndef PUMP_HOME_MODE_SELECT_EFFECT
-#define PUMP_HOME_MODE_SELECT_EFFECT                        PUMP_HOME_MODE_SELECT_EFFECT_CAROUSEL
-#endif
-
-#if PUMP_HOME_MODE_SELECT_EFFECT == PUMP_HOME_MODE_SELECT_EFFECT_TITLE_BLINK
-#define PUMP_HOME_MODE_TITLE_BLINK_ENABLE                   1
-#define PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE             0
-#define PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE                0
-#define PUMP_HOME_MODE_SELECT_CAROUSEL_ENABLE               0
-#elif PUMP_HOME_MODE_SELECT_EFFECT == PUMP_HOME_MODE_SELECT_EFFECT_CAPSULE
-#define PUMP_HOME_MODE_TITLE_BLINK_ENABLE                   0
-#define PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE             1
-#define PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE                1
-#define PUMP_HOME_MODE_SELECT_CAROUSEL_ENABLE               0
-#elif PUMP_HOME_MODE_SELECT_EFFECT == PUMP_HOME_MODE_SELECT_EFFECT_CAROUSEL
-#define PUMP_HOME_MODE_TITLE_BLINK_ENABLE                   0
-#define PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE             1
-#define PUMP_HOME_MODE_SELECT_CAPSULE_ENABLE                0
-#define PUMP_HOME_MODE_SELECT_CAROUSEL_ENABLE               1
-#else
-#error "Invalid PUMP_HOME_MODE_SELECT_EFFECT"
-#endif
-
-/// 胶囊样式（仅 CAPSULE 动效下使用）
 typedef enum {
-    PUMP_HOME_CAPSULE_STYLE_NONE = 0,
-    PUMP_HOME_CAPSULE_STYLE_COMMON,
-    PUMP_HOME_CAPSULE_STYLE_BF,
-} pump_home_capsule_style_e;
+    PUMP_HOME_PAGE_MAIN = 0,                                /// 主页
+    PUMP_HOME_PAGE_MODE_0,                                  /// 模式选择页 0
+    PUMP_HOME_PAGE_MODE_1,                                  /// 模式选择页 1
+    PUMP_HOME_PAGE_RHYTHM_0,                                /// 韵律选择页 0
+    PUMP_HOME_PAGE_RHYTHM_1,                                /// 韵律选择页 1
+    PUMP_HOME_PAGE_RHYTHM_2,                                /// 韵律选择页 2（个性化，可动态禁用）
+    PUMP_HOME_PAGE_MAX
+} pump_home_page_id_e;
+
+typedef enum {
+    PUMP_HOME_PAGE_SLIDE_NONE = 0,
+    PUMP_HOME_PAGE_SLIDE_LEFT,                              /// 内容往左移（旋钮右/下一页）
+    PUMP_HOME_PAGE_SLIDE_RIGHT,                             /// 内容往右移（旋钮左/上一页）
+} pump_home_page_slide_dir_e;
 
 /*
 * GLOBAL FUNCTION DECLARATION
@@ -60,6 +42,8 @@ typedef enum {
 void ui_display_pump_home_screen_prepare(ui_manager_context_t *thiz);
 void ui_display_pump_home_screen_remove(ui_manager_context_t *thiz);
 int ui_display_pump_home_screen_process(ui_manager_context_t *thiz);
+/// 旋钮切页入口（左/右滑动过渡）
+void ui_display_pump_home_page_switch(pump_home_page_slide_dir_e dir);
 
 #ifdef __cplusplus
 }

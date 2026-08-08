@@ -18,7 +18,7 @@ extern "C" {
 /// 系统异常页面
 void ui_display_system_abnormal_prepare(ui_manager_context_t *thiz);
 void ui_display_system_abnormal_remove(ui_manager_context_t *thiz);
-int ui_display_system_abnormal_process(ui_manager_context_t *thiz);
+int ui_display_system_abnormal_process(ui_manager_context_t *thiz, uint16_t system_abnormal_type);
 
 #ifdef __cplusplus
 }

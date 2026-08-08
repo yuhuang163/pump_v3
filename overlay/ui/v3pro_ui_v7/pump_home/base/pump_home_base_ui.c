@@ -9,15 +9,20 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_ROOT_PUMP_HOME_COMP_BG            (0)
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
+#define IS_SUPPORT_PUMP_HOME_UI_TEST                (0)
+#else
+#define IS_SUPPORT_PUMP_HOME_UI_TEST                (0)
+#endif
 
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_ROOT_PUMP_HOME_COMP_BG
-static PSRAM_DATA_LOC uint8_t pump_home_bg_data[] = {
-    #include "comparison_png2txt/pump_home5_360x360.txt"
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
+static PSRAM_NC_DATA_LOC uint8_t pump_home_bg_data[] = {
+    #include "comparison_png2txt/pump_home_20_352x352.txt"
+    // #include "comparison_png2txt/pump_home_21_352x352.txt"
 };
 #endif
 
@@ -27,54 +32,6 @@ static pump_home_base_ui_info_t *pump_info;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void pump_home_base_blink_state_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc)
-{
-    uint8_t new_mode_blink = 0;
-    uint8_t new_time_blink = 0;
-    uint8_t new_left_level_blink = 0;
-    uint8_t new_right_level_blink = 0;
-    int pump_mode = 0;
-
-    EXCEPTION_CHECK_VOID(info && proc && proc->pump);
-    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
-
-    if (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_NORMAL_MODE &&
-        PUMP_IS_COMMON_MODE(pump_mode)) {
-#if !PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
-        new_mode_blink = 1;
-#endif
-    } else if (proc->pump_mode_display_type == PUMP_MODE_DISPLAY_BF_MODE &&
-        PUMP_IS_BREASTFEEDING_MODE(pump_mode)) {
-#if !PUMP_HOME_MODE_SELECT_TRANSITION_ENABLE
-        new_mode_blink = 1;
-#endif
-    }
-    if (proc->pump_status == BREAST_PUMP_PAUSE) {
-        new_time_blink = 1;
-    }
-
-    switch (proc->pump_level_display_type) {
-        case PUMP_LEVEL_DISPLAY_LEFT_ADJUST:
-            new_left_level_blink = 1;
-            break;
-        case PUMP_LEVEL_DISPLAY_RIGHT_ADJUST:
-            new_right_level_blink = 1;
-            break;
-        case PUMP_LEVEL_DISPLAY_BOTH_ADJUST:
-            new_left_level_blink = 1;
-            new_right_level_blink = 1;
-            break;
-        default:
-            break;
-    }
-
-    info->mode.mode_blink_state = new_mode_blink;
-    info->time.time_blink_state = new_time_blink;
-    info->level.left_blink_state = new_left_level_blink;
-    info->level.right_blink_state = new_right_level_blink;
-    info->animation.anim_play_state = (proc->pump_status == BREAST_PUMP_PAUSE) ? 1 : 0;
-}
-
 static void pump_home_root_init(void)
 {
     if (pump_info->root == NULL || !lv_obj_is_valid(pump_info->root)) {
@@ -90,15 +47,17 @@ static void pump_home_root_init(void)
     lv_obj_clear_flag(pump_info->root, LV_OBJ_FLAG_SCROLLABLE);
 }
 
-#if IS_SUPPORT_ROOT_PUMP_HOME_COMP_BG
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
 static void pump_home_root_bg_update(ui_manager_context_t *thiz)
 {
     static uint32_t start_time = 0;
     static uint8_t status = 0;
 
+    (void)thiz;
     if (pump_info->background == NULL || !lv_obj_is_valid(pump_info->background)) {
         pump_info->background = lv_image_create(pump_info->root);
         EXCEPTION_CHECK_VOID(pump_info->background);
+        lv_obj_move_background(pump_info->background);
     }
     lv_fs_path_ex_t bg_img_path;
     if (status == 0) {
@@ -119,20 +78,8 @@ static void pump_home_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void pump_home_root_bg_update(ui_manager_context_t *thiz)
 {
-    #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
-    EXCEPTION_CHECK_VOID(background_snapshot);
-    #endif
-    if (pump_info->background == NULL || !lv_obj_is_valid(pump_info->background)) {
-        pump_info->background = lv_image_create(pump_info->root);
-        EXCEPTION_CHECK_VOID(pump_info->background);
-        lv_obj_align(pump_info->background, LV_ALIGN_CENTER, 0, 0);
-        #if LV_USE_SNAPSHOT
-        lv_image_set_src(pump_info->background, background_snapshot);
-        #else
-        lv_obj_add_flag(pump_info->background, LV_OBJ_FLAG_HIDDEN);
-        #endif
-    }
+    /// 吸奶主页使用模式背景 PNG，root 保持黑底即可
+    (void)thiz;
 }
 #endif
 
@@ -157,10 +104,8 @@ void pump_home_base_ui_prepare(ui_manager_context_t *thiz)
     pump_info->popup_ui_index = ID_POPUP_UI_NONE;
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc && proc->pump);
-    int pump_mode = 0;
-    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
-    pump_info->mode.index = pump_mode;
     pump_info->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    pump_home_page_ui_prepare(pump_info);
 }
 
 void pump_home_base_ui_remove(ui_manager_context_t *thiz)
@@ -168,10 +113,7 @@ void pump_home_base_ui_remove(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(thiz && pump_info && pump_info->root);
     ble_ui_deinit(thiz);
     battery_ui_deinit(thiz);
-    pump_home_base_mode_ui_remove(pump_info);
-    pump_home_base_level_ui_remove(pump_info);
-    pump_home_base_time_ui_remove(pump_info);
-    pump_home_base_animation_ui_remove(pump_info);
+    pump_home_page_ui_remove(pump_info);
     ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(pump_info->root);
     u_free(pump_info);
@@ -182,60 +124,73 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && pump_info && pump_info->root);
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc && proc->pump && proc->motor && proc->ble);
-    const pump_result_info_t *result_info = NULL;
-    READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
-    EXCEPTION_CHECK_INT(result_info);
-    uint16_t hold_time = result_info->work_valid_time / 1000;
-    uint16_t target_valid_time = result_info->target_valid_time / 1000;
+    EXCEPTION_CHECK_INT(proc && proc->ble && proc->battery && proc->pump && proc->motor);
     pump_setting_t setting;
-    int pump_mode = 0;
-    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     int time_index = 0;
+    int pump_mode = 0;
+
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
-    pump_info->level.left.new_value = setting.level[0];
-    pump_info->level.right.new_value = setting.level[1];
-    pump_info->mode.new_index = pump_mode;
+    pump_info->level.left = setting.level[0];
+    pump_info->level.right = setting.level[1];
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    pump_info->mode.new_index = (uint8_t)pump_mode;
     pump_info->mode.new_mode_type = proc->motor->get_runtime_mode_type(false);
-    if (pump_mode == BREAST_PUMP_CUSTOM_MODE && pump_info->st) {
+    pump_info->animation.anim_play_state = (proc->pump_status == BREAST_PUMP_PAUSE) ? 1 : 0;
+
+    if (pump_info->st) {
         int custom_mode_id = 0;
+        int activate_status = 0;
+
         pump_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, BREAST_PUMP_CUSTOM_MODE,
             0, &custom_mode_id);
-        if (custom_mode_id != pump_info->mode.custom_mode_id) {
-            pump_info->mode.custom_mode_id = custom_mode_id;
+        READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
+        pump_info->mode.custom_mode_active = (activate_status > 0) ? 1 : 0;
+        if (custom_mode_id != (int)pump_info->mode.custom_mode_id) {
+            pump_info->mode.custom_mode_id = (uint32_t)custom_mode_id;
             memset(pump_info->mode.custom_id_str, 0, sizeof(pump_info->mode.custom_id_str));
             pump_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
                 sizeof(pump_info->mode.custom_id_str), pump_info->mode.custom_id_str);
-            pump_info->mode.index = BREAST_PUMP_MODE_INVALID;
         }
     }
-    pump_home_base_blink_state_update(pump_info, proc);
-    const bool blink_visible = proc->state_blink_visible != 0;
+
     pump_home_root_bg_update(thiz);
-    pump_info->time.remain_time = target_valid_time > hold_time ? (target_valid_time - hold_time) : 0;
-    pump_home_base_mode_ui_update(pump_info, blink_visible, proc->pump_mode_display_type);
-    pump_home_base_time_ui_update(pump_info, hold_time, blink_visible);
-    pump_home_base_animation_ui_update(pump_info);
-    pump_home_base_level_ui_update(pump_info, blink_visible);
-    const ble_ui_blink_sync_t ble_sync = {
-        .sync_enable = (pump_info->mode.mode_blink_state != 0 ||
-            pump_info->time.time_blink_state != 0 ||
-            pump_info->level.left_blink_state != 0 ||
-            pump_info->level.right_blink_state != 0) ? 1 : 0,
-        .blink_time = 0,
-    };
-    battery_ui_update(thiz, pump_info->root, proc->battery, true);
-    ble_ui_update(thiz, pump_info->root, proc->ble,
-        battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X), BASE_PUMP_HOME_BLE_UI_Y, &ble_sync);
-    ui_popup_update(thiz, proc->popup_ui_type,
-        pump_info->root, &pump_info->popup_ui_index);
+#if IS_SUPPORT_PUMP_HOME_UI_TEST
+    (void)proc;
+#else
+    pump_home_page_ui_update(pump_info, proc);
+    if (pump_info->page.shown_page_index == PUMP_HOME_PAGE_MAIN &&
+        !pump_home_page_ui_is_transitioning(pump_info)) {
+        battery_ui_update(thiz, pump_info->root, proc->battery, true);
+        ble_ui_update(thiz, pump_info->root, proc->ble,
+            battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X), BASE_PUMP_HOME_BLE_UI_Y, NULL);
+    } else {
+        battery_ui_update(thiz, pump_info->root, proc->battery, false);
+        ble_ui_hide();
+    }
+#endif
+    ui_popup_update(thiz, proc->popup_ui_type, pump_info->root, &pump_info->popup_ui_index);
     pump_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
-        LOG_UI("===> pump home fps: %d, mode:%d/%d", thiz->priv.fps_count, pump_mode, proc->popup_ui_type);
+        LOG_UI("===> pump home fps: %d, mode:%d/%d, page:%d", thiz->priv.fps_count, pump_mode,
+            proc->popup_ui_type, proc->ui_mode_page_index);
         thiz->priv.fps_count = 0;
+#if IS_SUPPORT_BASE_TIME_3SEG_TEST
+        pump_info->test_hours += 1;
+        if (pump_info->test_hours >= 59) {
+            pump_info->test_hours = 0;
+        }
+#endif
     }
     return 0;
+}
+
+void pump_home_base_ui_page_switch(pump_home_page_slide_dir_e dir)
+{
+    if (pump_info == NULL) {
+        return;
+    }
+    pump_home_page_ui_request_switch(pump_info, dir);
 }

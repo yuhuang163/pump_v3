@@ -55,6 +55,11 @@ static int ble_ui_steady_update(uint32_t time_ms, uint8_t is_connected,
     const ble_ui_blink_sync_t *sync)
 {
     EXCEPTION_CHECK_INT(ble_info->ble_img);
+    if (is_connected > 0) {
+        connect_prompt_flag = false;
+        ble_ui_icon_visible_set(ble_info->ble_img, false);
+        return 0;
+    }
     if (!ble_ui_connect_prompt_blinking(time_ms, is_connected)) {
         connect_prompt_flag = false;
         ble_ui_icon_visible_set(ble_info->ble_img, true);
@@ -70,7 +75,7 @@ static void ble_ui_resource_update(ui_manager_context_t *thiz, lv_obj_t *root,
     uint8_t is_connected, uint16_t x, uint16_t y, uint32_t time_ms)
 {
     const uint16_t resource_id = is_connected > 0 ?
-        BASE_RES_ID_BLE_CONNECT_ICON : BASE_RES_ID_BLE_DISCONNECT_ICON;
+        UI_IMG_RES_ID_NONE : BASE_RES_ID_BLE_DISCONNECT_ICON;
 
     if (ble_info->ble_img == NULL || !lv_obj_is_valid(ble_info->ble_img)) {
         ble_info->ble_img = lv_image_create(root);
@@ -81,6 +86,11 @@ static void ble_ui_resource_update(ui_manager_context_t *thiz, lv_obj_t *root,
         lv_obj_align(ble_info->ble_img, LV_ALIGN_TOP_MID, 0, y);
     } else {
         lv_obj_align(ble_info->ble_img, LV_ALIGN_TOP_LEFT, x, y);
+    }
+    ble_ui_icon_visible_set(ble_info->ble_img, is_connected == 0);
+    /* 切页会新建 page 容器盖住先创建的 BLE；hide 后 force_update 走此路径，需抬到最前 */
+    if (is_connected == 0) {
+        lv_obj_move_foreground(ble_info->ble_img);
     }
     ble_info->is_connected = is_connected;
     ble_info->last_x = x;
@@ -123,10 +133,10 @@ int ble_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, ble_manager_contex
 
 void ble_ui_hide(void)
 {
-    if (ble_info == NULL || ble_info->ble_img == NULL ||
-        !lv_obj_is_valid(ble_info->ble_img)) {
+    if (ble_info == NULL || ble_info->ble_img == NULL || !lv_obj_is_valid(ble_info->ble_img)) {
         return;
     }
+    ble_info->force_update = true;
     ble_ui_icon_visible_set(ble_info->ble_img, false);
 }
 

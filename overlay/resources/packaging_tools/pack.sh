@@ -21,7 +21,7 @@ CONFIG_SUBDIR_CUSTOM="custom"
 
 show_usage() {
     echo "使用方法:"
-    echo "  ./pack.sh [-m] [-d resource_dir] [-t base|custom|multi|all|auto] [V2|V3|V4|V5|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3|v3_res_v4|v3pro_res_v4|v3_res_v5|v3pro_res_v5|v3_res_v6|v3pro_res_v6] [config.json] [output.bin]"
+    echo "  ./pack.sh [-m] [-d resource_dir] [-t base|custom|multi|all|auto] [V2|V3|V4|V5|V6|V7|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3|v3_res_v4|v3pro_res_v4|v3_res_v5|v3pro_res_v5|v3_res_v6|v3pro_res_v6|v3_res_v7|v3pro_res_v7] [config.json] [output.bin]"
     echo ""
     echo "选项:"
     echo "  -m, --menu               通过数字菜单选择资源目录"
@@ -236,6 +236,14 @@ resolve_version_dir() {
                 printf "%s" "$PARENT_DIR/v3_res_v6"
             fi
             ;;
+        V7)
+            device_name="$(resolve_root_device_name)"
+            if [ "$device_name" = "V3Pro" ] && [ -d "$PARENT_DIR/v3pro_res_v7" ]; then
+                printf "%s" "$PARENT_DIR/v3pro_res_v7"
+            else
+                printf "%s" "$PARENT_DIR/v3_res_v7"
+            fi
+            ;;
         v3_res_v2) printf "%s" "$PARENT_DIR/v3_res_v2" ;;
         v3pro_res_v2|v3pro_V2|V3PRO_V2) printf "%s" "$PARENT_DIR/v3pro_res_v2" ;;
         v3_res_v3|V3_V3) printf "%s" "$PARENT_DIR/v3_res_v3" ;;
@@ -246,6 +254,8 @@ resolve_version_dir() {
         v3pro_res_v5|v3pro_V5|V3PRO_V5) printf "%s" "$PARENT_DIR/v3pro_res_v5" ;;
         v3_res_v6|V3_V6) printf "%s" "$PARENT_DIR/v3_res_v6" ;;
         v3pro_res_v6|v3pro_V6|V3PRO_V6) printf "%s" "$PARENT_DIR/v3pro_res_v6" ;;
+        v3_res_v7|V3_V7) printf "%s" "$PARENT_DIR/v3_res_v7" ;;
+        v3pro_res_v7|v3pro_V7|V3PRO_V7) printf "%s" "$PARENT_DIR/v3pro_res_v7" ;;
         *) printf "%s" "$PARENT_DIR/$version" ;;
     esac
 }
@@ -263,6 +273,8 @@ detect_version_from_path() {
         */v3pro_res_v5/*|*/v3pro_V5/*|*/V3PRO_V5/*) printf "%s" "v3pro_res_v5" ;;
         */v3_res_v6/*|*/V6/*) printf "%s" "v3_res_v6" ;;
         */v3pro_res_v6/*|*/v3pro_V6/*|*/V3PRO_V6/*) printf "%s" "v3pro_res_v6" ;;
+        */v3_res_v7/*|*/V7/*) printf "%s" "v3_res_v7" ;;
+        */v3pro_res_v7/*|*/v3pro_V7/*|*/V3PRO_V7/*) printf "%s" "v3pro_res_v7" ;;
         *) printf "%s" "" ;;
     esac
 }
@@ -838,13 +850,14 @@ resolve_root_res_path() {
     # 与 product_info.h / GNUmakefile 中 ROOT_UI_VERSION 分支一致
     local makefile="$PROJECT_DIR/GNUmakefile"
     if [ -f "$makefile" ]; then
-        local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value root_ui_v5_value root_ui_v6_value
+        local root_ui_token root_ui_v2_value root_ui_v3_value root_ui_v4_value root_ui_v5_value root_ui_v6_value root_ui_v7_value
         root_ui_token="$(awk '/^ROOT_UI_VERSION[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v2_value="$(awk '/^ROOT_UI_V2[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v3_value="$(awk '/^ROOT_UI_V3[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v4_value="$(awk '/^ROOT_UI_V4[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v5_value="$(awk '/^ROOT_UI_V5[[:space:]]*\?=/{print $3; exit}' "$makefile")"
         root_ui_v6_value="$(awk '/^ROOT_UI_V6[[:space:]]*\?=/{print $3; exit}' "$makefile")"
+        root_ui_v7_value="$(awk '/^ROOT_UI_V7[[:space:]]*\?=/{print $3; exit}' "$makefile")"
 
         case "$root_ui_token" in
             '$(ROOT_UI_V2)') printf "%s" "V2"; return 0 ;;
@@ -852,6 +865,7 @@ resolve_root_res_path() {
             '$(ROOT_UI_V4)') printf "%s" "V4"; return 0 ;;
             '$(ROOT_UI_V5)') printf "%s" "V5"; return 0 ;;
             '$(ROOT_UI_V6)') printf "%s" "V6"; return 0 ;;
+            '$(ROOT_UI_V7)') printf "%s" "V7"; return 0 ;;
             "$root_ui_v2_value")
                 if [ -n "${root_ui_token:-}" ]; then
                     printf "%s" "V2"
@@ -882,6 +896,12 @@ resolve_root_res_path() {
                     return 0
                 fi
                 ;;
+            "$root_ui_v7_value")
+                if [ -n "${root_ui_token:-}" ]; then
+                    printf "%s" "V7"
+                    return 0
+                fi
+                ;;
         esac
     fi
 
@@ -889,7 +909,7 @@ resolve_root_res_path() {
     out="$(product_info_preprocess_macro "ROOT_RES_PATH")"
     out="${out#\"}"
     out="${out%\"}"
-    if [[ "$out" =~ ^V[2-6]$ ]]; then
+    if [[ "$out" =~ ^V[2-7]$ ]]; then
         printf "%s" "$out"
         return 0
     fi
@@ -898,7 +918,7 @@ resolve_root_res_path() {
 }
 
 resolve_root_res_version() {
-    # ROOT_RES_VERSION = major*100 + minor，随 UI：V2->102, V3->103, V4->104, V5->105, V6->106
+    # ROOT_RES_VERSION = major*100 + minor，随 UI：V2->102, V3->103, V4->104, V5->105, V6->106, V7->107
     local res_path out
     res_path="$(resolve_root_res_path)"
     case "$res_path" in
@@ -907,6 +927,7 @@ resolve_root_res_version() {
         V4) printf "%s" "104"; return 0 ;;
         V5) printf "%s" "105"; return 0 ;;
         V6) printf "%s" "106"; return 0 ;;
+        V7) printf "%s" "107"; return 0 ;;
     esac
 
     out="$(product_info_preprocess_macro "ROOT_RES_VERSION")"
@@ -1047,7 +1068,7 @@ case "$PACK_TYPE" in
 esac
 
 # 检查第一个参数是否是版本号或资源目录别名
-if [ $# -gt 0 ] && [[ "$1" =~ ^(V2|V3|V4|V5|V6|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3|v3_res_v4|v3pro_res_v4|v3_res_v5|v3pro_res_v5|v3_res_v6|v3pro_res_v6|v3pro_V2|V3PRO_V2|v3pro_V3|V3PRO_V3|V3_V3|v3pro_V4|V3PRO_V4|V3_V4|v3pro_V5|V3PRO_V5|V3_V5|v3pro_V6|V3PRO_V6|V3_V6)$ ]]; then
+if [ $# -gt 0 ] && [[ "$1" =~ ^(V2|V3|V4|V5|V6|V7|v3_res_v2|v3pro_res_v2|v3_res_v3|v3pro_res_v3|v3_res_v4|v3pro_res_v4|v3_res_v5|v3pro_res_v5|v3_res_v6|v3pro_res_v6|v3_res_v7|v3pro_res_v7|v3pro_V2|V3PRO_V2|v3pro_V3|V3PRO_V3|V3_V3|v3pro_V4|V3PRO_V4|V3_V4|v3pro_V5|V3PRO_V5|V3_V5|v3pro_V6|V3PRO_V6|V3_V6|v3pro_V7|V3PRO_V7|V3_V7)$ ]]; then
     VERSION="$1"
     shift
 fi

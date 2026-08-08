@@ -102,19 +102,10 @@ static void low_power_bg_update(ui_manager_context_t *thiz)
 #else
 static void low_power_bg_update(ui_manager_context_t *thiz)
 {
-    #if LV_USE_SNAPSHOT
-    lv_draw_buf_t *background_snapshot = get_lvgl_snap_shot(UI_SNAP_SHOT_COMMON_BG);
-    EXCEPTION_CHECK_VOID(background_snapshot);
-    #endif
-    if (low_power_info->background == NULL || !lv_obj_is_valid(low_power_info->background)) {
-        low_power_info->background = lv_image_create(low_power_info->root);
-        EXCEPTION_CHECK_VOID(low_power_info->background);
-        lv_obj_align(low_power_info->background, LV_ALIGN_CENTER, 0, 0);
-        #if LV_USE_SNAPSHOT
-        lv_image_set_src(low_power_info->background, background_snapshot);
-        #else
+    /// V7 已无 COMMON_BG 快照；root 黑底即可
+    (void)thiz;
+    if (low_power_info->background != NULL && lv_obj_is_valid(low_power_info->background)) {
         lv_obj_add_flag(low_power_info->background, LV_OBJ_FLAG_HIDDEN);
-        #endif
     }
 }
 #endif
@@ -273,7 +264,7 @@ static void low_power_text_update(void)
     }
     lv_label_set_text(low_power_info->text, low_power_text);
     lv_obj_set_style_text_color(low_power_info->text, lv_color_hex(LOW_POWER_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(low_power_info->text, &lv_font_aeonik_soft_24_semibold, 0);
+    lv_obj_set_style_text_font(low_power_info->text, &lv_font_aeonik_soft_24_medium, 0);
     lv_obj_set_style_text_line_space(low_power_info->text, 4, 0);
     lv_obj_set_style_text_align(low_power_info->text, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(low_power_info->text, LV_ALIGN_TOP_MID, 0, LOW_POWER_TEXT_Y);
