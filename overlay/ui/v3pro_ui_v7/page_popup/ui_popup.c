@@ -23,22 +23,8 @@ static ui_popup_disp_info_t *operation_info;
 static bool ui_popup_is_supported(popup_ui_id_e popup_type)
 {
     switch (popup_type) {
-        case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
-        case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
-        case ID_POPUP_UI_PUMP_FINISH_MANUAL:
-        case ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR:
-        case ID_POPUP_UI_PUMP_FINISH_LOW_POWER:
-        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
-        case ID_POPUP_UI_PUMP_PAUSE_MANUAL:
-        case ID_POPUP_UI_PUMP_PAUSE_TIMEOUT:
         case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
-        case ID_POPUP_UI_OP_SUCCESS:
-        case ID_POPUP_UI_OP_FAILED:
-        case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
-        case ID_POPUP_UI_FACTORY_RESET_CONFIRM:
-        case ID_POPUP_UI_GUIDE_EXIT_CONFIRM:
-        case ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN:
-        case ID_POPUP_UI_THEME_RESELECT:
+        case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
             return true;
         default:
             return false;
@@ -55,37 +41,11 @@ static void ui_popup_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_t
     }
 
     switch (popup_type) {
-        case ID_POPUP_UI_PUMP_PAUSE_MANUAL:
-        case ID_POPUP_UI_PUMP_PAUSE_TIMEOUT:
         case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
-            ui_popup_pump_pause_ui_update(thiz, popup_type);
+            ui_popup_pump_runing_30m_tip_ui_update(thiz, popup_type);
             break;
-        case ID_POPUP_UI_PUMP_FINISH_MANUAL:
-        case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
-        case ID_POPUP_UI_PUMP_WILL_FINISH_TIP:
-        case ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR:
-        case ID_POPUP_UI_PUMP_FINISH_LOW_POWER:
-        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
-            ui_popup_pump_finish_ui_update(thiz, popup_type);
-            break;
-        case ID_POPUP_UI_OP_SUCCESS:
-        case ID_POPUP_UI_OP_FAILED:
-            ui_popup_operation_ui_update(thiz, popup_type);
-            break;
-        case ID_POPUP_UI_AIRPLANE_MODE_PROMPT:
-            ui_popup_airplane_mode_ui_update(thiz, popup_type);
-            break;
-        case ID_POPUP_UI_FACTORY_RESET_CONFIRM:
-            ui_popup_factory_reset_confirm_ui_update(thiz, popup_type);
-            break;
-        case ID_POPUP_UI_GUIDE_EXIT_CONFIRM:
-            ui_popup_guide_exit_confirm_ui_update(thiz, popup_type);
-            break;
-        case ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN:
-            ui_popup_guide_exit_countdown_ui_update(thiz, popup_type);
-            break;
-        case ID_POPUP_UI_THEME_RESELECT:
-            ui_popup_theme_ui_update(thiz, popup_type);
+        case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
+            ui_popup_pump_rest_mode_adjust_tip_ui_update(thiz, popup_type);
             break;
         default:
             break;
@@ -180,5 +140,11 @@ void ui_popup_update(ui_manager_context_t *thiz,
         *ui_index = type;
     } else {
         ui_popup_process(thiz, type);
+    }
+
+    /* 页面 chrome（模式页圆点/时间等）会 move_foreground，弹窗需始终置顶 */
+    if (operation_info != NULL && operation_info->root.obj != NULL &&
+        lv_obj_is_valid(operation_info->root.obj)) {
+        lv_obj_move_foreground(operation_info->root.obj);
     }
 }

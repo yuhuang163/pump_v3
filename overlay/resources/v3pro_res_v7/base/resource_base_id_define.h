@@ -12,23 +12,34 @@ extern "C" {
 typedef enum {
     BASE_RES_ID_NONE = 0, /// 无资源
 
-    /* 通用组 [1..100] */
-    BASE_RES_ID_BLE_CONNECT_ICON = 1, /// 蓝牙连接图标
+    /* 通用组 [1..150] */  
+    BASE_RES_ID_CLOCK_COLON_ICON = 1, /// 时钟冒号图标
+    BASE_RES_ID_HOUR_COLON_ICON, /// 小时冒号图标
+    BASE_RES_ID_BLE_CONNECT_ICON, /// 蓝牙连接图标
+    BASE_RES_ID_BLE_CONNECT_TIP_ICON, /// 蓝牙连接提示图标
+    BASE_RES_ID_BLE_CONNECTING_TIP_ICON, /// 蓝牙连接中提示图标
     BASE_RES_ID_BLE_DISCONNECT_ICON, /// 蓝牙断开图标
-    BASE_RES_ID_BLE_CONNECT_POPUP_ICON, /// 蓝牙连接弹窗图标
-    BASE_RES_ID_BLE_DISCONNECT_POPUP_ICON, /// 蓝牙断开弹窗图标
-    BASE_RES_ID_BIND_ICON, /// 绑定图标
-    BASE_RES_ID_UNBIND_ICON, /// 解绑图标
-    BASE_RES_ID_ALLOW_ICON, /// 允许图标
-    BASE_RES_ID_BAN_ICON, /// 禁止图标
+    BASE_RES_ID_BLE_DISCONNECT_TIP_ICON, /// 蓝牙断开提示图标
+    BASE_RES_ID_SUCCESS_ICON, /// 成功图标
+    BASE_RES_ID_ERROR_ICON, /// 错误图标
     BASE_RES_ID_WARNING_ICON, /// 警告图标
-    BASE_RES_ID_START_BUTTON_ICON, /// 开始按钮指示图标
-    BASE_RES_ID_RETURN_BUTTON_ICON, /// 返回按钮指示图标
-    BASE_RES_ID_MODE_BUTTON_ICON, /// 模式按钮图标
-    BASE_RES_ID_PROGRAM_BUTTON_ICON, /// 程序按钮图标
-    BASE_RES_ID_RETURN_BUTTON_24X24_ICON, /// 24x24返回按钮图标
-    BASE_RES_ID_LEFT_KNOB_ICON, /// 左旋钮图标
-    BASE_RES_ID_RIGHT_KNOB_ICON, /// 右旋钮图标
+    BASE_RES_ID_QUANDARY_ICON, /// 疑问图标
+    BASE_RES_ID_DOWNLOAD_ICON, /// 下载图标
+    BASE_RES_ID_PLAY_ICON, /// 播放图标
+    BASE_RES_ID_PLAY_MIN_ICON, /// 播放小图标
+    BASE_RES_ID_PAUSE_ICON, /// 暂停图标
+    BASE_RES_ID_PAUSE_MIN_ICON, /// 暂停小图标
+    BASE_RES_ID_POWER_OFF_ICON, /// 电源图标
+    BASE_RES_ID_POWER_KEY_ICON, /// 电源按键图标
+    BASE_RES_ID_TIMEOUT_ICON, /// 超时图标
+    BASE_RES_ID_ROTARY_KEY_ICON, /// 旋钮按键图标
+    BASE_RES_ID_TRAVEL_LOCK_ICON, /// 旅行锁锁定图标
+    BASE_RES_ID_CHARGE_ERROR_ICON, /// 充电错误图标
+    BASE_RES_ID_ADD_ICON, /// 加号图标
+    BASE_RES_ID_STIMULATION_KEY_ICON, /// 刺激按键图标
+    BASE_RES_ID_EXPRESSION_KEY_ICON, /// 吸吮按键图标
+    BASE_RES_ID_RELAX_TIP_ICON, /// 放松提醒图标
+    BASE_RES_ID_FORBIDDEN_TIP_ICON, /// 禁止提示图标
     BASE_RES_ID_BATTERY_ICON, /// 电池电量图标
     BASE_RES_ID_BATTERY_WARNING_ICON, /// 电池警告图标
     BASE_RES_ID_CHARGE_PAGE_ICON, /// 充电页面图标
@@ -41,64 +52,47 @@ typedef enum {
     BASE_RES_ID_CHARGE_BATT_4_ICON, /// 电池容量80图标
     BASE_RES_ID_CHARGE_BATT_5_ICON, /// 电池容量100图标
 
+    /* 主界面组 [150..200] */
+    BASE_RES_ID_START_LOGO_ICON = 150, /// 启动LOGO图标
+    BASE_RES_ID_HOME_IDLE_ICON, /// 主页空闲图标
+    BASE_RES_ID_HOME_POWER_OFF_ICON, /// 主页关机图标
 
-    BASE_RES_ID_CLOCK_COLON_ICON = 99, /// 时钟冒号图标
-    /* 主界面组 [99..150] */
-    BASE_RES_ID_COMMON_BG = 100, /// 通用背景
-    BASE_RES_ID_START_LOGO_ICON, /// 启动LOGO
-    BASE_RES_ID_HOME_WIDTH_LABLE, /// 主页宽标签
-    BASE_RES_ID_HOME_BIG_LABLE, /// 主页大标签
-    BASE_RES_ID_HOME_NARROW_LABLE, /// 主页窄标签
-    BASE_RES_ID_AIRPLANE_UNLOCK_BUTTON_ICON, /// 飞行模式解锁按钮图标
-    BASE_RES_ID_GUIDE_LABLE, /// 引导标签
+    /* 引导组 [200..300] */
+    BASE_RES_ID_GUIDE_POWER_KEY_ICON = 200, /// 引导电源按键
+    BASE_RES_ID_GUIDE_KNOB_KEY_ICON, /// 引导旋钮按键
+    BASE_RES_ID_GUIDE_LEFT_KEY_ICON, /// 引导左按键
+    BASE_RES_ID_GUIDE_LEFT_KEY_MIN_ICON, /// 引导左按键小图标
+    BASE_RES_ID_GUIDE_RIGHT_KEY_ICON, /// 引导右按键
+    BASE_RES_ID_GUIDE_RIGHT_KEY_MIN_ICON, /// 引导右按键小图标
+    BASE_RES_ID_GUIDE_SPEED_KEY_ICON, /// 引导速度按键
 
-    /* 引导组 [150..200] */
-    BASE_RES_ID_SYS_THEME_IMG = 150, /// 系统主题引导背景
-    BASE_RES_ID_IP_THEME_IMG, /// IP主题引导背景
-    BASE_RES_ID_THEME_SELECT_ICON, /// 主题选择引导图标
-    BASE_RES_ID_THEME_UNSELECT_ICON, /// 主题未选择引导图标
-    BASE_RES_ID_GUIDE_BUTTON_BG, /// 引导按钮背景
-    BASE_RES_ID_GUIDE_KNOB_BG, /// 引导旋钮背景
-    BASE_RES_ID_GUIDE_LEFT_BUTTON_ICON, /// 引导-左按钮图片
-    BASE_RES_ID_GUIDE_RIGHT_BUTTON_ICON, /// 引导-右按钮图片
-    BASE_RES_ID_GUIDE_START_BUTTON_ICON, /// 引导-开始按钮图标
-    BASE_RES_ID_GUIDE_START_BUTTON_MIN_ICON, /// 引导-开始按钮小图标
-    BASE_RES_ID_GUIDE_RETURN_BUTTON_ICON, /// 引导-返回按钮图标
-    BASE_RES_ID_GUIDE_RETURN_BUTTON_MIN_ICON, /// 引导-返回按钮小图标
-    BASE_RES_ID_GUIDE_HOME_ICON, /// 引导-功能首页图标
+    /* 模式相关组 [300..500] */
+    BASE_RES_ID_SIMULATION_MODE_BG = 300, /// 刺激模式背景
+    BASE_RES_ID_EXPRESSION_MODE_BG, /// 吸吮模式背景
+    BASE_RES_ID_MIXED_MODE_BG, /// 混合模式背景
+    BASE_RES_ID_PROGRAM_MODE_BG, /// 韵律模式背景
 
-    /* 模式相关组 [200..300]（大图 + 小图标） */
-    BASE_RES_ID_HOME_IDLE_ICON = 200, /// 空闲界面图标
-    BASE_RES_ID_PUMP_PAUSE_ICON, /// 泵奶暂停图标
-    BASE_RES_ID_PUMP_LEVEL_SEPARATOR, /// 泵奶力度分割符
-    BASE_RES_ID_PUMP_LEVEL_BG, /// 泵奶力度背景
-    BASE_RES_ID_PUMP_LEVEL_BIG_BG, /// 泵奶力度大背景
-    BASE_RES_ID_PUMP_LEVEL_INDICATOR, /// 泵奶力度指示符
-    BASE_RES_ID_PUMP_LEVEL_BIG_INDICATOR, /// 泵奶力度大指示符
-    BASE_RES_ID_PUMP_RHYTHM_ICON, /// 泵奶节奏图标
-    BASE_RES_ID_PUMP_RHYTHM_WHITE_ICON, /// 泵奶节奏白色图标
-    BASE_RES_ID_PUMP_RELAX_ICON, /// 泵奶放松图标
-
-    BASE_RES_ID_STIMULATION_WAVE = 300, /// 刺激波形
-    BASE_RES_ID_LACTATION_WAVE, /// 泌乳波形
-    BASE_RES_ID_MIX_WAVE, /// 混合波形
-    BASE_RES_ID_RELAX_WAVE, /// 放松波形
-    BASE_RES_ID_MILK_BOOST_WAVE, /// 2+8奶量提升波形
-    BASE_RES_ID_POWER_PUMPING_WAVE, /// 泵奶模式波形
-    BASE_RES_ID_CUSTOM_WAVE, /// 个性化模式波形
+    BASE_RES_ID_SIMULATION_ICON, /// 刺激模式图标
+    BASE_RES_ID_EXPRESSION_ICON, /// 吸吮模式图标
+    BASE_RES_ID_MIXED_ICON, /// 混合模式图标
+    BASE_RES_ID_PROGRAM_ICON, /// 韵律模式图标
+    BASE_RES_ID_SPEED_ICON, /// 速度图标
+    BASE_RES_ID_PUMP_TIME_LABEL, /// 泵奶时间标签
+    BASE_RES_ID_MODE_SELECT_TIP, /// 模式选择页提示文案图片
+    BASE_RES_ID_TEXT_SHINE_MASK, /// 文案扫光蒙层
+    BASE_RES_ID_PUMP_WILL_FINISH_TIP_ICON, /// 泵奶即将结束提示图标
 
     /* 动画组 [1000..] */
-    BASE_RES_ID_LONG_SUCTION_ANIM_START = 1000, /// 长吸动画-开始
-    BASE_RES_ID_LONG_SUCTION_ANIM_END = 1059, /// 长吸动画-结束 
-    BASE_RES_ID_SHORT_SUCTION_ANIM_START = 1100, /// 短吸动画-开始
-    BASE_RES_ID_SHORT_SUCTION_ANIM_END = 1159, /// 短吸动画-结束 
-    BASE_RES_ID_MIXED_SUCTION_ANIM_START = 1200, /// 混合吸吮动画-开始
-    BASE_RES_ID_MIXED_SUCTION_ANIM_END = 1259, /// 混合吸吮动画-结束 
-    BASE_RES_ID_RELAX_SUCTION_ANIM_START = 1300, /// 放松吸吮动画-开始
-    BASE_RES_ID_RELAX_SUCTION_ANIM_END = 1359, /// 放松吸吮动画-结束 
-    BASE_RES_ID_GUIDE_ANIM_START = 1400, /// 引导动画-开始
-    BASE_RES_ID_GUIDE_ANIM_END = 1468, /// 引导动画-结束 
-
+    BASE_RES_ID_STIMULATION_ANIM_START = 1000, /// 刺激动画-开始
+    BASE_RES_ID_STIMULATION_ANIM_END = 1059, /// 刺激动画-结束 
+    BASE_RES_ID_EXPRESSION_ANIM_START = 1100, /// 吸吮动画-开始
+    BASE_RES_ID_EXPRESSION_ANIM_END = 1159, /// 吸吮动画-结束 
+    BASE_RES_ID_PROGRAM_STIMULATION_ANIM_START = 1200, /// 韵律刺激动画-开始
+    BASE_RES_ID_PROGRAM_STIMULATION_ANIM_END = 1259, /// 韵律刺激动画-结束 
+    BASE_RES_ID_PROGRAM_EXPRESSION_ANIM_START = 1300, /// 韵律吸吮动画-开始
+    BASE_RES_ID_PROGRAM_EXPRESSION_ANIM_END = 1359, /// 韵律吸吮动画-结束 
+    BASE_RES_ID_PROGRAM_RELAX_ANIM_START = 1400, /// 韵律放松动画-开始
+    BASE_RES_ID_PROGRAM_RELAX_ANIM_END = 1459, /// 韵律放松动画-结束 
     BASE_RES_ID_TYPE_MAX
 } base_res_id_type_e;
 

@@ -12,12 +12,21 @@ extern "C" {
 #include "ui_manager_api.h" // IWYU pragma: keep
 
 /*
+* GLOBAL DEFINITIONS
+*****************************************************************************************
+*/
+typedef enum {
+    POWER_OFF_TEXT_POWERING_OFF = 0,   /* Powering off... */
+    POWER_OFF_TEXT_AUTO_SHUT_OFF,      /* Auto shut off in\nprogress */
+} power_off_text_type_e;
+
+/*
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
 void ui_display_power_off_prepare(ui_manager_context_t *thiz);
 void ui_display_power_off_remove(ui_manager_context_t *thiz);
-int ui_display_power_off_process(ui_manager_context_t *thiz);
+int ui_display_power_off_process(ui_manager_context_t *thiz, power_off_text_type_e text_type);
 
 #ifdef __cplusplus
 }

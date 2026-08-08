@@ -198,7 +198,7 @@ static void power_off_charge_text_update(ui_manager_context_t *thiz)
             EXCEPTION_CHECK_VOID(charge_info->text[i]);
             lv_label_set_text(charge_info->text[i], charge_text_info[i].str);
             lv_obj_set_style_text_color(charge_info->text[i], lv_color_hex(0x3C3C3C), 0);
-            lv_obj_set_style_text_font(charge_info->text[i], &lv_font_aeonik_soft_20_medium, 0);
+            lv_obj_set_style_text_font(charge_info->text[i], &lv_font_aeonik_soft_19_medium, 0);
             lv_obj_set_style_text_align(charge_info->text[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_align(charge_info->text[i], LV_ALIGN_LEFT_MID, charge_text_info[i].x_offset, 0);
         }

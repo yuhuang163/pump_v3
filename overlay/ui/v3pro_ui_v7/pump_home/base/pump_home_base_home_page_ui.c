@@ -1,0 +1,851 @@
+/*
+* INCLUDE FILES
+*****************************************************************************************
+*/
+#include "pump_home_base_ui_internal.h" // IWYU pragma: keep
+#include "window_screen_pump.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
+
+/*
+* DEFINES
+*****************************************************************************************
+*/
+#define PUMP_HOME_MAIN_SCREEN_W                         (360)
+#define PUMP_HOME_MAIN_SCALE_FULL                       (256)
+
+#define PUMP_HOME_MAIN_MODE_TITLE_Y                     (64 + 4)
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
+#define PUMP_HOME_MAIN_MODE_TITLE_COLOR                 (0x00FF00)
+#else
+#define PUMP_HOME_MAIN_MODE_TITLE_COLOR                 (0xFFFFFF)
+#endif
+
+/// 两段计时 MM:SS（hours==0）；相对 home 主页时间上移 14
+#define PUMP_HOME_MAIN_TIME_2SEG                        (2)
+#define PUMP_HOME_MAIN_TIME_2SEG_WIDTH                  (88)
+#define PUMP_HOME_MAIN_TIME_2SEG_M_X                    (75 + 4)
+#define PUMP_HOME_MAIN_TIME_2SEG_S_X                    (189 + 4)
+#define PUMP_HOME_MAIN_TIME_2SEG_Y                      (122 + 4)
+#define PUMP_HOME_MAIN_TIME_2SEG_COLON_X                (0)
+#define PUMP_HOME_MAIN_TIME_2SEG_COLON_Y                (128 + 4)
+
+/// 三段计时 HH:MM:SS（hours>0，等宽，参考 V6）
+#define PUMP_HOME_MAIN_TIME_3SEG                        (3)
+#define PUMP_HOME_MAIN_TIME_3SEG_WIDTH                  (69)
+#define PUMP_HOME_MAIN_TIME_3SEG_H_X                    (51)
+#define PUMP_HOME_MAIN_TIME_3SEG_M_X                    (147)
+#define PUMP_HOME_MAIN_TIME_3SEG_S_X                    (240)
+#define PUMP_HOME_MAIN_TIME_3SEG_Y                      (130)
+#define PUMP_HOME_MAIN_TIME_COLON_HM_X                  (130)
+#define PUMP_HOME_MAIN_TIME_COLON_MS_X                  (222)
+#define PUMP_HOME_MAIN_TIME_COLON_3SEG_Y                (134)
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
+#define PUMP_HOME_MAIN_TIME_COLOR                       (0x00FF00)
+#else
+#define PUMP_HOME_MAIN_TIME_COLOR                       (0xFFFFFF)
+#endif
+/** 子模式切换提醒出现时，时间整体下移 */
+#define PUMP_HOME_MAIN_TIME_MODE_SWITCH_OFFSET_Y        (15)
+
+#define PUMP_HOME_MAIN_SPEED_GROUP_WIDTH                (47)
+#define PUMP_HOME_MAIN_SPEED_ICON_Y                     (265 + 4)
+#define PUMP_HOME_MAIN_SPEED_VALUE_Y                    (267 + 4)
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
+#define PUMP_HOME_MAIN_SPEED_COLOR                      (0x00FF00)
+#else
+#define PUMP_HOME_MAIN_SPEED_COLOR                      (0xFFFFFF)
+#endif
+#define PUMP_HOME_MAIN_SPEED_ICON_VALUE_GAP             (6)
+
+#define PUMP_HOME_MAIN_LEFT_LEVEL_X                     (68 + 4)
+#define PUMP_HOME_MAIN_LEFT_LEVEL_Y                     (267 + 4)
+#define PUMP_HOME_MAIN_LEFT_LEVEL_W                     (58)
+#define PUMP_HOME_MAIN_RIGHT_LEVEL_X                    (227 + 4)
+#define PUMP_HOME_MAIN_RIGHT_LEVEL_Y                    (PUMP_HOME_MAIN_LEFT_LEVEL_Y)
+#define PUMP_HOME_MAIN_RIGHT_LEVEL_W                    (58)
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
+#define PUMP_HOME_MAIN_LEVEL_COLOR                      (0x00FF00)
+#else
+#define PUMP_HOME_MAIN_LEVEL_COLOR                      (0xFFFFFF)
+#endif
+
+#define PUMP_HOME_MAIN_PLAY_ICON_Y                      (136)
+#define PUMP_HOME_MAIN_HINT_Y                           (220)
+#define PUMP_HOME_MAIN_HINT_TEXT                        "Press to resume"
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
+#define PUMP_HOME_MAIN_HINT_COLOR                       (0x00FF00)
+#else
+#define PUMP_HOME_MAIN_HINT_COLOR_STIMULATION           (0xAD7C89)
+#define PUMP_HOME_MAIN_HINT_COLOR_LACTATION             (0xB9D9FF)
+#define PUMP_HOME_MAIN_HINT_COLOR_PROGRAM               (0xB195DF)
+#endif
+#define PUMP_HOME_MAIN_MASK_W                           (PUMP_HOME_BASE_MAIN_HINT_SHINE_W)
+#define PUMP_HOME_MAIN_MASK_Y                           (PUMP_HOME_MAIN_HINT_Y)
+
+#define PUMP_HOME_MAIN_MODE_SWITCH_Y                    (208)
+#define PUMP_HOME_MAIN_MODE_SWITCH_COLOR                (0xFFFFFF)
+#define PUMP_HOME_MAIN_MODE_SWITCH_OPA                  (LV_OPA_60)
+#define PUMP_HOME_MAIN_MODE_SWITCH_LINE_SPACE           (8)
+#define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT \
+    "Switched to %s.\nLevel and speed may changed."
+/*
+* LOCAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+
+/*
+* LOCAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+static uint16_t pump_home_main_bg_res_id_get(uint8_t mode)
+{
+    switch (mode) {
+        case BREAST_PUMP_STIMULATION_MODE:
+            return BASE_RES_ID_SIMULATION_MODE_BG;
+        case BREAST_PUMP_LACTATION_MODE:
+            return BASE_RES_ID_EXPRESSION_MODE_BG;
+        case BREAST_PUMP_MILK_BOOST_MODE:
+        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+        case BREAST_PUMP_CUSTOM_MODE:
+            return BASE_RES_ID_PROGRAM_MODE_BG;
+        default:
+            return BASE_RES_ID_SIMULATION_MODE_BG;
+    }
+}
+
+static void pump_home_main_mode_title_get(pump_home_base_ui_info_t *info, uint8_t mode,
+    char *buf, size_t buf_len)
+{
+    switch (mode) {
+        case BREAST_PUMP_STIMULATION_MODE:
+            snprintf(buf, buf_len, "Stimulation");
+            break;
+        case BREAST_PUMP_LACTATION_MODE:
+            snprintf(buf, buf_len, "Expression");
+            break;
+        case BREAST_PUMP_MILK_BOOST_MODE:
+            snprintf(buf, buf_len, "Milk Boost");
+            break;
+        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+            snprintf(buf, buf_len, "Power Pumping");
+            break;
+        case BREAST_PUMP_CUSTOM_MODE:
+            snprintf(buf, buf_len, "%s", info->mode.custom_id_str);
+            break;
+        default:
+            snprintf(buf, buf_len, "");
+            break;
+    }
+}
+
+static uint32_t pump_home_main_hint_color_get(uint8_t mode)
+{
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
+    (void)mode;
+    return PUMP_HOME_MAIN_HINT_COLOR;
+#else
+    switch (mode) {
+        case BREAST_PUMP_STIMULATION_MODE:
+            return PUMP_HOME_MAIN_HINT_COLOR_STIMULATION;
+        case BREAST_PUMP_LACTATION_MODE:
+            return PUMP_HOME_MAIN_HINT_COLOR_LACTATION;
+        case BREAST_PUMP_MILK_BOOST_MODE:
+        case BREAST_PUMP_PP_MILK_TRACK_MODE:
+        case BREAST_PUMP_CUSTOM_MODE:
+            return PUMP_HOME_MAIN_HINT_COLOR_PROGRAM;
+        default:
+            return PUMP_HOME_MAIN_HINT_COLOR_STIMULATION;
+    }
+#endif
+}
+
+static void pump_home_main_obj_flag_set(lv_obj_t *obj, bool visible)
+{
+    if (obj == NULL || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    if (visible) {
+        lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static lv_coord_t pump_home_main_time_y_offset_get(const pump_home_base_ui_info_t *info)
+{
+    return info->main.shown_mode_switch ? PUMP_HOME_MAIN_TIME_MODE_SWITCH_OFFSET_Y : 0;
+}
+
+static void pump_home_main_time_layout_invalidate(pump_home_base_ui_info_t *info)
+{
+    info->main.shown_hours = 0xFF;
+    info->main.shown_minutes = 0xFF;
+    info->main.shown_seconds = 0xFF;
+    info->main.shown_digit_size = 0;
+}
+
+static void pump_home_main_obj_scale_set(lv_obj_t *obj, int32_t scale)
+{
+    if (obj == NULL || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    lv_obj_update_layout(obj);
+    lv_obj_set_style_transform_pivot_x(obj, lv_obj_get_width(obj) / 2, 0);
+    lv_obj_set_style_transform_pivot_y(obj, lv_obj_get_height(obj) / 2, 0);
+    lv_obj_set_style_transform_scale(obj, scale, 0);
+}
+
+static void pump_home_main_bg_detach(pump_home_base_ui_info_t *info)
+{
+    if (info->main.bg == NULL || !lv_obj_is_valid(info->main.bg)) {
+        return;
+    }
+
+    const void *src = lv_image_get_src(info->main.bg);
+    if (src == NULL) {
+        return;
+    }
+
+    /* 预解码背景由 snapshot 模块持有，页面只解绑，不 destroy */
+    if (get_predecoded_bg(info->main.shown_bg_id) == src) {
+        lv_image_set_src(info->main.bg, NULL);
+        return;
+    }
+    ui_img_png_release_decoded_buf(info->main.bg);
+}
+
+static void pump_home_main_bg_update(pump_home_base_ui_info_t *info, uint8_t mode)
+{
+    const uint16_t res_id = pump_home_main_bg_res_id_get(mode);
+    lv_draw_buf_t *predecoded;
+
+    if (info->main.bg == NULL || !lv_obj_is_valid(info->main.bg)) {
+        info->main.bg = lv_image_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->main.bg);
+        lv_obj_move_background(info->main.bg);
+    }
+    if (info->main.shown_bg_id == res_id && info->force_update == false) {
+        return;
+    }
+
+    pump_home_main_bg_detach(info);
+    predecoded = get_predecoded_bg(res_id);
+    if (predecoded != NULL) {
+        lv_image_set_src(info->main.bg, predecoded);
+    } else {
+        ui_img_png_theme_set_src(info->ui, info->main.bg, res_id,
+            RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888);
+    }
+    lv_obj_align(info->main.bg, LV_ALIGN_CENTER, 0, 0);
+    info->main.shown_bg_id = res_id;
+}
+
+static void pump_home_main_mode_title_update(pump_home_base_ui_info_t *info, uint8_t mode)
+{
+    char title[PUMP_HOME_BASE_CUSTOM_MODE_NAME_LEN] = {0};
+
+    pump_home_main_mode_title_get(info, mode, title, sizeof(title));
+    if (info->main.mode_title == NULL || !lv_obj_is_valid(info->main.mode_title)) {
+        info->main.mode_title = lv_label_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->main.mode_title);
+        lv_obj_set_style_text_color(info->main.mode_title, lv_color_hex(PUMP_HOME_MAIN_MODE_TITLE_COLOR), 0);
+        lv_obj_set_style_text_font(info->main.mode_title, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_align(info->main.mode_title, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_letter_space(info->main.mode_title, 0, 0);
+    }
+
+    if (strncmp(info->main.shown_title, title, sizeof(info->main.shown_title)) == 0 &&
+        info->force_update == false) {
+        return;
+    }
+    lv_label_set_text(info->main.mode_title, title);
+    lv_obj_align(info->main.mode_title, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MAIN_MODE_TITLE_Y);
+    strncpy(info->main.shown_title, title, sizeof(info->main.shown_title) - 1);
+    info->main.shown_title[sizeof(info->main.shown_title) - 1] = '\0';
+}
+
+static void pump_home_main_time_pair_update(lv_obj_t *labels[PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT],
+    lv_obj_t *parent, uint8_t value, const lv_font_t *font, lv_coord_t seg_x, lv_coord_t seg_y,
+    lv_coord_t seg_width, bool hidden)
+{
+    const lv_coord_t cell_w = seg_width / PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT;
+    char digit_text[2] = {0};
+    int i;
+
+    for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
+        if (labels[i] == NULL || !lv_obj_is_valid(labels[i])) {
+            labels[i] = lv_label_create(parent);
+            EXCEPTION_CHECK_VOID(labels[i]);
+            lv_label_set_long_mode(labels[i], LV_LABEL_LONG_CLIP);
+            lv_obj_set_style_text_align(labels[i], LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_set_style_text_color(labels[i], lv_color_hex(PUMP_HOME_MAIN_TIME_COLOR), 0);
+            lv_obj_set_style_text_letter_space(labels[i], 0, 0);
+        }
+        digit_text[0] = (char)('0' + (i == 0 ? value / 10 : value % 10));
+        digit_text[1] = '\0';
+        lv_obj_set_width(labels[i], cell_w);
+        lv_obj_set_style_text_font(labels[i], font, 0);
+        lv_label_set_text(labels[i], digit_text);
+        lv_obj_align(labels[i], LV_ALIGN_TOP_LEFT, seg_x + i * cell_w, seg_y);
+        pump_home_main_obj_flag_set(labels[i], !hidden);
+    }
+}
+
+static void pump_home_main_time_h_update(pump_home_base_ui_info_t *info, uint8_t hours,
+    uint8_t digit_size)
+{
+    const bool hidden = (digit_size == PUMP_HOME_MAIN_TIME_2SEG);
+    const lv_coord_t y = PUMP_HOME_MAIN_TIME_3SEG_Y + pump_home_main_time_y_offset_get(info);
+
+    if (info->main.shown_hours == hours && info->main.shown_digit_size == digit_size &&
+        info->force_update == false) {
+        return;
+    }
+
+    pump_home_main_time_pair_update(info->main.time_h, pump_home_page_parent_get(info), hours,
+        &lv_font_aeonik_soft_56_semibold, PUMP_HOME_MAIN_TIME_3SEG_H_X, y,
+        PUMP_HOME_MAIN_TIME_3SEG_WIDTH, hidden);
+    info->main.shown_hours = hours;
+}
+
+static void pump_home_main_time_m_update(pump_home_base_ui_info_t *info, uint8_t minutes,
+    uint8_t digit_size)
+{
+    const lv_coord_t y_offset = pump_home_main_time_y_offset_get(info);
+
+    if (info->main.shown_minutes == minutes && info->main.shown_digit_size == digit_size &&
+        info->force_update == false) {
+        return;
+    }
+
+    if (digit_size == PUMP_HOME_MAIN_TIME_2SEG) {
+        pump_home_main_time_pair_update(info->main.time_m, pump_home_page_parent_get(info), minutes,
+            &lv_font_aeonik_soft_69_semibold, PUMP_HOME_MAIN_TIME_2SEG_M_X,
+            PUMP_HOME_MAIN_TIME_2SEG_Y + y_offset, PUMP_HOME_MAIN_TIME_2SEG_WIDTH, false);
+    } else {
+        pump_home_main_time_pair_update(info->main.time_m, pump_home_page_parent_get(info), minutes,
+            &lv_font_aeonik_soft_56_semibold, PUMP_HOME_MAIN_TIME_3SEG_M_X,
+            PUMP_HOME_MAIN_TIME_3SEG_Y + y_offset, PUMP_HOME_MAIN_TIME_3SEG_WIDTH, false);
+    }
+    info->main.shown_minutes = minutes;
+}
+
+static void pump_home_main_time_s_update(pump_home_base_ui_info_t *info, uint8_t seconds,
+    uint8_t digit_size)
+{
+    const lv_coord_t y_offset = pump_home_main_time_y_offset_get(info);
+
+    if (info->main.shown_seconds == seconds && info->main.shown_digit_size == digit_size &&
+        info->force_update == false) {
+        return;
+    }
+
+    if (digit_size == PUMP_HOME_MAIN_TIME_2SEG) {
+        pump_home_main_time_pair_update(info->main.time_s, pump_home_page_parent_get(info), seconds,
+            &lv_font_aeonik_soft_69_semibold, PUMP_HOME_MAIN_TIME_2SEG_S_X,
+            PUMP_HOME_MAIN_TIME_2SEG_Y + y_offset, PUMP_HOME_MAIN_TIME_2SEG_WIDTH, false);
+    } else {
+        pump_home_main_time_pair_update(info->main.time_s, pump_home_page_parent_get(info), seconds,
+            &lv_font_aeonik_soft_56_semibold, PUMP_HOME_MAIN_TIME_3SEG_S_X,
+            PUMP_HOME_MAIN_TIME_3SEG_Y + y_offset, PUMP_HOME_MAIN_TIME_3SEG_WIDTH, false);
+    }
+    info->main.shown_seconds = seconds;
+}
+
+static void pump_home_main_time_colon_release(pump_home_base_ui_info_t *info)
+{
+    int i;
+
+    for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+        if (info->main.time_colon[i] != NULL && lv_obj_is_valid(info->main.time_colon[i])) {
+            lv_image_set_src(info->main.time_colon[i], NULL);
+        }
+    }
+    if (info->main.time_colon_buf != NULL) {
+        lv_draw_buf_destroy(info->main.time_colon_buf);
+        info->main.time_colon_buf = NULL;
+    }
+    ui_img_baj_release_decoded_buf(info->main.time_colon_2seg);
+}
+
+static void pump_home_main_time_colon_3seg_update(pump_home_base_ui_info_t *info)
+{
+    static const lv_coord_t colon_x[PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT] = {
+        PUMP_HOME_MAIN_TIME_COLON_HM_X,
+        PUMP_HOME_MAIN_TIME_COLON_MS_X,
+    };
+    const lv_coord_t colon_y = PUMP_HOME_MAIN_TIME_COLON_3SEG_Y +
+        pump_home_main_time_y_offset_get(info);
+    lv_obj_t *parent = pump_home_page_parent_get(info);
+    int i;
+
+    for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+        if (info->main.time_colon[i] == NULL || !lv_obj_is_valid(info->main.time_colon[i])) {
+            info->main.time_colon[i] = lv_image_create(parent);
+            EXCEPTION_CHECK_VOID(info->main.time_colon[i]);
+        }
+    }
+
+    if (info->main.time_colon_buf == NULL) {
+        info->main.time_colon_buf = ui_img_baj_theme_decode_draw_buf(info->ui,
+            BASE_RES_ID_HOUR_COLON_ICON, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+    EXCEPTION_CHECK_VOID(info->main.time_colon_buf);
+
+    for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+        lv_image_set_src(info->main.time_colon[i], info->main.time_colon_buf);
+        lv_obj_align(info->main.time_colon[i], LV_ALIGN_TOP_LEFT, colon_x[i], colon_y);
+        pump_home_main_obj_flag_set(info->main.time_colon[i], true);
+    }
+}
+
+static void pump_home_main_time_colon_2seg_update(pump_home_base_ui_info_t *info)
+{
+    lv_obj_t *parent = pump_home_page_parent_get(info);
+    int i;
+
+    if (info->main.time_colon_2seg == NULL || !lv_obj_is_valid(info->main.time_colon_2seg)) {
+        info->main.time_colon_2seg = lv_image_create(parent);
+        EXCEPTION_CHECK_VOID(info->main.time_colon_2seg);
+        ui_img_baj_theme_set_src(info->ui, info->main.time_colon_2seg, BASE_RES_ID_CLOCK_COLON_ICON,
+            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+    lv_obj_align(info->main.time_colon_2seg, LV_ALIGN_TOP_MID,
+        PUMP_HOME_MAIN_TIME_2SEG_COLON_X,
+        PUMP_HOME_MAIN_TIME_2SEG_COLON_Y + pump_home_main_time_y_offset_get(info));
+    pump_home_main_obj_flag_set(info->main.time_colon_2seg, true);
+
+    for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+        pump_home_main_obj_flag_set(info->main.time_colon[i], false);
+    }
+}
+
+static void pump_home_main_time_colon_update(pump_home_base_ui_info_t *info, uint8_t digit_size)
+{
+    if (info->main.shown_digit_size == digit_size && info->force_update == false &&
+        ((digit_size == PUMP_HOME_MAIN_TIME_2SEG &&
+          info->main.time_colon_2seg != NULL && lv_obj_is_valid(info->main.time_colon_2seg)) ||
+         (digit_size == PUMP_HOME_MAIN_TIME_3SEG &&
+          info->main.time_colon_buf != NULL))) {
+        return;
+    }
+
+    if (digit_size == PUMP_HOME_MAIN_TIME_2SEG) {
+        pump_home_main_time_colon_2seg_update(info);
+    } else {
+        pump_home_main_obj_flag_set(info->main.time_colon_2seg, false);
+        pump_home_main_time_colon_3seg_update(info);
+    }
+}
+
+static void pump_home_main_time_visibility_set(pump_home_base_ui_info_t *info, bool visible,
+    uint8_t digit_size)
+{
+    int i;
+    const bool show_3seg = visible && (digit_size == PUMP_HOME_MAIN_TIME_3SEG);
+    const bool show_2seg = visible && (digit_size == PUMP_HOME_MAIN_TIME_2SEG);
+
+    for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
+        pump_home_main_obj_flag_set(info->main.time_h[i], show_3seg);
+        pump_home_main_obj_flag_set(info->main.time_m[i], visible);
+        pump_home_main_obj_flag_set(info->main.time_s[i], visible);
+    }
+    for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+        pump_home_main_obj_flag_set(info->main.time_colon[i], show_3seg);
+    }
+    pump_home_main_obj_flag_set(info->main.time_colon_2seg, show_2seg);
+}
+
+static void pump_home_main_time_update(pump_home_base_ui_info_t *info, uint8_t hours,
+    uint8_t minutes, uint8_t seconds, bool paused)
+{
+    const uint8_t digit_size = (hours == 0) ? PUMP_HOME_MAIN_TIME_2SEG : PUMP_HOME_MAIN_TIME_3SEG;
+
+    if (!paused) {
+        pump_home_main_time_h_update(info, hours, digit_size);
+        pump_home_main_time_m_update(info, minutes, digit_size);
+        pump_home_main_time_s_update(info, seconds, digit_size);
+        pump_home_main_time_colon_update(info, digit_size);
+        info->main.shown_digit_size = digit_size;
+    }
+    pump_home_main_time_visibility_set(info, !paused, digit_size);
+}
+
+static void pump_home_main_play_icon_update(pump_home_base_ui_info_t *info, bool paused)
+{
+    if (!paused) {
+        pump_home_main_obj_flag_set(info->main.play_icon, false);
+        return;
+    }
+
+    if (info->main.play_icon == NULL || !lv_obj_is_valid(info->main.play_icon)) {
+        info->main.play_icon = lv_image_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->main.play_icon);
+        ui_img_baj_theme_set_src(info->ui, info->main.play_icon, BASE_RES_ID_PLAY_ICON,
+            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+    lv_obj_align(info->main.play_icon, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MAIN_PLAY_ICON_Y);
+    pump_home_main_obj_flag_set(info->main.play_icon, true);
+}
+
+static void pump_home_main_hint_style_get(ui_shine_style_t *style)
+{
+    ui_shine_style_init(style);
+    style->mask_w = PUMP_HOME_MAIN_MASK_W;
+    style->mask_y = PUMP_HOME_MAIN_MASK_Y;
+    style->screen_w = PUMP_HOME_MAIN_SCREEN_W;
+}
+
+static void pump_home_main_hint_text_update(pump_home_base_ui_info_t *info, uint8_t mode,
+    bool paused)
+{
+    const uint32_t color = pump_home_main_hint_color_get(mode);
+
+    if (!paused) {
+        pump_home_main_obj_flag_set(info->main.hint_text, false);
+        return;
+    }
+
+    if (info->main.hint_text != NULL && lv_obj_is_valid(info->main.hint_text) &&
+        info->main.shown_hint_color == color && info->force_update == false &&
+        info->main.shown_paused != 0) {
+        pump_home_main_obj_flag_set(info->main.hint_text, true);
+        return;
+    }
+
+    if (info->main.hint_text == NULL || !lv_obj_is_valid(info->main.hint_text)) {
+        info->main.hint_text = lv_label_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->main.hint_text);
+        lv_obj_set_style_text_font(info->main.hint_text, &lv_font_aeonik_soft_19_medium, 0);
+        lv_obj_set_style_text_align(info->main.hint_text, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_letter_space(info->main.hint_text, 0, 0);
+    }
+    lv_obj_set_style_text_color(info->main.hint_text, lv_color_hex(color), 0);
+    lv_label_set_text(info->main.hint_text, PUMP_HOME_MAIN_HINT_TEXT);
+    lv_obj_align(info->main.hint_text, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MAIN_HINT_Y);
+    pump_home_main_obj_flag_set(info->main.hint_text, true);
+    info->main.shown_hint_color = color;
+}
+
+static void pump_home_main_hint_mask_update(pump_home_base_ui_info_t *info, bool paused)
+{
+    lv_obj_t *parent = pump_home_page_parent_get(info);
+    ui_shine_style_t style;
+
+    if (!paused) {
+        ui_shine_hide(&info->main.hint_shine);
+        return;
+    }
+
+    if (info->main.hint_shine.mask != NULL && lv_obj_is_valid(info->main.hint_shine.mask) &&
+        info->main.hint_shine.shine != NULL && lv_obj_is_valid(info->main.hint_shine.shine) &&
+        info->force_update == false && info->main.shown_paused != 0) {
+        ui_shine_show(&info->main.hint_shine);
+        return;
+    }
+
+    pump_home_main_hint_style_get(&style);
+    if (info->main.shown_paused != 1) {
+        info->main.hint_shine.mask_x = (int16_t)(-(int16_t)style.mask_w);
+        info->main.hint_shine.mask_tick_ms = get_timestamp();
+    }
+    ui_shine_prepare_from_text(&info->main.hint_shine, &style,
+        PUMP_HOME_MAIN_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0);
+    ui_shine_update(&info->main.hint_shine, parent, &style, info->main.hint_text, 1);
+    ui_shine_show(&info->main.hint_shine);
+}
+
+static void pump_home_main_hint_update(pump_home_base_ui_info_t *info, uint8_t mode, bool paused)
+{
+    pump_home_main_hint_text_update(info, mode, paused);
+    pump_home_main_hint_mask_update(info, paused);
+}
+
+static void pump_home_main_hint_shine_anim_update(pump_home_base_ui_info_t *info, bool paused)
+{
+    ui_shine_style_t style;
+    uint8_t anim_paused;
+
+    if (!paused) {
+        return;
+    }
+
+    pump_home_main_hint_style_get(&style);
+    anim_paused = info->animation.paused_by_transition ? 1 : 0;
+    ui_shine_anim_update(&info->main.hint_shine, &style, info->main.hint_text, anim_paused);
+}
+
+static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, uint8_t mode_type)
+{
+    char tip_buf[64] = {0};
+    const uint8_t pump_mode = info->mode.new_index;
+    uint8_t mode_switch = info->main.shown_mode_switch;
+    bool state_changed;
+    bool type_changed;
+    bool pump_mode_changed;
+
+    type_changed = (info->main.tracked_mode_type != 0xFF &&
+        info->main.tracked_mode_type != mode_type);
+    pump_mode_changed = (info->main.tracked_pump_mode != 0xFF &&
+        info->main.tracked_pump_mode != pump_mode);
+
+    /*
+     * 仅韵律模式下、同一工作模式内的子模式切换才提示。
+     * 非韵律刺激↔吸乳、韵律↔刺激/吸乳（工作模式切换）均不显示。
+     */
+    if (type_changed && !pump_mode_changed && !PUMP_IS_COMMON_MODE(pump_mode)) {
+        mode_switch = 1;
+        info->main.mode_switch_time = get_timestamp();
+    } else if (pump_mode_changed || PUMP_IS_COMMON_MODE(pump_mode)) {
+        mode_switch = 0;
+    }
+
+    info->main.tracked_mode_type = mode_type;
+    info->main.tracked_pump_mode = pump_mode;
+
+    if (mode_switch &&
+        get_timestamp_ms(info->main.mode_switch_time) >= PUMP_SUB_MODE_SWITCH_TIMEOUT_MS) {
+        mode_switch = 0;
+    }
+
+    state_changed = (info->main.shown_mode_switch != mode_switch) ||
+        (mode_switch && info->main.tip_mode_type != mode_type) ||
+        (info->force_update != 0);
+
+    if (info->main.mode_switch_label == NULL || !lv_obj_is_valid(info->main.mode_switch_label)) {
+        info->main.mode_switch_label = lv_label_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->main.mode_switch_label);
+        lv_obj_set_style_text_color(info->main.mode_switch_label,
+            lv_color_hex(PUMP_HOME_MAIN_MODE_SWITCH_COLOR), 0);
+        lv_obj_set_style_text_opa(info->main.mode_switch_label, PUMP_HOME_MAIN_MODE_SWITCH_OPA, 0);
+        lv_obj_set_style_text_font(info->main.mode_switch_label, &lv_font_aeonik_soft_19_medium, 0);
+        lv_obj_set_style_text_align(info->main.mode_switch_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_line_space(info->main.mode_switch_label,
+            PUMP_HOME_MAIN_MODE_SWITCH_LINE_SPACE, 0);
+        lv_obj_set_style_text_letter_space(info->main.mode_switch_label, 0, 0);
+        state_changed = true;
+    }
+
+    if (state_changed == false) {
+        return;
+    }
+
+    if (mode_switch) {
+        info->main.tip_mode_type = mode_type;
+        snprintf(tip_buf, sizeof(tip_buf), PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT,
+            home_level_adjust_mode_type_name_get(mode_type));
+        lv_label_set_text(info->main.mode_switch_label, tip_buf);
+        lv_obj_align(info->main.mode_switch_label, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MAIN_MODE_SWITCH_Y);
+        pump_home_main_obj_flag_set(info->main.mode_switch_label, true);
+        info->animation.hidden_by_mode_switch = 1;
+    } else {
+        pump_home_main_obj_flag_set(info->main.mode_switch_label, false);
+        info->animation.hidden_by_mode_switch = 0;
+    }
+
+    if (info->main.shown_mode_switch != mode_switch) {
+        pump_home_main_time_layout_invalidate(info);
+    }
+    info->main.shown_mode_switch = mode_switch;
+}
+
+static void pump_home_main_speed_update(pump_home_base_ui_info_t *info, uint8_t speed)
+{
+    char speed_text[8] = {0};
+    lv_coord_t icon_w = 0;
+    lv_coord_t value_w = 0;
+    lv_coord_t total_w;
+    lv_coord_t start_x;
+
+    if (info->main.speed_icon == NULL || !lv_obj_is_valid(info->main.speed_icon)) {
+        info->main.speed_icon = lv_image_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->main.speed_icon);
+        ui_img_baj_theme_set_src(info->ui, info->main.speed_icon, BASE_RES_ID_SPEED_ICON,
+            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    }
+    if (info->main.speed_value == NULL || !lv_obj_is_valid(info->main.speed_value)) {
+        info->main.speed_value = lv_label_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->main.speed_value);
+        lv_obj_set_style_text_color(info->main.speed_value, lv_color_hex(PUMP_HOME_MAIN_SPEED_COLOR), 0);
+        lv_obj_set_style_text_font(info->main.speed_value, &lv_font_aeonik_soft_26_medium, 0);
+    }
+
+    if (info->main.shown_speed == speed && info->force_update == false) {
+        return;
+    }
+
+    /// 存储为 0 基，界面按 1 基展示
+    snprintf(speed_text, sizeof(speed_text), "%u", (unsigned)(speed + 1));
+    lv_label_set_text(info->main.speed_value, speed_text);
+    lv_obj_update_layout(info->main.speed_icon);
+    lv_obj_update_layout(info->main.speed_value);
+    icon_w = lv_obj_get_width(info->main.speed_icon);
+    value_w = lv_obj_get_width(info->main.speed_value);
+    total_w = icon_w + PUMP_HOME_MAIN_SPEED_ICON_VALUE_GAP + value_w;
+    if (total_w > PUMP_HOME_MAIN_SPEED_GROUP_WIDTH) {
+        total_w = PUMP_HOME_MAIN_SPEED_GROUP_WIDTH;
+    }
+    start_x = (PUMP_HOME_MAIN_SCREEN_W - total_w) / 2;
+    lv_obj_align(info->main.speed_icon, LV_ALIGN_TOP_LEFT, start_x, PUMP_HOME_MAIN_SPEED_ICON_Y);
+    lv_obj_align(info->main.speed_value, LV_ALIGN_TOP_LEFT,
+        start_x + icon_w + PUMP_HOME_MAIN_SPEED_ICON_VALUE_GAP, PUMP_HOME_MAIN_SPEED_VALUE_Y);
+    info->main.shown_speed = speed;
+}
+
+static void pump_home_main_level_label_update(lv_obj_t **label, lv_obj_t *parent, const char *prefix,
+    uint8_t level, lv_coord_t x, lv_coord_t y, lv_coord_t width, lv_text_align_t align,
+    uint8_t *shown_level, bool force)
+{
+    char text[8] = {0};
+
+    if (*label == NULL || !lv_obj_is_valid(*label)) {
+        *label = lv_label_create(parent);
+        EXCEPTION_CHECK_VOID(*label);
+        lv_label_set_long_mode(*label, LV_LABEL_LONG_CLIP);
+        lv_obj_set_width(*label, width);
+        lv_obj_set_style_text_color(*label, lv_color_hex(PUMP_HOME_MAIN_LEVEL_COLOR), 0);
+        lv_obj_set_style_text_font(*label, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_align(*label, align, 0);
+        lv_obj_set_style_text_letter_space(*label, 3, 0);
+    }
+    if (*shown_level == level && force == false) {
+        return;
+    }
+    snprintf(text, sizeof(text), "%s%u", prefix, (unsigned)level);
+    lv_label_set_text(*label, text);
+    lv_obj_align(*label, LV_ALIGN_TOP_LEFT, x, y);
+    *shown_level = level;
+}
+
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+void pump_home_main_page_ui_build(pump_home_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+    ui_shine_remove(&info->main.hint_shine);
+    pump_home_main_time_colon_release(info);
+    memset(&info->main, 0, sizeof(info->main));
+    info->main.shown_bg_id = 0;
+    info->main.shown_hint_color = 0xFFFFFFFFU;
+    info->main.shown_speed = 0xFF;
+    info->main.shown_left_level = 0xFF;
+    info->main.shown_right_level = 0xFF;
+    info->main.shown_hours = 0xFF;
+    info->main.shown_minutes = 0xFF;
+    info->main.shown_seconds = 0xFF;
+    info->main.shown_digit_size = 0;
+    info->main.shown_paused = 0xFF;
+    info->main.shown_mode_switch = 0;
+    info->main.tracked_mode_type = 0xFF;
+    info->main.tracked_pump_mode = 0xFF;
+    info->main.tip_mode_type = 0xFF;
+    info->main.mode_switch_time = 0;
+    info->animation.paused_by_transition = 0;
+    info->animation.hidden_by_mode_switch = 0;
+}
+
+void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc)
+{
+    uint8_t mode;
+    bool paused;
+#if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
+    const uint8_t left_level = 9;
+    const uint8_t right_level = 13;
+#else
+    uint8_t left_level;
+    uint8_t right_level;
+#endif
+    uint8_t speed = 0;
+    pump_setting_t setting;
+    int time_index = 0;
+    const pump_result_info_t *result_info = NULL;
+    uint16_t hold_time;
+    uint8_t hours;
+    uint8_t minutes;
+    uint8_t seconds;
+
+    EXCEPTION_CHECK_VOID(info && proc && proc->pump);
+    mode = info->mode.new_index;
+    paused = (proc->pump_status == BREAST_PUMP_PAUSE);
+#if (IS_SUPPORT_BASE_PUMP_HOME_COMP_BG == 0)
+    left_level = info->level.left;
+    right_level = info->level.right;
+#endif
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
+    speed = setting.speed;
+    READ_PUMP_RESULT_INFO(proc->pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
+    EXCEPTION_CHECK_VOID(result_info);
+    hold_time = result_info->work_valid_time / 1000;
+#if IS_SUPPORT_BASE_TIME_3SEG_TEST
+    hours = info->test_hours;
+    minutes = info->test_hours;
+    seconds = info->test_hours;
+#else
+    hours = hold_time / 3600;
+    minutes = (hold_time / 60) % 60;
+    seconds = hold_time % 60;
+#endif
+#if (IS_SUPPORT_BASE_PUMP_HOME_COMP_BG == 0)
+    pump_home_main_bg_update(info, mode);
+#endif
+    pump_home_main_mode_title_update(info, mode);
+    pump_home_main_mode_switch_update(info, info->mode.new_mode_type);
+    pump_home_main_time_update(info, hours, minutes, seconds, paused);
+    pump_home_base_animation_ui_update(info);
+    pump_home_main_play_icon_update(info, paused);
+    pump_home_main_hint_update(info, mode, paused);
+    pump_home_main_hint_shine_anim_update(info, paused);
+    pump_home_main_speed_update(info, speed);
+    pump_home_main_level_label_update(&info->main.left_level, pump_home_page_parent_get(info), "L",
+        left_level, PUMP_HOME_MAIN_LEFT_LEVEL_X, PUMP_HOME_MAIN_LEFT_LEVEL_Y,
+        PUMP_HOME_MAIN_LEFT_LEVEL_W, LV_TEXT_ALIGN_RIGHT, &info->main.shown_left_level,
+        info->force_update != 0);
+    pump_home_main_level_label_update(&info->main.right_level, pump_home_page_parent_get(info), "R",
+        right_level, PUMP_HOME_MAIN_RIGHT_LEVEL_X, PUMP_HOME_MAIN_RIGHT_LEVEL_Y,
+        PUMP_HOME_MAIN_RIGHT_LEVEL_W, LV_TEXT_ALIGN_LEFT, &info->main.shown_right_level,
+        info->force_update != 0);
+    info->main.shown_paused = paused ? 1 : 0;
+    /* 缩放复位只在切页过渡里 apply；稳态每帧设 FULL 会反复 update_layout */
+}
+
+void pump_home_main_page_ui_remove(pump_home_base_ui_info_t *info)
+{
+    EXCEPTION_CHECK_VOID(info);
+    pump_home_main_bg_detach(info);
+    pump_home_main_time_colon_release(info);
+    ui_img_baj_release_decoded_buf(info->main.play_icon);
+    ui_img_baj_release_decoded_buf(info->main.speed_icon);
+    ui_shine_remove(&info->main.hint_shine);
+    memset(&info->main, 0, sizeof(info->main));
+}
+
+void pump_home_main_page_transition_apply(pump_home_base_ui_info_t *info, int32_t hero_scale,
+    int32_t bg_scale, bool transitioning)
+{
+    EXCEPTION_CHECK_VOID(info);
+    (void)hero_scale;
+    (void)bg_scale;
+    (void)transitioning;
+
+    /* page0 不缩放，仅随 page 容器位移；保持原背景与控件 */
+    if (info->main.bg != NULL && lv_obj_is_valid(info->main.bg)) {
+        lv_obj_clear_flag(info->main.bg, LV_OBJ_FLAG_HIDDEN);
+        pump_home_main_obj_scale_set(info->main.bg, PUMP_HOME_MAIN_SCALE_FULL);
+    }
+    pump_home_main_obj_scale_set(info->main.mode_title, PUMP_HOME_MAIN_SCALE_FULL);
+    {
+        uint8_t i;
+        for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT; i++) {
+            pump_home_main_obj_scale_set(info->main.time_h[i], PUMP_HOME_MAIN_SCALE_FULL);
+            pump_home_main_obj_scale_set(info->main.time_m[i], PUMP_HOME_MAIN_SCALE_FULL);
+            pump_home_main_obj_scale_set(info->main.time_s[i], PUMP_HOME_MAIN_SCALE_FULL);
+        }
+        for (i = 0; i < PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT; i++) {
+            pump_home_main_obj_scale_set(info->main.time_colon[i], PUMP_HOME_MAIN_SCALE_FULL);
+        }
+        pump_home_main_obj_scale_set(info->main.time_colon_2seg, PUMP_HOME_MAIN_SCALE_FULL);
+    }
+}

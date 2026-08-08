@@ -505,7 +505,15 @@ int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manage
     uint8_t is_display_state)
 {
     EXCEPTION_CHECK_INT(thiz && root && battery);
-    (void)is_display_state;
+
+    if (is_display_state == 0) {
+        if (battery_info != NULL && battery_info->container != NULL &&
+            lv_obj_is_valid(battery_info->container)) {
+            lv_obj_add_flag(battery_info->container, LV_OBJ_FLAG_HIDDEN);
+            battery_info->force_update = true;
+        }
+        return 0;
+    }
 
     const uint8_t percent = battery->get_battery_percent();
     const uint8_t charge_status = battery->get_charge_status();
@@ -514,6 +522,10 @@ int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manage
     const uint8_t is_eco_layout = (!is_charging && percent < BATTERY_ECO_LAYOUT_PERCENTAGE) ? 1 : 0;
 
     if (!battery_ui_need_update(thiz, percent, is_low_power, is_eco_layout, is_charging, root)) {
+        if (battery_info->container != NULL && lv_obj_is_valid(battery_info->container)) {
+            lv_obj_clear_flag(battery_info->container, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(battery_info->container);
+        }
         return 0;
     }
 
@@ -537,6 +549,8 @@ int battery_ui_update(ui_manager_context_t *thiz, lv_obj_t *root, battery_manage
         battery_ui_normal_update(thiz, percent, is_low_power);
     }
     battery_ui_eco_update(thiz, is_eco_layout);
+    lv_obj_clear_flag(battery_info->container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(battery_info->container);
 
     battery_info->percent = percent;
     battery_info->is_low_power = is_low_power;

@@ -6,28 +6,46 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
+#include "ui_shine_component.h" // IWYU pragma: keep
+#include "ui_snapshot.h" // IWYU pragma: keep
 
 /*
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG                (0)
+#define IS_SUPPORT_HOME_SCREEN_SAVER_COMP_BG                (0)
 
-#define HOME_SCREEN_SAVER_MID_GRAY_RING_SIZE                     (248)
-#define HOME_SCREEN_SAVER_INNER_GRAY_RING_SIZE                   (160)
-#define HOME_SCREEN_SAVER_MID_GRAY_RING_COLOR                    (0x160B2A)
-#define HOME_SCREEN_SAVER_INNER_GRAY_RING_COLOR                  (0x291947)
+#define HOME_SAVER_SCREEN_W                                 (360)
+
+#if 1
+#define HOME_SAVER_HINT_Y                                   (88)
+#define HOME_SAVER_HINT_TEXT                                "Press anywhere to wake up"
+#else
+#define HOME_SAVER_HINT_Y                                   (90)
+#define HOME_SAVER_HINT_TEXT                                "Press the knob to unlock"
+#endif
+
+#if IS_SUPPORT_HOME_SCREEN_SAVER_COMP_BG
+#define HOME_SAVER_HINT_COLOR                               (0x00FF00)
+#else
+#define HOME_SAVER_HINT_COLOR                               (0x999999)
+#endif
+
+#define HOME_SAVER_HINT_SHINE_W                             (140)
+#define HOME_SAVER_MASK_W                                   (HOME_SAVER_HINT_SHINE_W)
+#define HOME_SAVER_MASK_Y                                   (HOME_SAVER_HINT_Y)
+
 typedef struct {
     lv_obj_t * root;
-#if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
+#if IS_SUPPORT_HOME_SCREEN_SAVER_COMP_BG
     lv_obj_t * backgroud;
 #endif
     lv_obj_t * black_ring;
-    lv_obj_t * mid_gray_ring;
-    lv_obj_t * inner_gray_ring;
     lv_obj_t * saver_icon;
+    lv_obj_t * hint_text;                /// Press the knob to unlock
+    ui_shine_info_t hint_shine;          /// 扫光（字库文案软边）
     uint8_t force_update;
-    uint8_t rsv[15];
+    uint8_t rsv[7];
 } home_screen_saver_display_info_t;
 
 /*
@@ -50,24 +68,6 @@ static PSRAM_DATA_LOC uint8_t home_screen_saver_bg_data[] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static lv_obj_t *home_screen_saver_circle_create(lv_obj_t *parent, lv_coord_t size, uint32_t color)
-{
-    lv_obj_t *circle = lv_obj_create(parent);
-
-    if (circle == NULL) {
-        return NULL;
-    }
-    lv_obj_remove_style_all(circle);
-    lv_obj_set_size(circle, size, size);
-    lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(circle, lv_color_hex(color), 0);
-    lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(circle, 0, 0);
-    lv_obj_clear_flag(circle, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_align(circle, LV_ALIGN_CENTER, 0, 0);
-    return circle;
-}
-
 static void home_screen_saver_root_init(void)
 {
     if (saver_info->root == NULL || !lv_obj_is_valid(saver_info->root)) {
@@ -81,20 +81,6 @@ static void home_screen_saver_root_init(void)
     lv_obj_align(saver_info->root, LV_ALIGN_CENTER, 0, 0);
     lv_obj_clear_flag(saver_info->root, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(saver_info->root, LV_OBJ_FLAG_SCROLLABLE);
-}
-
-static void home_screen_saver_rings_init(void)
-{
-    if (saver_info->mid_gray_ring == NULL || !lv_obj_is_valid(saver_info->mid_gray_ring)) {
-        saver_info->mid_gray_ring = home_screen_saver_circle_create(saver_info->root,
-            HOME_SCREEN_SAVER_MID_GRAY_RING_SIZE, HOME_SCREEN_SAVER_MID_GRAY_RING_COLOR);
-        EXCEPTION_CHECK_VOID(saver_info->mid_gray_ring);
-    }
-    if (saver_info->inner_gray_ring == NULL || !lv_obj_is_valid(saver_info->inner_gray_ring)) {
-        saver_info->inner_gray_ring = home_screen_saver_circle_create(saver_info->root,
-            HOME_SCREEN_SAVER_INNER_GRAY_RING_SIZE, HOME_SCREEN_SAVER_INNER_GRAY_RING_COLOR);
-        EXCEPTION_CHECK_VOID(saver_info->inner_gray_ring);
-    }
 }
 
 #if IS_SUPPORT_ROOT_HOME_SCREEN_SAVER_COMP_BG
@@ -140,6 +126,64 @@ static void home_screen_saver_icon_prepare(ui_manager_context_t *thiz)
     lv_obj_align(saver_info->saver_icon, LV_ALIGN_CENTER, 0, 0);
 }
 
+static void home_screen_saver_hint_style_get(ui_shine_style_t *style)
+{
+    ui_shine_style_init(style);
+    style->mask_w = HOME_SAVER_MASK_W;
+    style->mask_y = HOME_SAVER_MASK_Y;
+    style->screen_w = HOME_SAVER_SCREEN_W;
+}
+
+static void home_screen_saver_hint_text_update(void)
+{
+    if (saver_info->hint_text != NULL && lv_obj_is_valid(saver_info->hint_text) &&
+        saver_info->force_update == false) {
+        return;
+    }
+
+    if (saver_info->hint_text == NULL || !lv_obj_is_valid(saver_info->hint_text)) {
+        saver_info->hint_text = lv_label_create(saver_info->root);
+        EXCEPTION_CHECK_VOID(saver_info->hint_text);
+        lv_obj_set_style_text_font(saver_info->hint_text, &lv_font_aeonik_soft_19_medium, 0);
+        lv_obj_set_style_text_align(saver_info->hint_text, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_letter_space(saver_info->hint_text, 0, 0);
+    }
+    lv_obj_set_style_text_color(saver_info->hint_text, lv_color_hex(HOME_SAVER_HINT_COLOR), 0);
+    lv_label_set_text(saver_info->hint_text, HOME_SAVER_HINT_TEXT);
+    lv_obj_align(saver_info->hint_text, LV_ALIGN_TOP_MID, 0, HOME_SAVER_HINT_Y);
+}
+
+/** 裁剪窗内亮色扫光：字库栅格 + TEXT_SHINE_MASK 剖面烘焙软边 */
+static void home_screen_saver_hint_mask_update(void)
+{
+    ui_shine_style_t style;
+
+    if (saver_info->hint_shine.mask != NULL && lv_obj_is_valid(saver_info->hint_shine.mask) &&
+        saver_info->hint_shine.shine != NULL && lv_obj_is_valid(saver_info->hint_shine.shine) &&
+        saver_info->force_update == false) {
+        return;
+    }
+
+    home_screen_saver_hint_style_get(&style);
+    ui_shine_prepare_from_text(&saver_info->hint_shine, &style,
+        HOME_SAVER_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0);
+    ui_shine_update(&saver_info->hint_shine, saver_info->root, &style, saver_info->hint_text, 1);
+}
+
+static void home_screen_saver_hint_update(void)
+{
+    home_screen_saver_hint_text_update();
+    home_screen_saver_hint_mask_update();
+}
+
+static void home_screen_saver_hint_shine_anim_update(void)
+{
+    ui_shine_style_t style;
+
+    home_screen_saver_hint_style_get(&style);
+    ui_shine_anim_update(&saver_info->hint_shine, &style, saver_info->hint_text, 0);
+}
+
 static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home_t *proc)
 {
     (void)proc;
@@ -147,6 +191,7 @@ static void home_screen_saver_ui_update(ui_manager_context_t *thiz, ui_proc_home
         return;
     }
     home_screen_saver_icon_prepare(thiz);
+    home_screen_saver_hint_update();
 }
 
 /*
@@ -163,11 +208,11 @@ void home_screen_saver_base_ui_prepare(ui_manager_context_t *thiz)
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
     home_screen_saver_root_init();
-    home_screen_saver_rings_init();
     ble_ui_init(thiz);
     battery_ui_init(thiz);
     saver_info->force_update = true;
     home_screen_saver_icon_prepare(thiz);
+    home_screen_saver_hint_update();
     saver_info->force_update = false;
 }
 
@@ -175,6 +220,7 @@ void home_screen_saver_base_ui_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && saver_info);
     ui_img_png_release_decoded_buf(saver_info->saver_icon);
+    ui_shine_remove(&saver_info->hint_shine);
     ble_ui_deinit(thiz);
     battery_ui_deinit(thiz);
     LVGL_OBJ_DELETE(saver_info->root);
@@ -186,12 +232,13 @@ int home_screen_saver_base_ui_process(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz && saver_info && saver_info->root);
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
-    EXCEPTION_CHECK_INT(proc && proc->ble);
+    EXCEPTION_CHECK_INT(proc && proc->ble && proc->battery);
     home_screen_saver_root_bg_update(thiz);
     battery_ui_update(thiz, saver_info->root, proc->battery, true);
     ble_ui_update(thiz, saver_info->root, proc->ble,
         battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X), BASE_PUMP_HOME_BLE_UI_Y, NULL);
     home_screen_saver_ui_update(thiz, proc);
+    home_screen_saver_hint_shine_anim_update();
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();

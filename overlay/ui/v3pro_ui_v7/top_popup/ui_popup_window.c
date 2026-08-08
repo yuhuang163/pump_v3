@@ -20,12 +20,8 @@ static bool popup_window_is_supported(popup_ui_id_e popup_type)
         case ID_POPUP_UI_BT_CONNECT:
         case ID_POPUP_UI_BT_DISCONNECT:
         case ID_POPUP_UI_BT_CONNECTING:
-        case ID_POPUP_UI_DEVICE_BIND:
-        case ID_POPUP_UI_DEVICE_UNBIND:
         case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
         case ID_POPUP_UI_LOW_POWER:
-        case ID_POPUP_UI_WILL_POWER_OFF:
-        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
         case ID_POPUP_UI_SYS_ERROR:
         case ID_POPUP_UI_TEMP_ERROR:
             return true;
@@ -52,17 +48,11 @@ static void popup_window_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
         case ID_POPUP_UI_BT_CONNECTING:
             popup_window_ble_ui_update(thiz, popup_type);
             break;
-        case ID_POPUP_UI_DEVICE_BIND:
-        case ID_POPUP_UI_DEVICE_UNBIND:
-            popup_window_device_ui_update(thiz, popup_type);
-            break;
-        case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
         case ID_POPUP_UI_LOW_POWER:
-        case ID_POPUP_UI_WILL_POWER_OFF:
             popup_window_power_ui_update(thiz, popup_type);
             break;
-        case ID_POPUP_UI_PUMP_PAUSE_SETTLE:
-            popup_window_pump_stop_ui_update(thiz, popup_type);
+        case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
+            popup_window_travel_lock_ui_update(thiz, popup_type);
             break;
         case ID_POPUP_UI_SYS_ERROR:
         case ID_POPUP_UI_TEMP_ERROR:
@@ -95,8 +85,13 @@ void popup_window_ui_prepare(ui_manager_context_t *thiz, popup_ui_id_e type, uin
     popup_info->countdown.max_value = time / 1000;
     popup_info->arc.ring_progress_max = (time > 0) ?
         ((time / POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME) - POPUP_WINDOW_STATUS_ARC_RING_PROGRESS_LEAD_STEPS) : 0;
+    ui_progress_arc_reset(&popup_info->progress_arc);
     popup_info->runtime.force_update = true;
     popup_info->runtime.start_time = get_timestamp();
+    if (type == ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN) {
+        /// 进入弹窗时进度条预跑 1s（总 5s，剩余实按约 4s）
+        popup_info->runtime.start_time -= POPUP_TRAVEL_LOCK_COUNTDOWN_PRE_ELAPSED_MS;
+    }
     LOG_UI("popup: %s, time:%d", popup_window_name_get(thiz, type), time);
 }
 
