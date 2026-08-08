@@ -78,6 +78,8 @@ extern "C" {
 #define IS_SUPPORT_PRESSURE_TEST                         (1)
 /// 支持爬升策略
 #define IS_SUPPORT_CLIMB_POLICY                          (1)
+/// 支持暂停/吸奶结束补吸策略
+#define IS_SUPPORT_MAKEUP_SUCTION                        (0)
 /// 支持长按软复位
 #define IS_SUPPORT_KEY_SOFT_RESET                        (1)
 
