@@ -50,6 +50,14 @@ extern "C" {
 #endif
 #define PUMP_MODE_SELECT_IDLE_TIMEOUT_MS       (5000) /// 5s
 
+/// 切换韵律确认页：无操作静默返回（不落地模式）
+#ifndef PUMP_RHYTHM_CONFIRM_IDLE_EXIT_ENABLE
+#define PUMP_RHYTHM_CONFIRM_IDLE_EXIT_ENABLE   (1)
+#endif
+#if PUMP_RHYTHM_CONFIRM_IDLE_EXIT_ENABLE
+#define PUMP_RHYTHM_CONFIRM_IDLE_TIMEOUT_MS    (5000) /// 5s
+#endif
+
 /// 力度调节页：非力度限制态无操作静默退出
 #define PUMP_LEVEL_ADJUST_IDLE_TIMEOUT_MS      (5000) /// 5s
 /// 速度调节页：无操作静默退出
@@ -82,6 +90,16 @@ extern "C" {
 #endif
 #define PUMP_PAUSE_IDLE_LOG_INTERVAL_MS        (3000) /// 倒计时日志间隔
 #define PUMP_PAUSE_IDLE_WAKELOCK_NAME          "pump_pause_idle"
+/**
+ * 暂停结算页方案：
+ * 方案1（默认）：按键灯全灭，展示完成后自动关机，按键不响应
+ * 方案2：按键灯全亮，点击任意按键退出结算并执行对应功能；无按键则展示完成后仍自动关机
+ */
+#define PUMP_PAUSE_TIMEOUT_SCHEME_AUTO_OFF     (1)
+#define PUMP_PAUSE_TIMEOUT_SCHEME_KEY_EXIT     (2)
+#ifndef PUMP_PAUSE_TIMEOUT_SCHEME
+#define PUMP_PAUSE_TIMEOUT_SCHEME              PUMP_PAUSE_TIMEOUT_SCHEME_AUTO_OFF
+#endif
 #endif
 
 /// 子模式同步场景（力度/速度页共用）
@@ -120,7 +138,7 @@ typedef enum {
     PUMP_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
     PUMP_UI_TYPE_SPEED_ADJUST, /// 速度调节
     PUMP_UI_TYPE_FINISH_TIMEOUT, /// 泵奶超时结算（1.2h）
-    PUMP_UI_TYPE_PAUSE_TIMEOUT, /// 暂停无操作超时结算（→ 自动关机）
+    PUMP_UI_TYPE_PAUSE_TIMEOUT, /// 暂停无操作超时结算（方案1→自动关机 / 方案2可按键退出）
     PUMP_UI_TYPE_WILL_FINISH, /// 韵律即将结束提示
     PUMP_UI_TYPE_MAX
 } pump_ui_type_e;
@@ -295,6 +313,7 @@ int pump_mode_rhythm_confirm_needed(ui_proc_pump_t *proc);
 /// 切换韵律确认页
 void show_pump_rhythm_confirm_ui(ui_proc_pump_t *proc);
 void pump_rhythm_confirm_ui_exit(ui_proc_pump_t *proc);
+void pump_rhythm_confirm_start_key_handler(ui_proc_pump_t *proc);
 
 /// 模式切换成功页
 void show_pump_settings_success_ui(ui_proc_pump_t *proc, bool is_need_start_pump);
@@ -330,9 +349,13 @@ void show_pump_finish_timeout_ui(ui_proc_pump_t *proc);
 void pump_finish_timeout_ui_exit(ui_proc_pump_t *proc);
 
 #if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
-/// 暂停无操作超时结算页（15min → 自动关机页）
+/// 暂停无操作超时结算页（方案1：自动关机；方案2：可按键退出）
 void show_pump_pause_timeout_ui(ui_proc_pump_t *proc);
 void pump_pause_timeout_ui_exit(ui_proc_pump_t *proc);
+#if PUMP_PAUSE_TIMEOUT_SCHEME == PUMP_PAUSE_TIMEOUT_SCHEME_KEY_EXIT
+/// 方案2：退出暂停结算页并回到泵奶首页（保持暂停态，供后续按键落地）
+void pump_pause_timeout_ui_dismiss(ui_proc_pump_t *proc);
+#endif
 /// 暂停无操作倒计时：进入/刷新/退出/tick（持休眠锁，绝对时间触发）
 void pump_pause_idle_start(ui_proc_pump_t *proc);
 void pump_pause_idle_touch(ui_proc_pump_t *proc);
