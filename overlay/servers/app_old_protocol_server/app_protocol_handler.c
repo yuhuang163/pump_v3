@@ -32,12 +32,13 @@ static void app_old_comm_poll_post_task_handler(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(ota_mod);
     if (ota_mod->is_ota_upgrading() == true) {
         LOG_SRV(" OTA upgrading, skip reporting device status");
+        POST_TASK_HANDLER_DELAYED_ARG0(app_old_comm_poll_post_task_handler, 30000, "app_old_comm_poll_post_task");
         return;
     }
     LOG_SRV(" Poll timer triggered - reporting device status");
     app_old_comm_report_device_status(APP_OLD_COMM_LEFT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
     app_old_comm_report_device_status(APP_OLD_COMM_RIGHT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
-    POST_TASK_HANDLER_DELAYED_ARG0(app_old_comm_poll_post_task_handler, 10000, "app_old_comm_poll_post_task");
+    POST_TASK_HANDLER_DELAYED_ARG0(app_old_comm_poll_post_task_handler, 5000, "app_old_comm_poll_post_task");
 }
 
 /*
@@ -210,7 +211,7 @@ void app_old_comm_handle_response_cmd(app_old_comm_cmd_id_e cid, uint8_t cal, vo
             if (args_temp->arg1 == true) //连接
             {
                 LOG_SRV(" ble connect");
-                POST_TASK_HANDLER_DELAYED_ARG0(app_old_comm_poll_post_task_handler, 30000, "app_old_comm_poll_post_task");
+                POST_TASK_HANDLER_DELAYED_ARG0(app_old_comm_poll_post_task_handler, 10000, "app_old_comm_poll_post_task");
                 /* code */
             } else if (args_temp->arg1 == false) //断连接
             {
