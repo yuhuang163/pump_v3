@@ -466,15 +466,18 @@ static bool is_makeup_suction_completed(motor_policy_runtime_t *runtime)
 static void makeup_suction_advance_cycles(motor_policy_runtime_t *runtime)
 {
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
-        if (runtime->info[i].state.policy_update_lock != 0) {
+        /// 仅在一轮吸放结束（UPDATE_POLICY）后推进，避免 IDLE/lock==0 时重复打印
+        if (runtime->info[i].state.status != SUCTION_STATUS_UPDATE_POLICY ||
+            runtime->info[i].state.policy_update_lock != 0) {
             continue;
         }
+        
         if (runtime->info[i].state.cycles_count < runtime->info[i].config.loop_num) {
             runtime->info[i].state.status = SUCTION_STATUS_IDLE;
             runtime->info[i].state.action = MOTOR_ACTION_IDLE;
             runtime->reset_time[i] = get_timestamp();
-            LOG_MOTOR("makeup loop:%d/%d",
-                runtime->info[i].state.cycles_count, runtime->info[i].config.loop_num);
+            LOG_MOTOR("makeup dev-%d loop:%d/%d",
+                i, runtime->info[i].state.cycles_count, runtime->info[i].config.loop_num);
         }
     }
 }

@@ -12,6 +12,8 @@
 
 ## 2. 自动调档初始化（重要）
 
+### 2.1 启停 / 手动切模式：从 0 爬升
+
 `pump_climb_policy_mark_auto()` **必须在** `pump_policy_info_reset()` 之前调用。
 
 | 调用点 | 位置 |
@@ -19,9 +21,6 @@
 | 切模式 | `change_motor_mode()` |
 | 启停/切模式准备 | `breast_pump_start_prepare()`（泄压后立刻 `policy_info_reset`） |
 | 继续播放 | `breast_pump_policy_prepare()` CONTINUE 分支 |
-| 时间策略步进 | `pump_time_policy.c` |
-
-### 调用顺序约束
 
 ```
 mark_auto()
@@ -29,11 +28,48 @@ mark_auto()
   → pump_policy_info_reset()      // 此处才推进爬升、生成首拍参数
 ```
 
-注意：
+注意：`negative_pressure_release()` **不再**调用 `pump_policy_info_reset()`。
 
-1. `negative_pressure_release()` **不再**调用 `pump_policy_info_reset()`。  
-   退出路径上 `change_motor_mode` 可能已切换策略，若在泄压里 reset，会用旧 `climb` 状态推进新策略，破坏渐变。
-2. 若 `mark_auto` 放在 reset 之后，会出现首拍满档、下一拍掉档（如切刺激时 `4→1→2→4`）。
+### 2.2 韵律自动切步：按宏选择缓冲策略
+
+韵律（多时间策略）步进切换**没有暂停过程**，走 `pump_time_policy.c` 的 `timed_policy->next`。  
+此处调用 `pump_climb_policy_mark_rhythm_switch()`，**不要**再用 `mark_auto()`（否则会从 0 重爬）。
+
+宏（`motor_policy.h`）：
+
+| 宏值 | 含义 | 行为 |
+|------|------|------|
+| `PUMP_CLIMB_RHYTHM_SWITCH_NONE` (0) | 方案1：不缓冲 | 下一拍直接到新目标 |
+| `PUMP_CLIMB_RHYTHM_SWITCH_FROM_1` (1) | 方案2：从 1 开始 | 等同清零后从低档爬 |
+| `PUMP_CLIMB_RHYTHM_SWITCH_FROM_CUR` (2) | 方案3：从当前档 | 保留实际档；升档爬升，降档直落 |
+| `PUMP_CLIMB_RHYTHM_SWITCH_FROM_CUR_STIM_DOWN` (3) | 方案4：当前档 + 刺激降档缓冲 | 同方案3；吸乳高档→刺激时先钳到 5，再向下缓冲 |
+
+当前默认：
+
+```c
+#define PUMP_CLIMB_RHYTHM_SWITCH_POLICY  (PUMP_CLIMB_RHYTHM_SWITCH_FROM_CUR_STIM_DOWN)
+```
+
+方案3 / 方案4 升档示例：
+
+| 上一模式实际档 | 下一模式目标 | 行为 |
+|----------------|--------------|------|
+| 刺激 4 | 吸乳 5 | 从 4 爬到 5（不会 1→2→3→4→5） |
+| 吸乳 3 | 刺激 5 | 从 3 开始缓冲（如 3→4→5） |
+
+方案3 降档：一律直落（如吸乳 3 → 刺激 2，直接到 2）。
+
+方案4 降档（`allow_down=1`）：
+
+| 上一模式实际档 | 下一模式目标 | 行为 |
+|----------------|--------------|------|
+| 吸乳 15 | 刺激 1 | 起点钳到刺激上限 5，再向下缓冲 `5→4→3→2→1` |
+| 吸乳 15 | 刺激 5 | 钳到 5，已到目标，直接 5 |
+| 吸乳 3 | 刺激 2 | 小幅降档（差值 ≤ 2），直接到 2 |
+| 吸乳 8 | 刺激 1 | 钳到 5，再 `5→…→1` |
+
+方案3/4 韵律续爬置 `from_current=1`，升档时**忽略**普通路径的 `START_DIFF=2`。  
+方案4 额外置 `allow_down=1`，大跨度降档才走向下缓冲。
 
 ## 3. 状态结构
 
@@ -43,6 +79,8 @@ typedef struct {
     uint8_t target_level;   /// 目标力度
     uint8_t level;          /// 当前实际输出力度
     uint8_t start_level;    /// 本次爬升起始力度
+    uint8_t from_current;   /// 1：韵律切档续爬，升档忽略 START_DIFF
+    uint8_t allow_down;     /// 1：允许降档缓冲（方案4）
 } pump_climb_policy_t;
 ```
 
@@ -244,10 +282,13 @@ step = step_by_time < step_by_count ? step_by_time : step_by_count;
 
 ## 9. 关键约束小结
 
-1. **只爬升、不爬降**：降档或小幅升档（差值 ≤ 2）立即落地
+1. **只爬升、不爬降**：降档立即落地；普通路径小幅升档（差值 ≤ 2）也立即落地
 2. **步进由 6 秒预算与 period 决定**：`step = ceil(总差 * period / 6000)`，最小 1
 3. **最多 10 步**：超限直接落到目标
 4. **按周期步进**：不依赖连续时钟；泄压路径不得推进爬升
 5. **目标变化可中断重来**：重置 count，从当前实际力度重新规划
 6. **每泵独立**：左右泵互不影响
-7. **mark_auto 必须在 policy_info_reset 之前**
+7. **启停/手动切模式**：`mark_auto`，从 0 爬升
+8. **韵律自动切步**：`mark_rhythm_switch`，由 `PUMP_CLIMB_RHYTHM_SWITCH_POLICY` 选择方案 1/2/3/4
+9. **方案4**：吸乳高档→刺激时起点钳到 `BREAST_PUMP_LEVEL_5`，再向下缓冲到目标
+10. **mark_* 必须在 policy_info_reset 之前**
