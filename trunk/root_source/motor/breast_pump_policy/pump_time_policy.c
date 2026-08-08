@@ -157,7 +157,8 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
             }
 
 #if IS_SUPPORT_CLIMB_POLICY
-            pump_climb_policy_mark_auto(runtime->climb); /// 须在 policy_info_reset 前
+            /// 韵律自动切步（无暂停）：按 PUMP_CLIMB_RHYTHM_SWITCH_POLICY 处理，须在 reset 前
+            pump_climb_policy_mark_rhythm_switch(runtime);
 #endif
             for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
                 memcpy(&runtime->policy[i], &runtime->timed_policy->policy, sizeof(motor_policy_node_t));

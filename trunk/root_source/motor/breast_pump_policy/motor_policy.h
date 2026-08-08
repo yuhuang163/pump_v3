@@ -281,11 +281,28 @@ typedef struct motor_policy_manager {
     motor_timed_policy_node_t head;  /// 定时策略实体
 } motor_policy_manager_t;
 
+#if IS_SUPPORT_CLIMB_POLICY
+/// 韵律模式自动切步时的爬升缓冲策略（无暂停过程）
+/// 0：不缓冲，直接切到目标档
+/// 1：从 1 档开始缓冲（等同 mark_auto 清零）
+/// 2：从当前实际档位开始缓冲（升档爬升，降档直落）
+/// 3：同 2，且吸乳高档切刺激时先钳到刺激上限 5，再向下缓冲到目标
+#define PUMP_CLIMB_RHYTHM_SWITCH_NONE                 (0)
+#define PUMP_CLIMB_RHYTHM_SWITCH_FROM_1               (1)
+#define PUMP_CLIMB_RHYTHM_SWITCH_FROM_CUR             (2)
+#define PUMP_CLIMB_RHYTHM_SWITCH_FROM_CUR_STIM_DOWN   (3)
+#ifndef PUMP_CLIMB_RHYTHM_SWITCH_POLICY
+#define PUMP_CLIMB_RHYTHM_SWITCH_POLICY               (PUMP_CLIMB_RHYTHM_SWITCH_FROM_CUR)
+#endif
+#endif
+
 typedef struct {
     uint8_t count;          /// 爬升步数
     uint8_t target_level;   /// 目标力度
     uint8_t level;          /// 当前实际力度
     uint8_t start_level;    /// 爬升起始力度
+    uint8_t from_current;   /// 1：韵律切档续爬，升档时忽略 START_DIFF
+    uint8_t allow_down;     /// 1：韵律续爬允许降档缓冲（方案4）
 } pump_climb_policy_t;
 
 /// 吸乳马达状态
