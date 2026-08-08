@@ -326,6 +326,9 @@ void pump_stop_hold_dismiss(ui_proc_pump_t *proc);
 void pump_stop_hold_key_long_2s_handler(ui_proc_pump_t *proc);
 void pump_stop_hold_key_up_handler(ui_proc_pump_t *proc);
 
+/// 力度/速度调节页无操作 5s 静默退出：按键刷新计时
+void pump_adjust_idle_touch(ui_proc_pump_t *proc);
+
 /// 单边力度调节
 void show_pump_level_adjust_ui(ui_proc_pump_t *proc, uint8_t is_left);
 int pump_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase);

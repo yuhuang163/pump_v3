@@ -463,6 +463,8 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 
     /// 模式选择页倒计时中：任意按键刷新计时
     pump_mode_select_idle_touch(proc);
+    /// 力度/速度调节页倒计时中：任意按键刷新计时（含 Start/Pause 启停后留在调节页）
+    pump_adjust_idle_touch(proc);
 #if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
     /// 暂停无操作倒计时：任意按键刷新计时
     pump_pause_idle_touch(proc);

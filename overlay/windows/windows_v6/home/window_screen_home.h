@@ -220,6 +220,9 @@ void home_mode_page_index_clamp(ui_proc_home_t *proc);
 void home_mode_select_idle_touch(ui_proc_home_t *proc);
 void home_mode_select_idle_timeout_handler(ui_proc_home_t *proc);
 
+/// 力度/速度调节页无操作 5s 静默退出：按键刷新计时
+void home_adjust_idle_touch(ui_proc_home_t *proc);
+
 /// 单边力度调节
 void show_home_level_adjust_ui(ui_proc_home_t *proc, uint8_t is_left);
 int home_pump_level_adjust_handler(ui_proc_home_t *proc, bool is_increase);
