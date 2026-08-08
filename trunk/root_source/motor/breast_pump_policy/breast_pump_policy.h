@@ -41,8 +41,6 @@ int pump_user_policy_update(struct motor_manager_context *thiz, suction_strategy
 int breast_pump_mode_policy_handler(struct motor_manager_context *thiz, struct motor_task_para *play_para);
 /// 吸奶策略准备
 void breast_pump_policy_prepare(struct motor_manager_context *thiz, uint8_t action);
-/// 负压释放
-void negative_pressure_release(struct motor_manager_context *thiz, uint16_t wait_time_ms);
 /// 爬升策略
 #if IS_SUPPORT_CLIMB_POLICY
 int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strategy_mapping_t *map, 

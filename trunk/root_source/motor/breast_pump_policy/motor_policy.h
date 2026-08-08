@@ -22,6 +22,10 @@ extern "C" {
 #define IS_SUPPORT_PUMP_TIME_COMPENSATION        1   /// 支持泵奶时间补偿
 #endif
 
+#ifndef IS_SUPPORT_MAKEUP_SUCTION
+#define IS_SUPPORT_MAKEUP_SUCTION                0   /// 暂停/吸奶结束补吸，默认关闭
+#endif
+
 /// 马达调试ID
 typedef enum {
     MOTOR_USER_DEBUG_PUMP_ON = 0,
