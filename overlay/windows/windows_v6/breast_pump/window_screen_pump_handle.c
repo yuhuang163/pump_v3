@@ -277,7 +277,7 @@ static void pump_knob_right_event_cb(ui_proc_pump_t *proc)
 #if PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE
 static bool pump_adjust_key_exit_protected(ui_proc_pump_t *proc)
 {
-    if (get_timestamp_ms(proc->level_adjust_time) < PUMP_ADJUST_KEY_EXIT_PROTECT_MS) {
+    if (get_timestamp_ms(proc->adjust_enter_time) < PUMP_ADJUST_KEY_EXIT_PROTECT_MS) {
         LOG_WM("adjust key exit protect %ums.", PUMP_ADJUST_KEY_EXIT_PROTECT_MS);
         return true;
     }

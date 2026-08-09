@@ -133,6 +133,7 @@ void show_pump_speed_adjust_ui(ui_proc_pump_t *proc)
         .user_data = proc,
     };
     proc->current_ui_type = PUMP_UI_TYPE_SPEED_ADJUST;
+    proc->adjust_enter_time = get_timestamp();
     ui->hook->ui_animation_play_init(ui, play_info);
 }
 

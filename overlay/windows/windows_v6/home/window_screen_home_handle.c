@@ -310,7 +310,7 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
 #if HOME_ADJUST_KEY_EXIT_PROTECT_ENABLE
 static bool home_adjust_key_exit_protected(ui_proc_home_t *proc)
 {
-    if (get_timestamp_ms(proc->level_adjust_time) < HOME_ADJUST_KEY_EXIT_PROTECT_MS) {
+    if (get_timestamp_ms(proc->adjust_enter_time) < HOME_ADJUST_KEY_EXIT_PROTECT_MS) {
         LOG_WM("adjust key exit protect %ums.", HOME_ADJUST_KEY_EXIT_PROTECT_MS);
         return true;
     }
