@@ -176,6 +176,7 @@ typedef struct {
     uint8_t both_level_over_limit; /// 双边力度过大提示中
     uint8_t both_level_inc_steps; /// 双边连续加档窗口内已加档次数
     uint32_t level_adjust_time; /// 力度/速度调节页最近操作时间（静默退出计时）
+    uint32_t adjust_enter_time; /// 力度/速度调节页进入时间（按键退出防抖，与静默计时分离）
     uint32_t level_over_limit_time; /// 过大提示计时起点（有调节刷新）
     uint32_t level_inc_window_time; /// 连续加档窗口起点
     uint32_t sub_mode_switch_time; /// 子模式切换提醒计时（力度/速度页共用）
