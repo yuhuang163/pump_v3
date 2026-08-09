@@ -391,22 +391,36 @@ void pump_start_key_event_handler(ui_proc_pump_t *proc)
     switch_pump_status_handler(proc);
 }
 
-void pump_start_pump_if_pause(ui_proc_pump_t *proc)
+void pump_start_pump_keep_ui(ui_proc_pump_t *proc)
 {
     int pump_status = 0;
     uint16_t saved_ui_type;
 
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
-    if (pump_status != BREAST_PUMP_PAUSE) {
+    if (pump_status != BREAST_PUMP_PAUSE &&
+        pump_status != BREAST_PUMP_IDLE &&
+        pump_status != BREAST_PUMP_FINISH) {
         return;
     }
 
-    /// 调用方即将显示成功页：伪装 HOME 避免 switch_pump_status_ui 回退导航闪一下首页
+    /// 调用方即将显示成功页等：伪装 HOME，避免 switch_pump_status_ui 回退导航闪首页
     saved_ui_type = proc->current_ui_type;
     proc->current_ui_type = PUMP_UI_TYPE_HOME;
     switch_pump_status_ui(proc);
     proc->current_ui_type = saved_ui_type;
+}
+
+void pump_start_pump_if_pause(ui_proc_pump_t *proc)
+{
+    int pump_status = 0;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (pump_status != BREAST_PUMP_PAUSE) {
+        return;
+    }
+    pump_start_pump_keep_ui(proc);
 }
 
 uint8_t pump_sub_mode_type_get(ui_proc_pump_t *proc)

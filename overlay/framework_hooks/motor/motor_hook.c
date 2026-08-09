@@ -396,7 +396,7 @@ static void motor_debug_with_user_para(motor_manager_context_t *ctx, uint8_t id,
         EXCEPTION_CHECK_VOID(user_data);
         motor_debug_para_t *para = (motor_debug_para_t *)user_data;
         motor.un.pump.pulse_width = para->duty * PUMP_DUTY_SCALE_FACTOR;
-        motor.un.pump.freq = BREAST_PUMP_VALVE_FREQ;
+        motor.un.pump.freq = BREAST_PUMP_PUMP_FREQ;
         motor.un.pump.action = MOTOR_PUMP_ON;
         motor.un.pump.duration_ms = para->hold_time;
         for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {

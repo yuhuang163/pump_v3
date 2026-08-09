@@ -276,9 +276,9 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
 
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
         if (proc->ui_mode_page_index > HOME_MODE_PAGE_INDEX_NONE) {
-            /// 模式选择页短按 power：确认模式 → 成功提示 → 启动泵奶
+            /// 模式选择页短按 power：确认模式 → 跳泵奶窗由 pump 展示 Success
             home_mode_confirm_handler(proc);
-            show_home_settings_success_ui(proc, true);
+            home_start_pump_with_sub_ui(proc, PUMP_SUB_UI_TYPE_SETTINGS_SUCCESS);
         } else {
             home_start_pump_handler(proc);
         }

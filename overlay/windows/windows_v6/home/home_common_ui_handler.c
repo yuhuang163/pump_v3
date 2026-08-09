@@ -325,6 +325,11 @@ void home_sub_mode_sync_tick(ui_proc_home_t *proc, home_sub_mode_sync_e sync)
 
 int home_start_pump_handler(ui_proc_home_t *proc)
 {
+    return home_start_pump_with_sub_ui(proc, PUMP_SUB_UI_TYPE_NONE);
+}
+
+int home_start_pump_with_sub_ui(ui_proc_home_t *proc, pump_sub_ui_type_e sub_ui)
+{
     uint8_t battery_state = BATTERY_STATE_NONE;
 
     EXCEPTION_CHECK_INT(proc);
@@ -341,9 +346,9 @@ int home_start_pump_handler(ui_proc_home_t *proc)
 
     if (proc->wm) {
         multi_func_msg_data_t msg = {0};
-        LOG_WM("goto pump window.");
+        LOG_WM("goto pump window, sub_ui:%d.", sub_ui);
         msg.union_body.extra.window_id = ID_WINDOW_PUMP;
-        msg.union_body.extra.arg1 = KEY_CODE_START;
+        msg.union_body.extra.arg1 = (int)sub_ui;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return 0;
     }
