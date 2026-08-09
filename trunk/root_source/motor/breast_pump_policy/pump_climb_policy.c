@@ -5,6 +5,8 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "breast_pump_policy.h"
 
+#if IS_SUPPORT_CLIMB_POLICY
+
 /*
 * DEFINES
 *****************************************************************************************
@@ -253,3 +255,5 @@ int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strateg
         climb->from_current);
     return 0;
 }
+
+#endif /* IS_SUPPORT_CLIMB_POLICY */
