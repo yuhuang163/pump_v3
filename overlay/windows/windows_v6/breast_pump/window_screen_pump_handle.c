@@ -727,7 +727,13 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             proc->led->set_led_level(PUMP_BREASTFEEDING_BL, 0);
             #endif
         }
-        switch_pump_status_ui(proc);
+        /// home 模式确认进入：先 Success 1.5s，再回泵奶首页
+        if (proc->extra.arg1 == PUMP_SUB_UI_TYPE_SETTINGS_SUCCESS) {
+            pump_start_pump_keep_ui(proc);
+            show_pump_settings_success_ui(proc, false);
+        } else {
+            switch_pump_status_ui(proc);
+        }
     }
     return 0;
 }
@@ -778,8 +784,9 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     SET_WINDOW_CONTEXT(proc);
     /// 设置窗口标识.
     window_entry_extra_t *extra = (window_entry_extra_t *)wm->get_window_entry_extra(wm);
+    memcpy(&proc->extra, extra, sizeof(window_entry_extra_t));
     proc->margic = UI_WINDOW_MARGIC_CODE;
-    LOG_WM("window entry extra arg1: %d.", extra->arg1);
+    LOG_WM("window entry extra arg1: %d.", proc->extra.arg1);
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);

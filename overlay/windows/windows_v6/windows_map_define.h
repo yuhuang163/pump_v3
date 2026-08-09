@@ -38,6 +38,13 @@ typedef enum {
     HOME_SUB_UI_TYPE_MAX
 } home_sub_ui_type_e;
 
+/// 泵奶窗口进入子页（window_entry_extra_t.arg1）
+typedef enum {
+    PUMP_SUB_UI_TYPE_NONE = 0,               /// 默认：启动泵奶并进首页
+    PUMP_SUB_UI_TYPE_SETTINGS_SUCCESS = 1,   /// 先展示 Success，超时后再进泵奶首页
+    PUMP_SUB_UI_TYPE_MAX
+} pump_sub_ui_type_e;
+
 typedef enum {
     WINDOW_RUN_STATE_PAUSED = 100,
     WINDOW_RUN_STATE_RUNNING = 101,

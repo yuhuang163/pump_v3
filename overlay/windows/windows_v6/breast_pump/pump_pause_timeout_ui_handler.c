@@ -56,11 +56,12 @@ static void pump_pause_idle_trigger_settle(ui_proc_pump_t *proc)
 
     LOG_WM("pump pause idle timeout, show pause timeout ui. scheme:%d",
         PUMP_PAUSE_TIMEOUT_SCHEME);
+    /// 先切结算页，再结束会话，避免同帧旧页把 FINISH 当成运行态画出时长
+    show_pump_pause_timeout_ui(proc);
 #if PUMP_PAUSE_TIMEOUT_SCHEME == PUMP_PAUSE_TIMEOUT_SCHEME_AUTO_OFF
     /// 方案1：进入结算即结束会话，展示完成后自动关机
     pump_pause_timeout_mark_session_finish(proc);
 #endif
-    show_pump_pause_timeout_ui(proc);
 }
 
 static void pump_pause_timeout_complete_cb(hdr_post_args_t *args)
@@ -175,36 +176,36 @@ void pump_pause_idle_stop(ui_proc_pump_t *proc)
     pump_pause_idle_release_wakelock(proc);
 }
 
-void pump_pause_idle_timeout_handler(ui_proc_pump_t *proc)
+bool pump_pause_idle_timeout_handler(ui_proc_pump_t *proc)
 {
     int pump_status = 0;
     uint32_t elapsed_ms;
     uint32_t remain_ms;
 
-    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    EXCEPTION_CHECK_BOOL(proc && proc->pump);
 
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
-        return;
+        return false;
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT ||
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
-        return;
+        return false;
     }
     if (proc->pause_idle_time == 0) {
-        return;
+        return false;
     }
 
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
     if (pump_status != BREAST_PUMP_PAUSE) {
         pump_pause_idle_stop(proc);
-        return;
+        return false;
     }
 
     elapsed_ms = get_timestamp_ms(proc->pause_idle_time);
     if (elapsed_ms >= PUMP_PAUSE_IDLE_TIMEOUT_MS) {
         proc->pause_idle_time = 0;
         pump_pause_idle_trigger_settle(proc);
-        return;
+        return true;
     }
 
     remain_ms = PUMP_PAUSE_IDLE_TIMEOUT_MS - elapsed_ms;
@@ -217,6 +218,7 @@ void pump_pause_idle_timeout_handler(ui_proc_pump_t *proc)
             (unsigned)(PUMP_PAUSE_IDLE_TIMEOUT_MS / 1000U),
             (unsigned)proc->current_ui_type);
     }
+    return false;
 }
 
 void show_pump_pause_timeout_ui(ui_proc_pump_t *proc)

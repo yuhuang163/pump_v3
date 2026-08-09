@@ -81,15 +81,13 @@ void show_home_settings_success_ui(ui_proc_home_t *proc, bool is_need_start_pump
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui && ui->hook && ui->hook->ui_animation_play_init);
+    (void)is_need_start_pump;
     proc->last_progress_ani_time = get_timestamp();
     home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (proc->current_ui_type == HOME_UI_TYPE_SETTINGS_SUCCESS) {
         return;
     }
     home_ui_change_hdr_remove(proc);
-    if (is_need_start_pump) {
-        home_start_pump_handler(proc);
-    }
     ui_play_info_t play_info = {
         .tag = "home_settings_success_screen",
         .fps = HOME_ANIMATION_FREQ,

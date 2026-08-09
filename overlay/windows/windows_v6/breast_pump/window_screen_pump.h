@@ -188,6 +188,7 @@ typedef struct {
 typedef struct {    
     uint32_t ani_timer_cnt;
     window_context_t w_ctx;
+    window_entry_extra_t extra;
     window_manager_context_t *wm;
     ui_manager_context_t *ui;
     breast_pump_manager_context_t *pump;
@@ -299,6 +300,8 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc);
 void pump_start_key_event_handler(ui_proc_pump_t *proc);
 /// 模式/韵律确认后：仅吸乳暂停态启动泵奶
 void pump_start_pump_if_pause(ui_proc_pump_t *proc);
+/// 启动/续抽且不回退导航（IDLE/PAUSE/FINISH → 运行，供成功页等覆盖层使用）
+void pump_start_pump_keep_ui(ui_proc_pump_t *proc);
 
 /// 模式选择：旋钮预览 / 确认落地 / 直接设模式
 int pump_mode_adjust_handler(ui_proc_pump_t *proc, bool is_left);
@@ -364,7 +367,8 @@ void pump_pause_timeout_ui_dismiss(ui_proc_pump_t *proc);
 void pump_pause_idle_start(ui_proc_pump_t *proc);
 void pump_pause_idle_touch(ui_proc_pump_t *proc);
 void pump_pause_idle_stop(ui_proc_pump_t *proc);
-void pump_pause_idle_timeout_handler(ui_proc_pump_t *proc);
+/// @return true：已触发结算并切至 PAUSE_TIMEOUT，调用方应立即 return，勿再绘制旧页
+bool pump_pause_idle_timeout_handler(ui_proc_pump_t *proc);
 #endif
 
 /// 韵律即将结束提示页（短按 power 切吸吮并回首页；5s 超时仅回首页不切模式；其它按键不响应）

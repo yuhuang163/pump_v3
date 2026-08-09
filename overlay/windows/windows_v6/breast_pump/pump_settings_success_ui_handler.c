@@ -33,7 +33,9 @@ static void pump_settings_success_ui_after_policy(ui_manager_context_t *ui, int 
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
 #if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
-    pump_pause_idle_timeout_handler(proc);
+    if (pump_pause_idle_timeout_handler(proc)) {
+        return;
+    }
 #endif
     ui_display_settings_success_process(ui);
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);

@@ -261,6 +261,8 @@ void home_pump_result_ui_exit(ui_proc_home_t *proc);
 
 /// 启动泵奶（跳转泵奶窗口）；成功返回 0，电量不足等失败返回负数
 int home_start_pump_handler(ui_proc_home_t *proc);
+/// 跳转泵奶窗口并指定进入子页（如先展示 Success）
+int home_start_pump_with_sub_ui(ui_proc_home_t *proc, pump_sub_ui_type_e sub_ui);
 
 /// 模式切换成功页
 void show_home_settings_success_ui(ui_proc_home_t *proc, bool is_need_start_pump);
