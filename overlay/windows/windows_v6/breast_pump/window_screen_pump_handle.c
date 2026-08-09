@@ -312,6 +312,26 @@ static void pump_show_rest_mode_adjust_tip(ui_proc_pump_t *proc)
     LOG_WM("rest mode, show cannot adjust tip.");
 }
 
+/** 休息不可调节提示：短按 Stimulation/Expression/Start/Pause 或右旋编码器时关闭弹窗 */
+static void pump_rest_mode_adjust_tip_dismiss_by_key(ui_proc_pump_t *proc, uint16_t keycode)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->popup_ui_type != ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP) {
+        return;
+    }
+    switch (keycode) {
+        case KEY_CODE_STIMULATION_MODE:
+        case KEY_CODE_LACTATION_MODE:
+        case KEY_CODE_START:
+        case KEY_CODE_KNOB_RIGHT:
+            pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+            LOG_WM("rest mode adjust tip dismissed by key:%d", keycode);
+            break;
+        default:
+            break;
+    }
+}
+
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
@@ -326,6 +346,8 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
         LOG_WM("pump finish timeout, ignore key event.");
         return;
     }
+
+    pump_rest_mode_adjust_tip_dismiss_by_key(proc, keycode);
 
     LOG_WM("click keycode: %d, popup ui type:%d.", keycode, proc->popup_ui_type);
     switch (keycode) {

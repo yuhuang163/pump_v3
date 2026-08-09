@@ -95,15 +95,15 @@ void show_pump_settings_success_ui(ui_proc_pump_t *proc, bool is_need_start_pump
         return;
     }
 
-    if (is_need_start_pump) {
-        pump_start_pump_if_pause(proc);
-    }
-    
-    /// 从韵律确认页进入时使用 Program switched 文案，其它入口保持 Success
+    /// 先于启动泵奶判定样式：暂停启动可能经 switch_pump_status_ui 回退导航，改写 current_ui_type
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
         proc->settings_success_style = SETTINGS_SUCCESS_STYLE_PROGRAM_SWITCHED;
     } else {
         proc->settings_success_style = SETTINGS_SUCCESS_STYLE_DEFAULT;
+    }
+
+    if (is_need_start_pump) {
+        pump_start_pump_if_pause(proc);
     }
     pump_ui_change_hdr_remove(proc);
 
