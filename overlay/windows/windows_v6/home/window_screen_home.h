@@ -61,16 +61,20 @@ extern "C" {
 
 /**
  * 待机页（HOME_IDLE）方案：
- * 方案1（默认）：进入熄灭按键灯，仅短按 power 退出，其它按键不响应
- * 方案2：进入不灭按键灯，短按任意按键（含旋钮）仅退出待机回首页，不执行按键功能
- * 方案3：进入不灭按键灯，短按任意按键先退出待机，再执行与 HOME 页一致的功能
+ * 方案1（默认）：进入熄灭按键灯，仅短按 power 退出，其它按键不响应；
+ *               非按键解除（PM SYS_IDLE_RELEASE）不退待机，仍在 IDLE 则保持熄灯
+ * 方案2：进入不灭按键灯，短按任意按键（含旋钮）仅退出待机回首页，不执行按键功能；
+ *        非按键解除时若仍为 HOME_IDLE 则退出回 HOME
+ * 方案3：进入不灭按键灯，短按任意按键先退出待机，再执行与 HOME 页一致的功能；
+ *        非按键解除时若仍为 HOME_IDLE 则退出回 HOME；
+ *        按键已 prepare_action / 进入功能页时不覆盖（功能页优先）
  * 三种方案下长按 power 均可关机
  */
 #define HOME_IDLE_SCHEME_POWER_EXIT            (1)
 #define HOME_IDLE_SCHEME_ANY_KEY_EXIT          (2)
 #define HOME_IDLE_SCHEME_ANY_KEY_ACTION        (3)
 #ifndef HOME_IDLE_SCHEME
-#define HOME_IDLE_SCHEME                       HOME_IDLE_SCHEME_POWER_EXIT
+#define HOME_IDLE_SCHEME                       HOME_IDLE_SCHEME_ANY_KEY_ACTION
 #endif
 
 /// 子模式同步场景（力度/速度页共用）

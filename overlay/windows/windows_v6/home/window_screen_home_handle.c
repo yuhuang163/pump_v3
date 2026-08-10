@@ -585,7 +585,7 @@ static void home_broadcast_receive_ui_cb(hdr_post_args_t *args)
                 start_home_idle_ui_animation(proc);
             } else if (bcd_args->arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
 #if HOME_IDLE_SCHEME == HOME_IDLE_SCHEME_POWER_EXIT
-                /// 方案1：仍在待机则保持熄灯；已退出则确保按键灯全亮
+                /// 方案1：非按键解除不退待机；仍在 IDLE 保持熄灯，已退出则按键灯全亮
                 if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
                     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
                         proc->led->hook->set_key_backlight(proc->led, 0);
@@ -595,9 +595,11 @@ static void home_broadcast_receive_ui_cb(hdr_post_args_t *args)
                     proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
                 }
 #else
-                /// 方案2/3：待机不灭灯；已退出则确保按键灯全亮
-                if (proc->current_ui_type != HOME_UI_TYPE_HOME_IDLE &&
-                    proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+                /// 方案2/3：非按键解除时若仍在待机则回首页；
+                /// 方案3按键已 prepare_action/进功能页则 current 已非 IDLE，不覆盖
+                if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
+                    home_idle_ui_dismiss(proc);
+                } else if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
                     proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
                 }
 #endif
