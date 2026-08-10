@@ -51,7 +51,7 @@
 /** 展示缓冲：含换行与 "..." */
 #define HOME_MODE_PAGE_TITLE_DISPLAY_LEN            (40)
 
-#define HOME_MODE_PAGE_TIP_H                        (49)
+#define HOME_MODE_PAGE_TIP_H                        (63)
 /** 底部提示图 Y：贴底留边 */
 #define HOME_MODE_PAGE_TIP_Y                        (PANLE_DISPLAY_H - HOME_MODE_PAGE_TIP_H - 8)
 #define HOME_MODE_PAGE_TIP_BASE_OPA                 (LV_OPA_70)

@@ -9,7 +9,7 @@
 *****************************************************************************************
 */
 static PSRAM_NC_DATA_LOC uint8_t s_mode_select_tip_png[] = {
-    #include "font_img/txt/mode_select_tip_212x49.txt"
+    #include "font_img/txt/mode_select_tip_220x63.txt"
 };
 
 static PSRAM_NC_DATA_LOC uint8_t s_level_adjust_tip_png[] = {

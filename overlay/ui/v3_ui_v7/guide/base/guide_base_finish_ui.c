@@ -26,7 +26,7 @@
 #define GUIDE_FINISH_DESC_TEXT \
     "Tutorial complete. Scan the\nQR code anytime to view it\nagain."
 
-#define GUIDE_FINISH_TIP_H                              (49)
+#define GUIDE_FINISH_TIP_H                              (63)
 #define GUIDE_FINISH_TIP_Y                              (PANLE_DISPLAY_H - GUIDE_FINISH_TIP_H - 8)
 #define GUIDE_FINISH_TIP_BASE_OPA                       (LV_OPA_70)
 

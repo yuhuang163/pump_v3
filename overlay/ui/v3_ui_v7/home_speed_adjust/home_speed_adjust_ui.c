@@ -48,7 +48,7 @@
 #define HOME_SPEED_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 /** 底部提示图：与模式选择页一致 */
-#define HOME_SPEED_TIP_H                            (49)
+#define HOME_SPEED_TIP_H                            (63)
 #define HOME_SPEED_TIP_Y                            (PANLE_DISPLAY_H - HOME_SPEED_TIP_H - 8)
 
 #define HOME_SPEED_TIP_BASE_OPA                     (LV_OPA_70)

@@ -47,7 +47,7 @@
 #define GUIDE_BOTH_LEVEL_OVER_LIMIT_TEXT \
     "For safety,\nUp to 3 levels at a time."
 
-#define GUIDE_BOTH_LEVEL_TIP_H                          (49)
+#define GUIDE_BOTH_LEVEL_TIP_H                          (63)
 #define GUIDE_BOTH_LEVEL_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_BOTH_LEVEL_TIP_H - 8)
 #define GUIDE_BOTH_LEVEL_TIP_BASE_OPA                   (LV_OPA_70)
 

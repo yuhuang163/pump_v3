@@ -72,7 +72,7 @@
 #define HOME_BOTH_LEVEL_MODE_SWITCH_TEXT_FMT        "Switch to %s"
 
 /** 底部提示图：与速度调节一致 */
-#define HOME_BOTH_LEVEL_TIP_H                       (49)
+#define HOME_BOTH_LEVEL_TIP_H                       (63)
 #define HOME_BOTH_LEVEL_TIP_Y                       (PANLE_DISPLAY_H - HOME_BOTH_LEVEL_TIP_H - 8)
 
 #define HOME_BOTH_LEVEL_TIP_BASE_OPA                (LV_OPA_70)
