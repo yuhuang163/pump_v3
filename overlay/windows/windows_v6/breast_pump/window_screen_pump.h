@@ -24,7 +24,7 @@ extern "C" {
 
 /**
  * 切换韵律确认页策略（二选一，默认方案1）：
- * 方案1：目标为韵律（模式→韵律 / 韵律→韵律），且本次泵奶首次才弹确认页
+ * 方案1：目标为韵律（模式→韵律 / 韵律→韵律），且上下电周期内首次才弹确认页
  * 方案2：目标为韵律模式即弹确认页（每次切换都弹）
  */
 #define PUMP_RHYTHM_CONFIRM_SCHEME_1           (1)
@@ -189,6 +189,14 @@ typedef struct {
     uint8_t restoring;      /// nav_back 恢复中，避免 show 再次 push
 } pump_ui_nav_t;
 
+/**
+ * 泵奶窗口跨生命周期持久状态（不随 ui_proc_pump_t / 窗口销毁清零）
+ * 运行期不清零，仅上下电（BSS 复位）后清除
+ */
+typedef struct {
+    uint8_t rhythm_confirm_shown; /// 是否已展示过切换韵律确认页（上下电前一直有效）
+} pump_ui_persist_t;
+
 /// 泵奶UI结构体
 typedef struct {    
     uint32_t ani_timer_cnt;
@@ -220,7 +228,6 @@ typedef struct {
     /// 模式相关
     uint16_t ui_mode_page_index; /// 当前UI模式页面索引（与 home 一致，驱动切页）
     uint32_t mode_select_idle_time; /// 模式选择页无操作计时起点
-    uint8_t rhythm_confirm_shown; /// 本次泵奶是否已展示过切换韵律确认页
     uint8_t settings_success_style; /// settings success 文案样式 SETTINGS_SUCCESS_STYLE_*
 
     /// 长按停止确认
@@ -267,6 +274,8 @@ typedef struct {
 * GLOBAL FUNCTION DECLARATION
 *****************************************************************************************
 */
+/// 跨窗口持久状态（运行期不清零，仅上下电清除）
+pump_ui_persist_t *pump_ui_persist_get(void);
 /// 显示泵奶主界面
 void show_pump_home_ui(ui_proc_pump_t *proc);
 /// 泵奶状态UI相关
