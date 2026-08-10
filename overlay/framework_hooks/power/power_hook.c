@@ -123,8 +123,17 @@ static void system_power_event_cb(hdr_post_args_t *args)
                     wm->dispatch_new_window_args(wm, &msg); 
                     return;
                 }
-                #endif      
+                #endif
+                #if IS_SUPPORT_POWER_ON_GUIDE_UI
+                pm->priv.is_system_power_on = true;
+                SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
+                DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
+                msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
+                LOG_PM("power on detect key up, goto power on guide");
+                wm->dispatch_new_window_args(wm, &msg);
+                #else
                 system_power_off(pm);
+                #endif
             } else {
                 pm->priv.is_system_power_on = true;
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
@@ -166,6 +175,17 @@ static void system_power_event_cb(hdr_post_args_t *args)
             LOG_PM("goto power off charge screen");
             wm->dispatch_new_window_args(wm, &msg); 
             break;
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+        case HDR_ACTION_POWER_ON_GUIDE:
+            LOG_PM("%s action:%d", args->name, action);
+            pm->priv.is_system_power_on = true;
+            SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
+            msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
+            LOG_PM("goto power on guide (dummy)");
+            wm->dispatch_new_window_args(wm, &msg);
+            break;
+#endif
         case HDR_ACTION_POWER_ON_INVALID: 
             LOG_PM("%s action:%d", args->name, action);
             system_power_off(pm);
@@ -218,8 +238,14 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
             return 0;
         }
 #endif
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+        /// 短按未满足开机时长：进入 dummy 长按开机引导
+        POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON_GUIDE,
+            POWER_ONOFF_AND_STANDBY_TASK_NAME);
+#else
         POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON_INVALID,
             POWER_ONOFF_AND_STANDBY_TASK_NAME);
+#endif
         return 0;
     }
 
@@ -250,6 +276,13 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
                 LOG_PM("in factory reset window, ignore");
                 return 0;
             }
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+            /// dummy 长按开机引导页由窗口自行处理进度，禁止此处关机/待机
+            if (wm && wm->is_current_window(wm, ID_WINDOW_DUMMY)) {
+                LOG_PM("in dummy power on guide, ignore shutdown");
+                return 0;
+            }
+#endif
 
         #if V3_UX_VERSION == V3_UX_V6
             if (wm && wm->is_current_window(wm, ID_WINDOW_PUMP)) {
@@ -548,7 +581,14 @@ static int on_post_power_init_route(struct power_manager_context *ctx)
             return 0;
         }
 #endif
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+        /// 插电开机未按住 power：进入 dummy 长按开机引导
+        LOG_PM("power on guide by plug-in, timeout: %d", timeout_ms);
+        POST_TASK_HANDLER_DELAYED_ARG2(system_power_event_cb, timeout_ms,
+            HDR_ACTION_POWER_ON_GUIDE, ctx, POWER_ONOFF_AND_STANDBY_TASK_NAME);
+#else
         system_power_off(ctx);
+#endif
         return 0;
     }
     LOG_PM("key down, power on timeout: %d", timeout_ms);
