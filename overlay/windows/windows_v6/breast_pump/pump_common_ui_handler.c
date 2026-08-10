@@ -14,6 +14,8 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
+/// 窗口销毁不释放；运行期不清零，仅上下电清除
+static pump_ui_persist_t s_pump_ui_persist = {0};
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -74,6 +76,11 @@ static void pump_ui_nav_restore_frame(ui_proc_pump_t *proc, const pump_ui_nav_fr
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+pump_ui_persist_t *pump_ui_persist_get(void)
+{
+    return &s_pump_ui_persist;
+}
+
 void pump_ui_nav_push(ui_proc_pump_t *proc)
 {
     pump_ui_nav_frame_t *frame;
@@ -331,8 +338,8 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
         if (pump_mode_confirm_handler(proc) == 0) {
 #if PUMP_RHYTHM_CONFIRM_INVALID_EXIT_ENABLE
-            /// 仅短按 power 确认才计为已提示；其它退出记入无效
-            proc->rhythm_confirm_shown = 1;
+            /// 仅短按 power 确认才计为已提示；其它退出记入无效（静态持久，仅上下电清除）
+            pump_ui_persist_get()->rhythm_confirm_shown = 1;
             LOG_WM("rhythm confirm power confirm, mark shown valid.");
 #endif
             show_pump_settings_success_ui(proc, true);

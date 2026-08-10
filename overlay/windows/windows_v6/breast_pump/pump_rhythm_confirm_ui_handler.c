@@ -109,8 +109,8 @@ void show_pump_rhythm_confirm_ui(ui_proc_pump_t *proc)
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_RHYTHM_CONFIRM;
 #if !PUMP_RHYTHM_CONFIRM_INVALID_EXIT_ENABLE
-    /// 一次完整泵奶最多展示一次（方案1）：展示即记为已提示
-    proc->rhythm_confirm_shown = 1;
+    /// 上下电周期内最多展示一次（方案1）：展示即记为已提示（静态持久，运行期不清零）
+    pump_ui_persist_get()->rhythm_confirm_shown = 1;
 #endif
     /// PUMP_RHYTHM_CONFIRM_INVALID_EXIT_ENABLE=1 时：展示不计次，
     /// 仅短按 power 确认后置位（见 pump_power_key_event_handler）
