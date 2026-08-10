@@ -16,7 +16,7 @@ extern "C" {
 #if IS_SUPPORT_PUMP_MODE_FAST_TEST
 #define TOTAL_PUMP_TIME_MAX                          (4 * 60 * 1000) /// 最大泵奶时间 4分钟
 #else
-#define TOTAL_PUMP_TIME_MAX                          (1.2 * 60 * 60 * 1000) /// 最大泵奶时间 1.2小时
+#define TOTAL_PUMP_TIME_MAX                          (1 * 60 * 60 * 1000) /// 最大泵奶时间 1小时
 #endif
 #define SETTING_PUMP_TIME_MAX                        (2 * 60 * 60 * 1000) /// app设置的单次泵奶时间最大值 2小时
 #else
