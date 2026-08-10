@@ -424,8 +424,65 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     /// 力度/速度调节页倒计时中：任意按键刷新计时
     home_adjust_idle_touch(proc);
 
-    /// 待机页：短按 power 退出回首页，长按 power 可关机，其它按键不响应
+    /// 待机页按键（方案见 HOME_IDLE_SCHEME）
     if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
+#if HOME_IDLE_SCHEME == HOME_IDLE_SCHEME_ANY_KEY_ACTION
+        /// 方案3：短按任意键执行与 HOME 一致功能；其它允许事件 fall through
+        if (keytype != KEY_EVENT_CLICK &&
+            !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) &&
+            !(keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) &&
+            !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_TRAVEL_LOCK) &&
+            !(keytype == KEY_EVENT_LONG_5S && keycode == KEY_CODE_FACTORY_RESET) &&
+            !(keytype == KEY_EVENT_DOWN && keycode == KEY_CODE_BOTH_CONTROL) &&
+            !(keytype == KEY_EVENT_UP && keycode == KEY_CODE_BOTH_CONTROL) &&
+            !(HOME_BOTH_CONTROL_LONG_PRESS(keytype) && keycode == KEY_CODE_BOTH_CONTROL)) {
+            LOG_WM("system idle, ignore key event.");
+            return 0;
+        }
+        if (keytype == KEY_EVENT_CLICK) {
+            if (keycode == KEY_CODE_POWER && proc->power_off_hold_ignore_click) {
+                proc->power_off_hold_ignore_click = 0;
+                LOG_WM("ignore power click after power off hold.");
+                return 0;
+            }
+            /// 力度/速度相关：静默退出 idle，避免先刷 HOME 再进功能页闪一下
+            if (keycode == KEY_CODE_LEFT_CONTROL ||
+                keycode == KEY_CODE_RIGHT_CONTROL ||
+                keycode == KEY_CODE_BOTH_CONTROL ||
+                keycode == KEY_CODE_FREQUENCY) {
+                LOG_WM("home idle prepare action then handle. code:%d", keycode);
+                home_idle_ui_prepare_action(proc);
+            } else {
+                LOG_WM("home idle dismiss then handle. code:%d", keycode);
+                home_idle_ui_dismiss(proc);
+            }
+            /// fall through：按 HOME 逻辑执行
+        } else if (HOME_BOTH_CONTROL_LONG_PRESS(keytype) &&
+                   keycode == KEY_CODE_BOTH_CONTROL) {
+            home_idle_ui_prepare_action(proc);
+            /// fall through：进入双边力度
+        }
+#elif HOME_IDLE_SCHEME == HOME_IDLE_SCHEME_ANY_KEY_EXIT
+        /// 方案2：短按任意键（含旋钮）仅退出待机，不执行按键功能
+        if (keytype == KEY_EVENT_CLICK) {
+            if (keycode == KEY_CODE_POWER && proc->power_off_hold_ignore_click) {
+                proc->power_off_hold_ignore_click = 0;
+                LOG_WM("ignore power click after power off hold.");
+                return 0;
+            }
+            home_idle_ui_dismiss(proc);
+            return 0;
+        }
+
+        if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
+            home_power_off_hold_key_long_2s_handler(proc);
+            return 0;
+        }
+
+        LOG_WM("system idle, ignore key event.");
+        return 0;
+#else
+        /// 方案1：仅短按 power 退出，其它按键不响应
         if (keytype == KEY_EVENT_CLICK && keycode == KEY_CODE_POWER) {
             if (proc->power_off_hold_ignore_click) {
                 proc->power_off_hold_ignore_click = 0;
@@ -443,6 +500,7 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 
         LOG_WM("system idle, ignore key event.");
         return 0;
+#endif
     }
 
     if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_LONG_2S) { 
@@ -526,7 +584,8 @@ static void home_broadcast_receive_ui_cb(hdr_post_args_t *args)
             if (bcd_args->arg1 == PM_BROADCAST_SYS_IDLE) {
                 start_home_idle_ui_animation(proc);
             } else if (bcd_args->arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
-                /// 待机页仅允许短按 power 退出；其它按键触发的 idle release 保持待机并熄灯
+#if HOME_IDLE_SCHEME == HOME_IDLE_SCHEME_POWER_EXIT
+                /// 方案1：仍在待机则保持熄灯；已退出则确保按键灯全亮
                 if (proc->current_ui_type == HOME_UI_TYPE_HOME_IDLE) {
                     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
                         proc->led->hook->set_key_backlight(proc->led, 0);
@@ -535,6 +594,13 @@ static void home_broadcast_receive_ui_cb(hdr_post_args_t *args)
                     /// 已由 power 短按退出时，确保按键灯全亮（覆盖 led_hook 半亮）
                     proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
                 }
+#else
+                /// 方案2/3：待机不灭灯；已退出则确保按键灯全亮
+                if (proc->current_ui_type != HOME_UI_TYPE_HOME_IDLE &&
+                    proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+                    proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+                }
+#endif
             } 
             break;
         case ID_BROADCAST_SYS_STATE_CHANGE:

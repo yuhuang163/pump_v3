@@ -59,6 +59,20 @@ extern "C" {
 #define HOME_ADJUST_EXIT_TO_PREV_PAGE_ENABLE   (0)
 #endif
 
+/**
+ * 待机页（HOME_IDLE）方案：
+ * 方案1（默认）：进入熄灭按键灯，仅短按 power 退出，其它按键不响应
+ * 方案2：进入不灭按键灯，短按任意按键（含旋钮）仅退出待机回首页，不执行按键功能
+ * 方案3：进入不灭按键灯，短按任意按键先退出待机，再执行与 HOME 页一致的功能
+ * 三种方案下长按 power 均可关机
+ */
+#define HOME_IDLE_SCHEME_POWER_EXIT            (1)
+#define HOME_IDLE_SCHEME_ANY_KEY_EXIT          (2)
+#define HOME_IDLE_SCHEME_ANY_KEY_ACTION        (3)
+#ifndef HOME_IDLE_SCHEME
+#define HOME_IDLE_SCHEME                       HOME_IDLE_SCHEME_POWER_EXIT
+#endif
+
 /// 子模式同步场景（力度/速度页共用）
 typedef enum {
     HOME_SUB_MODE_SYNC_LEVEL = 0,      /// 单边力度
@@ -205,8 +219,12 @@ typedef struct {
 */
 void start_home_ui_animation(ui_proc_home_t *proc);
 void start_home_idle_ui_animation(ui_proc_home_t *proc);
-/// 待机页短按 power 退出，回首页（按键灯全亮）
+/// 待机页退出回首页（按键灯全亮）；退出触发见 HOME_IDLE_SCHEME
 void home_idle_ui_dismiss(ui_proc_home_t *proc);
+#if HOME_IDLE_SCHEME == HOME_IDLE_SCHEME_ANY_KEY_ACTION
+/// 方案3：退出待机但不刷首页，供随后直接进入力度/速度等功能页，避免闪 HOME
+void home_idle_ui_prepare_action(ui_proc_home_t *proc);
+#endif
 void stop_home_common_ui(ui_proc_home_t *proc);
 /// 子页导航：进入子页前 push；退出时按策略 back
 void home_ui_nav_push(ui_proc_home_t *proc);
