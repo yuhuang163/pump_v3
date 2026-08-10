@@ -74,7 +74,7 @@ extern "C" {
 #define HOME_IDLE_SCHEME_ANY_KEY_EXIT          (2)
 #define HOME_IDLE_SCHEME_ANY_KEY_ACTION        (3)
 #ifndef HOME_IDLE_SCHEME
-#define HOME_IDLE_SCHEME                       HOME_IDLE_SCHEME_POWER_EXIT
+#define HOME_IDLE_SCHEME                       HOME_IDLE_SCHEME_ANY_KEY_EXIT
 #endif
 
 /// 子模式同步场景（力度/速度页共用）
