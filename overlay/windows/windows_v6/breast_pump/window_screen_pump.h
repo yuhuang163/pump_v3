@@ -61,7 +61,7 @@ extern "C" {
 /// 切换韵律确认页：非短按 power 退出记入无效（默认关闭）
 /// 开启后：仅短按 power 确认才计为已提示；短按其它按键/静默退出不消耗首次提示次数
 #ifndef PUMP_RHYTHM_CONFIRM_INVALID_EXIT_ENABLE
-#define PUMP_RHYTHM_CONFIRM_INVALID_EXIT_ENABLE (0)
+#define PUMP_RHYTHM_CONFIRM_INVALID_EXIT_ENABLE (1)
 #endif
 
 /// 力度调节页：非力度限制态无操作静默退出
