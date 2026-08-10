@@ -52,11 +52,6 @@ static void pump_speed_adjust_ui_after_policy(ui_manager_context_t *ui, int inde
     pump_sub_mode_sync_tick(proc, PUMP_SUB_MODE_SYNC_SPEED);
     pump_sub_mode_switch_tick(proc);
     pump_speed_adjust_idle_timeout_tick(proc);
-#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
-    if (pump_pause_idle_timeout_handler(proc)) {
-        return;
-    }
-#endif
     ui_display_pump_speed_adjust_process(ui);
     pump_pause_led_tick(proc);
 }

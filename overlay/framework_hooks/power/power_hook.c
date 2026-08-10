@@ -408,6 +408,23 @@ static int on_pm_suspend_route(struct power_manager_context *ctx, int state)
     ctx->priv.allow_shutdown_or_standby = 0;
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_INT(wm);
+#if V3_UX_VERSION == V3_UX_V6
+    if (wm->is_current_window(wm, ID_WINDOW_PUMP)) {
+        breast_pump_manager_context_t *pump =
+            (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
+        if (pump) {
+            int pump_status = 0;
+            READ_PUMP_WORK_STATUS(pump, pump_status);
+            if (pump_status == BREAST_PUMP_PAUSE) {
+                LOG_PM("pump window paused, notify pause settle before power off");
+                wm->post_window_event(__func__, ID_WINDOW_PUMP,
+                    WINDOW_ASYNC_EVT_PUMP_PAUSE_SETTLE, NULL, 0);
+                set_pm_state_progress(ctx, __func__, PM_POWER_OFF, 0);
+                return 0;
+            }
+        }
+    }
+#endif
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
     msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_AUTO;

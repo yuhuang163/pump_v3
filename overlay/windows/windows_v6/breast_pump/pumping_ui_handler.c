@@ -60,11 +60,6 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
         pump_mode_page_index_clamp(proc);
         pump_mode_select_idle_timeout_handler(proc);
     }
-#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
-    if (pump_pause_idle_timeout_handler(proc)) {
-        return;
-    }
-#endif
     ui_display_pump_home_screen_process(ui);
     pump_pause_led_tick(proc);
 }
