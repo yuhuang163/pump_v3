@@ -330,6 +330,11 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
     /// 确认页：再次短按 power → 落地模式并跳转成功页（超时后仅暂停态启动泵奶）
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
         if (pump_mode_confirm_handler(proc) == 0) {
+#if PUMP_RHYTHM_CONFIRM_INVALID_EXIT_ENABLE
+            /// 仅短按 power 确认才计为已提示；其它退出记入无效
+            proc->rhythm_confirm_shown = 1;
+            LOG_WM("rhythm confirm power confirm, mark shown valid.");
+#endif
             show_pump_settings_success_ui(proc, true);
         }
         return;

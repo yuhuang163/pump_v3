@@ -136,12 +136,15 @@ bool is_need_show_guide_window(window_manager_context_t *wm)
         return true;
     }
 
+#if 0
     ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     if (ble && ble->ble_bind_state_get() != BLE_BIND_STATE_COMPLETE &&
         display_guide_window == false) {
         display_guide_window = true;
         return true;
     }
+#endif
+
     return false;
 }
 
