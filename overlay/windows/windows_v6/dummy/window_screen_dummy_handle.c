@@ -19,7 +19,17 @@
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(DUMMY_BROADCAST_TASK_NAME); \
+    IF_SUPPORT_POWER_ON_GUIDE_UI_HDR_REMOVE(); \
 } while (0)
+
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+#define IF_SUPPORT_POWER_ON_GUIDE_UI_HDR_REMOVE() \
+    dummy_power_on_hold_ui_hdr_remove()
+#define DUMMY_POWER_ON_HOLD_KEY_CODE            (KEY_CODE_POWER)
+#define DUMMY_POWER_ON_HOLD_KEY_TYPE            (KEY_EVENT_DOWN | KEY_EVENT_UP)
+#else
+#define IF_SUPPORT_POWER_ON_GUIDE_UI_HDR_REMOVE()
+#endif
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -110,6 +120,24 @@ static void on_dummy_window_receive(broadcast_mask_id_t id, void *context,
     POST_WM_TASK_HANDLER_NO_DELAY(dummy_broadcast_receive_ui_cb, &proc->broadcast_args, DUMMY_BROADCAST_TASK_NAME);
 }
 
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+static void dummy_power_on_hold_key_event_handler(ui_proc_dummy_t *proc, uint16_t keytype)
+{
+    if (proc->current_ui_type != DUMMY_UI_TYPE_POWER_ON_HOLD) {
+        return;
+    }
+    if (keytype == KEY_EVENT_DOWN) {
+        proc->power_on_hold_holding = 1;
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_WM("power on hold key down.");
+    } else if (keytype == KEY_EVENT_UP) {
+        proc->power_on_hold_holding = 0;
+        proc->last_progress_ani_time = get_timestamp();
+        LOG_WM("power on hold key up, reset progress.");
+    }
+}
+#endif
+
 static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_dummy_t *proc = user_data;
@@ -120,6 +148,12 @@ static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
     }
 
     LOG_WM("dummy key event: %d, %d", keycode, keytype);
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+    if (proc->current_ui_type == DUMMY_UI_TYPE_POWER_ON_HOLD && keycode == KEY_CODE_POWER) {
+        dummy_power_on_hold_key_event_handler(proc, keytype);
+        return 0;
+    }
+#endif
     if (keytype == KEY_EVENT_LONG_10S) {
         msleep(1000);
         platform_system_reboot();
@@ -137,12 +171,20 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     EXCEPTION_CHECK_INT(ui);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+        ADD_KEYEVENT_CB(proc->key, "dummy_wm", proc, DUMMY_POWER_ON_HOLD_KEY_CODE,
+            DUMMY_POWER_ON_HOLD_KEY_TYPE | KEY_EVENT_LONG_10S, on_dummy_keyevent_hdr);
+#else
         ADD_KEYEVENT_CB(proc->key, "dummy_wm", proc, (KEY_CODE_POWER), KEY_EVENT_LONG_10S,
             on_dummy_keyevent_hdr);
+#endif
         proc->enter_dummy_time = platform_get_utc_time();
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+        show_dummy_power_on_hold_ui(proc);
+#endif
     }
     return 0;
 }
@@ -158,6 +200,9 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+            stop_dummy_ui_animation(proc);
+#endif
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
@@ -214,6 +259,3 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
 
     return ID_WINDOW_DISPLAY_OK;
 }
-
-
-
