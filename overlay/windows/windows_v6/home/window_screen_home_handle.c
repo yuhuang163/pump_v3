@@ -14,11 +14,20 @@
 */
 #define PAGE_STATIC_NAME                            home
 #define PAGE_NAME_STR                               "home"
-/** 含 L+R 组合键（KEY_CODE_BOTH_CONTROL）以进入双边力度调节 */
+/** 含 L+R 组合键（KEY_CODE_BOTH_CONTROL）：短按/长按(2~10s)均可进入或退出双边力度调节 */
 #define HOME_UI_KEY_CODE                            (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL | \
                                                      KEY_CODE_TRAVEL_LOCK | KEY_CODE_FACTORY_RESET)
-#define HOME_UI_KEY_TYPE                            (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S | \
-                                                     KEY_EVENT_DOWN | KEY_EVENT_LONG_5S)
+#define HOME_UI_KEY_TYPE                            (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_DOWN | \
+                                                     KEY_EVENT_LONG_2S | KEY_EVENT_LONG_3S | KEY_EVENT_LONG_4S | \
+                                                     KEY_EVENT_LONG_5S | KEY_EVENT_LONG_6S | KEY_EVENT_LONG_7S | \
+                                                     KEY_EVENT_LONG_8S | KEY_EVENT_LONG_9S | KEY_EVENT_LONG_10S)
+/** L+R 长按进入：2~10s 均视为进入触发 */
+#define HOME_BOTH_CONTROL_LONG_PRESS(keytype) \
+    ((keytype) == KEY_EVENT_LONG_2S || (keytype) == KEY_EVENT_LONG_3S || \
+     (keytype) == KEY_EVENT_LONG_4S || (keytype) == KEY_EVENT_LONG_5S || \
+     (keytype) == KEY_EVENT_LONG_6S || (keytype) == KEY_EVENT_LONG_7S || \
+     (keytype) == KEY_EVENT_LONG_8S || (keytype) == KEY_EVENT_LONG_9S || \
+     (keytype) == KEY_EVENT_LONG_10S)
 #define HOME_BROADCAST_TASK_NAME                    "home_broadcast_task"
 #define POWER_OFF_HOLD_COMPLETE_TASK_NAME           "power_off_hold_complete"
 #define HOME_BLE_ADV_RECOVER_TASK_NAME              "home_ble_adv_recover"
@@ -318,6 +327,22 @@ static bool home_adjust_key_exit_protected(ui_proc_home_t *proc)
 }
 #endif
 
+/** 双边力度：短按/长按共用，未在页进入、已在页退出；返回是否已处理 */
+static bool home_both_control_key_event(ui_proc_home_t *proc)
+{
+    if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+#if HOME_ADJUST_KEY_EXIT_PROTECT_ENABLE
+        if (home_adjust_key_exit_protected(proc)) {
+            return false;
+        }
+#endif
+        home_both_level_adjust_ui_dismiss(proc);
+        return true;
+    }
+    show_home_both_level_adjust_ui(proc);
+    return true;
+}
+
 static void home_click_event_cb(ui_proc_home_t *proc, uint16_t keycode)
 {
     switch (keycode) {
@@ -378,16 +403,7 @@ static void home_click_event_cb(ui_proc_home_t *proc, uint16_t keycode)
             show_home_level_adjust_ui(proc, true);
             break;
         case KEY_CODE_BOTH_CONTROL:
-            if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
-#if HOME_ADJUST_KEY_EXIT_PROTECT_ENABLE
-                if (home_adjust_key_exit_protected(proc)) {
-                    break;
-                }
-#endif
-                home_both_level_adjust_ui_dismiss(proc);
-                break;
-            }
-            show_home_both_level_adjust_ui(proc);
+            home_both_control_key_event(proc);
             break;
         default:
             break;
@@ -454,6 +470,30 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 
     if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
         home_power_off_hold_key_up_handler(proc);
+        return 0;
+    }
+
+    /// L+R 按下：重置本次长按会话，避免同一次按住的 LONG_3S~10S 再次切换进出
+    if (keytype == KEY_EVENT_DOWN && keycode == KEY_CODE_BOTH_CONTROL) {
+        proc->both_control_long_acted = 0;
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_BOTH_CONTROL) {
+        proc->both_control_long_acted = 0;
+        return 0;
+    }
+
+    /// 长按 L+R（2~10s）：与短按一致，进入/退出双边力度调节
+    if (HOME_BOTH_CONTROL_LONG_PRESS(keytype) && keycode == KEY_CODE_BOTH_CONTROL) {
+        if (proc->current_ui_type == HOME_UI_TYPE_POWER_OFF_HOLD) {
+            return 0;
+        }
+        if (proc->both_control_long_acted) {
+            return 0;
+        }
+        if (home_both_control_key_event(proc)) {
+            proc->both_control_long_acted = 1;
+        }
         return 0;
     }
     

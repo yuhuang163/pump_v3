@@ -14,9 +14,19 @@
 */
 #define PAGE_STATIC_NAME                    pump
 #define PAGE_NAME_STR                       "pump"
-/** 含 L+R 组合键（KEY_CODE_BOTH_CONTROL）以进入双边力度调节 */
+/** 含 L+R 组合键（KEY_CODE_BOTH_CONTROL）：短按/长按(2~10s)均可进入或退出双边力度调节 */
 #define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL | KEY_CODE_TRAVEL_LOCK)
-#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
+#define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | \
+                                             KEY_EVENT_LONG_2S | KEY_EVENT_LONG_3S | KEY_EVENT_LONG_4S | \
+                                             KEY_EVENT_LONG_5S | KEY_EVENT_LONG_6S | KEY_EVENT_LONG_7S | \
+                                             KEY_EVENT_LONG_8S | KEY_EVENT_LONG_9S | KEY_EVENT_LONG_10S)
+/** L+R 长按进入：2~10s 均视为进入触发 */
+#define PUMP_BOTH_CONTROL_LONG_PRESS(keytype) \
+    ((keytype) == KEY_EVENT_LONG_2S || (keytype) == KEY_EVENT_LONG_3S || \
+     (keytype) == KEY_EVENT_LONG_4S || (keytype) == KEY_EVENT_LONG_5S || \
+     (keytype) == KEY_EVENT_LONG_6S || (keytype) == KEY_EVENT_LONG_7S || \
+     (keytype) == KEY_EVENT_LONG_8S || (keytype) == KEY_EVENT_LONG_9S || \
+     (keytype) == KEY_EVENT_LONG_10S)
 #define PUMP_COMPLETE_TASK_NAME             "pump_complete"
 #define PUMP_BROADCAST_TASK_NAME            "pump_broadcast"
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME "pump_settings_success_display"
@@ -332,6 +342,32 @@ static void pump_rest_mode_adjust_tip_dismiss_by_key(ui_proc_pump_t *proc, uint1
     }
 }
 
+/** 双边力度：短按/长按共用，未在页进入、已在页退出；返回是否已处理 */
+static bool pump_both_control_key_event(ui_proc_pump_t *proc)
+{
+    if (proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL_ADJUST) {
+#if PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE
+        if (pump_adjust_key_exit_protected(proc)) {
+            return false;
+        }
+#endif
+        pump_both_level_adjust_ui_dismiss(proc);
+        return true;
+    }
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER) {
+        LOG_WM("pump finish timeout, ignore both control.");
+        return false;
+    }
+    if (pump_rest_mode_blocks_adjust(proc)) {
+        pump_show_rest_mode_adjust_tip(proc);
+        return true;
+    }
+    show_pump_both_level_adjust_ui(proc);
+    return true;
+}
+
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
@@ -414,20 +450,7 @@ static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
             show_pump_level_adjust_ui(proc, true);
             break;
         case KEY_CODE_BOTH_CONTROL:
-            if (proc->current_ui_type == PUMP_UI_TYPE_BOTH_LEVEL_ADJUST) {
-#if PUMP_ADJUST_KEY_EXIT_PROTECT_ENABLE
-                if (pump_adjust_key_exit_protected(proc)) {
-                    break;
-                }
-#endif
-                pump_both_level_adjust_ui_dismiss(proc);
-                break;
-            }
-            if (pump_rest_mode_blocks_adjust(proc)) {
-                pump_show_rest_mode_adjust_tip(proc);
-                break;
-            }
-            show_pump_both_level_adjust_ui(proc);
+            pump_both_control_key_event(proc);
             break;
         case KEY_CODE_KNOB_LEFT:
             pump_knob_left_event_cb(proc);
@@ -458,7 +481,8 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         if (keytype != KEY_EVENT_CLICK &&
             !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) &&
             !(keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) &&
-            !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_TRAVEL_LOCK)) {
+            !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_TRAVEL_LOCK) &&
+            !(PUMP_BOTH_CONTROL_LONG_PRESS(keytype) && keycode == KEY_CODE_BOTH_CONTROL)) {
             LOG_WM("pump pause timeout ui, ignore key event. type:%d code:%d",
                 keytype, keycode);
             return 0;
@@ -509,10 +533,23 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
+    /// L+R 按下/抬起：重置本次长按会话，避免同一次按住的 LONG_3S~10S 再次切换进出
+    if ((keytype == KEY_EVENT_DOWN || keytype == KEY_EVENT_UP) &&
+        keycode == KEY_CODE_BOTH_CONTROL) {
+        proc->both_control_long_acted = 0;
+        return 0;
+    }
+
     if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
         pump_stop_hold_key_long_2s_handler(proc);
     } else if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
         pump_stop_hold_key_up_handler(proc);
+    } else if (PUMP_BOTH_CONTROL_LONG_PRESS(keytype) && keycode == KEY_CODE_BOTH_CONTROL) {
+        /// 长按 L+R（2~10s）：与短按一致，进入/退出双边力度调节
+        if (proc->both_control_long_acted == 0 &&
+            pump_both_control_key_event(proc)) {
+            proc->both_control_long_acted = 1;
+        }
     } else if (keytype == KEY_EVENT_CLICK) {
         pump_click_event_cb(proc, keycode);
     }

@@ -193,6 +193,7 @@ typedef struct {
     /// 长按关机确认
     uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
     uint8_t power_off_hold_ignore_click; /// 松手后忽略紧随的 power CLICK
+    uint8_t both_control_long_acted; /// 本次 L+R 长按已处理进入/退出，忽略同一次按住的后续 LONG_xS
 
     /// 子页导航栈（回历史页 / 回首页）
     home_ui_nav_t ui_nav;
