@@ -37,7 +37,7 @@
 #define GUIDE_MODE_SWITCH_DURATION_Y                    (246)
 #define GUIDE_MODE_SWITCH_DURATION_COLOR                (0x999999)
 
-#define GUIDE_MODE_SWITCH_TIP_H                         (49)
+#define GUIDE_MODE_SWITCH_TIP_H                         (63)
 #define GUIDE_MODE_SWITCH_TIP_Y                         (PANLE_DISPLAY_H - GUIDE_MODE_SWITCH_TIP_H - 8)
 #define GUIDE_MODE_SWITCH_TIP_BASE_OPA                  (LV_OPA_70)
 

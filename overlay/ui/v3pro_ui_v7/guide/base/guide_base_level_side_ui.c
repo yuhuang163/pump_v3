@@ -22,7 +22,7 @@
 #define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "Right Level"
 #define GUIDE_LEVEL_SIDE_OVER_LIMIT_TEXT                "For safety,\nUp to 3 levels at a time."
 
-#define GUIDE_LEVEL_SIDE_TIP_H                          (49)
+#define GUIDE_LEVEL_SIDE_TIP_H                          (63)
 #define GUIDE_LEVEL_SIDE_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_LEVEL_SIDE_TIP_H - 8)
 #define GUIDE_LEVEL_SIDE_TIP_BASE_OPA                   (LV_OPA_70)
 

@@ -33,7 +33,7 @@
 #define GUIDE_SPEED_LABEL_COLOR                         (0x999999)
 #define GUIDE_SPEED_LABEL_TEXT                          "Speed"
 
-#define GUIDE_SPEED_TIP_H                               (49)
+#define GUIDE_SPEED_TIP_H                               (63)
 #define GUIDE_SPEED_TIP_Y                               (PANLE_DISPLAY_H - GUIDE_SPEED_TIP_H - 8)
 #define GUIDE_SPEED_TIP_BASE_OPA                        (LV_OPA_70)
 

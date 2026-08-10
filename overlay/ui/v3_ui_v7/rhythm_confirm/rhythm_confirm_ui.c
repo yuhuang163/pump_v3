@@ -23,7 +23,7 @@
 #define RHYTHM_CONFIRM_TITLE_TEXT                       "Switch program?"
 #define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "The timer will reset"
 
-#define RHYTHM_CONFIRM_TIP_H                            (49)
+#define RHYTHM_CONFIRM_TIP_H                            (63)
 /** 底部提示图 Y：贴底留边（与 home 模式选择页一致） */
 #define RHYTHM_CONFIRM_TIP_Y                            (PANLE_DISPLAY_H - RHYTHM_CONFIRM_TIP_H - 8)
 
