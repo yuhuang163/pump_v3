@@ -148,6 +148,13 @@ static int pump_window_async_evt_handler_cb(struct window_event_data *evt_data)
             pump_async_speed_adjust(proc, data->speed);
             break;
         }
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+        case WINDOW_ASYNC_EVT_PUMP_PAUSE_SETTLE: {
+            LOG_WM("pm suspend, trigger pump pause settle.");
+            pump_pause_settle_trigger(proc);
+            break;
+        }
+#endif
         default:
             LOG_WM("unknow async evt: %u", evt_data->evt_id);
             break;

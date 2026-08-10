@@ -86,7 +86,7 @@ extern "C" {
 #define PUMP_PAUSE_MODE_KEY_START_ENABLE       (1)
 #endif
 
-/// 泵奶暂停无操作倒计时：超时进入 PAUSE_TIMEOUT 页并自动关机（与 1.2h FINISH_TIMEOUT 区分）
+/// 泵奶暂停静默超时：由 PM 倒计时触发结算后再关机（与 1.2h FINISH_TIMEOUT 区分）
 #ifndef PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
 #define PUMP_PAUSE_IDLE_TIMEOUT_ENABLE         (1)
 #endif
@@ -95,7 +95,6 @@ extern "C" {
 #define PUMP_PAUSE_IDLE_TIMEOUT_MS             PM_SUSPEND_TIME_S
 #endif
 #define PUMP_PAUSE_IDLE_LOG_INTERVAL_MS        (3000) /// 倒计时日志间隔
-#define PUMP_PAUSE_IDLE_WAKELOCK_NAME          "pump_pause_idle"
 /**
  * 暂停结算页方案：
  * 方案1（默认）：按键灯全灭，展示完成后自动关机，按键不响应
@@ -262,13 +261,6 @@ typedef struct {
     uint8_t pump_pause_blink_state; /// 暂停态 start 灯上次闪烁相位
     uint32_t blink_start_time; /// 上次闪烁翻转时间（相对半周期）
 
-#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
-    /// 暂停无操作倒计时（持 wakelock 防止系统先休眠；各 UI tick 按绝对时间检测）
-    uint32_t pause_idle_time; /// 暂停无操作计时起点，0=未在计时
-    uint32_t pause_idle_log_time; /// 上次倒计时日志时间
-    uint8_t pause_idle_wakelock_held; /// 是否已持有暂停倒计时锁
-#endif
-
 } ui_proc_pump_t;
 
 /*
@@ -370,12 +362,12 @@ void pump_pause_timeout_ui_exit(ui_proc_pump_t *proc);
 /// 方案2：退出暂停结算页并回到泵奶首页（保持暂停态，供后续按键落地）
 void pump_pause_timeout_ui_dismiss(ui_proc_pump_t *proc);
 #endif
-/// 暂停无操作倒计时：进入/刷新/退出/tick（持休眠锁，绝对时间触发）
+/// PM 静默超时或窗口本地触发：进入暂停结算页（结算完成后自动关机）
+void pump_pause_settle_trigger(ui_proc_pump_t *proc);
+/// 暂停态生命周期占位（不再持休眠/关机锁，也不再本地倒计时）
 void pump_pause_idle_start(ui_proc_pump_t *proc);
 void pump_pause_idle_touch(ui_proc_pump_t *proc);
 void pump_pause_idle_stop(ui_proc_pump_t *proc);
-/// @return true：已触发结算并切至 PAUSE_TIMEOUT，调用方应立即 return，勿再绘制旧页
-bool pump_pause_idle_timeout_handler(ui_proc_pump_t *proc);
 #endif
 
 /// 韵律即将结束提示页（短按 power 切吸吮并回首页；5s 超时仅回首页不切模式；其它按键不响应）

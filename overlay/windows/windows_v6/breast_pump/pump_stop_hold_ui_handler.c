@@ -35,11 +35,6 @@ static void pump_stop_hold_ui_after_policy(ui_manager_context_t *ui, int index)
     (void)index;
     ui_proc_pump_t *proc = (ui_proc_pump_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
-#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
-    if (pump_pause_idle_timeout_handler(proc)) {
-        return;
-    }
-#endif
     ui_display_pump_stop_hold_process(ui);
 }
 

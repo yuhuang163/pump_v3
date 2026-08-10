@@ -92,11 +92,6 @@ static void pump_both_level_adjust_ui_after_policy(ui_manager_context_t *ui, int
     pump_both_level_over_limit_tick(proc);
     pump_sub_mode_switch_tick(proc);
     pump_both_level_adjust_idle_timeout_tick(proc);
-#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
-    if (pump_pause_idle_timeout_handler(proc)) {
-        return;
-    }
-#endif
     ui_display_pump_both_level_adjust_process(ui);
     pump_pause_led_tick(proc);
 }
