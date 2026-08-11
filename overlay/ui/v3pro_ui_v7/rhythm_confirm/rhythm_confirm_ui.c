@@ -20,7 +20,7 @@
 #define RHYTHM_CONFIRM_SUBTITLE_Y                       (237)
 #define RHYTHM_CONFIRM_TITLE_COLOR                      (0xFFFFFF)
 #define RHYTHM_CONFIRM_SUBTITLE_COLOR                   (0x999999)
-#define RHYTHM_CONFIRM_TITLE_TEXT                       "Switch to Program?"
+#define RHYTHM_CONFIRM_TITLE_TEXT                       "Switch program?"
 #define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "The timer will reset"
 
 #define RHYTHM_CONFIRM_TIP_H                            (63)

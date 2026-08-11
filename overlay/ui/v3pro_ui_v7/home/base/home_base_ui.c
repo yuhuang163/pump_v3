@@ -163,11 +163,13 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     home_page_ui_update(home_info, proc);
     if (home_info->page.shown_page_index == HOME_PAGE_MAIN &&
         !home_page_ui_is_transitioning(home_info)) {
-        battery_ui_update(thiz, home_info->root, proc->battery, true);
+        battery_ui_update(thiz, home_info->root, proc->battery, true,
+            proc->ble->ble_is_connected() ? 1 : 0);
         ble_ui_update(thiz, home_info->root, proc->ble,
-            battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X), BASE_PUMP_HOME_BLE_UI_Y, NULL);
+            battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X),
+            battery_ui_ble_y_get(BASE_PUMP_HOME_BLE_UI_Y), NULL);
     } else {
-        battery_ui_update(thiz, home_info->root, proc->battery, false);
+        battery_ui_update(thiz, home_info->root, proc->battery, false, 1);
         ble_ui_hide();
     }
     #endif

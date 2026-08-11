@@ -160,7 +160,7 @@ extern "C" {
 
 /// V3Pro 关闭：插电/短按未满足开机时长不进 dummy 长按开机引导
 #ifndef IS_SUPPORT_POWER_ON_GUIDE_UI
-#define IS_SUPPORT_POWER_ON_GUIDE_UI                      (0)
+#define IS_SUPPORT_POWER_ON_GUIDE_UI                     (0)
 #endif
 
 #else
@@ -180,7 +180,7 @@ extern "C" {
 #define IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP              (0)
 /// V3 开启：插电/短按未满足开机时长时进入 dummy 长按开机引导（关闭则保持原关机逻辑）
 #ifndef IS_SUPPORT_POWER_ON_GUIDE_UI
-#define IS_SUPPORT_POWER_ON_GUIDE_UI                      (0)
+#define IS_SUPPORT_POWER_ON_GUIDE_UI                     (0)
 #endif
 #endif
 

@@ -161,11 +161,13 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
     pump_home_page_ui_update(pump_info, proc);
     if (pump_info->page.shown_page_index == PUMP_HOME_PAGE_MAIN &&
         !pump_home_page_ui_is_transitioning(pump_info)) {
-        battery_ui_update(thiz, pump_info->root, proc->battery, true);
+        battery_ui_update(thiz, pump_info->root, proc->battery, true,
+            proc->ble->ble_is_connected() ? 1 : 0);
         ble_ui_update(thiz, pump_info->root, proc->ble,
-            battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X), BASE_PUMP_HOME_BLE_UI_Y, NULL);
+            battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X),
+            battery_ui_ble_y_get(BASE_PUMP_HOME_BLE_UI_Y), NULL);
     } else {
-        battery_ui_update(thiz, pump_info->root, proc->battery, false);
+        battery_ui_update(thiz, pump_info->root, proc->battery, false, 1);
         ble_ui_hide();
     }
 #endif

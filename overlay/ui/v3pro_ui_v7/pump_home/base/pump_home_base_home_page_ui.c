@@ -575,7 +575,7 @@ static void pump_home_main_hint_shine_anim_update(pump_home_base_ui_info_t *info
     ui_shine_anim_update(&info->main.hint_shine, &style, info->main.hint_text, anim_paused);
 }
 
-static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, uint8_t mode_type)
+static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, uint8_t mode_type, bool paused)
 {
     char tip_buf[64] = {0};
     const uint8_t pump_mode = info->mode.new_index;
@@ -597,6 +597,11 @@ static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, ui
         mode_switch = 1;
         info->main.mode_switch_time = get_timestamp();
     } else if (pump_mode_changed || PUMP_IS_COMMON_MODE(pump_mode)) {
+        mode_switch = 0;
+    }
+    
+    /// 暂停时，不显示模式切换提示
+    if (paused) {
         mode_switch = 0;
     }
 
@@ -792,7 +797,7 @@ void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
     pump_home_main_bg_update(info, mode);
 #endif
     pump_home_main_mode_title_update(info, mode);
-    pump_home_main_mode_switch_update(info, info->mode.new_mode_type);
+    pump_home_main_mode_switch_update(info, info->mode.new_mode_type, paused);
     pump_home_main_time_update(info, hours, minutes, seconds, paused);
     pump_home_base_animation_ui_update(info);
     pump_home_main_play_icon_update(info, paused);

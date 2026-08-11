@@ -234,9 +234,11 @@ int home_screen_saver_base_ui_process(ui_manager_context_t *thiz)
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->ble && proc->battery);
     home_screen_saver_root_bg_update(thiz);
-    battery_ui_update(thiz, saver_info->root, proc->battery, true);
+    battery_ui_update(thiz, saver_info->root, proc->battery, true,
+        proc->ble->ble_is_connected() ? 1 : 0);
     ble_ui_update(thiz, saver_info->root, proc->ble,
-        battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X), BASE_PUMP_HOME_BLE_UI_Y, NULL);
+        battery_ui_ble_x_get(BASE_PUMP_HOME_BLE_UI_X),
+        battery_ui_ble_y_get(BASE_PUMP_HOME_BLE_UI_Y), NULL);
     home_screen_saver_ui_update(thiz, proc);
     home_screen_saver_hint_shine_anim_update();
     thiz->priv.fps_count++;

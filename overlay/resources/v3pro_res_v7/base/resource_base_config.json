@@ -80,13 +80,6 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_BLE_CONNECT_ICON",
-      "description": "蓝牙连接图标",
-      "file": "baj/icon_ble_connect_24x24_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
       "resource_id": "BASE_RES_ID_BLE_CONNECT_TIP_ICON",
       "description": "蓝牙连接提示图标",
       "file": "baj/icon_ble_connected_tip_84x84_a8_q99_444.baj",
@@ -248,27 +241,6 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_BATTERY_ICON",
-      "description": "电池电量图标",
-      "file": "baj/icon_battery_28x15_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_BATTERY_WARNING_ICON",
-      "description": "电池警告图标",
-      "file": "baj/icon_battery_warning_28x15_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_CHARGE_PAGE_ICON",
-      "description": "充电页面图标",
-      "file": "baj/icon_charge_page_25x30_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
       "resource_id": "BASE_RES_ID_POWER_ECO_ICON",
       "description": "电源节能图标",
       "file": "baj/icon_power_eco_24x24_a8_q99_444.baj",
@@ -276,51 +248,44 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_BATTERY_LOW_POWER_ICON",
-      "description": "电池低电量图标",
-      "file": "baj/icon_battery_low_power_89x47_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_CHARGE_PAGE_ICON",
+      "description": "充电页面图标",
+      "file": "baj/icon_charge_page_84x84_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_CHARGE_BATT_0_ICON",
-      "description": "电池容量0图标",
-      "file": "baj/icon_charge_battery_0_28x16_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_LOW_POWER_PAGE_ICON",
+      "description": "低电量页面图标",
+      "file": "baj/icon_low_power_page_84x84_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_CHARGE_BATT_1_ICON",
-      "description": "电池容量20图标",
-      "file": "baj/icon_charge_battery_1_28x16_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_CHARGING_ICON",
+      "description": "充电图标",
+      "file": "baj/icon_charge_11x14_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_CHARGE_BATT_2_ICON",
-      "description": "电池容量40图标",
-      "file": "baj/icon_charge_battery_2_28x16_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_BATTERY_BOX_GREEN_ICON",
+      "description": "绿色电池盒图标",
+      "file": "baj/icon_battery_box_green_30x20_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_CHARGE_BATT_3_ICON",
-      "description": "电池容量60图标",
-      "file": "baj/icon_charge_battery_3_28x16_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_BATTERY_BOX_RED_ICON",
+      "description": "红色电池盒图标",
+      "file": "baj/icon_battery_box_red_30x20_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_CHARGE_BATT_4_ICON",
-      "description": "电池容量80图标",
-      "file": "baj/icon_charge_battery_4_28x16_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_CHARGE_BATT_5_ICON",
-      "description": "电池容量100图标",
-      "file": "baj/icon_charge_battery_5_28x16_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_BATTERY_BOX_WHITE_ICON",
+      "description": "白色电池盒图标",
+      "file": "baj/icon_battery_box_white_30x20_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -454,13 +419,6 @@
       "resource_id": "BASE_RES_ID_PUMP_TIME_LABEL",
       "description": "泵奶时间标签",
       "file": "baj/label_pump_time_212x63_a8_q99_444.baj",
-      "x_offset": 0,
-      "y_offset": 0
-    },
-    {
-      "resource_id": "BASE_RES_ID_MODE_SELECT_TIP",
-      "description": "模式选择页提示文案",
-      "file": "baj/mode_select_tip_212x50_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },

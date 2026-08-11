@@ -40,17 +40,13 @@ typedef enum {
     BASE_RES_ID_EXPRESSION_KEY_ICON, /// 吸吮按键图标
     BASE_RES_ID_RELAX_TIP_ICON, /// 放松提醒图标
     BASE_RES_ID_FORBIDDEN_TIP_ICON, /// 禁止提示图标
-    BASE_RES_ID_BATTERY_ICON, /// 电池电量图标
-    BASE_RES_ID_BATTERY_WARNING_ICON, /// 电池警告图标
-    BASE_RES_ID_CHARGE_PAGE_ICON, /// 充电页面图标
     BASE_RES_ID_POWER_ECO_ICON, /// 电源节能图标
-    BASE_RES_ID_BATTERY_LOW_POWER_ICON, /// 电池低电量图标
-    BASE_RES_ID_CHARGE_BATT_0_ICON, /// 电池容量0图标
-    BASE_RES_ID_CHARGE_BATT_1_ICON, /// 电池容量20图标
-    BASE_RES_ID_CHARGE_BATT_2_ICON, /// 电池容量40图标
-    BASE_RES_ID_CHARGE_BATT_3_ICON, /// 电池容量60图标
-    BASE_RES_ID_CHARGE_BATT_4_ICON, /// 电池容量80图标
-    BASE_RES_ID_CHARGE_BATT_5_ICON, /// 电池容量100图标
+    BASE_RES_ID_CHARGE_PAGE_ICON, /// 充电页面图标
+    BASE_RES_ID_LOW_POWER_PAGE_ICON, /// 低电量页面图标
+    BASE_RES_ID_CHARGING_ICON, /// 充电图标
+    BASE_RES_ID_BATTERY_BOX_GREEN_ICON, /// 绿色电池盒图标
+    BASE_RES_ID_BATTERY_BOX_RED_ICON, /// 红色电池盒图标
+    BASE_RES_ID_BATTERY_BOX_WHITE_ICON, /// 白色电池盒图标
 
     /* 主界面组 [150..200] */
     BASE_RES_ID_START_LOGO_ICON = 150, /// 启动LOGO图标
@@ -78,7 +74,6 @@ typedef enum {
     BASE_RES_ID_PROGRAM_ICON, /// 韵律模式图标
     BASE_RES_ID_SPEED_ICON, /// 速度图标
     BASE_RES_ID_PUMP_TIME_LABEL, /// 泵奶时间标签
-    BASE_RES_ID_MODE_SELECT_TIP, /// 模式选择页提示文案图片
     BASE_RES_ID_TEXT_SHINE_MASK, /// 文案扫光蒙层
     BASE_RES_ID_PUMP_WILL_FINISH_TIP_ICON, /// 泵奶即将结束提示图标
 

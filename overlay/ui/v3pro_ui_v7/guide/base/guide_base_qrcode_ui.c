@@ -18,7 +18,7 @@
 #define GUIDE_QRCODE_BG_COLOR                       (0xFFFFFF)
 #define GUIDE_QRCODE_FG_COLOR                       (0x000000)
 
-#define GUIDE_QRCODE_DESC_Y                         (183)
+#define GUIDE_QRCODE_DESC_Y                         (190)
 #define GUIDE_QRCODE_DESC_COLOR                     (0xFFFFFF)
 #define GUIDE_QRCODE_DESC_LINE_SPACE                (8)
 #define GUIDE_QRCODE_DESC_TEXT                      "Scan the QR code to\ndownload the app and\nconnect your pump."
@@ -118,7 +118,7 @@ static void guide_qrcode_desc_create(guide_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(qr->desc);
     lv_label_set_text(qr->desc, GUIDE_QRCODE_DESC_TEXT);
     lv_obj_set_style_text_color(qr->desc, lv_color_hex(GUIDE_QRCODE_DESC_COLOR), 0);
-    lv_obj_set_style_text_font(qr->desc, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(qr->desc, &lv_font_aeonik_soft_22_medium, 0);
     lv_obj_set_style_text_line_space(qr->desc, GUIDE_QRCODE_DESC_LINE_SPACE, 0);
     lv_obj_set_style_text_align(qr->desc, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_opa(qr->desc, LV_OPA_COVER, 0);
