@@ -41,6 +41,15 @@ static void dummy_power_on_hold_direct_power_off(void)
     platform_system_reboot();
 }
 
+static void power_on_hold_goto_charge_screen(ui_proc_dummy_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc && proc->wm);
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+    LOG_WM("adapter mismatch, goto charge screen");
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
+}
+
 static void power_on_hold_complete_cb(hdr_post_args_t *args)
 {
     ui_proc_dummy_t *proc = (ui_proc_dummy_t *)args->user_data;
@@ -49,8 +58,13 @@ static void power_on_hold_complete_cb(hdr_post_args_t *args)
         LOG_UI("power on hold ui, ignore complete.");
         return;
     }
-    LOG_WM("power on hold complete, goto logo.");
     proc->power_on_hold_holding = 0;
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
+        power_on_hold_goto_charge_screen(proc);
+        return;
+    }
+    LOG_WM("power on hold complete, goto logo.");
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_LOGO;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
@@ -69,6 +83,19 @@ static void power_on_hold_idle_power_off_cb(hdr_post_args_t *args)
     }
     if (proc->power_on_hold_holding) {
         LOG_WM("holding power on, ignore idle power off.");
+        return;
+    }
+    /// 适配器不匹配：跳转不匹配页，不自动关机
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
+        power_on_hold_goto_charge_screen(proc);
+        return;
+    }
+    /// VBUS 已插入但适配器状态仍在识别中：推迟静默关机
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+        !BATTERY_IS_CHARGING(proc->battery->get_charge_status())) {
+        LOG_WM("vbus plugged, charge status pending, delay idle power off.");
+        proc->last_progress_ani_time = get_timestamp();
         return;
     }
     LOG_WM("power on hold idle timeout, direct power off.");
