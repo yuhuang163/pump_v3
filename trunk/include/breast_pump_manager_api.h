@@ -276,8 +276,8 @@ typedef struct breast_pump_manager_context {
         struct battery_manager_context *battery;
         pump_result_info_t result_info[BREAST_PUMP_RESULT_MAX];
         uint32_t completed_notify_time;
-        uint32_t will_finish_notify_time;
-        uint32_t will_finish_tip_notify_time;
+        uint32_t will_finish_notify_time;     /// 非0表示本会话已广播过即将结束（暂停恢复不重复）
+        uint32_t will_finish_tip_notify_time; /// 非0表示本会话已广播过即将结束询问（暂停恢复不重复）
     } priv;
 
     ///  public

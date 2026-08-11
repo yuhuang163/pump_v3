@@ -12,7 +12,6 @@
 */
 #define IS_PUMP_MODE_NOT_STORE_NORMAL_MODE          1 /// 是否存储常规模式，如果存储常规模式，则存储常规模式
 #define PUMP_NOTIFY_THROTTLE_MS                     5000
-#define PUMP_WILL_FINISH_TIP_THROTTLE_MS            10000
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -305,6 +304,9 @@ static void set_breast_pump_status(int status, int is_report)
                     break;
                 case BREAST_PUMP_START:
                     reset_breast_pump_result();
+                    /// 新会话允许再次展示即将结束提醒/询问页
+                    breast_pump_obj->priv.will_finish_notify_time = 0;
+                    breast_pump_obj->priv.will_finish_tip_notify_time = 0;
                     /// reset 清空 m_result 后回填当前模式，避免 setting_mode 为 0
                     ///（与刺激模式同值）导致后续切模式无法检出、漏报 D0
                     breast_pump_obj->priv.m_result.setting_mode = m_info->mode;
@@ -834,8 +836,14 @@ static void make_progress(breast_pump_manager_context_t *ctx)
         DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
         break;
     case RESULT_PUMP_WILL_FINISH:
-        send_throttled_pump_broadcast(ctx, &ctx->priv.will_finish_notify_time,
-            PUMP_NOTIFY_THROTTLE_MS, BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH);
+        /// 整个会话只提醒一次；已提醒后暂停/恢复不再重复广播
+        if (ctx->priv.will_finish_notify_time != 0) {
+            break;
+        }
+        ctx->priv.will_finish_notify_time = get_timestamp();
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE,
+            BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH);
+        LOG_PMP("will finish, notify.");
         break;
     case RESULT_PUMP_AUTO_PAUSE:
         WRITE_PUMP_WORK_STATUS(ctx, BREAST_PUMP_PAUSE, 1);
@@ -845,10 +853,14 @@ static void make_progress(breast_pump_manager_context_t *ctx)
         SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE, BREAST_PUMP_BROADCAST_RUNNING_30M_TIP);
         break;
     case RESULT_PUMP_WILL_FINISH_TIP:
-        if (send_throttled_pump_broadcast(ctx, &ctx->priv.will_finish_tip_notify_time,
-                PUMP_WILL_FINISH_TIP_THROTTLE_MS, BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH_TIP)) {
-            LOG_PMP("will finish tip, notify.");
+        /// 整个韵律会话只展示一次；已展示后暂停/恢复不再重复广播
+        if (ctx->priv.will_finish_tip_notify_time != 0) {
+            break;
         }
+        ctx->priv.will_finish_tip_notify_time = get_timestamp();
+        SEND_BROADCAST_ARGS1(ID_BROADCAST_BREAST_PUMP_STATE_CHANGE,
+            BREAST_PUMP_BROADCAST_PUMP_WILL_FINISH_TIP);
+        LOG_PMP("will finish tip, notify.");
         break;
     default:
         break;

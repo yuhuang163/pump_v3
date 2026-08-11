@@ -134,6 +134,9 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     m_result->total_valid_time = result_info->target_valid_time;
     if (new_mode_type == BREAST_PUMP_MODE_TYPE_BREASTFEEDING) {
         result_info->work_valid_time = 0;
+        /// 韵律重新计时，允许再次展示即将结束提醒/询问页
+        ctx->priv.will_finish_notify_time = 0;
+        ctx->priv.will_finish_tip_notify_time = 0;
     } 
 
     if (new_mode_type == BREAST_PUMP_MODE_TYPE_COMMON) {
@@ -188,6 +191,9 @@ static void breast_pump_mode_update(breast_pump_manager_context_t *ctx, pump_res
     } else {
         result_info->work_valid_time = 0;
         ctx->priv.m_result.work_valid_time = result_info->work_valid_time;
+        /// 韵律重新计时，允许再次展示即将结束提醒/询问页
+        ctx->priv.will_finish_notify_time = 0;
+        ctx->priv.will_finish_tip_notify_time = 0;
         m_info->breastfeeding_mode = m_info->mode;
         ctx->priv.st->put_store_ram_val(STORE_ID_BREAST_PUMP_MODE_WITH_TYPE,
             BREAST_PUMP_MODE_TYPE_BREASTFEEDING, m_info->mode, NULL);
