@@ -50,6 +50,9 @@ typedef struct {
     tests_manager_context_t *tests;
     led_manager_context_t *led;
     ble_manager_context_t *ble;
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+    battery_manager_context_t *battery;
+#endif
     broadcast_obj_t receiver;
     window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic; /// 窗口标识.

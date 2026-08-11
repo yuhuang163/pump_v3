@@ -174,6 +174,21 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
         return 0;
     }
 
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+    /// 适配器不匹配页：不允许手动关机/退出（长按 10s 复位仍保留）
+    if (proc->current_ui_type == CHARGE_UI_TYPE_ADAPTER ||
+        (proc->battery && proc->battery->get_charge_status() == CHARGE_STATE_ERROR)) {
+        if (keytype == KEY_EVENT_LONG_10S) {
+            LOG_WM("charge page reboot");
+            msleep(20);
+            platform_system_reboot();
+        } else {
+            LOG_WM("adapter mismatch, ignore power key");
+        }
+        return 0;
+    }
+#endif
+
     if (keytype == KEY_EVENT_LONG_3S) {
         if (proc->battery && proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
             LOG_WM("key post exit charge policy task");

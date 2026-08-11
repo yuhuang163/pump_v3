@@ -41,6 +41,18 @@ static bool is_power_off_by_charging(void)
     return false;
 }
 
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+/// 适配器不匹配（VBUS 插入且充电状态为 ERROR）
+static bool is_adapter_mismatch(battery_manager_context_t *battery)
+{
+    if (battery == NULL) {
+        return false;
+    }
+    return battery->is_vbus_plug_in() > 0 &&
+           battery->get_charge_status() == CHARGE_STATE_ERROR;
+}
+#endif
+
 /** OTA / 蓝牙测试不记；其余重启原因都记 */
 static bool is_reboot_reason_need_bury(int reason)
 {
@@ -80,6 +92,13 @@ static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
     EXCEPTION_CHECK_BOOL(wm);
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     EXCEPTION_CHECK_BOOL(battery);
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+    /// 适配器不匹配页：禁止自动关机/待机
+    if (is_adapter_mismatch(battery)) {
+        LOG_PM("adapter mismatch, prohibit auto power off");
+        return true;
+    }
+#endif
     if (BATTERY_IS_CHARGING(battery->get_charge_status())) {
         if (wm->is_current_window(wm, ID_WINDOW_POWER_OFF) == 0) {
             multi_func_msg_data_t msg = {0};
@@ -128,8 +147,13 @@ static void system_power_event_cb(hdr_post_args_t *args)
                 pm->priv.is_system_power_on = true;
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
                 DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
-                msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
-                LOG_PM("power on detect key up, goto power on guide");
+                if (is_adapter_mismatch(battery)) {
+                    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+                    LOG_PM("power on detect key up, adapter mismatch, goto charge");
+                } else {
+                    msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
+                    LOG_PM("power on detect key up, goto power on guide");
+                }
                 wm->dispatch_new_window_args(wm, &msg);
                 #else
                 system_power_off(pm);
@@ -138,8 +162,18 @@ static void system_power_event_cb(hdr_post_args_t *args)
                 pm->priv.is_system_power_on = true;
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
                 DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+                if (is_adapter_mismatch(battery)) {
+                    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+                    LOG_PM("adapter mismatch, goto charge screen");
+                } else {
+                    msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+                    LOG_PM("goto logo screen");
+                }
+#else
                 msg.union_body.extra.window_id = ID_WINDOW_LOGO;
                 LOG_PM("goto logo screen");
+#endif
                 wm->dispatch_new_window_args(wm, &msg); 
             }
             break;
@@ -148,8 +182,18 @@ static void system_power_event_cb(hdr_post_args_t *args)
             pm->priv.is_system_power_on = true;
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+            if (is_adapter_mismatch(battery)) {
+                msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+                LOG_PM("adapter mismatch, goto charge screen");
+            } else {
+                msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+                LOG_PM("goto logo screen");
+            }
+#else
             msg.union_body.extra.window_id = ID_WINDOW_LOGO;
             LOG_PM("goto logo screen");
+#endif
             wm->dispatch_new_window_args(wm, &msg); 
             /// 记录重启原因到 RAM 并埋点 0x61（排除 OTA / 蓝牙测试 /）
             if (platform_is_startup_caused_by_reboot()) {
@@ -181,8 +225,13 @@ static void system_power_event_cb(hdr_post_args_t *args)
             pm->priv.is_system_power_on = true;
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
-            msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
-            LOG_PM("goto power on guide (dummy)");
+            if (is_adapter_mismatch(battery)) {
+                msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+                LOG_PM("adapter mismatch, goto charge screen");
+            } else {
+                msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
+                LOG_PM("goto power on guide (dummy)");
+            }
             wm->dispatch_new_window_args(wm, &msg);
             break;
 #endif
@@ -281,6 +330,15 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
             if (wm && wm->is_current_window(wm, ID_WINDOW_DUMMY)) {
                 LOG_PM("in dummy power on guide, ignore shutdown");
                 return 0;
+            }
+            /// 适配器不匹配页：禁止手动关机
+            {
+                battery_manager_context_t *battery =
+                    (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+                if (is_adapter_mismatch(battery)) {
+                    LOG_PM("adapter mismatch, ignore shutdown");
+                    return 0;
+                }
             }
 #endif
 
