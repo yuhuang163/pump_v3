@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "src/misc/lv_color.h"
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
@@ -12,7 +13,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define IS_SUPPORT_SCAN_QRCODE_TIP                                   0
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
 #define IS_SUPPORT_BATTERY_PERCENT                                   1
 #else
@@ -20,39 +20,37 @@
 #endif
 #define PRODUCT_TESTS_HOME_CONTENT_COUNT                             1
 #define PRODUCT_TESTS_HOME_MAC_NAME_COLOR                            0x01D65A // 0x3C3D40
-#define PRODUCT_TESTS_HOME_BATTERY_PERCENT_COLOR                      0x01D65A // 0x3C3D40
-#define PRODUCT_TESTS_HOME_AGING_INFO_COLOR                           0x01D65A // 老化信息颜色
-#if IS_SUPPORT_SCAN_QRCODE_TIP
-#define PRODUCT_TESTS_HOME_MAC_NAME_X                                (105 + 4)
-#define PRODUCT_TESTS_HOME_MAC_NAME_Y                                (80)
+#define PRODUCT_TESTS_HOME_BATTERY_PERCENT_COLOR                     0x01D65A // 0x3C3D40
+#define PRODUCT_TESTS_HOME_AGING_INFO_COLOR                          0x01D65A // 老化信息颜色
+
+#if IS_SUPPORT_BATTERY_PERCENT
+#define PRODUCT_TESTS_HOME_MAC_NAME_X                                (94)
+#define PRODUCT_TESTS_HOME_MAC_NAME_Y                                (70)
+#define PRODUCT_TESTS_HOME_BATTERY_PERCENT_X                         (PRODUCT_TESTS_HOME_MAC_NAME_X)
+#define PRODUCT_TESTS_HOME_BATTERY_PERCENT_Y                         (PRODUCT_TESTS_HOME_MAC_NAME_Y + 20)
 #define PRODUCT_TESTS_HOME_QRCODE_X                                  (PRODUCT_TESTS_HOME_MAC_NAME_X)
-#define PRODUCT_TESTS_HOME_QRCODE_Y                                  (PRODUCT_TESTS_HOME_MAC_NAME_Y + 20 + 5)
-#define PRODUCT_TESTS_HOME_QRCODE_SIZE                               (150)
+#define PRODUCT_TESTS_HOME_QRCODE_Y                                  (PRODUCT_TESTS_HOME_BATTERY_PERCENT_Y + 20)
+#define PRODUCT_TESTS_HOME_QRCODE_SIZE                               (180)
+#define PRODUCT_TESTS_HOME_AGING_INFO_X                              (PRODUCT_TESTS_HOME_MAC_NAME_X)
+#define PRODUCT_TESTS_HOME_AGING_INFO_Y                              \
+            (PRODUCT_TESTS_HOME_QRCODE_Y + PRODUCT_TESTS_HOME_QRCODE_SIZE + 6)
 #else
-#define PRODUCT_TESTS_HOME_MAC_NAME_X                                (90 + 4)
+#define PRODUCT_TESTS_HOME_MAC_NAME_X                                (94)
 #define PRODUCT_TESTS_HOME_MAC_NAME_Y                                (80)
 #define PRODUCT_TESTS_HOME_QRCODE_X                                  (PRODUCT_TESTS_HOME_MAC_NAME_X)
-#define PRODUCT_TESTS_HOME_QRCODE_Y                                  (PRODUCT_TESTS_HOME_MAC_NAME_Y + 20 + 10)
+#define PRODUCT_TESTS_HOME_QRCODE_Y                                  (PRODUCT_TESTS_HOME_MAC_NAME_Y + 30)
 #define PRODUCT_TESTS_HOME_QRCODE_SIZE                               (180)
 #define PRODUCT_TESTS_HOME_BATTERY_PERCENT_X                         (PRODUCT_TESTS_HOME_MAC_NAME_X + 90)
 #define PRODUCT_TESTS_HOME_BATTERY_PERCENT_Y                         (PRODUCT_TESTS_HOME_MAC_NAME_Y)
 #define PRODUCT_TESTS_HOME_AGING_INFO_X                              (PRODUCT_TESTS_HOME_MAC_NAME_X)
-#define PRODUCT_TESTS_HOME_AGING_INFO_Y                              (PRODUCT_TESTS_HOME_BATTERY_PERCENT_Y + PRODUCT_TESTS_HOME_QRCODE_SIZE+36)
+#define PRODUCT_TESTS_HOME_AGING_INFO_Y                              \
+            (PRODUCT_TESTS_HOME_BATTERY_PERCENT_Y + PRODUCT_TESTS_HOME_QRCODE_SIZE + 36)
 #endif
-
-typedef struct {
-    const char *name;
-    uint16_t text_x;
-    uint16_t text_y;
-} product_tests_content_info_t;
 
 typedef struct {  
     lv_obj_t * root;
     lv_obj_t * qrcode;
     lv_obj_t * mac_name;
-#if IS_SUPPORT_SCAN_QRCODE_TIP
-    lv_obj_t * text;
-#endif
 #if IS_SUPPORT_BATTERY_PERCENT
     lv_obj_t * battery_percent;
 #endif
@@ -66,11 +64,6 @@ typedef struct {
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_SCAN_QRCODE_TIP
-const static product_tests_content_info_t product_tests_content_infos[PRODUCT_TESTS_HOME_CONTENT_COUNT] = {
-    { "Please scan the QR code\nto quickly connect the device", (63 + 6), (250 + 20)},
-};  
-#endif
 
 static product_tests_home_display_info_t *tests_info = NULL;
 
@@ -89,7 +82,11 @@ static void product_tests_ui_root_init(void)
         tests_info->root = lv_obj_create(lv_screen_active());
     }
     lv_obj_set_size(tests_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
+    #if IS_SUPPORT_BATTERY_PERCENT
+    lv_obj_set_style_bg_color(tests_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
+    #else
     lv_obj_set_style_bg_color(tests_info->root, lv_color_white(), 0);     /// 设置背景颜色为白色
+    #endif
     lv_obj_set_style_bg_opa(tests_info->root, LV_OPA_COVER, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
     lv_obj_set_style_border_width(tests_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
     lv_obj_set_style_pad_all(tests_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
@@ -206,7 +203,7 @@ static void product_tests_battery_percent_update(ui_manager_context_t *thiz, uin
         tests_info->battery_percent = lv_label_create(tests_info->root);
     }
     char battery_percent_str[16] = {0};
-    snprintf(battery_percent_str, sizeof(battery_percent_str), "battery-%d%%", battery_percent);
+    snprintf(battery_percent_str, sizeof(battery_percent_str), "battery: %d%%", battery_percent);
     lv_label_set_text(tests_info->battery_percent, battery_percent_str);
     lv_obj_set_style_text_color(tests_info->battery_percent, lv_color_hex(PRODUCT_TESTS_HOME_BATTERY_PERCENT_COLOR), 0);
     lv_obj_set_style_text_font(tests_info->battery_percent, &lv_font_aeonik_soft_19_medium, 0);  /// 设置字体
@@ -251,9 +248,11 @@ int ui_display_product_tests_home_process(ui_manager_context_t *thiz)
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc->ble);
     EXCEPTION_CHECK_INT(proc->battery);
-    battery_ui_update(thiz, tests_info->root, proc->battery, true);
+    battery_ui_update(thiz, tests_info->root, proc->battery, true,
+        proc->ble->ble_is_connected() ? 1 : 0);
     ble_ui_update(thiz, tests_info->root, proc->ble,
-        battery_ui_ble_x_get(BASE_BLE_UI_X), BASE_BLE_UI_Y, NULL);
+        battery_ui_ble_x_get(BASE_BLE_UI_X),
+        battery_ui_ble_y_get(BASE_BLE_UI_Y), NULL);
     uint8_t mac_addr[6] = {0};
     proc->ble->get_mac_addr(mac_addr);
     product_tests_qrcode_update(thiz, mac_addr);

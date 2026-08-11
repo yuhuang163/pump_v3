@@ -9,7 +9,7 @@
 * DEFINES
 *****************************************************************************************
 */
-/** 与第九页同布局；背景/标题随第十二页模式；力度继承第十四页；右侧力度 1Hz 闪烁 */
+/** 与第九页同布局；背景/标题随第十二页模式；力度继承第十四页；左右力度 1Hz 闪烁 */
 #define GUIDE_LEVEL_SIDE_DONE_SCREEN_W                  (360)
 
 #define GUIDE_LEVEL_SIDE_DONE_MODE_TITLE_Y              (64 + 4)
@@ -340,10 +340,13 @@ void guide_level_side_done_ui_update(guide_base_ui_info_t *info, ui_proc_guide_t
     lv_opa_t opa;
 
     EXCEPTION_CHECK_VOID(info && proc);
-    if (info->level_side_done.right_level == NULL ||
-        !lv_obj_is_valid(info->level_side_done.right_level)) {
-        return;
-    }
     opa = (proc->state_blink_visible != 0) ? LV_OPA_COVER : LV_OPA_TRANSP;
-    lv_obj_set_style_text_opa(info->level_side_done.right_level, opa, 0);
+    if (info->level_side_done.left_level != NULL &&
+        lv_obj_is_valid(info->level_side_done.left_level)) {
+        lv_obj_set_style_text_opa(info->level_side_done.left_level, opa, 0);
+    }
+    if (info->level_side_done.right_level != NULL &&
+        lv_obj_is_valid(info->level_side_done.right_level)) {
+        lv_obj_set_style_text_opa(info->level_side_done.right_level, opa, 0);
+    }
 }
