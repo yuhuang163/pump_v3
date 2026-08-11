@@ -341,6 +341,8 @@ static void pump_rest_mode_adjust_tip_dismiss_by_key(ui_proc_pump_t *proc, uint1
         case KEY_CODE_LACTATION_MODE:
         case KEY_CODE_START:
         case KEY_CODE_KNOB_RIGHT:
+        case KEY_CODE_POWER:
+        case KEY_CODE_KNOB_LEFT:
             pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
             LOG_WM("rest mode adjust tip dismissed by key:%d", keycode);
             break;
