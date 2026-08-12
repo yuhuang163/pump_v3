@@ -760,11 +760,52 @@ static void app_old_comm_bury_pump_level_adjust(const pump_setting_t *before, co
     DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
 }
 
+
+static uint8_t app_old_comm_get_pump_level_max_by_time_index(breast_pump_manager_context_t *pump_ctx,
+    int time_index)
+{
+    int pump_mode = 0;
+    uint8_t runtime_mode_type = PUMP_MODE_LACTATION;
+    uint8_t mode_type;
+    motor_manager_context_t *motor;
+
+    EXCEPTION_CHECK_UINT(pump_ctx);
+    READ_PUMP_WORK_MODE(pump_ctx, pump_mode);
+    motor = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
+    if (motor && motor->get_runtime_mode_type) {
+        runtime_mode_type = motor->get_runtime_mode_type(false);
+    }
+    /* 同 home_level_adjust_mode_type_resolve */
+    if (PUMP_IS_COMMON_MODE(pump_mode)) {
+        mode_type = (uint8_t)pump_mode;
+    } else {
+        mode_type = runtime_mode_type;
+    }
+    LOG_SRV("level max by time_index %d, pump_mode %d, runtime %d, mode_type %d",
+        time_index, pump_mode, runtime_mode_type, mode_type);
+    /* 同 home_level_adjust_max_get：刺激 5，其它 15 */
+    if (mode_type == PUMP_MODE_STIMULATION) {
+        return BREAST_PUMP_LEVEL_5;
+    }
+    return BREAST_PUMP_LEVEL_15;
+}
+
+static uint8_t app_old_comm_clamp_pump_level(uint8_t level, uint8_t level_max)
+{
+    if (level > level_max) {
+        LOG_SRV("pump level %d exceed max %d, clamp", level, level_max);
+        return level_max;
+    }
+    return level;
+}
+
 static uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_old_comm_pump_ctrl_date)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
     int time_index = 0;
+    uint8_t level_max;
+    uint8_t level;
     READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
@@ -772,45 +813,41 @@ static uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_ol
     pump_setting_t setting_before;
     READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting);
     setting_before = setting;
+    level_max = app_old_comm_get_pump_level_max_by_time_index(pump_ctx, time_index);
+    level = app_old_comm_clamp_pump_level(app_old_comm_pump_ctrl_date->normal_pump_level, level_max);
+    LOG_SRV("set normal pump level %d, max %d, time_index %d", level, level_max, time_index);
     if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_LEFT_CT) {
-        if (app_old_comm_pump_ctrl_date->normal_pump_level >= 0) {
-            ///相同不进行设置
-            if (setting.level[0] == app_old_comm_pump_ctrl_date->normal_pump_level) {
-                LOG_SRV("left pump level no change %d", setting.level[0]);
-                return false;
-            }
-            setting.level[0] = app_old_comm_pump_ctrl_date->normal_pump_level;
-            LOG_SRV("left pump level %d",setting.level[0]);
-            app_broadcast_pump_level_to_window(setting.level[0], OLD_BROADCAST_LEFT_CT);
-        }
-    } else if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_RIGHT_CT) {
-        if (app_old_comm_pump_ctrl_date->normal_pump_level <= BREAST_PUMP_LEVEL_15) {
-            ///相同不进行设置
-            if (setting.level[1] == app_old_comm_pump_ctrl_date->normal_pump_level) {
-                LOG_SRV("right pump level no change %d", setting.level[1]);
-                return false;
-            }
-            setting.level[1] = app_old_comm_pump_ctrl_date->normal_pump_level;
-            LOG_SRV("right pump level %d",setting.level[1]);
-            app_broadcast_pump_level_to_window(setting.level[1], OLD_BROADCAST_RIGHT_CT);
-        }
-    } else {
-        if (app_old_comm_pump_ctrl_date->normal_pump_level >= 0
-            && app_old_comm_pump_ctrl_date->normal_pump_level <= BREAST_PUMP_LEVEL_15) {
-            ///相同不进行设置
-            if (setting.level[0] == app_old_comm_pump_ctrl_date->normal_pump_level && setting.level[1] == app_old_comm_pump_ctrl_date->normal_pump_level) {
-                LOG_SRV("all pump level no change %d", setting.level[0]);
-                return false;
-            }
-            setting.level[1] = app_old_comm_pump_ctrl_date->normal_pump_level;
-            setting.level[0] = app_old_comm_pump_ctrl_date->normal_pump_level;
-            LOG_SRV("all pump level %d, %d", setting.level[0], setting.level[1]);
-            app_broadcast_pump_level_to_window(setting.level[0], OLD_BROADCAST_LEFT_CT);
-            app_broadcast_pump_level_to_window(setting.level[1], OLD_BROADCAST_RIGHT_CT);
-            ///双边模式不要设置，通过EA设置
-            ///app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
+        ///相同不进行设置
+        if (setting.level[0] == level) {
+            LOG_SRV("left pump level no change %d", setting.level[0]);
             return false;
         }
+        setting.level[0] = level;
+        LOG_SRV("left pump level %d",setting.level[0]);
+        app_broadcast_pump_level_to_window(setting.level[0], OLD_BROADCAST_LEFT_CT);
+    } else if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_RIGHT_CT) {
+        ///相同不进行设置
+        if (setting.level[1] == level) {
+            LOG_SRV("right pump level no change %d", setting.level[1]);
+            return false;
+        }
+        setting.level[1] = level;
+        LOG_SRV("right pump level %d",setting.level[1]);
+        app_broadcast_pump_level_to_window(setting.level[1], OLD_BROADCAST_RIGHT_CT);
+    } else {
+        ///相同不进行设置
+        if (setting.level[0] == level && setting.level[1] == level) {
+            LOG_SRV("all pump level no change %d", setting.level[0]);
+            return false;
+        }
+        setting.level[1] = level;
+        setting.level[0] = level;
+        LOG_SRV("all pump level %d, %d", setting.level[0], setting.level[1]);
+        app_broadcast_pump_level_to_window(setting.level[0], OLD_BROADCAST_LEFT_CT);
+        app_broadcast_pump_level_to_window(setting.level[1], OLD_BROADCAST_RIGHT_CT);
+        ///双边模式不要设置，通过EA设置
+        ///app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
+        return false;
     }
     app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
@@ -896,6 +933,8 @@ static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_ol
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_UINT(pump_ctx);
     int time_index = 0;
+    uint8_t level_max;
+    uint8_t level;
     READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
@@ -903,45 +942,41 @@ static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_ol
     pump_setting_t setting_before;
     READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting);
     setting_before = setting;
+    level_max = app_old_comm_get_pump_level_max_by_time_index(pump_ctx, time_index);
+    level = app_old_comm_clamp_pump_level(app_old_comm_pump_ctrl_date->user_define_pump_level, level_max);
+    LOG_SRV("set custom pump level %d, max %d, time_index %d", level, level_max, time_index);
     if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_LEFT_CT) {
-        if (app_old_comm_pump_ctrl_date->user_define_pump_level >= 0) {
-            ///相同不进行设置
-            if (setting.level[0] == app_old_comm_pump_ctrl_date->user_define_pump_level) {
-                LOG_SRV("left pump level no change %d", setting.level[0]);
-                return false;
-            }
-            setting.level[0] = app_old_comm_pump_ctrl_date->user_define_pump_level;
-            LOG_SRV("left pump level %d",setting.level[0]);
-            app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
-        }
-    } else if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_RIGHT_CT) {
-        if (app_old_comm_pump_ctrl_date->user_define_pump_level <= BREAST_PUMP_LEVEL_15) {
-            ///相同不进行设置
-            if (setting.level[1] == app_old_comm_pump_ctrl_date->user_define_pump_level) {
-                LOG_SRV("right pump level no change %d", setting.level[1]);
-                return false;
-            }
-            setting.level[1] = app_old_comm_pump_ctrl_date->user_define_pump_level;
-            LOG_SRV("right pump level %d",setting.level[1]);
-            app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
-        }
-    } else {
-        if (app_old_comm_pump_ctrl_date->user_define_pump_level >= 0
-            && app_old_comm_pump_ctrl_date->user_define_pump_level <= BREAST_PUMP_LEVEL_15) {
-            ///相同不进行设置
-            if (setting.level[0] == app_old_comm_pump_ctrl_date->user_define_pump_level && setting.level[1] == app_old_comm_pump_ctrl_date->user_define_pump_level) {
-                LOG_SRV("all pump level no change %d", setting.level[0]);
-                return false;
-            }
-            setting.level[1] = app_old_comm_pump_ctrl_date->user_define_pump_level;
-            setting.level[0] = app_old_comm_pump_ctrl_date->user_define_pump_level;
-            LOG_SRV("all pump level %d, %d no set to local", setting.level[0], setting.level[1]);
-            app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
-            app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
-            ///双边模式不要设置，通过EA设置
-            //app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
+        ///相同不进行设置
+        if (setting.level[0] == level) {
+            LOG_SRV("left pump level no change %d", setting.level[0]);
             return false;
         }
+        setting.level[0] = level;
+        LOG_SRV("left pump level %d",setting.level[0]);
+        app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
+    } else if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_RIGHT_CT) {
+        ///相同不进行设置
+        if (setting.level[1] == level) {
+            LOG_SRV("right pump level no change %d", setting.level[1]);
+            return false;
+        }
+        setting.level[1] = level;
+        LOG_SRV("right pump level %d",setting.level[1]);
+        app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
+    } else {
+        ///相同不进行设置
+        if (setting.level[0] == level && setting.level[1] == level) {
+            LOG_SRV("all pump level no change %d", setting.level[0]);
+            return false;
+        }
+        setting.level[1] = level;
+        setting.level[0] = level;
+        LOG_SRV("all pump level %d, %d no set to local", setting.level[0], setting.level[1]);
+        app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
+        app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
+        ///双边模式不要设置，通过EA设置
+        //app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
+        return false;
     }
     app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
@@ -1794,9 +1829,13 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
     
     // 读取当前设置
     int time_index = 0;
+    uint8_t level_max;
     READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
     pump_setting_t setting;
     READ_PUMP_SETTING_INFO(pump_ctx, time_index, setting);
+    level_max = app_old_comm_get_pump_level_max_by_time_index(pump_ctx, time_index);
+    left_level = app_old_comm_clamp_pump_level(left_level, level_max);
+    right_level = app_old_comm_clamp_pump_level(right_level, level_max);
 
     int control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
     WRITE_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, control_type, 0);
