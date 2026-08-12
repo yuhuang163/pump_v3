@@ -201,12 +201,8 @@ void panel_backlight_apply_app_rate(uint8_t rate)
         st->put_store_ram_val(STORE_ID_SYS_BACK_LIGHT_LEVEL, rate, 0, NULL);
     }
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     if (led) {
         set_key_backlight_level_rate(led, rate);
-    }
-    if (ui && ui->hook && ui->hook->set_ui_backlight_level_rate) {
-        ui->hook->set_ui_backlight_level_rate(ui, rate);
     }
     LOG_MISC("panel backlight app rate: %d", rate);
 }
