@@ -130,6 +130,10 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        if (proc->ui && proc->ui->hook && 
+            proc->ui->hook->set_ui_backlight_level_rate) {
+            proc->ui->hook->set_ui_backlight_level_rate(proc->ui, 100);
+        }
         start_logo_ui_animation(proc);
         POST_WM_TASK_HANDLER_DELAYED_ARG1(touch_key_fw_version_check_cb, 500,
             proc, TOUCH_KEY_FW_VERSION_CHECK_TASK_NAME);
