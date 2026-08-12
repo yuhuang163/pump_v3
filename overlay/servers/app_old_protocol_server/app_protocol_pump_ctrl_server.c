@@ -1185,6 +1185,19 @@ static bool app_old_comm_report_start_block_abnormal(uint8_t abnormal_id)
     return true;
 }
 
+/// 新手指引未完成或处于引导相关窗口：不操作并上报异常
+static bool app_old_comm_check_if_guide_block_abnormal(void)
+{
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_UINT(wm);
+    if (wm->is_current_window(wm, ID_WINDOW_GUIDE) || wm->is_current_window(wm, ID_WINDOW_POWER_OFF)
+        || wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_LOGO)) {
+        LOG_SRV("guide window block");
+        return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
+    }
+    return false;
+}
+
 ///低电不足运行一次不允许启动
 static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
 {
@@ -1228,7 +1241,7 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_UINT(wm);
     if (wm->is_current_window(wm, ID_WINDOW_GUIDE) || wm->is_current_window(wm, ID_WINDOW_POWER_OFF)
-        || wm->is_current_window(wm, ID_WINDOW_CHARGE)) {
+        || wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_LOGO)) {
         LOG_SRV("guide window, return false");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
     }
@@ -1791,7 +1804,14 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
         return;
     }
-    
+    /// 新手指引未完成：不操作，上报异常
+    if (app_old_comm_check_if_guide_block_abnormal()) {
+        uint8_t nack_data = 0x00;
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK,
+            APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
+        return;
+    }
+
     // 解析参数
     uint8_t left_level = cab[0];   // 左边档位 0x00~0x0F
     uint8_t left_speed = cab[1];   // 左边频次 1-低, 2-中, 3-高
