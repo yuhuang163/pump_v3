@@ -206,7 +206,7 @@ static int stop_motor(motor_stop_reason_e reason)
     motor_obj->priv.is_user_stoped = 1;
     motor_obj->priv.user_debug_status = 0;
     if (reason == MOTOR_POLICY_FINISH) {
-        motor_obj->priv.runtime.current_timed_policy_index = 0;
+        motor_policy_finish(motor_obj);
     }
     return internal_stop_motor("user-stop");
 }
