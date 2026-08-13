@@ -312,7 +312,7 @@ static void check_battery_temperature_abnormal(abnormal_manager_context_t *abnor
         ///恢复正常 - 首次低于阈值
         abnormal->set_abnormal_state(SYS_ABNORMAL_BATTERY_TEMP_HIGH, SYS_ABNORMAL_STATE_CLEARED);
         ///解除弹窗
-        LOGI("battery temperature normal: %d℃", temperature);
+        LOG_MISC("battery temperature normal: %d℃", temperature);
         trigger_abnormal_popup(SYS_ABNORMAL_BATTERY_TEMP_HIGH);
     }
     
@@ -349,7 +349,7 @@ static void abnormal_monitor_thread(void *user_data)
     uint32_t rtc_timestamp = platform_get_utc_time();
     utc_time_t utc_time = {0};
     timestamp_to_utc_time(rtc_timestamp, &utc_time);
-    LOGI("abnormal_monitor_thread runing, rtc_time: %u, %04u-%02u-%02u %02u:%02u:%02u, "
+    LOG_MISC("rtc_time: %u, %04u-%02u-%02u %02u:%02u:%02u, "
          "abnormal: bat_temp=%u storage=%u comm=%u displayed=%u forbidden=%u locked=%u",
          (unsigned int)rtc_timestamp, utc_time.year + 2000, utc_time.month, utc_time.day,
          utc_time.hour, utc_time.minute, utc_time.second,

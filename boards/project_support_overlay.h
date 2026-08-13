@@ -76,6 +76,11 @@ extern "C" {
 #define IS_SUPPORT_IMU_FIFO                              (0)
 /// 测试支持
 #define IS_SUPPORT_PRESSURE_TEST                         (1)
+/// 压测类型选择（互斥，仅选一项）
+/// 0:放电测试 1:数据埋点 2:按键轮询 3:电机调试 4:电机策略 5:LED 6:LCD 7:Flash 8:弹窗 9:重启 10:看门狗 11:泵奶基础
+#ifndef PRESSURE_TEST_SELECT_TYPE
+#define PRESSURE_TEST_SELECT_TYPE                        (0)
+#endif
 /// 支持爬升策略
 #define IS_SUPPORT_CLIMB_POLICY                          (1)
 /// 支持暂停/吸奶结束补吸策略
