@@ -22,6 +22,7 @@ typedef struct {
 *****************************************************************************************
 */
 void motor_policy_init(struct motor_manager_context *thiz);
+void motor_policy_finish(struct motor_manager_context *thiz);
 int change_motor_mode(struct motor_manager_context *thiz, uint8_t mode, bool is_continue);
 #ifdef __cplusplus
 }

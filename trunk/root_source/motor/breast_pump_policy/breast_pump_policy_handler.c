@@ -742,6 +742,21 @@ int change_motor_mode(struct motor_manager_context *thiz, uint8_t mode, bool is_
     return 0;
 }
 
+void motor_policy_finish(struct motor_manager_context *thiz)
+{
+    motor_policy_runtime_t *runtime = &thiz->priv.runtime;
+    runtime->current_timed_policy_index = 0;
+    if (runtime->manager != NULL) {
+        runtime->timed_policy = &runtime->manager->head;
+        runtime->current_mode_type = pump_policy_type_get(runtime->timed_policy->policy);
+        if (runtime->timed_policy->next != NULL) {
+            runtime->next_mode_type = pump_policy_type_get(runtime->timed_policy->next->policy);
+        } else {
+            runtime->next_mode_type = runtime->current_mode_type;
+        }
+    }
+}
+
 void motor_policy_init(struct motor_manager_context *thiz)
 {
     // negative_pressure_release(thiz, 200);
