@@ -35,11 +35,9 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
     if (proc->pump) {
         int time_index = 0;
         WRITE_PUMP_WORK_MODE(proc->pump, BREAST_PUMP_MILK_BOOST_MODE, false, false);
-        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, false);
         proc->setting.level[0] = DEFAULT_LEVEL_VALUE;
         proc->setting.level[1] = DEFAULT_LEVEL_VALUE;
         proc->setting.speed = DEFAULT_SPEED_VALUE;
-        READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     }
 #endif
@@ -79,6 +77,11 @@ static void guide_stop_hold_complete_cb(hdr_post_args_t *args)
     LOG_WM("guide stop hold complete, goto pump home.");
     proc->stop_hold_holding = 0;
     proc->stop_hold_ignore_click = 1;
+#if IS_SUPPORT_GUIDE_PUMP_START
+    if (proc->pump) {
+        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, false);
+    }
+#endif
     guide_page_advance(proc, GUIDE_PAGE_PUMP_HOME);
 }
 
@@ -99,9 +102,30 @@ void guide_page_advance(ui_proc_guide_t *proc, uint16_t next_page)
     }
     proc->page_index = next_page;
     proc->page_enter_time = get_timestamp();
-    if (next_page == GUIDE_PAGE_MODE_SWITCH) {
-        proc->ui_mode_index = GUIDE_MODE_SWITCH_SLOT_STIMULATION;
+
+    switch (next_page) {
+        case GUIDE_PAGE_PUMP_HOME_GUIDE:
+#if IS_SUPPORT_GUIDE_PUMP_START
+            if (proc->pump) {
+                WRITE_PUMP_WORK_MODE(proc->pump, BREAST_PUMP_STIMULATION_MODE, false, false);
+                WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_START, false);
+            }
+#endif
+            break;
+        case GUIDE_PAGE_PUMP_PAUSE:
+#if IS_SUPPORT_GUIDE_PUMP_START
+            if (proc->pump) {
+                WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, false);
+            }
+#endif
+            break;
+        case GUIDE_PAGE_MODE_SWITCH:
+            proc->ui_mode_index = GUIDE_MODE_SWITCH_SLOT_STIMULATION;
+            break;
+        default:
+            break;
     }
+
     guide_blink_state_restart(proc);
     guide_led_backlight_update(proc);
 }
