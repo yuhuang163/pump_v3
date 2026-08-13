@@ -11,6 +11,34 @@
  *****************************************************************************************
  */
 
+/**
+ * @defgroup PRESSURE_TEST_TYPE 压测类型定义
+ * @brief 压测类型互斥选择宏，通过 PRESSURE_TEST_SELECT_TYPE 指定当前激活的压测项
+ * @note  只能选择一个测试项，多个测试项互斥
+ * @{
+ */
+#define PRESSURE_TEST_TYPE_DISCHARGE            0   /**< 放电测试：泵奶15分钟+暂停1分钟循环 */
+#define PRESSURE_TEST_TYPE_DATA_BURY            1   /**< 数据埋点压测 */
+#define PRESSURE_TEST_TYPE_KEY_SWITCH           2   /**< 模拟按键轮询切换 */
+#define PRESSURE_TEST_TYPE_MOTOR_DEBUG          3   /**< 电机调试状态机 */
+#define PRESSURE_TEST_TYPE_MOTOR_POLICY         4   /**< 电机策略调试 */
+#define PRESSURE_TEST_TYPE_LED                  5   /**< LED闪烁测试 */
+#define PRESSURE_TEST_TYPE_LCD_SEND             6   /**< LCD图像数据发送测试 */
+#define PRESSURE_TEST_TYPE_EXTERNAL_FLASH       7   /**< 外部Flash读取性能测试 */
+#define PRESSURE_TEST_TYPE_POPUP_WINDOW         8   /**< 弹窗测试 */
+#define PRESSURE_TEST_TYPE_REBOOT               9   /**< 系统重启测试(10次后触发) */
+#define PRESSURE_TEST_TYPE_SYS_DUMP             10  /**< 系统Dump/看门狗死循环测试 */
+#define PRESSURE_TEST_TYPE_PUMP_BASIC           11  /**< 泵奶基础测试(每30s循环) */
+/** @} */
+
+/**
+ * @brief 当前选择的压测类型
+ * @note  默认为放电测试，可在编译选项中覆盖此宏
+ */
+#ifndef PRESSURE_TEST_SELECT_TYPE
+#define PRESSURE_TEST_SELECT_TYPE               PRESSURE_TEST_TYPE_DISCHARGE
+#endif
+
 /*
  * LOCAL VARIABLE DEFINITIONS
  *****************************************************************************************
@@ -25,168 +53,98 @@
  * LOCAL FUNCTION DEFINITIONS
  *****************************************************************************************
  */
-#if IS_SUPPORT_PRESSURE_TEST  
-static int run_led_test_cb(void)
-{
-    static uint8_t led_status = LED_STATUS_OFF;
-    LOG_PBUS("===> run led test!!!!! status: %d", led_status);
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    led_status = (led_status == LED_STATUS_OFF) ? LED_STATUS_ON : LED_STATUS_OFF;
-    return 1000;
-}
+#if IS_SUPPORT_PRESSURE_TEST
 
-static void run_pump_test_cb(void)
-{
-    LOG_PBUS("===> run pump test!!!!!");
-}
+/*===========================================================================
+ * 放电测试 (PRESSURE_TEST_TYPE_DISCHARGE = 0)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_DISCHARGE)
 
-static void reboot_system_test_cb(void)
-{
-    static int reboot_count = 0;
-    reboot_count++;
-    if (reboot_count < 10) {
-        return;
-    } 
-    reboot_count = 0;
-    LOG_PBUS("===> reboot system after 100ms");
-    msleep(100);
-    platform_system_reboot();
-}
+/// 放电测试配置
 
-static int lcd_data_send_test_cb(void)
-{
-#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    rt_device_node_t *lcd_dev = pbus->find_device(ID_DEVICE_DISPLAY_PANEL);
-    EXCEPTION_CHECK_INT(lcd_dev);
-    uint8_t img_id = LCD_DISPLAY_PUMPING_COMPLETED;
-    lcd_tlvs_msg_t msg = {
-        .srv_id = LCD_DISPLAY_EVENT_SRV,
-        .tlvs = u_malloz(sizeof(lcd_tlvs_t)),
-        .tlvs_num = 1,
-    };
-    EXCEPTION_CHECK_INT(msg.tlvs);
-    msg.tlvs[0].type = LCD_IMG_ID;
-    msg.tlvs[0].data_size = 1;
-    msg.tlvs[0].data[0] = img_id;
-    lcd_dev->ioctl(lcd_dev, OP_CODE_PANEL_DATA_SEND, (void *)&msg);
-    u_free(msg.tlvs);
+#if 0
+#define DISCHARGE_PUMP_DURATION_MS        (10 * 60 * 1000)   /**< 泵奶持续时间：15分钟 */
+#define DISCHARGE_PAUSE_DURATION_MS       (1 * 60 * 1000)    /**< 暂停持续时间：1分钟 */
+#else
+#define DISCHARGE_PUMP_DURATION_MS        (10 * 60 * 1000)   /**< 泵奶持续时间：10分钟 */
+#define DISCHARGE_PAUSE_DURATION_MS       (15 * 1000)        /**< 暂停持续时间：15秒 */
 #endif
-    return 1000;
-}
 
-static void motor_debug_policy_test_cb(void)
+#define DISCHARGE_CHECK_INTERVAL_MS       1000                /**< 状态检查间隔：1秒 */
+#define DISCHARGE_MODE_SWITCH_DELAY_MS    500                 /**< 模式切换后等待生效的延迟 */
+#define DISCHARGE_RESTART_DELAY_MS        300                 /**< 重启前切换模式等待生效的延迟 */
+
+/**< 放电测试状态枚举 */
+typedef enum {
+    DISCHARGE_STATE_INIT_SWITCH_MODE = 0,   /**< 初始化-切换吸乳模式 */
+    DISCHARGE_STATE_PUMPING,                /**< 泵奶中：累计泵奶时间，到时发送暂停键 */
+    DISCHARGE_STATE_PAUSING,                /**< 暂停中：累计暂停时间，到时切换模式重启 */
+    DISCHARGE_STATE_RESTART_SWITCH_MODE,    /**< 重启-切换吸乳模式 */
+    DISCHARGE_STATE_RESTART_START_PUMP,     /**< 重启-启动泵奶 */
+} discharge_test_state_e;
+
+/**
+ * @brief 放电测试回调函数
+ * @details 模拟用户操作循环：切换吸乳模式 → 启动泵奶 → 工作15分钟 → 暂停1分钟 → 循环
+ *          每次回调只做一个非阻塞操作，通过返回值控制下次调度时机，不在回调中 sleep
+ * @return 下次调度的延迟时间（ms）
+ */
+static int discharge_test_cb(void)
 {
-    motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
-    EXCEPTION_CHECK_VOID(motor_ctx);
-    EXCEPTION_CHECK_VOID(motor_ctx->hook);
-    EXCEPTION_CHECK_VOID(motor_ctx->hook->motor_debug_with_user_para);
-    motor_policy_original_para_t para = {
-        .pump_level = 75 * PUMP_DUTY_SCALE_FACTOR,
-        .pumping_time = 1000,
-        .valve_on_time = 500,
-        .sleep_time = 200,
-        .hold_time = 100,
-    };
-    LOG_PBUS("===> motor debug test!!!!! pump_level: %d, pumping_time: %d, valve_on_time: %d, sleep_time: %d, hold_time: %d",
-        para.pump_level, para.pumping_time, para.valve_on_time, para.sleep_time, para.hold_time);
-    motor_ctx->hook->motor_debug_with_user_para(motor_ctx, MOTOR_USER_DEBUG_POLICY, &para);
-}
+    static discharge_test_state_e state = DISCHARGE_STATE_INIT_SWITCH_MODE;
+    static uint32_t accumulated_ms = 0;
+    static uint32_t total_cycles = 0;
+    key_input_context_t *key_input = NULL;
 
-static int motor_debug_test_cb(void)
-{
-    static uint8_t state = MOTOR_USER_DEBUG_PUMP_ON;
-    motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
-    motor_debug_para_t para = {
-        .duty = 75,
-        .hold_time = 300,
-    };
-    if (state > MOTOR_USER_DEBUG_VALVE_OFF) {
-        state = MOTOR_USER_DEBUG_PUMP_ON;
-    }
-    LOG_PBUS("===> motor debug test!!!!! state: %d, duty: %d, hold_time: %d", state, para.duty, para.hold_time);
-    motor_ctx->hook->motor_debug_with_user_para(motor_ctx, state, &para);
-    state++;
-    return 1000;
-}
-
-static int pumping_test_cb(void)
-{
-    return 1000*30;
-}
-
-///模拟用户操作按键切换
-static int bottom_key_switch_test_cb(void)
-{   
-    static uint8_t key_code = KEY_CODE_START;
-    key_input_context_t *key_input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    key_input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     EXCEPTION_CHECK_INT(key_input);
-    /// 启动按键模拟
-    key_input->dispatch_client_input_key(key_code, KEY_EVENT_CLICK);
-    if (key_code == KEY_CODE_START) {
-        key_code = KEY_CODE_MODE;
-    } else if (key_code == KEY_CODE_MODE) {
-        key_code = KEY_CODE_FREQUENCY;
-    } else if (key_code == KEY_CODE_FREQUENCY) {
-        key_code = KEY_CODE_BREASTFEEDING;
-    } else if (key_code == KEY_CODE_BREASTFEEDING) {
-        key_code = KEY_CODE_LEFT_CONTROL;
-    } else if (key_code == KEY_CODE_LEFT_CONTROL) {
-        key_code = KEY_CODE_RIGHT_CONTROL;
-    } else if (key_code == KEY_CODE_RIGHT_CONTROL) {
-        key_code = KEY_CODE_START;
-    }
-    LOG_PBUS("===> bottom key switch test!!!!! key_code: %d", key_code);
-    return 15000;
-}
 
-static void sys_dump_wdg_test_cb(void)
-{
-    window_manager_context_t *wm = NULL;
-    LOG_PBUS("===> sys dump wdg test!!!!! wm: %p", wm);
-    msleep(100);
-    wm->window_scheduling_start();
-    while(1) {
-    }
-}
+    switch (state) {
+    case DISCHARGE_STATE_INIT_SWITCH_MODE:
+        // 切换到吸乳模式，延时等模式生效后再启动
+        key_input->dispatch_client_input_key(KEY_CODE_LACTATION_MODE, KEY_EVENT_CLICK);
+        LOG_PBUS("[discharge_test] switch to lactation mode, cycle=%u", (unsigned)(total_cycles + 1));
+        state = DISCHARGE_STATE_PUMPING;
+        return DISCHARGE_MODE_SWITCH_DELAY_MS;
 
-static int external_flash_test_cb(void)
-{
-    int ret = 0;
-    uint32_t addr = 0;
-    uint32_t size = 0;
-    uint32_t start_time = 0;
-    start_time = get_timestamp();
-    addr = 0x80000;
-    size = 50 * 1024;
-    uint8_t *buff = u_malloz_psram(size, 0);
-    if (buff) {
-        ret = platform_flash_read(PARTITION_IMG_EXT_DATA_NAME, addr, buff, size);
-        if (ret != 0) {
-            LOGE("===> read failed, ret: %d", ret);
+    case DISCHARGE_STATE_PUMPING:
+        accumulated_ms += DISCHARGE_CHECK_INTERVAL_MS;
+        if (accumulated_ms >= DISCHARGE_PUMP_DURATION_MS) {
+            // 达到15分钟，发送暂停按键
+            breast_pump_manager_context_t *pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP); 
+            WRITE_PUMP_WORK_MODE(pump, BREAST_PUMP_MILK_BOOST_MODE, 0, 0);
+            key_input->dispatch_client_input_key(KEY_CODE_START, KEY_EVENT_CLICK);
+            LOG_PBUS("[discharge_test] pause pumping at %ums, cycle=%u",
+                     (unsigned)accumulated_ms, (unsigned)(total_cycles + 1));
+            accumulated_ms = 0;
+            state = DISCHARGE_STATE_PAUSING;
         }
-        LOGI("===>read size: %d, addr: %d, time: %dms", size, addr, get_timestamp_ms(start_time));
-        u_free_psram(buff, 0);
+        return DISCHARGE_CHECK_INTERVAL_MS;
+
+    case DISCHARGE_STATE_PAUSING:
+        accumulated_ms += DISCHARGE_CHECK_INTERVAL_MS;
+        if (accumulated_ms >= DISCHARGE_PAUSE_DURATION_MS) {
+            total_cycles++;
+            LOG_PBUS("[discharge_test] pause complete, total_cycles=%u", (unsigned)total_cycles);
+            accumulated_ms = 0;
+            state = DISCHARGE_STATE_INIT_SWITCH_MODE;
+        }
+        return DISCHARGE_CHECK_INTERVAL_MS;
+
+    default:
+        LOG_PBUS("[discharge_test] unknown state %d, reset to init", (int)state);
+        state = DISCHARGE_STATE_INIT_SWITCH_MODE;
+        break;
     }
-    return 1000;
+    return DISCHARGE_CHECK_INTERVAL_MS;
 }
 
-static int popup_window_test_cb(void)
-{
-    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-    EXCEPTION_CHECK_INT(wm);
-    if (wm->is_current_window(wm, ID_WINDOW_POPUP_WINDOW)) {
-        LOG_PBUS("===> popup window already exists, ignore.");
-        return 8000;
-    }
-    multi_func_msg_data_t msg = {0};
-    msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
-    msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
-    msg.union_body.extra.popup_exit_time = 8000;
-    wm->dispatch_new_window_args(wm, &msg);
-    LOG_PBUS("===> popup window test!!!!!");
-    return 15000;
-}
+#endif /* PRESSURE_TEST_TYPE_DISCHARGE */
+
+/*===========================================================================
+ * 数据埋点压测 (PRESSURE_TEST_TYPE_DATA_BURY = 1)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_DATA_BURY)
 
 typedef struct {
     servers_publish_data_id_e id;
@@ -197,29 +155,7 @@ typedef struct {
 
 /**
  * @brief 埋点压力测试数据初始化函数 - 用于生成固定的测试数据，方便接收方验证数据格式
- * 
- * @param[in]  sid            - 测试会话ID (固定值: 0x20260608u 表示2026-06-08)
- * @param[in]  ts             - 事件时间戳 (固定值: 1796812800u = 2026-06-08 00:00:00 UTC)
- * @param[out] startup        - 设备启动事件: firmware_version=0x0102, battery_level=85%
- * @param[out] shutdown       - 设备关机事件: battery_level=80%, reason=手动关机
- * @param[out] bt_connect     - 蓝牙连接事件: result=成功, rssi=-55, setup_ms=320
- * @param[out] session_start  - 吸乳会话开始: session_id=1001, mode=1, level=3
- * @param[out] session_end_buf- 吸乳会话结束(变长): session_id=1001, volume=120ml, 模式时长: mode=1(60s), mode=2(120s)
- * @param[out] manual_adjust  - 手动调节事件: level从3调至4
- * @param[out] user_evt       - 用户事件: type=开始
- * @param[out] milk_ejection  - 喷乳检测: 检测1次, 30ml->45ml, 持续5秒
- * @param[out] charge_start   - 充电开始: 20%, 3.6V, 500mA, 25°C
- * @param[out] charge_end     - 充电结束: 100%, 4.2V, reason=充满
- * @param[out] exception      - 异常事件: error_code=0x42(通信错误), error_data=0
- * @param[out] fw_update      - 固件升级: from=0x0100, result=成功
- * @param[out] overflow       - 溢乳事件: volume=150ml
- * @param[out] milk_volume_buf- 乳汁体积采样(变长): 3个采样点 [10, 25, 40]ml
- * @param[out] heat_start     - 热敷开始: session_id=2001, level=2, temp=36°C
- * @param[out] heat_end       - 热敷结束: top_temp=40°C, final_temp=38°C
- * @param[out] massage_start  - 按摩开始: session_id=3001, level=1
- * @param[out] massage_end    - 按摩结束: level=2
- * @param[out] wear           - 佩戴检测: type=1, data=0x55AA
- * 
+ *
  * @note 所有测试数据均为固定值，用于压力测试和数据格式验证，实际使用时应替换为真实数据
  */
 static void data_bury_pressure_test_init_payloads(
@@ -534,24 +470,277 @@ static int data_bury_pressure_test_cb(void)
     return 30000;
 }
 
+#endif /* PRESSURE_TEST_TYPE_DATA_BURY */
+
+/*===========================================================================
+ * 模拟按键轮询切换 (PRESSURE_TEST_TYPE_KEY_SWITCH = 2)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_KEY_SWITCH)
+
+///模拟用户操作按键切换
+static int bottom_key_switch_test_cb(void)
+{
+    static uint8_t key_code = KEY_CODE_START;
+    key_input_context_t *key_input = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+    EXCEPTION_CHECK_INT(key_input);
+    /// 启动按键模拟
+    key_input->dispatch_client_input_key(key_code, KEY_EVENT_CLICK);
+    if (key_code == KEY_CODE_START) {
+        key_code = KEY_CODE_MODE;
+    } else if (key_code == KEY_CODE_MODE) {
+        key_code = KEY_CODE_FREQUENCY;
+    } else if (key_code == KEY_CODE_FREQUENCY) {
+        key_code = KEY_CODE_BREASTFEEDING;
+    } else if (key_code == KEY_CODE_BREASTFEEDING) {
+        key_code = KEY_CODE_LEFT_CONTROL;
+    } else if (key_code == KEY_CODE_LEFT_CONTROL) {
+        key_code = KEY_CODE_RIGHT_CONTROL;
+    } else if (key_code == KEY_CODE_RIGHT_CONTROL) {
+        key_code = KEY_CODE_START;
+    }
+    LOG_PBUS("===> bottom key switch test!!!!! key_code: %d", key_code);
+    return 15000;
+}
+
+#endif /* PRESSURE_TEST_TYPE_KEY_SWITCH */
+
+/*===========================================================================
+ * 电机调试状态机 (PRESSURE_TEST_TYPE_MOTOR_DEBUG = 3)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_MOTOR_DEBUG)
+
+static int motor_debug_test_cb(void)
+{
+    static uint8_t state = MOTOR_USER_DEBUG_PUMP_ON;
+    motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
+    motor_debug_para_t para = {
+        .duty = 75,
+        .hold_time = 300,
+    };
+    if (state > MOTOR_USER_DEBUG_VALVE_OFF) {
+        state = MOTOR_USER_DEBUG_PUMP_ON;
+    }
+    LOG_PBUS("===> motor debug test!!!!! state: %d, duty: %d, hold_time: %d", state, para.duty, para.hold_time);
+    motor_ctx->hook->motor_debug_with_user_para(motor_ctx, state, &para);
+    state++;
+    return 1000;
+}
+
+#endif /* PRESSURE_TEST_TYPE_MOTOR_DEBUG */
+
+/*===========================================================================
+ * 电机策略调试 (PRESSURE_TEST_TYPE_MOTOR_POLICY = 4)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_MOTOR_POLICY)
+
+static void motor_debug_policy_test_cb(void)
+{
+    motor_manager_context_t *motor_ctx = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
+    EXCEPTION_CHECK_VOID(motor_ctx);
+    EXCEPTION_CHECK_VOID(motor_ctx->hook);
+    EXCEPTION_CHECK_VOID(motor_ctx->hook->motor_debug_with_user_para);
+    motor_policy_original_para_t para = {
+        .pump_level = 75 * PUMP_DUTY_SCALE_FACTOR,
+        .pumping_time = 1000,
+        .valve_on_time = 500,
+        .sleep_time = 200,
+        .hold_time = 100,
+    };
+    LOG_PBUS("===> motor debug test!!!!! pump_level: %d, pumping_time: %d, valve_on_time: %d, sleep_time: %d, hold_time: %d",
+        para.pump_level, para.pumping_time, para.valve_on_time, para.sleep_time, para.hold_time);
+    motor_ctx->hook->motor_debug_with_user_para(motor_ctx, MOTOR_USER_DEBUG_POLICY, &para);
+}
+
+#endif /* PRESSURE_TEST_TYPE_MOTOR_POLICY */
+
+/*===========================================================================
+ * LED闪烁测试 (PRESSURE_TEST_TYPE_LED = 5)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_LED)
+
+static int run_led_test_cb(void)
+{
+    static uint8_t led_status = LED_STATUS_OFF;
+    LOG_PBUS("===> run led test!!!!! status: %d", led_status);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    led_status = (led_status == LED_STATUS_OFF) ? LED_STATUS_ON : LED_STATUS_OFF;
+    return 1000;
+}
+
+#endif /* PRESSURE_TEST_TYPE_LED */
+
+/*===========================================================================
+ * LCD图像数据发送测试 (PRESSURE_TEST_TYPE_LCD_SEND = 6)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_LCD_SEND)
+
+static int lcd_data_send_test_cb(void)
+{
+#if (V3_HARDWARE_VERSION == V3_2710IMP_HARDWARE_V1)
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    rt_device_node_t *lcd_dev = pbus->find_device(ID_DEVICE_DISPLAY_PANEL);
+    EXCEPTION_CHECK_INT(lcd_dev);
+    uint8_t img_id = LCD_DISPLAY_PUMPING_COMPLETED;
+    lcd_tlvs_msg_t msg = {
+        .srv_id = LCD_DISPLAY_EVENT_SRV,
+        .tlvs = u_malloz(sizeof(lcd_tlvs_t)),
+        .tlvs_num = 1,
+    };
+    EXCEPTION_CHECK_INT(msg.tlvs);
+    msg.tlvs[0].type = LCD_IMG_ID;
+    msg.tlvs[0].data_size = 1;
+    msg.tlvs[0].data[0] = img_id;
+    lcd_dev->ioctl(lcd_dev, OP_CODE_PANEL_DATA_SEND, (void *)&msg);
+    u_free(msg.tlvs);
+#endif
+    return 1000;
+}
+
+#endif /* PRESSURE_TEST_TYPE_LCD_SEND */
+
+/*===========================================================================
+ * 外部Flash读取性能测试 (PRESSURE_TEST_TYPE_EXTERNAL_FLASH = 7)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_EXTERNAL_FLASH)
+
+static int external_flash_test_cb(void)
+{
+    int ret = 0;
+    uint32_t addr = 0;
+    uint32_t size = 0;
+    uint32_t start_time = 0;
+    start_time = get_timestamp();
+    addr = 0x80000;
+    size = 50 * 1024;
+    uint8_t *buff = u_malloz_psram(size, 0);
+    if (buff) {
+        ret = platform_flash_read(PARTITION_IMG_EXT_DATA_NAME, addr, buff, size);
+        if (ret != 0) {
+            LOGE("===> read failed, ret: %d", ret);
+        }
+        LOGI("===>read size: %d, addr: %d, time: %dms", size, addr, get_timestamp_ms(start_time));
+        u_free_psram(buff, 0);
+    }
+    return 1000;
+}
+
+#endif /* PRESSURE_TEST_TYPE_EXTERNAL_FLASH */
+
+/*===========================================================================
+ * 弹窗测试 (PRESSURE_TEST_TYPE_POPUP_WINDOW = 8)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_POPUP_WINDOW)
+
+static int popup_window_test_cb(void)
+{
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_INT(wm);
+    if (wm->is_current_window(wm, ID_WINDOW_POPUP_WINDOW)) {
+        LOG_PBUS("===> popup window already exists, ignore.");
+        return 8000;
+    }
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
+    msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
+    msg.union_body.extra.popup_exit_time = 8000;
+    wm->dispatch_new_window_args(wm, &msg);
+    LOG_PBUS("===> popup window test!!!!!");
+    return 15000;
+}
+
+#endif /* PRESSURE_TEST_TYPE_POPUP_WINDOW */
+
+/*===========================================================================
+ * 系统重启测试 (PRESSURE_TEST_TYPE_REBOOT = 9)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_REBOOT)
+
+static void reboot_system_test_cb(void)
+{
+    static int reboot_count = 0;
+    reboot_count++;
+    if (reboot_count < 10) {
+        return;
+    }
+    reboot_count = 0;
+    LOG_PBUS("===> reboot system after 100ms");
+    msleep(100);
+    platform_system_reboot();
+}
+
+#endif /* PRESSURE_TEST_TYPE_REBOOT */
+
+/*===========================================================================
+ * 系统Dump/看门狗死循环测试 (PRESSURE_TEST_TYPE_SYS_DUMP = 10)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_SYS_DUMP)
+
+static void sys_dump_wdg_test_cb(void)
+{
+    window_manager_context_t *wm = NULL;
+    LOG_PBUS("===> sys dump wdg test!!!!! wm: %p", wm);
+    msleep(100);
+    wm->window_scheduling_start();
+    while(1) {
+    }
+}
+
+#endif /* PRESSURE_TEST_TYPE_SYS_DUMP */
+
+/*===========================================================================
+ * 泵奶基础测试 (PRESSURE_TEST_TYPE_PUMP_BASIC = 11)
+ *===========================================================================*/
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_PUMP_BASIC)
+
+static void run_pump_test_cb(void)
+{
+    LOG_PBUS("===> run pump test!!!!!");
+}
+
+static int pumping_test_cb(void)
+{
+    return 1000*30;
+}
+
+#endif /* PRESSURE_TEST_TYPE_PUMP_BASIC */
+
+/*===========================================================================
+ * 压测调度器 - 根据 PRESSURE_TEST_SELECT_TYPE 选择对应的测试回调
+ *===========================================================================*/
 static void hdr_run_pressure_test_cb(hdr_post_args_t *args)
 {
     (void)args;
-    // sys_dump_wdg_test_cb();
-    // reboot_system_test_cb();
-    // run_pump_test_cb();
-    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, lcd_data_send_test_cb(), "pressure_test:continue");
-    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, run_led_test_cb(), "pressure_test:continue");
-    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, external_flash_test_cb(), "pressure_test:continue");
-    //POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, popup_window_test_cb(), "pressure_test:continue");
-    // motor_debug_policy_test_cb();
-    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, motor_debug_test_cb(), "pressure_test:continue");
-    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 1000, "pressure_test:continue");
-    //POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, pumping_test_cb(), "pressure_test:continue");
-    // POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, bottom_key_switch_test_cb(), "pressure_test:continue");
+#if (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_DISCHARGE)
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, discharge_test_cb(), "pressure_test:continue");
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_DATA_BURY)
     POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, data_bury_pressure_test_cb(), "pressure_test:continue");
-}
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_KEY_SWITCH)
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, bottom_key_switch_test_cb(), "pressure_test:continue");
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_MOTOR_DEBUG)
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, motor_debug_test_cb(), "pressure_test:continue");
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_MOTOR_POLICY)
+    motor_debug_policy_test_cb();
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 1000, "pressure_test:continue");
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_LED)
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, run_led_test_cb(), "pressure_test:continue");
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_LCD_SEND)
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, lcd_data_send_test_cb(), "pressure_test:continue");
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_EXTERNAL_FLASH)
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, external_flash_test_cb(), "pressure_test:continue");
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_POPUP_WINDOW)
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, popup_window_test_cb(), "pressure_test:continue");
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_REBOOT)
+    reboot_system_test_cb();
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 1000, "pressure_test:continue");
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_SYS_DUMP)
+    sys_dump_wdg_test_cb();
+#elif (PRESSURE_TEST_SELECT_TYPE == PRESSURE_TEST_TYPE_PUMP_BASIC)
+    POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, pumping_test_cb(), "pressure_test:continue");
+#else
+    #error "Unknown PRESSURE_TEST_SELECT_TYPE"
 #endif
+}
+#endif /* IS_SUPPORT_PRESSURE_TEST */
 
 /*
  * GLOBAL FUNCTION DEFINITIONS
@@ -559,7 +748,7 @@ static void hdr_run_pressure_test_cb(hdr_post_args_t *args)
  */
 int run_user_thread_dispatch(void)
 {
-#if IS_SUPPORT_PRESSURE_TEST  
+#if IS_SUPPORT_PRESSURE_TEST
     //POST_TASK_HANDLER_DELAYED_ARG0(hdr_run_pressure_test_cb, 5000, "pressure_test");
 #endif
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
