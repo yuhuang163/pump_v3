@@ -25,6 +25,8 @@
 #endif
 #endif
 
+#define PRESSURE_RELEASE_WAIT_TIME_MS   1000
+
 #if IS_SUPPORT_MAKEUP_SUCTION
 #ifndef MAKEUP_SUCTION_LEVEL
 #define MAKEUP_SUCTION_LEVEL            BREAST_PUMP_LEVEL_1  /// 补吸档位（吸乳1档）
@@ -301,14 +303,17 @@ static bool negative_pressure_release(struct motor_manager_context *thiz, uint16
 
 static void breast_pump_policy_exit_release(struct motor_manager_context *thiz, motor_policy_runtime_t *runtime)
 {
+    #if IS_SUPPORT_PRESSURE_RELEASE_INTERRUPT
+    negative_pressure_release(thiz, PRESSURE_RELEASE_WAIT_TIME_MS);
+    #else
     uint16_t wait_time_ms = 0;
-
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
         if (runtime->info[i].state.release_wait_time_ms > wait_time_ms) {
             wait_time_ms = runtime->info[i].state.release_wait_time_ms;
         }
     }
     negative_pressure_release(thiz, wait_time_ms == 0 ? 200 : wait_time_ms);
+    #endif
 }
 
 static void breast_pump_start_prepare(struct motor_manager_context *thiz, const motor_policy_manager_t *policy_obj)
