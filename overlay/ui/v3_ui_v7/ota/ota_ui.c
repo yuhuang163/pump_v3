@@ -34,8 +34,8 @@
 #define OTA_DOWNLOAD_PERCENT_Y                      (238)
 #define OTA_DOWNLOAD_SIZE_Y                         (300)
 
-#define OTA_SUCCESS_ICON_Y                          (85)
-#define OTA_SUCCESS_TITLE_Y                         (192)
+#define OTA_SUCCESS_ICON_Y                          (106)
+#define OTA_SUCCESS_TITLE_Y                         (212)
 #define OTA_SUCCESS_LINE_SPACE                      (8)
 
 #define OTA_ERROR_ICON_Y                            (106)
@@ -122,7 +122,7 @@ const static ota_text_info_t ota_error_text_infos[OTA_DESC_TEXT_NUM] = {
 };
 
 const static ota_text_info_t ota_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Upgrade\ncompleted",
+    {"Upgrade completed",
         &lv_font_aeonik_soft_33_medium, OTA_TITLE_TEXT_COLOR, OTA_SUCCESS_TITLE_Y, OTA_SUCCESS_LINE_SPACE},
     {"",
         &lv_font_aeonik_soft_33_medium, 0, 0, 0}
