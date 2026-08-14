@@ -133,6 +133,8 @@ extern "C" {
 #define IS_SUPPORT_MODE_WORK_TIME_ACCUMULATE             (1)
 /// 支持泵奶步数使用相同设置
 #define IS_PUMP_STEPS_USE_SAME_SETTING                   (0)
+/// 自定义模式 SHORT/LONG 步使用本地刺激/吸乳模式档位和速度
+#define IS_CUSTOM_SHORT_LONG_USE_LOCAL_SETTING           (1)
 /// 支持多时间策略组合的韵律中其同类型的时间策略使用同一套设置
 #define IS_PUMP_SETTING_SYNC_BY_MODE_TYPE                (1)
 /// 同类型时间策略同步范围：0=仅当前模式内同步，1=所有模式中同 mode_type 同步

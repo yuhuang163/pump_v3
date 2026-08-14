@@ -669,6 +669,36 @@ static uint8_t pump_custom_trial_mode_update_by_app(pump_mode_steps_info_t pump_
     /// 用全局档位时，不要设置到本地setting中
     #if !IS_PUMP_STEPS_USE_SAME_SETTING
     pump_setting_t setting;
+#if IS_CUSTOM_SHORT_LONG_USE_LOCAL_SETTING
+    pump_setting_t stim_setting = {0};
+    pump_setting_t lact_setting = {0};
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_STIMULATION_MODE, 0, &stim_setting);
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_LACTATION_MODE, 0, &lact_setting);
+    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+        if (i >= pump_steps_info.policy_num) {
+            break; // 如果步数大于最大步数，则跳出
+        }
+        if (pump_steps_info.data[i].mode_type == SUCTION_MODE_SHORT) {
+            /// SHORT 步直接使用本地刺激模式档位/速度
+            setting.speed = stim_setting.speed;
+            for (uint8_t j = 0; j < BREAST_PUMP_NUM; j++) {
+                setting.level[j] = stim_setting.level[j];
+            }
+        } else if (pump_steps_info.data[i].mode_type == SUCTION_MODE_LONG) {
+            /// LONG 步直接使用本地吸乳模式档位/速度
+            setting.speed = lact_setting.speed;
+            for (uint8_t j = 0; j < BREAST_PUMP_NUM; j++) {
+                setting.level[j] = lact_setting.level[j];
+            }
+        } else {
+            setting.speed = pump_steps_info.data[i].freq;
+            for (uint8_t j = 0; j < BREAST_PUMP_NUM; j++) {
+                setting.level[j] = pump_steps_info.data[i].level;
+            }
+        }
+        storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, i, &setting);
+    }
+#else
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         if (i >= pump_steps_info.policy_num) {
             break; // 如果步数大于最大步数，则跳出
@@ -679,6 +709,7 @@ static uint8_t pump_custom_trial_mode_update_by_app(pump_mode_steps_info_t pump_
         }
         storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_TRIAL_MODE, i, &setting);
     }
+#endif
     #endif
     ///同步参数到custom
     pump_copy_trial_mode_to_custom_mode();
@@ -728,6 +759,36 @@ static uint8_t pump_custom_mode_update_by_app(pump_mode_steps_info_t pump_steps_
     //custom_mode_update_by_steps_info(&pump_steps_info);
     #if !IS_PUMP_STEPS_USE_SAME_SETTING
     pump_setting_t setting;
+#if IS_CUSTOM_SHORT_LONG_USE_LOCAL_SETTING
+    pump_setting_t stim_setting = {0};
+    pump_setting_t lact_setting = {0};
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_STIMULATION_MODE, 0, &stim_setting);
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_LACTATION_MODE, 0, &lact_setting);
+    for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+        if (i >= pump_steps_info.policy_num) {
+            break; // 如果步数大于最大步数，则跳出
+        }
+        if (pump_steps_info.data[i].mode_type == SUCTION_MODE_SHORT) {
+            /// SHORT 步直接使用本地刺激模式档位/速度
+            setting.speed = stim_setting.speed;
+            for (uint8_t j = 0; j < BREAST_PUMP_NUM; j++) {
+                setting.level[j] = stim_setting.level[j];
+            }
+        } else if (pump_steps_info.data[i].mode_type == SUCTION_MODE_LONG) {
+            /// LONG 步直接使用本地吸乳模式档位/速度
+            setting.speed = lact_setting.speed;
+            for (uint8_t j = 0; j < BREAST_PUMP_NUM; j++) {
+                setting.level[j] = lact_setting.level[j];
+            }
+        } else {
+            setting.speed = pump_steps_info.data[i].freq;
+            for (uint8_t j = 0; j < BREAST_PUMP_NUM; j++) {
+                setting.level[j] = pump_steps_info.data[i].level;
+            }
+        }
+        storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, i, &setting);
+    }
+#else
     for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
         if (i >= pump_steps_info.policy_num) {
             break; // 如果步数大于最大步数，则跳出
@@ -738,6 +799,7 @@ static uint8_t pump_custom_mode_update_by_app(pump_mode_steps_info_t pump_steps_
         }
         storage_ctx->put_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, i, &setting);
     }
+#endif
     #endif
     ///更新激活标识 自定义模式激活
     WRITE_PUMP_MODE_ACTIVATE(pump_ctx, BREAST_PUMP_CUSTOM_MODE, 1);
