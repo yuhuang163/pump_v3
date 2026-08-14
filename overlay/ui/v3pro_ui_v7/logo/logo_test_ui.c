@@ -14,9 +14,10 @@
 #if IS_SUPPORT_LOGO_UI_TEST
 
 #define IS_SUPPORT_LOGO_COMP_BG                                (0)
-#define IS_SUPPORT_LOGO_IMG_TEST                               (1)
+#define IS_SUPPORT_LOGO_IMG_TEST                               (0)
 #define IS_SUPPORT_LOGO_TEST_PAGE                              (0)
 #define IS_SUPPORT_LOGO_WAVE_TEST                              (0)
+#define IS_SUPPORT_LOGO_COLOR_TEST                             (1)
 
 #define LOGO_WAVE_X                                            (0)
 #define LOGO_WAVE_Y                                            (118)
@@ -35,6 +36,9 @@ typedef struct {
 #if IS_SUPPORT_LOGO_WAVE_TEST
     ui_wave_t *wave_ui;
     uint8_t wave_type;
+#endif
+#if IS_SUPPORT_LOGO_COLOR_TEST
+    uint8_t color_index;
 #endif
     uint32_t start_time;
     uint8_t force_update;
@@ -76,7 +80,16 @@ static ui_img_data_t logo_img[LOGO_IMG_COUNT] = {
 };
 #endif
 
+#if IS_SUPPORT_LOGO_COLOR_TEST
+const uint32_t logo_test_color_list[] = {
+    0,
+    0xFF0000,
+    0x00FF00,
+    0x0000FF,
+    0xFFFFFF,
+};
 
+#endif
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -213,6 +226,9 @@ void logo_test_ui_prepare(ui_manager_context_t *thiz)
 #if IS_SUPPORT_LOGO_WAVE_TEST
     logo_wave_ui_prepare();
 #endif
+#if IS_SUPPORT_LOGO_COLOR_TEST
+    logo_info->color_index = 0;
+#endif
 }
 
 void logo_test_ui_remove(ui_manager_context_t *thiz)
@@ -238,6 +254,9 @@ int logo_test_ui_process(ui_manager_context_t *thiz)
     ui_proc_logo_t *proc = (ui_proc_logo_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
     logo_wave_ui_update(proc->test_page_count);
+#elif IS_SUPPORT_LOGO_COLOR_TEST
+    lv_obj_set_style_bg_color(logo_info->root, 
+        lv_color_hex(logo_test_color_list[logo_info->color_index]), 0);    
 #else
     ui_proc_logo_t *proc = (ui_proc_logo_t *)thiz->priv.play_info.user_data;
     uint8_t is_white_color = (proc->test_page_count % 2) ? false : true;
@@ -253,6 +272,16 @@ int logo_test_ui_process(ui_manager_context_t *thiz)
         thiz->priv.fps_start_time = get_timestamp();
         LOG_UI("===> logo fps: %d", thiz->priv.fps_count);
         thiz->priv.fps_count = 0;
+        #if IS_SUPPORT_LOGO_COLOR_TEST
+        logo_info->color_index++;
+        if (logo_info->color_index >= sizeof(logo_test_color_list) / sizeof(logo_test_color_list[0])) {
+            logo_info->color_index = 0;                
+            key_input_context_t *key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
+            if (key) {
+                key->dispatch_client_input_key(KEY_CODE_LACTATION_MODE, KEY_EVENT_CLICK);
+            }
+        }
+        #endif
     }
     return 0;
 }
