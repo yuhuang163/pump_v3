@@ -258,7 +258,11 @@ static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t progr
     lv_obj_set_style_text_align(ota_info->ota_percent, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_clear_flag(ota_info->ota_percent, LV_OBJ_FLAG_HIDDEN);
 
-    ui_ota_progress_arc_anim_sync(recv_size, total_size, progress, false);
+    /* 换包(total 变化)或进度回退(recv 变小)时立刻跳到目标，避免从旧断点圆弧慢慢退回 0% */
+    bool snap_arc = (ota_info->total_size != 0 && total_size != 0 &&
+        total_size != ota_info->total_size) ||
+        (recv_size < ota_info->recv_size);
+    ui_ota_progress_arc_anim_sync(recv_size, total_size, progress, snap_arc);
     done_sweep = ui_ota_progress_arc_visual_sweep_advance();
     need_draw = (ota_info->force_update || ota_info->anim_visual_sweep != done_sweep);
 
@@ -400,8 +404,8 @@ static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, ui
             } else if (info.object == OTA_OBJECT_TOUCH_KEY_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_hw_downloading_text_infos);
             }
-            ui_ota_size_update(thiz, info.total_size, info.recv_size, true);
             ui_ota_progress_arc_update(thiz, info.progress, info.recv_size, info.total_size, true);
+            ui_ota_size_update(thiz, info.total_size, info.recv_size, true);
             break;
         case OTA_UI_STATUS_ERROR:
             ui_ota_icon_update(thiz, BASE_RES_ID_ERROR_ICON, OTA_ERROR_ICON_Y, true);

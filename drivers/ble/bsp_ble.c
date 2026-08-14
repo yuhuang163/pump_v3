@@ -77,7 +77,15 @@ static void ota_event_router(ota_state_type_e state, void *ota_info, int arg1, i
     if (state == OTA_STATE_RESUME_OFFSET_SIZE) {
         img_received_size = arg1;
         LOG_PBUS("ota resume offset size: %d", img_received_size);
-    }   
+        /*
+         * SDK 在 RESUME_VERIFY 包处理完成后才上报断点偏移。
+         * 若在此处再通知上层，可避免 RESUME_VERIFY 包回调时 img_* 仍为旧值，
+         * 导致 UI 先显示旧断点进度、随后 START 又从 0% 重画。
+         */
+        if (s_ota_event_callback != NULL && img_received_size > 0 && img_total_size > 0) {
+            s_ota_event_callback(OTA_EVENT_RESUME_OTA, img_total_size, img_received_size);
+        }
+    }
 
     if (ota_info == NULL) {
         return;
@@ -95,7 +103,7 @@ static void ota_event_router(ota_state_type_e state, void *ota_info, int arg1, i
             s_ota_event_callback(OTA_EVENT_START_OTA, img_total_size, img_received_size);
             break;
         case OTA_COMMAND_RESUME_VERIFY:
-            s_ota_event_callback(OTA_EVENT_RESUME_OTA, img_total_size, img_received_size);
+            /* 续传进度在 OTA_STATE_RESUME_OFFSET_SIZE 中上报；固件变更时由 START 从 0 开始 */
             break;
         case OTA_DATA_PACKET:
             img_received_size += (arg2 - 1);
