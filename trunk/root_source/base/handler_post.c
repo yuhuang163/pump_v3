@@ -175,11 +175,11 @@ static int hdr_post_process_cb(multi_func_msg_data_t *msg, thread_context_t *thd
     }
 
     #if DEBUG_HDR_TASK
-    LOGW("(%s)endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
+    LOG_HDR("(%s)endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
         target->from_tid, (uint32_t)(thd->tid) % 1000, target->name, target->timestamp, diff_time);
     #else
     if (diff_time >= 30) {
-        LOGW("(%s)endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
+        LOG_HDR("(%s)endtime(from:%lu->%lu#name: %s/time=%ld), exec_time: %ld(ms)******", THREAD_NAME_GET(thd),
             target->from_tid, (uint32_t)(thd->tid) % 1000, target->name, target->timestamp, diff_time);
     }
     #endif
@@ -242,7 +242,7 @@ static void post_timer_callback(void *handle)
             }
             #if DEBUG_HDR_TASK
             if ((uint32_t)exec_time > node->excpect_time + HDR_TIMER_TIMING_WARN_MS) {
-                LOGW("POST_EXEC late(node=0x%lx) name:%s, excpect_time:%lu, real_time: %u",
+                LOG_HDR("POST_EXEC late(node=0x%lx) name:%s, excpect_time:%lu, real_time: %u",
                     TO_PRINT(node), node->args.name, node->excpect_time, exec_time);
             }
             #endif
