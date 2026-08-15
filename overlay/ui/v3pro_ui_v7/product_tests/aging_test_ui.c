@@ -164,13 +164,14 @@ static void aging_test_ui_aging_info_update(ui_manager_context_t *thiz, ui_proc_
         return;
     }
     
-    //转换为时分秒格式
-    uint8_t hours = age_time / 3600;
-    uint8_t minutes = (age_time % 3600) / 60;
-    uint8_t seconds = age_time % 60;
+    //转换为时分秒格式（小时可能超过 255，不可用 uint8_t）
+    uint32_t hours = age_time / 3600U;
+    uint32_t minutes = (age_time % 3600U) / 60U;
+    uint32_t seconds = age_time % 60U;
     char aging_info_str[64] = {0};
-    snprintf(aging_info_str, sizeof(aging_info_str), 
-        "aging-time-%02dh-%02dm-%02ds", hours, minutes, seconds);
+    snprintf(aging_info_str, sizeof(aging_info_str),
+        "aging-time-%02luh-%02lum-%02lus",
+        (unsigned long)hours, (unsigned long)minutes, (unsigned long)seconds);
     lv_label_set_text(tests_info->aging_info, aging_info_str);
     lv_obj_set_style_text_color(tests_info->aging_info, lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
     lv_obj_set_style_text_font(tests_info->aging_info, &lv_font_aeonik_soft_19_medium, 0);
