@@ -67,6 +67,12 @@ static void test_factory_aging_test_enter_post_task_handler(hdr_post_args_t *arg
     LOG_SRV("enter");
     tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     EXCEPTION_CHECK_VOID(tests_ctx);
+    /// 退出老化后若延迟进入任务未清掉，这里再挡一层
+    if (tests_ctx->tests_manager_get_current_mode() != TST_AGING_TEST_TYPE) {
+        LOG_SRV("aging enter delayed task ignored, current mode=%d",
+            tests_ctx->tests_manager_get_current_mode());
+        return;
+    }
     tests_ctx->set_factory_tests_event_process(FAC_TST_AGING_TEST_ENTER_EVENT, args->arg1, args->arg2, NULL);
 }
 
@@ -227,6 +233,7 @@ int tests_tlvs_aging_test_mode_exit(comm_protocol_builder_t *builder, comm_proto
     EXCEPTION_CHECK_INT(tests_ctx);
 
     /* 退出老化模式 */
+    REMOVE_TASK_HANDLER_DIRECTLY("aging_test_cb");
     tests_ctx->tests_manager_set_current_mode(TST_NONE_TYPE);
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_INT(wm);

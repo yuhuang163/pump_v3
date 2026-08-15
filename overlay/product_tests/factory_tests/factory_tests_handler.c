@@ -15,10 +15,14 @@
 *****************************************************************************************
 */
 
-#define AGING1_TEST_DEFAULT_CYCLE_TIME               30*60*1000// 老化测试默认循环时间，单位毫秒
-#define AGING1_TEST_IDLE_TIME                        10*60*1000// 老化测试空闲时间，单位毫秒
-#define AGING2_TEST_DEFAULT_CYCLE_TIME               30*60*1000// 老化测试默认循环时间，单位毫秒
-#define AGING2_TEST_IDLE_TIME                        10*60*1000// 老化测试空闲时间，单位毫秒
+#define AGING1_TEST_DEFAULT_CYCLE_TIME               (30*60*1000)// 老化测试默认循环时间，单位毫秒
+#define AGING1_TEST_IDLE_TIME                        (10*60*1000)// 老化测试空闲时间，单位毫秒
+#define AGING2_TEST_DEFAULT_CYCLE_TIME               (30*60*1000)// 老化测试默认循环时间，单位毫秒
+#define AGING2_TEST_IDLE_TIME                        (10*60*1000)// 老化测试空闲时间，单位毫秒
+#define AGING_TEST_ENTER_MODE1_TASK_NAME             "factory_tests_aging_test_enter_mode1_task"
+#define AGING_TEST_ENTER_MODE2_TASK_NAME             "factory_tests_aging_test_enter_mode2_task"
+#define AGING_TEST_EXIT_TASK_NAME                    "factory_tests_aging_test_exit_task"
+#define AGING_TEST_ENTER_DELAY_TASK_NAME             "aging_test_cb" /* tests_tlvs 里延迟 1s 真正进入老化 */
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -114,14 +118,23 @@ static int on_tests_event_handler(void *context, uint16_t keycode, uint16_t keyt
     return 0;
 }
 
+static void factory_tests_aging_test_cancel_pending_tasks(void)
+{
+    REMOVE_TASK_HANDLER_DIRECTLY(AGING_TEST_ENTER_DELAY_TASK_NAME);
+    REMOVE_TASK_HANDLER_DIRECTLY(AGING_TEST_ENTER_MODE1_TASK_NAME);
+    REMOVE_TASK_HANDLER_DIRECTLY(AGING_TEST_ENTER_MODE2_TASK_NAME);
+    REMOVE_TASK_HANDLER_DIRECTLY(AGING_TEST_EXIT_TASK_NAME);
+}
+
 static int factory_tests_aging_test_enter_mode1(void)
 {
     int ret = 0;
     LOG_TEST("factory test aging test enter mode1");
     motor_manager_context_t *motor = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
+    EXCEPTION_CHECK_INT(motor);
     motor_policy_original_para_t para = {0};
     factory_suction_para_t *suction_para = NULL;
-    if (!motor->get_local_suction_table(&suction_para)) {
+    if (!motor->get_local_suction_table || !motor->get_local_suction_table(&suction_para)) {
         LOG_TEST("suction_table is null ");
         return -1;
     }
@@ -174,6 +187,27 @@ static int factory_tests_aging_test_enter_mode2(void)
     return ret;
 }
 
+static void factory_tests_aging_test_enter_mode1_post_cb(hdr_post_args_t *args)
+{
+    (void)args;
+    (void)factory_tests_aging_test_enter_mode1();
+}
+
+static void factory_tests_aging_test_enter_mode2_post_cb(hdr_post_args_t *args)
+{
+    (void)args;
+    (void)factory_tests_aging_test_enter_mode2();
+}
+
+static void factory_tests_aging_test_exit_post_cb(hdr_post_args_t *args)
+{
+    tests_func_args_t exit_args = {0};
+
+    (void)args;
+    exit_args.ctx = thiz;
+    (void)factory_tests_aging_test_exit(exit_args);
+}
+
 static void factory_tests_aging_test_check_result(void)
 {
     LOG_TEST("factory test aging test check result");
@@ -212,15 +246,15 @@ static void factory_tests_aging_test_check_result(void)
                 flag_info.age_info[AGING_MODE_TYPE_1 - 1].age_flag = AGING_TEST_STATUS_SUCCESS;
                 thiz->priv.factory_ctx.aging_result_info.aging_status = AGING_TEST_STATUS_SUCCESS;
                 thiz->priv.factory_ctx.aging_result_info.current_cycle_work_time = 0;
-                POST_TASK_HANDLER_DELAYED_ARG0(factory_tests_aging_test_exit, 1000,
-                    "factory_tests_aging_test_exit_task");
+                POST_TASK_HANDLER_DELAYED_ARG0(factory_tests_aging_test_exit_post_cb, 1000,
+                    AGING_TEST_EXIT_TASK_NAME);
             } else {
                 flag_info.age_info[AGING_MODE_TYPE_1 - 1].age_flag = AGING_TEST_STATUS_FAILED;
                 thiz->priv.factory_ctx.aging_result_info.aging_status = AGING_TEST_STATUS_FAILED;
                 thiz->priv.factory_ctx.aging_result_info.current_cycle_work_time = 0;
                 thiz->priv.factory_ctx.aging_result_info.aging_run_status = AGING_RUN_STATUS_IDLE;
-                POST_TASK_HANDLER_DELAYED_ARG0(factory_tests_aging_test_enter_mode1, AGING1_TEST_IDLE_TIME,
-                    "factory_tests_aging_test_enter_mode1_task");
+                POST_TASK_HANDLER_DELAYED_ARG0(factory_tests_aging_test_enter_mode1_post_cb, AGING1_TEST_IDLE_TIME,
+                    AGING_TEST_ENTER_MODE1_TASK_NAME);
             }
             st->put_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info);
             LOG_TEST("factory test aging test check result (MODE_1): age_flag = "
@@ -255,15 +289,15 @@ static void factory_tests_aging_test_check_result(void)
                 flag_info.age_info[AGING_MODE_TYPE_2 - 1].age_flag = AGING_TEST_STATUS_SUCCESS;
                 thiz->priv.factory_ctx.aging_result_info.aging_status = AGING_TEST_STATUS_SUCCESS;
                 thiz->priv.factory_ctx.aging_result_info.current_cycle_work_time = 0;
-                POST_TASK_HANDLER_DELAYED_ARG0(factory_tests_aging_test_exit, 1000,
-                    "factory_tests_aging_test_exit_task");
+                POST_TASK_HANDLER_DELAYED_ARG0(factory_tests_aging_test_exit_post_cb, 1000,
+                    AGING_TEST_EXIT_TASK_NAME);
             } else {
                 flag_info.age_info[AGING_MODE_TYPE_2 - 1].age_flag = AGING_TEST_STATUS_FAILED;
                 thiz->priv.factory_ctx.aging_result_info.aging_status = AGING_TEST_STATUS_FAILED;
                 thiz->priv.factory_ctx.aging_result_info.current_cycle_work_time = 0;
                 thiz->priv.factory_ctx.aging_result_info.aging_run_status = AGING_RUN_STATUS_IDLE;
-                POST_TASK_HANDLER_DELAYED_ARG0(factory_tests_aging_test_enter_mode2, AGING2_TEST_IDLE_TIME,
-                    "factory_tests_aging_test_enter_mode2_task");
+                POST_TASK_HANDLER_DELAYED_ARG0(factory_tests_aging_test_enter_mode2_post_cb, AGING2_TEST_IDLE_TIME,
+                    AGING_TEST_ENTER_MODE2_TASK_NAME);
             }
             st->put_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info);
             LOG_TEST("factory test aging test check result (MODE_2): age_flag = "
@@ -396,13 +430,19 @@ int factory_tests_aging_test_enter(tests_func_args_t args)
 
 int factory_tests_aging_test_exit(tests_func_args_t args)
 {
+    (void)args;
     LOG_TEST("factory test aging test exit");
+    /// 退出老化时，若休息再启/延迟退出任务还在，直接取消
+    factory_tests_aging_test_cancel_pending_tasks();
+    if (thiz == NULL) {
+        return -1;
+    }
+    thiz->priv.factory_ctx.aging_result_info.aging_run_status = AGING_RUN_STATUS_END;
     power_manager_context_t *power_ctx = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     EXCEPTION_CHECK_INT(power_ctx);
     CHECK_IF_VALID(power_ctx, {
         power_ctx->release_wakelock("factory_tests_aging_test");
     });
-    thiz->priv.factory_ctx.aging_result_info.aging_run_status = AGING_RUN_STATUS_END;
     storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_INT(st);
     motor_manager_context_t *motor = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
