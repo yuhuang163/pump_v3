@@ -25,7 +25,6 @@ static void power_off_hold_complete_cb(hdr_post_args_t *args)
     }
     LOG_WM("guide power off hold complete, goto power off.");
     proc->power_off_hold_holding = 0;
-    proc->power_off_hold_ignore_click = 1;
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
     msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_MANUAL;
@@ -103,7 +102,6 @@ void show_guide_power_off_hold_ui(ui_proc_guide_t *proc)
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = GUIDE_UI_TYPE_POWER_OFF_HOLD;
     proc->power_off_hold_holding = 1;
-    proc->power_off_hold_ignore_click = 0;
 }
 
 void guide_power_off_hold_ui_exit(ui_proc_guide_t *proc)
@@ -121,7 +119,6 @@ void guide_power_off_hold_dismiss(ui_proc_guide_t *proc)
     }
     LOG_WM("dismiss guide power off hold, restore guide ui.");
     proc->power_off_hold_holding = 0;
-    proc->power_off_hold_ignore_click = 1;
     REMOVE_TASK_HANDLER_DIRECTLY(POWER_OFF_HOLD_COMPLETE_TASK_NAME);
 
     ui_manager_context_t *ui = proc->ui;

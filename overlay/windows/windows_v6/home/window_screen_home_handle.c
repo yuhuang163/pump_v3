@@ -258,12 +258,6 @@ static void home_mode_key_event_cb(ui_proc_home_t *proc, uint8_t mode_index)
 
 static void home_power_key_event_cb(ui_proc_home_t *proc)
 {
-    if (proc->power_off_hold_ignore_click) {
-        proc->power_off_hold_ignore_click = 0;
-        LOG_WM("ignore power click after power off hold.");
-        return;
-    }
-
     if (proc->current_ui_type == HOME_UI_TYPE_POWER_OFF_HOLD) {
         return;
     }
@@ -429,8 +423,10 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 #if HOME_IDLE_SCHEME == HOME_IDLE_SCHEME_ANY_KEY_ACTION
         /// 方案3：短按任意键执行与 HOME 一致功能；其它允许事件 fall through
         if (keytype != KEY_EVENT_CLICK &&
-            !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) &&
-            !(keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) &&
+            !(keytype == KEY_EVENT_LONG_2S &&
+              (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) &&
+            !(keytype == KEY_EVENT_UP &&
+              (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) &&
             !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_TRAVEL_LOCK) &&
             !(keytype == KEY_EVENT_LONG_5S && keycode == KEY_CODE_FACTORY_RESET) &&
             !(keytype == KEY_EVENT_DOWN && keycode == KEY_CODE_BOTH_CONTROL) &&
@@ -440,11 +436,6 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
             return 0;
         }
         if (keytype == KEY_EVENT_CLICK) {
-            if (keycode == KEY_CODE_POWER && proc->power_off_hold_ignore_click) {
-                proc->power_off_hold_ignore_click = 0;
-                LOG_WM("ignore power click after power off hold.");
-                return 0;
-            }
             /// 力度/速度相关：静默退出 idle，避免先刷 HOME 再进功能页闪一下
             if (keycode == KEY_CODE_LEFT_CONTROL ||
                 keycode == KEY_CODE_RIGHT_CONTROL ||
@@ -465,17 +456,19 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 #elif HOME_IDLE_SCHEME == HOME_IDLE_SCHEME_ANY_KEY_EXIT
         /// 方案2：短按任意键（含旋钮）仅退出待机，不执行按键功能
         if (keytype == KEY_EVENT_CLICK) {
-            if (keycode == KEY_CODE_POWER && proc->power_off_hold_ignore_click) {
-                proc->power_off_hold_ignore_click = 0;
-                LOG_WM("ignore power click after power off hold.");
-                return 0;
-            }
             home_idle_ui_dismiss(proc);
             return 0;
         }
 
-        if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
+        if (keytype == KEY_EVENT_LONG_2S &&
+            (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
             home_power_off_hold_key_long_2s_handler(proc);
+            return 0;
+        }
+
+        if (keytype == KEY_EVENT_UP &&
+            (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+            home_power_off_hold_key_up_handler(proc);
             return 0;
         }
 
@@ -484,17 +477,19 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
 #else
         /// 方案1：仅短按 power 退出，其它按键不响应
         if (keytype == KEY_EVENT_CLICK && keycode == KEY_CODE_POWER) {
-            if (proc->power_off_hold_ignore_click) {
-                proc->power_off_hold_ignore_click = 0;
-                LOG_WM("ignore power click after power off hold.");
-                return 0;
-            }
             home_idle_ui_dismiss(proc);
             return 0;
         }
 
-        if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
+        if (keytype == KEY_EVENT_LONG_2S &&
+            (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
             home_power_off_hold_key_long_2s_handler(proc);
+            return 0;
+        }
+
+        if (keytype == KEY_EVENT_UP &&
+            (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+            home_power_off_hold_key_up_handler(proc);
             return 0;
         }
 
@@ -521,12 +516,14 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
-    if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
         home_power_off_hold_key_long_2s_handler(proc);
         return 0;
     }
 
-    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
         home_power_off_hold_key_up_handler(proc);
         return 0;
     }

@@ -12,11 +12,12 @@
 #define PAGE_STATIC_NAME                    product_test
 #define PAGE_NAME_STR                       "product_test"
 #define PRODUCT_TEST_UI_KEY_CODE            (ALL_KEY_CODE_NO_COMBINE)
-#define PRODUCT_TEST_UI_KEY_TYPE            (KEY_EVENT_CLICK)
+#define PRODUCT_TEST_UI_KEY_TYPE            (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
 #define PRODUCT_TEST_HOME_TASK_NAME         "product_test_home_ui"
 #define PRODUCT_TEST_LCD_COLOR_TASK_NAME    "product_test_lcd_color_ui"
 #define PRODUCT_TEST_AGING_TEST_TASK_NAME   "product_test_aging_test_ui"
 #define PRODUCT_TEST_BROADCAST_TASK_NAME    "product_test_broadcast_ui"
+#define PRODUCT_TEST_POWER_OFF_HOLD_COMPLETE_TASK_NAME "product_test_power_off_hold_complete"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
@@ -24,6 +25,7 @@ do { \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_LCD_COLOR_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_AGING_TEST_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_BROADCAST_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -124,6 +126,22 @@ static int product_test_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint1
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PRODUCT_TEST_MODE, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        product_test_power_off_hold_key_long_2s_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        product_test_power_off_hold_key_up_handler(proc);
+        return 0;
+    }
+    if (keytype != KEY_EVENT_CLICK) {
+        return 0;
+    }
+    if (proc->current_ui_type == PRODUCT_TEST_UI_TYPE_POWER_OFF_HOLD) {
         return 0;
     }
     switch (proc->tests_mode) {
@@ -268,6 +286,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE: 
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            product_test_power_off_hold_ui_exit(proc);
             stop_product_test_ui(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:

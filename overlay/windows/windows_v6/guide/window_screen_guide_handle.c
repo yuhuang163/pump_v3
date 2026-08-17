@@ -64,18 +64,20 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
         return 0;
     }
 
-    if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
-        if (GUIDE_PAGE_IS_STOP_HOLD_CONFLICT(proc->page_index)) {
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        if (keycode == KEY_CODE_POWER && GUIDE_PAGE_IS_STOP_HOLD_CONFLICT(proc->page_index)) {
             guide_stop_hold_key_long_2s_handler(proc);
         } else {
             guide_power_off_hold_key_long_2s_handler(proc);
         }
         return 0;
     }
-    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
         if (proc->current_ui_type == GUIDE_UI_TYPE_POWER_OFF_HOLD) {
             guide_power_off_hold_key_up_handler(proc);
-        } else {
+        } else if (keycode == KEY_CODE_POWER) {
             guide_stop_hold_key_up_handler(proc);
         }
         return 0;

@@ -140,6 +140,7 @@ typedef enum {
     PUMP_UI_TYPE_RHYTHM_CONFIRM, /// 切换韵律确认
     PUMP_UI_TYPE_SETTINGS_SUCCESS, /// 模式切换成功
     PUMP_UI_TYPE_STOP_HOLD, /// 长按 power 停止泵奶确认
+    PUMP_UI_TYPE_POWER_OFF_HOLD, /// 长按 power/start 关机确认
     PUMP_UI_TYPE_LEVEL_ADJUST, /// 单边力度调节
     PUMP_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
     PUMP_UI_TYPE_SPEED_ADJUST, /// 速度调节
@@ -233,7 +234,8 @@ typedef struct {
 
     /// 长按停止确认
     uint8_t stop_hold_holding; /// 停止确认页是否处于按住倒计时
-    uint8_t stop_hold_ignore_click; /// 松手后忽略紧随的 power CLICK
+    /// 长按关机确认
+    uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
     uint8_t both_control_long_acted; /// 本次 L+R 长按已处理进入/退出，忽略同一次按住的后续 LONG_xS
 
     /// 子页导航栈（回历史页 / 回首页）
@@ -339,6 +341,13 @@ void pump_stop_hold_ui_exit(ui_proc_pump_t *proc);
 void pump_stop_hold_dismiss(ui_proc_pump_t *proc);
 void pump_stop_hold_key_long_2s_handler(ui_proc_pump_t *proc);
 void pump_stop_hold_key_up_handler(ui_proc_pump_t *proc);
+
+/// 长按 power/start 关机确认页
+void show_pump_power_off_hold_ui(ui_proc_pump_t *proc);
+void pump_power_off_hold_ui_exit(ui_proc_pump_t *proc);
+void pump_power_off_hold_dismiss(ui_proc_pump_t *proc);
+void pump_power_off_hold_key_long_2s_handler(ui_proc_pump_t *proc);
+void pump_power_off_hold_key_up_handler(ui_proc_pump_t *proc);
 
 /// 力度/速度调节页无操作 5s 静默退出：按键刷新计时
 void pump_adjust_idle_touch(ui_proc_pump_t *proc);

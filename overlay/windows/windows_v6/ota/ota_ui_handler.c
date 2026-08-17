@@ -137,7 +137,7 @@ static void ota_ui_display_remove(void *user_data)
     ui_display_ota_remove(ui);
 }
 
-static void show_ota_ui(ui_proc_ota_t *proc)
+void show_ota_ui(ui_proc_ota_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);

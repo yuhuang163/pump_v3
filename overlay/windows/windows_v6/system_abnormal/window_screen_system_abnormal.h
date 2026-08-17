@@ -36,6 +36,7 @@ typedef enum {
     SYSTEM_ABNORMAL_UI_TYPE_BATTERY_TEMP_HIGH = 100, /// 电池温度过高
     SYSTEM_ABNORMAL_UI_TYPE_STORAGE_FAILURE,          /// 存储芯片故障
     SYSTEM_ABNORMAL_UI_TYPE_COMMUNICATION_ERROR,      /// 外设通信丢失
+    SYSTEM_ABNORMAL_UI_TYPE_POWER_OFF_HOLD,           /// 长按 power/start 关机确认
     SYSTEM_ABNORMAL_UI_TYPE_MAX
 } system_abnormal_ui_type_e;
 
@@ -57,7 +58,9 @@ typedef struct {
     uint32_t margic;
     uint32_t last_progress_ani_time; /// 上次进度动画时间
     uint16_t current_ui_type; /// 当前UI类型. system_abnormal_ui_type_e
+    uint16_t power_off_hold_restore_ui_type; /// 关机确认页退出后恢复的异常 UI
     uint8_t window_run_state; /// WM是否运行
+    uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
 } ui_proc_system_abnormal_t;
 
 /*
@@ -66,6 +69,13 @@ typedef struct {
 */
 void show_system_abnormal_ui(ui_proc_system_abnormal_t *proc);
 void stop_system_abnormal_ui(ui_proc_system_abnormal_t *proc);
+
+/// 长按 power/start 关机确认页
+void show_system_abnormal_power_off_hold_ui(ui_proc_system_abnormal_t *proc);
+void system_abnormal_power_off_hold_ui_exit(ui_proc_system_abnormal_t *proc);
+void system_abnormal_power_off_hold_dismiss(ui_proc_system_abnormal_t *proc);
+void system_abnormal_power_off_hold_key_long_2s_handler(ui_proc_system_abnormal_t *proc);
+void system_abnormal_power_off_hold_key_up_handler(ui_proc_system_abnormal_t *proc);
 
 #ifdef __cplusplus
 }

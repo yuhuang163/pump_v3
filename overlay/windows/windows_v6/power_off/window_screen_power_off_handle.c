@@ -83,6 +83,15 @@ static void power_off_ble_policy(ui_proc_power_off_t *proc)
 }
 
 #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+static void power_off_force_save_battery_percent(ui_proc_power_off_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->st && proc->st->hook && proc->st->hook->on_power_off_force_save_route) {
+        proc->st->hook->on_power_off_force_save_route(proc->st);
+        LOG_WM("power off charge save battery percent");
+    }
+}
+
 static void power_off_ui_common_cb(hdr_post_args_t *args)
 {
     ui_proc_power_off_t *proc = args->user_data;
@@ -97,6 +106,7 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
     switch (action) {
         case POWER_OFF_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
+            power_off_force_save_battery_percent(proc);
             if (proc->ui->hook && proc->ui->hook->set_ui_backlight_level_rate) {
                 proc->ui->hook->set_ui_backlight_level_rate(proc->ui, 100);
             }
@@ -186,6 +196,7 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
         }
     } else if (keytype == KEY_EVENT_LONG_10S) {
         LOG_WM("power off reboot");
+        power_off_force_save_battery_percent(proc);
         msleep(20);
         platform_system_reboot();
     } 

@@ -11,12 +11,14 @@
 */
 #define PAGE_STATIC_NAME                        airplane_mode
 #define PAGE_NAME_STR                           "airplane_mode"
-#define AIRPLANE_MODE_UI_KEY_CODE               (KEY_CODE_TRAVEL_LOCK)
-#define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_UP | KEY_EVENT_LONG_2S)
+#define AIRPLANE_MODE_UI_KEY_CODE               (KEY_CODE_TRAVEL_LOCK | KEY_CODE_POWER | KEY_CODE_START)
+#define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_UP | KEY_EVENT_LONG_2S | KEY_EVENT_CLICK)
+#define AIRPLANE_POWER_OFF_HOLD_COMPLETE_TASK_NAME "airplane_power_off_hold_complete"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
+    REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -56,6 +58,26 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
     }
     /// 按键操作刷新关机倒计时
     proc->power_off_idle_time = get_timestamp();
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        airplane_mode_power_off_hold_key_long_2s_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        airplane_mode_power_off_hold_key_up_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_CLICK &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        return 0;
+    }
+    if (proc->current_ui_type == AIRPLANE_MODE_UI_TYPE_POWER_OFF_HOLD) {
+        return 0;
+    }
+    if (keycode != KEY_CODE_TRAVEL_LOCK) {
+        return 0;
+    }
     if (keytype == KEY_EVENT_LONG_2S) {
         proc->popup_ui_type = ID_POPUP_UI_AIRPLANE_MODE_PROMPT;
     } else if (keytype == KEY_EVENT_UP) {
@@ -120,6 +142,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
         case ID_SCR_STATE_ON_PAUSE: 
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            airplane_mode_power_off_hold_ui_exit(proc);
             stop_airplane_mode_ui(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:

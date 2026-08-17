@@ -74,6 +74,10 @@ static void airplane_mode_power_off_cb(hdr_post_args_t *args)
         LOG_WM("wm not running, ignore power off.");
         return;
     }
+    if (proc->current_ui_type == AIRPLANE_MODE_UI_TYPE_POWER_OFF_HOLD) {
+        LOG_WM("power off hold showing, ignore airplane auto power off.");
+        return;
+    }
     LOG_WM("airplane mode timeout, goto power off.");
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
@@ -87,6 +91,9 @@ static void airplane_mode_power_off_idle_timeout_tick(ui_proc_airplane_mode_t *p
 
     EXCEPTION_CHECK_VOID(proc);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        return;
+    }
+    if (proc->current_ui_type == AIRPLANE_MODE_UI_TYPE_POWER_OFF_HOLD) {
         return;
     }
     if (proc->power_off_idle_time == 0) {
@@ -218,5 +225,6 @@ void airplane_mode_ui_hdr_remove(void)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_MODE_EXIT_TASK_NAME);
     REMOVE_TASK_HANDLER_DIRECTLY(AIRPLANE_MODE_POWER_OFF_TASK_NAME);
+    REMOVE_TASK_HANDLER_DIRECTLY("airplane_power_off_hold_complete");
 }
 

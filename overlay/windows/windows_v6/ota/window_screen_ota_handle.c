@@ -14,16 +14,18 @@
 */
 #define PAGE_STATIC_NAME                            ota
 #define PAGE_NAME_STR                               "ota"
-#define OTA_UI_KEY_CODE                             KEY_CODE_POWER
-#define OTA_UI_KEY_TYPE                             KEY_EVENT_CLICK
+#define OTA_UI_KEY_CODE                             (KEY_CODE_POWER | KEY_CODE_START)
+#define OTA_UI_KEY_TYPE                             (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
 #define OTA_UI_START_TASK_NAME                      "ota_ui_task_exit"
 #define OTA_BROADCAST_TASK_NAME                     "ota_broadcast_task"
+#define OTA_POWER_OFF_HOLD_COMPLETE_TASK_NAME       "ota_power_off_hold_complete"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(OTA_UI_START_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(OTA_BROADCAST_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(OTA_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -76,11 +78,25 @@ static int on_ota_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
         return 0;
     }
 
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        ota_power_off_hold_key_long_2s_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        ota_power_off_hold_key_up_handler(proc);
+        return 0;
+    }
+    if (proc->current_ui_type == OTA_UI_TYPE_POWER_OFF_HOLD) {
+        return 0;
+    }
+
     if (proc->ota_status == OTA_UI_STATUS_DOWNLOADING) {
         return 0;
     }
 
-    if (keycode == KEY_CODE_POWER) {
+    if (keytype == KEY_EVENT_CLICK && keycode == KEY_CODE_POWER) {
         POST_WM_TASK_HANDLER_NO_DELAY(ota_ui_switch_cb, proc, OTA_UI_START_TASK_NAME);
     }
     return 0;
@@ -161,6 +177,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            ota_power_off_hold_ui_exit(proc);
             stop_ota_ui_animation(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:

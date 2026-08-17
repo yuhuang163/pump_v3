@@ -32,6 +32,7 @@ static void switch_pump_status_handler(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM ||
         proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH ||
         proc->current_ui_type == PUMP_UI_TYPE_STOP_HOLD ||
+        proc->current_ui_type == PUMP_UI_TYPE_POWER_OFF_HOLD ||
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
         proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
         LOG_WM("ignore start key %d", proc->current_ui_type);
@@ -161,6 +162,7 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc)
     pump_rhythm_confirm_ui_exit(proc);
     pump_settings_success_ui_exit(proc);
     pump_stop_hold_ui_exit(proc);
+    pump_power_off_hold_ui_exit(proc);
     pump_finish_timeout_ui_exit(proc);
 #if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
     pump_pause_timeout_ui_exit(proc);
@@ -189,6 +191,9 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
             break;
         case PUMP_UI_TYPE_STOP_HOLD:
             pump_stop_hold_ui_exit(proc);
+            break;
+        case PUMP_UI_TYPE_POWER_OFF_HOLD:
+            pump_power_off_hold_ui_exit(proc);
             break;
         case PUMP_UI_TYPE_FINISH_TIMEOUT:
             pump_finish_timeout_ui_exit(proc);
@@ -313,9 +318,7 @@ void pump_pause_led_tick(ui_proc_pump_t *proc)
 
 void pump_power_key_event_handler(ui_proc_pump_t *proc)
 {
-    if (proc->stop_hold_ignore_click) {
-        proc->stop_hold_ignore_click = 0;
-        LOG_WM("ignore power click after stop hold release.");
+    if (proc->current_ui_type == PUMP_UI_TYPE_POWER_OFF_HOLD) {
         return;
     }
 
@@ -396,6 +399,9 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
 
 void pump_start_key_event_handler(ui_proc_pump_t *proc)
 {
+    if (proc->current_ui_type == PUMP_UI_TYPE_POWER_OFF_HOLD) {
+        return;
+    }
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
         pump_rhythm_confirm_start_key_handler(proc);
         return;
