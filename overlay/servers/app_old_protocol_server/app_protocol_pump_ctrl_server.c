@@ -547,7 +547,7 @@ static uint8_t app_old_comm_get_current_custom_pump_speed(servers_old_protocol_p
     storage_manager_context_t *storage_ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_UINT(storage_ctx);
     pump_setting_t setting;
-    storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &setting);
+    storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, time_index, &setting);
     pump_speed = setting.speed;
     LOG_SRV("setting.speed=%d", pump_speed);
     return (uint8_t)pump_speed;
@@ -578,7 +578,19 @@ static uint32_t app_old_comm_get_pump_mode_run_total_time(servers_old_protocol_p
         return 0;
     } else {
         LOG_SRV("total time = %d", result_info->work_valid_time);
-        return (uint32_t)result_info->work_valid_time/1000;
+        ///如果是OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET ，运行时间大于设定总时间，或小于设定但接近500ms，则返回设定总时间
+        uint32_t report_time_ms = result_info->work_valid_time;
+        if (id == OLD_PUBLISH_DATA_SYSTEM_STATUS_RESET && result_info->setting_time > 0) {
+            uint32_t work_time_ms = result_info->work_valid_time;
+            uint32_t setting_time_ms = result_info->setting_time;
+            if (work_time_ms >= setting_time_ms ||
+                (setting_time_ms - work_time_ms) <= 500) {
+                LOG_SRV("reset total time %d setting %d, report setting",
+                    work_time_ms, setting_time_ms);
+                report_time_ms = setting_time_ms;
+            }
+        }
+        return report_time_ms / 1000;
     }
 }
 
