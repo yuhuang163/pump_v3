@@ -125,6 +125,24 @@ void pump_climb_policy_mark_rhythm_switch(motor_policy_runtime_t *runtime)
 {
     pump_climb_policy_t *climb = runtime->climb;
 
+    /// 休息(IDLE)实际无吸力。mark 时 policy 尚未换成下一步，据此识别休息切出。
+    /// 若沿用休息前的 climb->level（如吸乳 15），切回吸乳/刺激/混合会直接落地，没有渐强。
+    {
+        uint8_t from_idle = 1;
+
+        for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+            if (runtime->policy[i].core.un.mapping.mode_type != SUCTION_MODE_IDLE) {
+                from_idle = 0;
+                break;
+            }
+        }
+        if (from_idle) {
+            pump_climb_policy_mark_auto(climb);
+            LOG_MOTOR("rhythm climb: from rest/idle, start 0");
+            return;
+        }
+    }
+
 #if PUMP_CLIMB_RHYTHM_SWITCH_POLICY == PUMP_CLIMB_RHYTHM_SWITCH_NONE
     /// 方案1：不缓冲，下一拍直接落到新目标
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {

@@ -71,6 +71,14 @@ mark_auto()
 方案3/4 韵律续爬置 `from_current=1`，升档时**忽略**普通路径的 `START_DIFF=2`。  
 方案4 额外置 `allow_down=1`，大跨度降档才走向下缓冲。
 
+### 2.3 韵律休息切出：必须从 0 渐强
+
+休息步是 `SUCTION_MODE_IDLE`（0 档、无吸力）。进入休息时 `pump_policy_info_reset()` 会把该泵 `climb` 清零。
+
+切出休息到吸乳 / 刺激 / 混合时，`mark_rhythm_switch()` **优先**走 `mark_auto()`（从 0 爬），**不要**用方案3/4 的「从当前档续爬」——休息期间没有输出，`climb->level` 若仍是休息前档位（如吸乳 15），下一拍会判定已到目标或降档直落，体感就是突然满档、没有渐强。
+
+注意：`mark_rhythm_switch()` 调用时 `runtime->policy[]` 还是上一步（休息），`timed_policy` 已经指向下一步。必须用 `policy[]` 识别 IDLE。
+
 ## 3. 状态结构
 
 ```c
@@ -292,3 +300,4 @@ step = step_by_time < step_by_count ? step_by_time : step_by_count;
 8. **韵律自动切步**：`mark_rhythm_switch`，由 `PUMP_CLIMB_RHYTHM_SWITCH_POLICY` 选择方案 1/2/3/4
 9. **方案4**：吸乳高档→刺激时起点钳到 `BREAST_PUMP_LEVEL_5`，再向下缓冲到目标
 10. **mark_* 必须在 policy_info_reset 之前**
+11. **韵律休息切出**：IDLE 无吸力，必须从 0 渐强；进入休息时清零 `climb`，切出时 `mark_auto`，不能沿用休息前档位
