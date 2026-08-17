@@ -11,8 +11,8 @@
 * DEFINES
 *****************************************************************************************
 */
-#define GUIDE_LEVEL_SIDE_GUIDE_PAGE_NUM_CURRENT             (5)
-#define GUIDE_LEVEL_SIDE_GUIDE_PAGE_NUM_TOTAL               (7)
+#define GUIDE_LEVEL_SIDE_GUIDE_PAGE_NUM_CURRENT             (4) //(5)
+#define GUIDE_LEVEL_SIDE_GUIDE_PAGE_NUM_TOTAL               (6) //(7)
 
 #define GUIDE_LEVEL_SIDE_GUIDE_PRESS_Y                      (95 + 2)
 #define GUIDE_LEVEL_SIDE_GUIDE_PRESS_TEXT                   "Press"

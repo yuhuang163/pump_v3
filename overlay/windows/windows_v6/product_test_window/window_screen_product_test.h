@@ -34,6 +34,7 @@ typedef enum {
     PRODUCT_TEST_UI_TYPE_HOME,
     PRODUCT_TEST_UI_TYPE_LCD_COLOR,
     PRODUCT_TEST_UI_TYPE_AGING,
+    PRODUCT_TEST_UI_TYPE_POWER_OFF_HOLD, /// 长按 power/start 关机确认
     PRODUCT_TEST_UI_TYPE_MAX
 } product_test_ui_type_e;
 
@@ -67,9 +68,11 @@ typedef struct {
     uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. product_test_ui_type_e
+    uint16_t power_off_hold_restore_ui_type; /// 关机确认页退出后恢复的测试 UI
     uint32_t lcd_color; /// 当前LCD颜色.
     product_test_mode_e tests_mode; /// 产品测试模式.
     uint16_t popup_ui_type; /// 当前弹窗类型. product_test_popup_ui_type_e
+    uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
 } ui_proc_product_test_t;
 
 /*
@@ -85,6 +88,13 @@ void lcd_color_test_ui_hdr_remove(void);
 void lcd_color_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint16_t keytype);
 void show_aging_test_ui(ui_proc_product_test_t *proc);
 void aging_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint16_t keytype);
+
+/// 长按 power/start 关机确认页
+void show_product_test_power_off_hold_ui(ui_proc_product_test_t *proc);
+void product_test_power_off_hold_ui_exit(ui_proc_product_test_t *proc);
+void product_test_power_off_hold_dismiss(ui_proc_product_test_t *proc);
+void product_test_power_off_hold_key_long_2s_handler(ui_proc_product_test_t *proc);
+void product_test_power_off_hold_key_up_handler(ui_proc_product_test_t *proc);
 
 #ifdef __cplusplus
 }

@@ -31,6 +31,7 @@
 #define PUMP_BROADCAST_TASK_NAME            "pump_broadcast"
 #define PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME "pump_settings_success_display"
 #define PUMP_STOP_HOLD_COMPLETE_TASK_NAME   "pump_stop_hold_complete"
+#define PUMP_POWER_OFF_HOLD_COMPLETE_TASK_NAME "pump_power_off_hold_complete"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -39,6 +40,7 @@ do { \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_BROADCAST_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_STOP_HOLD_COMPLETE_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -500,8 +502,10 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     /// 方案2：任意可响应按键先退出结算页，再执行对应功能（保持暂停态）
     if (proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
         if (keytype != KEY_EVENT_CLICK &&
-            !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) &&
-            !(keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) &&
+            !(keytype == KEY_EVENT_LONG_2S &&
+              (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) &&
+            !(keytype == KEY_EVENT_UP &&
+              (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) &&
             !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_TRAVEL_LOCK) &&
             !(PUMP_BOTH_CONTROL_LONG_PRESS(keytype) && keycode == KEY_CODE_BOTH_CONTROL)) {
             LOG_WM("pump pause timeout ui, ignore key event. type:%d code:%d",
@@ -561,20 +565,50 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
+    #if IS_SUPPORT_PUMP_MANUAL_END
     if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
         pump_stop_hold_key_long_2s_handler(proc);
-    } else if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
+        return 0;
+    } 
+
+    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
         pump_stop_hold_key_up_handler(proc);
-    } else if (PUMP_BOTH_CONTROL_LONG_PRESS(keytype) && keycode == KEY_CODE_BOTH_CONTROL) {
+        return 0;
+    }
+    #else
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        pump_power_off_hold_key_long_2s_handler(proc);
+        return 0;
+    }
+
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        pump_power_off_hold_key_up_handler(proc);
+        return 0;
+    }
+    #endif
+
+    if (PUMP_BOTH_CONTROL_LONG_PRESS(keytype) && keycode == KEY_CODE_BOTH_CONTROL) {
         /// 长按 L+R（2~10s）：与短按一致，进入/退出双边力度调节
+        if (proc->current_ui_type == PUMP_UI_TYPE_POWER_OFF_HOLD) {
+            return 0;
+        }
         if (proc->both_control_long_acted == 0 &&
             pump_both_control_key_event(proc)) {
             proc->both_control_long_acted = 1;
         }
-    } else if (keytype == KEY_EVENT_CLICK) {
+        return 0;
+    } 
+
+    if (keytype == KEY_EVENT_CLICK) {
+        /// 关机确认页期间忽略其它 click，避免误触
+        if (proc->current_ui_type == PUMP_UI_TYPE_POWER_OFF_HOLD) {
+            return 0;
+        }
         pump_click_event_cb(proc, keycode);
-    }
-    
+        return 0;
+    }    
     return 0;
 }
 

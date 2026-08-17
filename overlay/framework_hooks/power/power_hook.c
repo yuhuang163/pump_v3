@@ -275,7 +275,7 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
     /// 开机按键超时检测, 如果超时, 则进入关机状态.
     if (keytype == KEY_EVENT_UP && ctx->priv.is_power_on_timeout_detect == 1) {
         ctx->priv.is_power_on_timeout_detect = 0;
-#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+        #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
         if (is_power_off_by_charging()) {
             uint32_t timeout_ms = POWER_ON_TIMEOUT_MS;
             LOG_PM("power on time: %d", timeout_ms);
@@ -286,15 +286,17 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
                 POWER_ONOFF_AND_STANDBY_TASK_NAME);
             return 0;
         }
-#endif
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
+        #endif
+
+        #if IS_SUPPORT_POWER_ON_GUIDE_UI
         /// 短按未满足开机时长：进入 dummy 长按开机引导
         POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON_GUIDE,
             POWER_ONOFF_AND_STANDBY_TASK_NAME);
-#else
+        #else
         POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON_INVALID,
             POWER_ONOFF_AND_STANDBY_TASK_NAME);
-#endif
+        #endif
+        
         return 0;
     }
 
@@ -308,75 +310,7 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
         return 0;
     }
 
-    /// 允许关机/待机标志设置. 
-    if (keytype == KEY_EVENT_DOWN && ctx->priv.allow_shutdown_or_standby == 0 && 
-        ctx->is_system_power_on() > 0 && get_timestamp() > 4000) {
-        ctx->priv.allow_shutdown_or_standby = 1; /// 允许关机/待机标志.
-        LOG_PM("key down on power-on state, allow shutdown or standby: %d", ctx->priv.allow_shutdown_or_standby);
-        return 0;
-    }
-
-    /// 进入关机状态. 不在工厂重置界面时才允许进入关机状态.(按键冲突)
-    if (keytype == KEY_EVENT_LONG_2S) {
-        if (ctx->priv.allow_shutdown_or_standby) {
-            window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-            /// 不在工厂重置界面时才允许进入关机状态.(按键冲突)
-            if (wm && wm->is_current_window(wm, ID_WINDOW_FACTORY_RESET)) {
-                LOG_PM("in factory reset window, ignore");
-                return 0;
-            }
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
-            /// dummy 长按开机引导页由窗口自行处理进度，禁止此处关机/待机
-            if (wm && wm->is_current_window(wm, ID_WINDOW_DUMMY)) {
-                LOG_PM("in dummy power on guide, ignore shutdown");
-                return 0;
-            }
-            /// 适配器不匹配页：禁止手动关机
-            {
-                battery_manager_context_t *battery =
-                    (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-                if (is_adapter_mismatch(battery)) {
-                    LOG_PM("adapter mismatch, ignore shutdown");
-                    return 0;
-                }
-            }
-#endif
-
-        #if V3_UX_VERSION == V3_UX_V6
-            if (wm && wm->is_current_window(wm, ID_WINDOW_PUMP)) {
-                LOG_PM("in pump window, ignore");
-                return 0;
-            }
-
-            if (wm && wm->is_current_window(wm, ID_WINDOW_HOME)) {
-                LOG_PM("in home window, ignore");
-                return 0;
-            }
-
-            if (wm && wm->is_current_window(wm, ID_WINDOW_GUIDE)) {
-                LOG_PM("in guide window, ignore");
-                return 0;
-            }
-        #endif
-
-        #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
-            if (is_prohibit_pm_suspend(ctx)) {
-                return 0;
-            }
-        #endif
-        #if IS_SUPPORT_SLEEP_POWER_OFF
-            POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_OFF,
-                POWER_ONOFF_AND_STANDBY_TASK_NAME);
-        #else
-            POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_SYS_STANDBY,
-                POWER_ONOFF_AND_STANDBY_TASK_NAME);
-        #endif
-        } else {
-            LOG_PM("forbid shutdown or standby");
-        }
-    } else {
-        LOG_PM("key:%d, ignore, power state:%d/%d", keytype, ctx->is_system_power_on(), ctx->priv.allow_shutdown_or_standby);
-    }
+    LOG_PM("key:%d, ignore, power state:%d", keytype, ctx->is_system_power_on());
     return 0;
 }
 

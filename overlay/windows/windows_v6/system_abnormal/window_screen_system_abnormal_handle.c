@@ -11,10 +11,14 @@
 #define PAGE_STATIC_NAME                        system_abnormal
 #define PAGE_NAME_STR                           "system_abnormal"
 #define SYSTEM_ABNORMAL_TASK_NAME               "sys_abnormal_task"
+#define SYSTEM_ABNORMAL_UI_KEY_CODE             (KEY_CODE_POWER | KEY_CODE_START)
+#define SYSTEM_ABNORMAL_UI_KEY_TYPE             (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S | KEY_EVENT_LONG_10S)
+#define SYSTEM_ABNORMAL_POWER_OFF_HOLD_COMPLETE_TASK_NAME "sys_abnormal_power_off_hold_complete"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -193,6 +197,24 @@ static int on_system_abnormal_keyevent_hdr(void *user_data, uint16_t keycode, ui
         return 0;
     }
 
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        system_abnormal_power_off_hold_key_long_2s_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        system_abnormal_power_off_hold_key_up_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_CLICK &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        return 0;
+    }
+    if (proc->current_ui_type == SYSTEM_ABNORMAL_UI_TYPE_POWER_OFF_HOLD) {
+        return 0;
+    }
+
     if (keycode != KEY_CODE_POWER) {
         return 0;
     }
@@ -211,8 +233,8 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
     window_manager_context_t *wm = proc->wm;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
-        ADD_KEYEVENT_CB(proc->key, "sys_abnormal_wm", proc, KEY_CODE_POWER,
-            KEY_EVENT_LONG_10S, on_system_abnormal_keyevent_hdr);
+        ADD_KEYEVENT_CB(proc->key, "sys_abnormal_wm", proc, SYSTEM_ABNORMAL_UI_KEY_CODE,
+            SYSTEM_ABNORMAL_UI_KEY_TYPE, on_system_abnormal_keyevent_hdr);
         ADD_ABNORMAL_STATE_CB(proc->abnormal, proc, on_system_abnormal_state_change_cb);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
@@ -260,6 +282,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
         case ID_SCR_STATE_ON_PAUSE:
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            system_abnormal_power_off_hold_ui_exit(proc);
             stop_system_abnormal_ui(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:

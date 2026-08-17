@@ -10,11 +10,14 @@
 */
 #define PAGE_STATIC_NAME                        battery
 #define PAGE_NAME_STR                           "battery"
-#define BATTERY_LOW_POWER_TASK_NAME             "battery_low_power_task"
+#define BATTERY_UI_KEY_CODE                     (KEY_CODE_POWER | KEY_CODE_START)
+#define BATTERY_UI_KEY_TYPE                     (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
+#define BATTERY_POWER_OFF_HOLD_COMPLETE_TASK_NAME "battery_power_off_hold_complete"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(BATTERY_LOW_POWER_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(BATTERY_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -83,6 +86,10 @@ static void battery_ui_common_cb(hdr_post_args_t *args)
     int action = args->arg1;
     switch (action) {
         case BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF: 
+            if (proc->current_ui_type == BATTERY_UI_TYPE_POWER_OFF_HOLD) {
+                LOG_WM("power off hold showing, ignore auto low power off.");
+                break;
+            }
             LOG_WM("low power power off");
             multi_func_msg_data_t msg = {0};
             msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
@@ -116,11 +123,39 @@ static void on_battery_window_battery_state_change_cb(void *user_data, battery_s
     }
 }
 
+static int on_battery_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
+{
+    ui_proc_battery_t *proc = user_data;
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_BATTERY, 0);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        battery_power_off_hold_key_long_2s_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        battery_power_off_hold_key_up_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_CLICK &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        return 0;
+    }
+    return 0;
+}
+
 static int entry_event_cb(window_lift_cycle_e new_state, const struct window_context *thiz, const struct window_context *old_scr)
 {
     ui_proc_battery_t *proc = CONTAINER_OF(thiz, ui_proc_battery_t, w_ctx);
     EXCEPTION_CHECK_INT(proc);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
+        ADD_KEYEVENT_CB(proc->key, "battery_wm", proc, BATTERY_UI_KEY_CODE, BATTERY_UI_KEY_TYPE,
+            on_battery_ui_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_battery_window_battery_state_change_cb);
         wm_ensure_ble_adv_started();
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
@@ -144,6 +179,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
         case ID_SCR_STATE_ON_PAUSE: 
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            battery_power_off_hold_ui_exit(proc);
             stop_battery_low_power_ui(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:
@@ -152,6 +188,7 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             REMOVE_BATTERY_STATE_CB(proc->battery, on_battery_window_battery_state_change_cb);
+            REMOVE_KEYEVENT_CB(proc->key, on_battery_ui_keyevent_hdr);
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);
@@ -181,6 +218,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->airplane = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     proc->res = (resource_manager_context_t *)find_module(ID_MODULE_RES);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     /// 配置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
@@ -193,6 +231,13 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     wm->dispatch_new_window(w_ctx);
 
     return ID_WINDOW_DISPLAY_OK;
+}
+
+void battery_low_power_auto_off_rearm(ui_proc_battery_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    POST_WM_TASK_HANDLER_DELAYED_ARG2(battery_ui_common_cb, 3000, BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF,
+        proc, BATTERY_LOW_POWER_TASK_NAME);
 }
 
 

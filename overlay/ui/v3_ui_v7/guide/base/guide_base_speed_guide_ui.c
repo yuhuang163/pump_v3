@@ -11,8 +11,8 @@
 * DEFINES
 *****************************************************************************************
 */
-#define GUIDE_SPEED_GUIDE_PAGE_NUM_CURRENT                  (7)
-#define GUIDE_SPEED_GUIDE_PAGE_NUM_TOTAL                    (7)
+#define GUIDE_SPEED_GUIDE_PAGE_NUM_CURRENT                  (6) //(7)
+#define GUIDE_SPEED_GUIDE_PAGE_NUM_TOTAL                    (6) //(7)
 
 #define GUIDE_SPEED_GUIDE_PRESS_X                           (109)
 #define GUIDE_SPEED_GUIDE_PRESS_Y                           (146 + 2)

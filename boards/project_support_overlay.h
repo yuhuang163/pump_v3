@@ -234,6 +234,9 @@ extern "C" {
 #define PUMP_LEVEL_SYNC_ENABLE                           (0)
 #define PUMP_FREQ_SYNC_ENABLE                            (1)
 
+/// 支持泵奶手动结束
+#define IS_SUPPORT_PUMP_MANUAL_END                       (0)
+
 #ifdef __cplusplus
 }
 #endif

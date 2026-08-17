@@ -91,13 +91,6 @@ static void power_on_hold_idle_power_off_cb(hdr_post_args_t *args)
         power_on_hold_goto_charge_screen(proc);
         return;
     }
-    /// VBUS 已插入但适配器状态仍在识别中：推迟静默关机
-    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
-        !BATTERY_IS_CHARGING(proc->battery->get_charge_status())) {
-        LOG_WM("vbus plugged, charge status pending, delay idle power off.");
-        proc->last_progress_ani_time = get_timestamp();
-        return;
-    }
     LOG_WM("power on hold idle timeout, direct power off.");
     dummy_power_on_hold_direct_power_off();
 }
@@ -105,9 +98,12 @@ static void power_on_hold_idle_power_off_cb(hdr_post_args_t *args)
 static void power_on_hold_idle_timeout_check(ui_proc_dummy_t *proc)
 {
     if (proc->power_on_hold_holding) {
+        // LOG_WM("power on hold holding, ignore idle timeout check.");
         return;
     }
-    if (get_timestamp_ms(proc->last_progress_ani_time) < DUMMY_POWER_ON_HOLD_IDLE_TIMEOUT_MS) {
+    uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
+    if (time_diff < DUMMY_POWER_ON_HOLD_IDLE_TIMEOUT_MS) {
+        // LOG_WM("time diff: %dms, ignore.", time_diff);
         return;
     }
     proc->last_progress_ani_time = get_timestamp();

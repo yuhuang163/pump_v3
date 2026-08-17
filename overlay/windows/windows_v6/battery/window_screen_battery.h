@@ -21,6 +21,8 @@ extern "C" {
 #define BATTERY_ANIMATION_FREQ                    (5)
 #endif
 
+#define BATTERY_LOW_POWER_TASK_NAME               "battery_low_power_task"
+
 
 /// 电池UI动作枚举
 typedef enum {
@@ -33,6 +35,7 @@ typedef enum {
 typedef enum {
     BATTERY_UI_TYPE_NONE = 0,
     BATTERY_UI_TYPE_LOW_POWER = 100,
+    BATTERY_UI_TYPE_POWER_OFF_HOLD, /// 长按 power/start 关机确认
     BATTERY_UI_TYPE_MAX
 } battery_ui_type_e;
 
@@ -47,12 +50,14 @@ typedef struct {
     airplane_mode_context_t *airplane;
     resource_manager_context_t *res;
     led_manager_context_t *led;
+    key_input_context_t *key;
     broadcast_obj_t receiver;
     window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. battery_ui_type_e
     uint8_t window_run_state; /// WM是否运行.
+    uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
 } ui_proc_battery_t;
 
 /*
@@ -61,6 +66,14 @@ typedef struct {
 */
 void show_battery_low_power_ui(ui_proc_battery_t *proc);
 void stop_battery_low_power_ui(ui_proc_battery_t *proc);
+void battery_low_power_auto_off_rearm(ui_proc_battery_t *proc);
+
+/// 长按 power/start 关机确认页
+void show_battery_power_off_hold_ui(ui_proc_battery_t *proc);
+void battery_power_off_hold_ui_exit(ui_proc_battery_t *proc);
+void battery_power_off_hold_dismiss(ui_proc_battery_t *proc);
+void battery_power_off_hold_key_long_2s_handler(ui_proc_battery_t *proc);
+void battery_power_off_hold_key_up_handler(ui_proc_battery_t *proc);
 #ifdef __cplusplus
 }
 #endif

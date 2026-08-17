@@ -37,6 +37,7 @@ typedef enum {
 typedef enum {
     AIRPLANE_MODE_UI_TYPE_NONE = 0,
     AIRPLANE_MODE_UI_TYPE_HOME,
+    AIRPLANE_MODE_UI_TYPE_POWER_OFF_HOLD, /// 长按 power/start 关机确认
     AIRPLANE_MODE_UI_TYPE_MAX
 } airplane_mode_ui_type_e;
 
@@ -62,6 +63,7 @@ typedef struct ui_proc_airplane_mode {
     uint16_t current_ui_type; /// 当前UI类型. airplane_mode_ui_type_e
     uint32_t power_off_idle_time; /// 关机倒计时起始时间.
     uint8_t popup_ui_type; /// 当前弹窗类型. airplane_mode_popup_ui_type_e
+    uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
 } ui_proc_airplane_mode_t;
 
 /// 飞行模式背光灯状态结构体
@@ -80,6 +82,13 @@ void airplane_mode_led_policy(ui_proc_airplane_mode_t *proc, uint8_t status);
 void airplane_mode_pump_policy(ui_proc_airplane_mode_t *proc);
 
 void airplane_mode_ui_hdr_remove(void);
+
+/// 长按 power/start 关机确认页
+void show_airplane_mode_power_off_hold_ui(ui_proc_airplane_mode_t *proc);
+void airplane_mode_power_off_hold_ui_exit(ui_proc_airplane_mode_t *proc);
+void airplane_mode_power_off_hold_dismiss(ui_proc_airplane_mode_t *proc);
+void airplane_mode_power_off_hold_key_long_2s_handler(ui_proc_airplane_mode_t *proc);
+void airplane_mode_power_off_hold_key_up_handler(ui_proc_airplane_mode_t *proc);
 #ifdef __cplusplus
 }
 #endif

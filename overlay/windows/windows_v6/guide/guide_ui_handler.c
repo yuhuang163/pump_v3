@@ -76,7 +76,6 @@ static void guide_stop_hold_complete_cb(hdr_post_args_t *args)
     }
     LOG_WM("guide stop hold complete, goto pump home.");
     proc->stop_hold_holding = 0;
-    proc->stop_hold_ignore_click = 1;
 #if IS_SUPPORT_GUIDE_PUMP_START
     if (proc->pump) {
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, false);
@@ -192,7 +191,8 @@ static void guide_guide_step_timeout_handler(ui_proc_guide_t *proc)
             guide_page_advance(proc, GUIDE_PAGE_PUMP_PAUSE_GUIDE);
             break;
         case GUIDE_PAGE_PUMP_PAUSE:
-            guide_page_advance(proc, GUIDE_PAGE_PUMP_FINISH_GUIDE);
+            // guide_page_advance(proc, GUIDE_PAGE_PUMP_FINISH_GUIDE);
+            guide_page_advance(proc, GUIDE_PAGE_MODE_SWITCH_GUIDE);
             break;
         case GUIDE_PAGE_PUMP_HOME:
             guide_page_advance(proc, GUIDE_PAGE_MODE_SWITCH_GUIDE);
@@ -348,7 +348,6 @@ void guide_stop_hold_key_long_2s_handler(ui_proc_guide_t *proc)
     }
     LOG_WM("power long 2s, show guide pump finish hold.");
     proc->stop_hold_holding = 1;
-    proc->stop_hold_ignore_click = 0;
     guide_page_advance(proc, GUIDE_PAGE_PUMP_FINISH_HOLD);
 }
 
@@ -356,12 +355,6 @@ void guide_stop_hold_key_up_handler(ui_proc_guide_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     if (proc->page_index != GUIDE_PAGE_PUMP_FINISH_HOLD) {
-        /// 长按已完成时松手：LONG_2S 后通常不再上报 CLICK，
-        /// 需在 UP 时清掉 ignore，避免第 10 页首次短按被吞掉。
-        if (proc->stop_hold_ignore_click) {
-            proc->stop_hold_ignore_click = 0;
-            LOG_WM("clear stop hold ignore click on power up after complete.");
-        }
         return;
     }
     if (!proc->stop_hold_holding) {
@@ -369,7 +362,6 @@ void guide_stop_hold_key_up_handler(ui_proc_guide_t *proc)
     }
     LOG_WM("power key up before guide stop hold complete, back to finish guide.");
     proc->stop_hold_holding = 0;
-    proc->stop_hold_ignore_click = 1;
     REMOVE_TASK_HANDLER_DIRECTLY(GUIDE_STOP_HOLD_COMPLETE_TASK_NAME);
     guide_page_advance(proc, GUIDE_PAGE_PUMP_FINISH_GUIDE);
 }
@@ -379,17 +371,6 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
     EXCEPTION_CHECK_VOID(proc);
     (void)keytype;
     if (GUIDE_PAGE_IS_WELCOME_ANIM(proc->page_index)) {
-        return;
-    }
-
-    if (keycode == KEY_CODE_POWER && proc->stop_hold_ignore_click) {
-        proc->stop_hold_ignore_click = 0;
-        LOG_WM("ignore power click after guide stop hold release.");
-        return;
-    }
-    if (keycode == KEY_CODE_POWER && proc->power_off_hold_ignore_click) {
-        proc->power_off_hold_ignore_click = 0;
-        LOG_WM("ignore power click after guide power off hold.");
         return;
     }
 

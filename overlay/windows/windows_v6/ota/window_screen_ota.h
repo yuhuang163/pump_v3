@@ -26,6 +26,7 @@ extern "C" {
 typedef enum {
     OTA_UI_TYPE_NONE = 0,
     OTA_UI_TYPE_UPDATE,
+    OTA_UI_TYPE_POWER_OFF_HOLD, /// 长按 power/start 关机确认
     OTA_UI_TYPE_MAX
 } ota_ui_type_e;
 
@@ -56,6 +57,7 @@ typedef struct {
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. ota_ui_type_e
     uint8_t ota_status; /// OTA状态. ota_status_e
+    uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
 } ui_proc_ota_t;
 
 /*
@@ -64,6 +66,14 @@ typedef struct {
 */
 void start_ota_ui_animation(ui_proc_ota_t *proc);
 void stop_ota_ui_animation(ui_proc_ota_t *proc);
+void show_ota_ui(ui_proc_ota_t *proc);
+
+/// 长按 power/start 关机确认页
+void show_ota_power_off_hold_ui(ui_proc_ota_t *proc);
+void ota_power_off_hold_ui_exit(ui_proc_ota_t *proc);
+void ota_power_off_hold_dismiss(ui_proc_ota_t *proc);
+void ota_power_off_hold_key_long_2s_handler(ui_proc_ota_t *proc);
+void ota_power_off_hold_key_up_handler(ui_proc_ota_t *proc);
 
 #ifdef __cplusplus
 }

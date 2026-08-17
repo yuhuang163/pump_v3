@@ -29,6 +29,7 @@ typedef enum {
 typedef enum {
     THEME_GUIDE_UI_TYPE_NONE = 0,
     THEME_GUIDE_UI_TYPE_HOME,
+    THEME_GUIDE_UI_TYPE_POWER_OFF_HOLD, /// 长按 power/start 关机确认
     THEME_GUIDE_UI_TYPE_MAX
 } theme_guide_ui_type_e;
 
@@ -48,8 +49,9 @@ typedef struct {
     uint16_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
     uint8_t selected_index;
     uint8_t is_operated;
+    uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
     // uint8_t theme_guide_deployed; /// 主题引导部署标志.
-    uint8_t rsv[14];
+    uint8_t rsv[12];
 } ui_proc_theme_guide_t;
 
 static inline res_theme_type_e theme_guide_proc_get_selected_theme_type(const ui_proc_theme_guide_t *proc)
@@ -62,6 +64,13 @@ static inline res_theme_type_e theme_guide_proc_get_selected_theme_type(const ui
 
 void start_theme_guide_ui_animation(ui_proc_theme_guide_t *proc);
 void stop_theme_guide_ui_animation(ui_proc_theme_guide_t *proc);
+
+/// 长按 power/start 关机确认页
+void show_theme_guide_power_off_hold_ui(ui_proc_theme_guide_t *proc);
+void theme_guide_power_off_hold_ui_exit(ui_proc_theme_guide_t *proc);
+void theme_guide_power_off_hold_dismiss(ui_proc_theme_guide_t *proc);
+void theme_guide_power_off_hold_key_long_2s_handler(ui_proc_theme_guide_t *proc);
+void theme_guide_power_off_hold_key_up_handler(ui_proc_theme_guide_t *proc);
 
 #ifdef __cplusplus
 }

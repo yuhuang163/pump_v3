@@ -12,12 +12,14 @@
 */
 #define PAGE_STATIC_NAME                            theme_guide
 #define PAGE_NAME_STR                               "theme_guide"
-#define THEME_GUIDE_UI_KEY_CODE                     (KEY_CODE_KNOB_RIGHT | KEY_CODE_KNOB_LEFT | KEY_CODE_START)
-#define THEME_GUIDE_UI_KEY_TYPE                     KEY_EVENT_CLICK
+#define THEME_GUIDE_UI_KEY_CODE                     (KEY_CODE_KNOB_RIGHT | KEY_CODE_KNOB_LEFT | KEY_CODE_START | KEY_CODE_POWER)
+#define THEME_GUIDE_UI_KEY_TYPE                     (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
+#define THEME_GUIDE_POWER_OFF_HOLD_COMPLETE_TASK_NAME "theme_guide_power_off_hold_complete"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
+    REMOVE_TASK_HANDLER_DIRECTLY(THEME_GUIDE_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -57,11 +59,27 @@ static void theme_guide_knob_event_handler(ui_proc_theme_guide_t *proc, bool is_
 
 static int on_theme_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
-    (void)keytype;
     ui_proc_theme_guide_t *proc = user_data;
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_THEME_GUIDE, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
+        return 0;
+    }
+
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        theme_guide_power_off_hold_key_long_2s_handler(proc);
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        theme_guide_power_off_hold_key_up_handler(proc);
+        return 0;
+    }
+    if (keytype != KEY_EVENT_CLICK) {
+        return 0;
+    }
+    if (proc->current_ui_type == THEME_GUIDE_UI_TYPE_POWER_OFF_HOLD) {
         return 0;
     }
 
@@ -126,6 +144,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            theme_guide_power_off_hold_ui_exit(proc);
             stop_theme_guide_ui_animation(proc);
             break;
         case ID_SCR_STATE_ON_DESTORY:

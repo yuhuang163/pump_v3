@@ -25,7 +25,6 @@ static void pump_stop_hold_complete_cb(hdr_post_args_t *args)
     }
     LOG_WM("pump stop hold complete, goto home pump result.");
     proc->stop_hold_holding = 0;
-    proc->stop_hold_ignore_click = 1;
     DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 0);
     pump_complete_event_handler(proc);
 }
@@ -101,7 +100,6 @@ void show_pump_stop_hold_ui(ui_proc_pump_t *proc)
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_STOP_HOLD;
     proc->stop_hold_holding = 1;
-    proc->stop_hold_ignore_click = 0;
     if (proc->led) {
         proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
     }
@@ -121,7 +119,6 @@ void pump_stop_hold_dismiss(ui_proc_pump_t *proc)
         return;
     }
     proc->stop_hold_holding = 0;
-    proc->stop_hold_ignore_click = 1;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_STOP_HOLD_COMPLETE_TASK_NAME);
     LOG_WM("dismiss pump stop hold, nav back history.");
     pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HISTORY);
