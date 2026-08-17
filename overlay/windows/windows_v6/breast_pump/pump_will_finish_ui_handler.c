@@ -88,8 +88,10 @@ void show_pump_will_finish_ui(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
         return;
     }
+    int work_mode = 0;
+    READ_PUMP_WORK_MODE(proc->pump, work_mode);
+    proc->will_finish_mode = (uint8_t)work_mode;
     pump_ui_change_hdr_remove(proc);
-
     ui_play_info_t play_info = {
         .tag = "pump_will_finish_screen",
         .fps = PUMP_ANIMATION_FREQ,

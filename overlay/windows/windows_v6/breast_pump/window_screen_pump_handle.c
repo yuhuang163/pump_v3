@@ -162,16 +162,6 @@ static int pump_window_async_evt_handler_cb(struct window_event_data *evt_data)
     return 0;
 }
 
-static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *result)
-{
-    ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
-    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
-        LOG_WM("wm not running, ignore.");
-        return;
-    }
-}
-
 static void pump_ui_common_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc = args->user_data;
@@ -189,12 +179,34 @@ static void pump_ui_common_cb(hdr_post_args_t *args)
             msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
             break;
+        case PUMP_HDR_ACTION_PUMP_WILL_FINISH_EXIT:
+            if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
+                LOG_WM("pump will finish, exit and show home.");
+                show_pump_home_ui(proc);
+            }
+            break;
         default:
             LOG_WM("unknow action: %d, ignore.", action);
             break;
     }
 }
 
+static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *result)
+{
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    
+    if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
+        if (result->working_mode != proc->will_finish_mode) {
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_WILL_FINISH_EXIT,
+                PUMP_COMPLETE_TASK_NAME);
+        }
+    }
+}
 
 static void pump_mode_key_event_cb(ui_proc_pump_t *proc, uint8_t mode_index)
 {

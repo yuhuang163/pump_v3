@@ -129,6 +129,7 @@ typedef enum {
 typedef enum {
     PUMP_HDR_ACTION_START_PUMP = 100,
     PUMP_HDR_ACTION_PUMP_COMPLETE,
+    PUMP_HDR_ACTION_PUMP_WILL_FINISH_EXIT, /// 韵律即将结束忽略退出
     PUMP_HDR_ACTION_MAX
 } pump_ui_hdr_action_e;
 
@@ -247,6 +248,7 @@ typedef struct {
     uint8_t level_inc_window_base; /// 连续加档窗口起始力度
     uint8_t sub_mode_type; /// 当前子模式 pump_mode_type_e（力度/速度页共用）
     uint8_t sub_mode_switch; /// 子模式切换提醒中（力度/速度页共用）
+    uint8_t will_finish_mode; /// 韵律即将结束模式
     int sub_mode_time_index; /// 调节页缓存的 mode step index，读写 setting 用
     uint32_t level_adjust_time; /// 力度/速度调节页最近操作时间（静默退出计时）
     uint32_t adjust_enter_time; /// 力度/速度调节页进入时间（按键退出防抖，与静默计时分离）
