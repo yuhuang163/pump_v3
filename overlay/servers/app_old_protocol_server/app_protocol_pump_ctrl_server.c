@@ -767,7 +767,6 @@ static uint8_t pump_custom_mode_update_by_app(pump_mode_steps_info_t pump_steps_
     ///是否需要区分设备是否在用户自定义模式下运行，如果运行，是否直接替换用户自定义模式参数
     storage_ctx->put_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &pump_steps_info);
     LOG_SRV("put custom steps info to ram");
-    motor_ctx->hook->generate_motor_para(motor_ctx, BREAST_PUMP_CUSTOM_MODE, &pump_steps_info, sizeof(pump_steps_info));
     //custom_mode_update_by_steps_info(&pump_steps_info);
     #if !IS_PUMP_STEPS_USE_SAME_SETTING
     pump_setting_t setting;
@@ -813,6 +812,15 @@ static uint8_t pump_custom_mode_update_by_app(pump_mode_steps_info_t pump_steps_
     }
 #endif
     #endif
+    /// 已在自定义模式时不会走切模式加载 setting，需同步到运行时，否则首步仍用旧档位
+    if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_MODE) {
+        for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
+            storage_ctx->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, BREAST_PUMP_CUSTOM_MODE, i,
+                &pump_ctx->priv.setting[i]);
+        }
+    }
+    /// 运行中更新策略可能立刻重启电机，必须先写好 setting
+    motor_ctx->hook->generate_motor_para(motor_ctx, BREAST_PUMP_CUSTOM_MODE, &pump_steps_info, sizeof(pump_steps_info));
     ///更新激活标识 自定义模式激活
     WRITE_PUMP_MODE_ACTIVATE(pump_ctx, BREAST_PUMP_CUSTOM_MODE, 1);
 
@@ -1102,9 +1110,9 @@ static uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old
     //appbug，就是切模式把之前目标模式的参数，也带下来了，但是切模式都要从第一步运行，要以我这边为准
     //如果模式不变，说明只设置当前模式参数,
     if (app_old_comm_pump_ctrl_date->pump_mode == app_old_comm_get_current_pump_mode()) {
-        //设置控制类型
+#if 0
+        /// 档位/频次/控制类型改由 0xEA 设置
         app_old_comm_set_pump_control_type(app_old_comm_pump_ctrl_date);
-        //设置参数
         switch (app_old_comm_get_current_pump_mode()) {
             case BREAST_PUMP_LACTATION_MODE:
             case BREAST_PUMP_STIMULATION_MODE: // 传统模式
@@ -1121,13 +1129,13 @@ static uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old
             }
             case BREAST_PUMP_CUSTOM_MODE: {
                 app_old_comm_set_custom_pump_speed(app_old_comm_pump_ctrl_date);
-                app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl_date); //设置运行中的参数
-                //todo                                                          //将缓存的cust para也更新下
+                app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl_date);
                 break;
             }
             default:
                 break;
         }
+#endif
     } else {
         /// 如果模式改变，则改变模式,忽略参数
         uint8_t mode_from = app_old_comm_get_current_pump_mode();
@@ -1865,16 +1873,15 @@ void app_old_comm_handle_clear_trail_custom_mode_req(uint8_t cal, uint8_t *cab)
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_CLEAR_CUSTOM_MODE, 4, ack_data);
 }
 
-//0xEA
+//0xEA  CAL=5: 控制类型 + 左档 + 左频次 + 右档 + 右频次
 void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
 {
     LOG_SRV("Handling set bilateral pump param request");
     EXCEPTION_CHECK_VOID(cab);
     
-    // 检查参数长度
-    if (cal != 0x04) {
-        LOG_SRV("Invalid data length for SET_BILATERAL_PUMP_PARAM (expected 0x04, got 0x%02X)", cal);
-        uint8_t nack_data = 0x00; // 错误状态
+    if (cal != 0x05) {
+        LOG_SRV("Invalid data length for SET_BILATERAL_PUMP_PARAM (expected 0x05, got 0x%02X)", cal);
+        uint8_t nack_data = 0x00;
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
         return;
     }
@@ -1886,42 +1893,43 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
         return;
     }
 
-    // 解析参数
-    uint8_t left_level = cab[0];   // 左边档位 0x00~0x0F
-    uint8_t left_speed = cab[1];   // 左边频次 1-低, 2-中, 3-高
-    uint8_t right_level = cab[2];  // 右边档位 0x00~0x0F
-    uint8_t right_speed = cab[3];  // 右边频次 1-低, 2-中, 3-高
-    
-    // 参数有效性检查
-    if (left_level > BREAST_PUMP_LEVEL_15 || right_level > BREAST_PUMP_LEVEL_15) {
-        LOG_SRV("Invalid pump level: left=%d, right=%d (max=%d)", left_level, right_level, BREAST_PUMP_LEVEL_15);
-        uint8_t nack_data = 0x00; // 错误状态
+    uint8_t ctrl = cab[0];          // 0-左 1-右 2-双边
+    uint8_t left_level = cab[1];    // 左边档位 0x00~0x0F
+    uint8_t left_speed = cab[2];    // 左边频次 1-低, 2-中, 3-高
+    uint8_t right_level = cab[3];   // 右边档位 0x00~0x0F
+    uint8_t right_speed = cab[4];   // 右边频次 1-低, 2-中, 3-高
+
+    if (ctrl > APP_OLD_COMM_ALL_CT) {
+        LOG_SRV("Invalid pump control type: %d", ctrl);
+        uint8_t nack_data = 0x00;
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
         return;
     }
-    
+    if (left_level > BREAST_PUMP_LEVEL_15 || right_level > BREAST_PUMP_LEVEL_15) {
+        LOG_SRV("Invalid pump level: left=%d, right=%d (max=%d)", left_level, right_level, BREAST_PUMP_LEVEL_15);
+        uint8_t nack_data = 0x00;
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
+        return;
+    }
     if (left_speed < 1 || left_speed > BREAST_PUMP_SPEED_MAX ||
         right_speed < 1 || right_speed > BREAST_PUMP_SPEED_MAX) {
         LOG_SRV("Invalid pump speed: left=%d, right=%d (valid: 1-%d)",
                 left_speed, right_speed, BREAST_PUMP_SPEED_MAX);
-        uint8_t nack_data = 0x00; // 错误状态
+        uint8_t nack_data = 0x00;
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
         return;
     }
 
-    // 先发送ACK响应，返回设置状态 0x01（成功）
-    uint8_t ack_data = 0x01; // 设置成功
+    uint8_t ack_data = 0x01;
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &ack_data);
-    
-    // 转换频次：协议中 1-低, 2-中, 3-高 -> 内部 0-低, 1-中, 2-高
+
     uint8_t left_speed_internal = left_speed - 1;
     uint8_t right_speed_internal = right_speed - 1;
-    
-    // 获取泵奶管理器
+    uint8_t target_speed = (ctrl == APP_OLD_COMM_RIGHT_CT) ? right_speed_internal : left_speed_internal;
+
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_VOID(pump_ctx);
-    
-    // 读取当前设置
+
     int time_index = 0;
     uint8_t level_max;
     READ_PUMP_MODE_STEP_INDEX(pump_ctx, time_index);
@@ -1931,46 +1939,77 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
     left_level = app_old_comm_clamp_pump_level(left_level, level_max);
     right_level = app_old_comm_clamp_pump_level(right_level, level_max);
 
-    int control_type = BREAST_PUMP_CONTROL_TYPE_BILATERAL;
-    WRITE_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, control_type, 0);
-   
-     /*led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    if (led && led->hook && led->hook->set_key_backlight) {
-        led->hook->set_key_backlight(led, 100);
-    }*/
-    ///设置不变的参数 直接return
-    if (setting.level[0] == left_level && setting.level[1] == right_level && setting.speed == left_speed_internal) {
-        LOG_SRV("Bilateral pump param no change, left_level=%d, right_level=%d, left_speed=%d", left_level, right_level, left_speed_internal);
+    int current_control_type = 0;
+    READ_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, current_control_type);
+    int control_type = (int)ctrl;
+    if (current_control_type != control_type) {
+        WRITE_PUMP_LEVEL_CONTROL_TYPE(pump_ctx, control_type, 1);
+        LOG_SRV("set pump control type %d", control_type);
+    }
+
+    bool level_speed_no_change = (setting.speed == target_speed);
+    if (ctrl == APP_OLD_COMM_LEFT_CT) {
+        level_speed_no_change = level_speed_no_change && (setting.level[0] == left_level);
+    } else if (ctrl == APP_OLD_COMM_RIGHT_CT) {
+        level_speed_no_change = level_speed_no_change && (setting.level[1] == right_level);
+    } else {
+        level_speed_no_change = level_speed_no_change &&
+            (setting.level[0] == left_level) && (setting.level[1] == right_level);
+    }
+    if (level_speed_no_change) {
+        LOG_SRV("EA pump param no change, ctrl=%d L=%d/%d R=%d/%d",
+            ctrl, left_level, left_speed_internal, right_level, right_speed_internal);
         return;
     }
-    /// 触发泵奶档位设置埋点 (EVT_007: 吸力调节)
+
     {
         pump_setting_t setting_before = setting;
         pump_setting_t setting_after = setting;
-
-        if (setting_before.level[0] != left_level || setting_before.level[1] != right_level) {
+        if (ctrl == APP_OLD_COMM_LEFT_CT) {
+            setting_after.level[0] = left_level;
+        } else if (ctrl == APP_OLD_COMM_RIGHT_CT) {
+            setting_after.level[1] = right_level;
+        } else {
             setting_after.level[0] = left_level;
             setting_after.level[1] = right_level;
+        }
+        if (setting_before.level[0] != setting_after.level[0] ||
+            setting_before.level[1] != setting_after.level[1]) {
             app_old_comm_bury_pump_level_adjust(&setting_before, &setting_after);
         }
+        if (setting.speed != target_speed) {
+            data_bury_trigger_manual_adjust_t bury_adj = {
+                .evt_source = DATA_BURY_EVT_SOURCE_REMOTE_APP,
+                .evt_type = DATA_BURY_ADJUST_FREQUENCY,
+                .adjust_from = (uint8_t)setting.speed,
+                .adjust_to = target_speed,
+            };
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
+        }
     }
-    // 设置左右两边的档位和频次
-    setting.level[0] = left_level;
-    setting.level[1] = right_level;
-    // 注意：setting.speed 是全局的，但根据协议，这里应该分别设置左右两边的频次
-    // 由于当前结构体只有一个speed字段，我们使用左边频次作为全局speed
-    // 如果需要分别控制，可能需要修改数据结构或使用其他方式
-    setting.speed = left_speed_internal;
-    
-    LOG_SRV("Set bilateral pump param: left_level=%d, left_speed=%d(%d), right_level=%d, right_speed=%d(%d)", 
-            left_level, left_speed, left_speed_internal, right_level, right_speed, right_speed_internal);
 
-    // 写入设置
+    if (ctrl == APP_OLD_COMM_LEFT_CT) {
+        setting.level[0] = left_level;
+    } else if (ctrl == APP_OLD_COMM_RIGHT_CT) {
+        setting.level[1] = right_level;
+    } else {
+        setting.level[0] = left_level;
+        setting.level[1] = right_level;
+    }
+    setting.speed = target_speed;
+
+    LOG_SRV("Set EA pump param: ctrl=%d left_level=%d left_speed=%d(%d) right_level=%d right_speed=%d(%d)",
+            ctrl, left_level, left_speed, left_speed_internal, right_level, right_speed, right_speed_internal);
+
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
-    
-    // 广播更新
-    app_broadcast_pump_level_to_window(left_level, OLD_BROADCAST_LEFT_CT);
-    app_broadcast_pump_level_to_window(right_level, OLD_BROADCAST_RIGHT_CT);
-    app_broadcast_pump_speed_to_window(left_speed_internal, OLD_BROADCAST_ALL_CT);
-    
+
+    if (ctrl == APP_OLD_COMM_LEFT_CT) {
+        app_broadcast_pump_level_to_window(left_level, OLD_BROADCAST_LEFT_CT);
+    } else if (ctrl == APP_OLD_COMM_RIGHT_CT) {
+        app_broadcast_pump_level_to_window(right_level, OLD_BROADCAST_RIGHT_CT);
+    } else {
+        app_broadcast_pump_level_to_window(left_level, OLD_BROADCAST_LEFT_CT);
+        app_broadcast_pump_level_to_window(right_level, OLD_BROADCAST_RIGHT_CT);
+    }
+    app_broadcast_pump_speed_to_window(target_speed, OLD_BROADCAST_ALL_CT);
 }
