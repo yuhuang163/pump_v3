@@ -9,6 +9,7 @@
 * DEFINES
 *****************************************************************************************
 */
+#define PUMP_IDLE_LOG_INTERVAL_MS            2000  /// 休息模式日志间隔
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -217,6 +218,18 @@ int pump_time_policy_update(struct motor_manager_context *thiz, motor_policy_run
         }
 #endif
         for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
+            /// 休息(IDLE)不跑泵循环：lock/cycles 不会推进，心跳 20ms；日志 2s 打一次
+            if (runtime->policy[i].core.un.mapping.mode_type == SUCTION_MODE_IDLE) {
+                static uint32_t idle_log_time[BREAST_PUMP_NUM] = {0};
+                uint32_t idle_elapsed = get_timestamp_ms(idle_log_time[i]);
+                if (idle_elapsed >= PUMP_IDLE_LOG_INTERVAL_MS) {
+                    idle_log_time[i] = get_timestamp();
+                    LOG_MOTOR("dev-%d rest, remain:%d, rtime:%d",
+                        i, runtime->time_policy_remaining_time, idle_elapsed);
+                }
+                continue;
+            }
+            /// 非休息模式：lock/cycles 会推进
             if (runtime->info[i].state.policy_update_lock == 0) {
                 if (runtime->info[i].state.cycles_count < runtime->info[i].config.loop_num) {
                     runtime->info[i].state.status = SUCTION_STATUS_IDLE;

@@ -47,7 +47,7 @@ int pump_climb_policy_update(struct motor_manager_context *thiz, suction_strateg
     uint8_t pump_id, uint32_t period_ms);
 /// 自动调档：清空爬升状态，从低档重新爬升（须在 pump_policy_info_reset 之前调用）
 void pump_climb_policy_mark_auto(pump_climb_policy_t *climb);
-/// 韵律自动切步：按 PUMP_CLIMB_RHYTHM_SWITCH_POLICY 处理缓冲（须在 policy_info_reset 之前）
+/// 韵律自动切步：休息(IDLE)切出从 0 渐强；其余按 PUMP_CLIMB_RHYTHM_SWITCH_POLICY（须在 policy_info_reset 之前）
 void pump_climb_policy_mark_rhythm_switch(motor_policy_runtime_t *runtime);
 #endif
 /// 体验模式用户策略

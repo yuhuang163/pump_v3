@@ -202,6 +202,10 @@ void pump_policy_info_reset(struct motor_manager_context *thiz, motor_policy_run
         info->state.target_pressure  = 0;
         runtime->pump_freq[pump_id]  = 0; 
         runtime->pump_level[pump_id] = 0;
+#if IS_SUPPORT_CLIMB_POLICY
+        /// 休息无输出，爬升实际档必须归零，避免切出时误用休息前档位
+        memset(&runtime->climb[pump_id], 0, sizeof(pump_climb_policy_t));
+#endif
         return;
     }
 
