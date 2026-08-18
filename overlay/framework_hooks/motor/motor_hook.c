@@ -242,7 +242,7 @@ static int generate_motor_para(struct motor_manager_context *ctx, int mode, void
         default:
             break;
     }
-
+    ///后续启动马达可以放在外部，由pumpmanager来启动马达
     ///策略链表更新了，需要重新启动，防止状态信息沿用旧的策略
     if (stop_flag) {
         ctx->start_motor(MOTOR_POLICY_START);

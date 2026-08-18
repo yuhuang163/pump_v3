@@ -705,6 +705,19 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
                     show_pump_will_finish_ui(proc);
                     LOG_WM("pump will finish tip, mode:%d", pump_mode);
                 }
+            } else if (state == BREAST_PUMP_BROADCAST_STATE_CHANGE) {
+                /// 只补按键没走到的缺口：泵已在跑、窗口还停在暂停。
+                /// 按键启停会先改 proc->pump_status 再发同样广播，缓存已对齐则这里不动。
+                if (PUMP_IS_GOING(pump_status) && proc->pump_status == BREAST_PUMP_PAUSE) {
+                    proc->pump_status = pump_status;
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+                    pump_pause_idle_stop(proc);
+#endif
+                    if (proc->led && proc->led->set_led_level) {
+                        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+                    }
+                    LOG_WM("pump ui sync running, status:%d", pump_status);
+                }
             }
             break;
         }
