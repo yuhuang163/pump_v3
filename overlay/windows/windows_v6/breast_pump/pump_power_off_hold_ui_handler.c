@@ -102,6 +102,9 @@ void show_pump_power_off_hold_ui(ui_proc_pump_t *proc)
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_POWER_OFF_HOLD;
     proc->power_off_hold_holding = 1;
+    if (proc->led) {
+        proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
+    }
 }
 
 void pump_power_off_hold_ui_exit(ui_proc_pump_t *proc)
