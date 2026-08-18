@@ -11,8 +11,8 @@
 * DEFINES
 *****************************************************************************************
 */
-#define GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_CURRENT             (6)
-#define GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_TOTAL               (7)
+#define GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_CURRENT             (5) //(6)
+#define GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_TOTAL               (6) //(7)
 
 #define GUIDE_LEVEL_BOTH_GUIDE_PRESS_X                      (59)
 #define GUIDE_LEVEL_BOTH_GUIDE_PRESS_Y                      (131)

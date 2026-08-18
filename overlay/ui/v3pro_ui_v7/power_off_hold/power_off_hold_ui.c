@@ -24,7 +24,7 @@
 
 /** 页面展示倒计时（LONG_2S 后再持续约 2s，文案为 3s/2s/1s） */
 #define POWER_OFF_HOLD_DURATION_MS                  (2000)
-#define POWER_OFF_HOLD_COUNTDOWN_MAX                (3)
+#define POWER_OFF_HOLD_COUNTDOWN_MAX                (2)
 
 typedef struct {
     lv_obj_t *root;
