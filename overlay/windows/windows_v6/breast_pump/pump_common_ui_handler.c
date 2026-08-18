@@ -542,8 +542,17 @@ void pump_sub_mode_sync_tick(ui_proc_pump_t *proc, pump_sub_mode_sync_e sync)
 
     if (sync == PUMP_SUB_MODE_SYNC_LEVEL || sync == PUMP_SUB_MODE_SYNC_BOTH_LEVEL) {
         pump_sub_mode_level_clamp(proc, mode_type);
-    } else if (sync == PUMP_SUB_MODE_SYNC_SPEED && switched) {
+    } else if (sync == PUMP_SUB_MODE_SYNC_SPEED) {
+        uint8_t old_speed = proc->setting.speed;
+
+        /* 与力度页一致：每帧回读，APP 改速度后调节页才能刷新 */
         READ_PUMP_SETTING_INFO(proc->pump, proc->sub_mode_time_index, proc->setting);
+        if (proc->setting.speed >= BREAST_PUMP_SPEED_MAX) {
+            proc->setting.speed = BREAST_PUMP_SPEED_MAX - 1;
+        }
+        if (old_speed != proc->setting.speed) {
+            proc->level_adjust_time = get_timestamp();
+        }
     }
 
     if (switched) {
