@@ -1806,7 +1806,7 @@ int tests_tlvs_set_lcd_color(comm_protocol_builder_t *builder,
         EXCEPTION_CHECK_INT(tests_ctx);
         if (tests_ctx->tests_manager_get_current_mode() != TST_LCD_COLOR_TYPE) {
             LOGW("tests_tlvs_set_lcd_color: not in lcd color test mode");
-        } else if (color_id >= TESTS_LCD_COLOR_RED && color_id <= TESTS_LCD_COLOR_GRAYSCALE) {
+        } else if (color_id >= TESTS_LCD_COLOR_RED && color_id <= TESTS_LCD_COLOR_GRAY) {
             tests_ctx->priv.lcd_set_color = color_id;
             LOG_SRV("set lcd color: 0x%02x", color_id);
             window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);

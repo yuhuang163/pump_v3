@@ -53,7 +53,7 @@ typedef enum {
     TESTS_TLV_WRITE_BATTERY_VENDOR_TYPE = 0x0025, /// 电池厂商类型写入 (REQUEST Length=1: byte0=0x00厂商1/0x01厂商2; RESPONSE Length=1: 0x00失败/0x01成功)
     TESTS_TLV_READ_BATTERY_VENDOR_TYPE = 0x0026,  /// 电池厂商类型读取 (REQUEST Length=0; RESPONSE Length=1: byte0=0x01厂商1/0x02厂商2)
     TESTS_TLV_READ_UI_RES_VERSION = 0x0027,       /// 设备UI资源版本读取 (REQUEST Length=0; RESPONSE Length=2: byte0=主版本, byte1=次版本; BASE资源包版本如103→0x01,0x03)
-    TESTS_TLV_SET_LCD_COLOR = 0x0028,             /// 设置LCD颜色，需先进入0x0021 (REQUEST Length=1: 红0x01/绿0x02/蓝0x03/黑0x04/白0x05/灰度0x06; RESPONSE Length=1: 0x00失败/0x01成功)
+    TESTS_TLV_SET_LCD_COLOR = 0x0028,             /// 设置LCD颜色，需先进入0x0021 (REQUEST Length=1: 红0x01/绿0x02/蓝0x03/黑0x04/白0x05/灰度测试0x06/灰色0x07; RESPONSE Length=1: 0x00失败/0x01成功)
     TESTS_TLV_ID_MAX,
 } tests_tlvs_id_e;
 
@@ -65,6 +65,7 @@ typedef enum {
     TESTS_LCD_COLOR_BLACK = 0x04,      /// 黑
     TESTS_LCD_COLOR_WHITE = 0x05,      /// 白
     TESTS_LCD_COLOR_GRAYSCALE = 0x06,  /// 灰度测试
+    TESTS_LCD_COLOR_GRAY = 0x07,       /// 灰色
 } tests_lcd_color_e;
 
 /// 按键状态值
