@@ -16,6 +16,8 @@
 */
 #define ABNORMAL_MONITOR_POLL_MS    5000 //5s
 #define ABNORMAL_HOOK_DEBUG     1
+/// 电池温度异常/恢复需连续确认次数（4 × 5s ≈ 20s）
+#define BAT_TEMP_ABNORMAL_DEBOUNCE_CNT    4
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -288,35 +290,53 @@ static void check_battery_temperature_abnormal(abnormal_manager_context_t *abnor
     EXCEPTION_CHECK_VOID(battery);
 
     DEVICE_IOCTL_HAS_RET(battery, OP_CODE_BAT_GET_CHARGE_TEMPERATURE, temperature);
-    
+
     static uint8_t prev_temp_abnormal = 0;
-    uint8_t current_temp_abnormal = prev_temp_abnormal;
+    static uint8_t debounce_cnt = 0;
+    uint8_t sample_temp_abnormal = prev_temp_abnormal;
     ///temperature = 70;//测试用
     if (temperature >= SYS_ABNORMAL_BAT_TEMP_HIGH_THRESHOLD_C) {
-        current_temp_abnormal = 1;
+        sample_temp_abnormal = 1;
     } else if (temperature <= SYS_ABNORMAL_BAT_TEMP_NORMAL_THRESHOLD_C) {
-        current_temp_abnormal = 0;
+        sample_temp_abnormal = 0;
+    } else {
+        /// 滞回区间内不累计，避免阈值附近抖动推进状态
+        debounce_cnt = 0;
+        return;
     }
 
-    ///判断是否异常（仅在状态变化时触发）
-    if (current_temp_abnormal && !prev_temp_abnormal) {
-        ///异常 - 首次超过阈值
+    if (sample_temp_abnormal == prev_temp_abnormal) {
+        debounce_cnt = 0;
+        return;
+    }
+
+    debounce_cnt++;
+    if (debounce_cnt < BAT_TEMP_ABNORMAL_DEBOUNCE_CNT) {
+        LOG_MISC("battery temp debounce %u/%u: %d℃, pending=%u",
+                 debounce_cnt, BAT_TEMP_ABNORMAL_DEBOUNCE_CNT,
+                 temperature, sample_temp_abnormal);
+        return;
+    }
+    debounce_cnt = 0;
+
+    ///判断是否异常（连续确认后才触发）
+    if (sample_temp_abnormal && !prev_temp_abnormal) {
+        ///异常 - 连续超过高温阈值
         abnormal->set_abnormal_state(SYS_ABNORMAL_BATTERY_TEMP_HIGH, SYS_ABNORMAL_STATE_ACTIVE);
         ///弹窗
         LOGE("SYS_ABNORMAL_BATTERY_TEMP_HIGH: %d℃", temperature);
         ///填入埋点
         DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_BATTERY_TEMP_OUT_OF_RANGE, temperature);
         trigger_abnormal_popup(SYS_ABNORMAL_BATTERY_TEMP_HIGH);
-    }
-    else if (!current_temp_abnormal && prev_temp_abnormal) {
-        ///恢复正常 - 首次低于阈值
+    } else if (!sample_temp_abnormal && prev_temp_abnormal) {
+        ///恢复正常 - 连续低于恢复阈值
         abnormal->set_abnormal_state(SYS_ABNORMAL_BATTERY_TEMP_HIGH, SYS_ABNORMAL_STATE_CLEARED);
         ///解除弹窗
         LOG_MISC("battery temperature normal: %d℃", temperature);
         trigger_abnormal_popup(SYS_ABNORMAL_BATTERY_TEMP_HIGH);
     }
-    
-    prev_temp_abnormal = current_temp_abnormal;
+
+    prev_temp_abnormal = sample_temp_abnormal;
 }
 
 static void abnormal_monitor_thread(void *user_data)
