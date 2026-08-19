@@ -105,6 +105,7 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_SYS_BIND_STATUS, write_bind_status_to_ram},
     {STORE_ID_PUMP_MODE_ACTIVATE_STATUS, write_pump_mode_activate_to_ram},
     {STORE_ID_IMG_RES_OTA_INFO, write_img_res_ota_info_to_ram},
+    {STORE_ID_SYS_BATTERY_PERCENT, write_battery_percent_to_ram},
 };
 
 const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
@@ -152,6 +153,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_DATA_BURY_RING_PENDING_COUNT, read_data_bury_ring_pending_count_from_ram},
     {STORE_ID_DATA_BURY_RING_PEEK_OLDEST, read_data_bury_ring_peek_oldest_from_ram},
     {STORE_ID_IMG_RES_OTA_INFO, read_img_res_ota_info_from_ram},
+    {STORE_ID_SYS_BATTERY_PERCENT, read_battery_percent_from_ram},
 };
 
 static storage_manager_context_t *thiz = NULL;
@@ -316,7 +318,7 @@ static int user_database_reset(void)
     data_bury_ring_storage_reset(thiz);                                   /// 重置 Momcozy 埋点环
     msleep(10);
     reset_img_res_ota_info(thiz, &thiz->priv.img_res_ota_info);  /// 重置图片资源OTA信息
-    LOGE("==> user database reset !!!!!!!!!!!!!!!");
+    LOGW("==> user database reset !!!!!!!!!!!!!!!");
     return 0;
 }
 
