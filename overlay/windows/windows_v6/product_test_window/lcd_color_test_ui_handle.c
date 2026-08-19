@@ -120,6 +120,9 @@ bool product_test_set_lcd_color_by_id(ui_proc_product_test_t *proc, uint8_t colo
         case 0x06: /// 灰度测试
             proc->lcd_color = 0x808080;
             break;
+        case 0x07: /// 灰色
+            proc->lcd_color = 0x808080;
+            break;
         default:
             return false;
     }

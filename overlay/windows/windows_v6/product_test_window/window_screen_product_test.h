@@ -71,7 +71,7 @@ typedef struct {
     uint16_t current_ui_type; /// 当前UI类型. product_test_ui_type_e
     uint16_t power_off_hold_restore_ui_type; /// 关机确认页退出后恢复的测试 UI
     uint32_t lcd_color; /// 当前LCD颜色.
-    uint8_t lcd_color_id; /// 当前LCD颜色ID: 红0x01/绿0x02/蓝0x03/黑0x04/白0x05/灰度0x06.
+    uint8_t lcd_color_id; /// 当前LCD颜色ID: 红0x01/绿0x02/蓝0x03/黑0x04/白0x05/灰度测试0x06/灰色0x07.
     product_test_mode_e tests_mode; /// 产品测试模式.
     uint16_t popup_ui_type; /// 当前弹窗类型. product_test_popup_ui_type_e
     uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
