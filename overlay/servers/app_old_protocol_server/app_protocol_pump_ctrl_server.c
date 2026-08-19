@@ -1205,11 +1205,15 @@ static void app_pump_custom_trial_mode_start_handler(void)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_VOID(pump_ctx);
-    int is_pump_working = 0; 
-    READ_PUMP_IS_WORKING(pump_ctx, is_pump_working);
-    if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_TRIAL_MODE && is_pump_working) {
-        WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 0);
-        app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE, OLD_BROADCAST_ALL_CT);
+    int pump_status = BREAST_PUMP_IDLE;
+    READ_PUMP_WORK_STATUS(pump_ctx, pump_status);
+    /// 运行中或暂停都要重新 START，绑定新策略链表（暂停时 is_working=0）
+    if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_TRIAL_MODE &&
+        PUMP_NO_FINISH(pump_status)) {
+        if (PUMP_IS_GOING(pump_status)) {
+            WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 0);
+            app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE, OLD_BROADCAST_ALL_CT);
+        }
         WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 0);
         app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
         /// 强制上报DO
@@ -1222,11 +1226,16 @@ static void app_pump_custom_mode_start_handler(void)
 {
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_VOID(pump_ctx);
-    int is_pump_working = 0; 
-    READ_PUMP_IS_WORKING(pump_ctx, is_pump_working);
-    if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_MODE && is_pump_working) {
-        WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 0);
-        app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE, OLD_BROADCAST_ALL_CT);
+    int pump_status = BREAST_PUMP_IDLE;
+    READ_PUMP_WORK_STATUS(pump_ctx, pump_status);
+    /// 运行中或暂停都要重新 START：PAUSE 会把 do_work 清掉，START 走 MOTOR_POLICY_START 绑新链表。
+    /// 仅判断 is_pump_working 会漏掉暂停态，后续 CONTINUE 仍踩已释放的旧 s_custom_obj。
+    if (app_old_comm_get_current_pump_mode() == BREAST_PUMP_CUSTOM_MODE &&
+        PUMP_NO_FINISH(pump_status)) {
+        if (PUMP_IS_GOING(pump_status)) {
+            WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 0);
+            app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE, OLD_BROADCAST_ALL_CT);
+        }
         WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 0);
         app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
         /// 强制上报DO，触发时间更新
