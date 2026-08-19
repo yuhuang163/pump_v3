@@ -15,6 +15,7 @@
 #define PRODUCT_TEST_UI_KEY_TYPE            (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
 #define PRODUCT_TEST_HOME_TASK_NAME         "product_test_home_ui"
 #define PRODUCT_TEST_LCD_COLOR_TASK_NAME    "product_test_lcd_color_ui"
+#define PRODUCT_TEST_LCD_SET_COLOR_TASK_NAME "product_test_lcd_set_color_ui"
 #define PRODUCT_TEST_AGING_TEST_TASK_NAME   "product_test_aging_test_ui"
 #define PRODUCT_TEST_BROADCAST_TASK_NAME    "product_test_broadcast_ui"
 #define PRODUCT_TEST_POWER_OFF_HOLD_COMPLETE_TASK_NAME "product_test_power_off_hold_complete"
@@ -23,6 +24,7 @@ do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_HOME_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_LCD_COLOR_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_LCD_SET_COLOR_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_AGING_TEST_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_BROADCAST_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PRODUCT_TEST_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
@@ -96,12 +98,21 @@ static void product_test_ui_common_cb(hdr_post_args_t *args)
         case PRODUCT_TEST_LCD_COLOR:
             if (args->arg2 > 0) {
                 proc->tests_mode = PRODUCT_TEST_LCD_COLOR_MODE;
-                LOG_WM("show lcd color test ui");
-                // show_lcd_color_test_ui(proc);
+                LOG_WM("show product home test ui for lcd color mode");
+                show_product_home_test_ui(proc);
             } else {
                 proc->tests_mode = PRODUCT_TEST_HOME_MODE;
                 LOG_WM("show home test ui");
                 show_product_home_test_ui(proc);
+            }
+            break;
+        case PRODUCT_TEST_LCD_SET_COLOR:
+            if (product_test_set_lcd_color_by_id(proc, (uint8_t)args->arg2)) {
+                proc->tests_mode = PRODUCT_TEST_LCD_COLOR_MODE;
+                LOG_WM("set lcd color id:%d, color:0x%06x", proc->lcd_color_id, proc->lcd_color);
+                show_lcd_color_test_ui(proc);
+            } else {
+                LOG_WM("invalid lcd color id:%d", args->arg2);
             }
             break;
         case PRODUCT_TEST_AGING_TEST:
@@ -179,6 +190,11 @@ static void product_test_broadcast_receive_ui_cb(hdr_post_args_t *args)
                 POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
                     PRODUCT_TEST_LCD_COLOR, bcd_args->arg2, PRODUCT_TEST_LCD_COLOR_TASK_NAME);
             }
+            if (bcd_args->arg1 == TST_LCD_COLOR_SET_TYPE) {
+                LOG_WM("set lcd color id:%d", bcd_args->arg2);
+                POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
+                    PRODUCT_TEST_LCD_SET_COLOR, bcd_args->arg2, PRODUCT_TEST_LCD_SET_COLOR_TASK_NAME);
+            }
             if (bcd_args->arg1 == TST_AGING_TEST_TYPE) {
                 LOG_WM("aging test onoff:%d", bcd_args->arg2);
                 POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
@@ -252,6 +268,12 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             PRODUCT_TEST_HOME_TASK_NAME);
         wm_ensure_ble_adv_started();
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
+        if (proc->tests && proc->tests->tests_manager_get_current_mode &&
+            proc->tests->tests_manager_get_current_mode() == TST_LCD_COLOR_TYPE &&
+            proc->tests->priv.lcd_set_color != 0) {
+            POST_WM_TASK_HANDLER_NO_DELAY_ARG2(product_test_ui_common_cb, proc,
+                PRODUCT_TEST_LCD_SET_COLOR, proc->tests->priv.lcd_set_color, PRODUCT_TEST_LCD_SET_COLOR_TASK_NAME);
+        }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>PRODUCT_TEST_ON_CREATE");
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
@@ -266,8 +288,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         /// 根据当前测试模式显示UI
         if (current_mode == TST_LCD_COLOR_TYPE) {
             proc->tests_mode = PRODUCT_TEST_LCD_COLOR_MODE;
-            // show_lcd_color_test_ui(proc);
-            show_product_home_test_ui(proc); /// 临时首页默认home
+            show_product_home_test_ui(proc);
         } else {
             proc->tests_mode = PRODUCT_TEST_HOME_MODE;
             show_product_home_test_ui(proc);

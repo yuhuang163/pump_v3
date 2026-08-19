@@ -24,6 +24,7 @@
 #define TESTS_TRIPLE_DATA_LENGTH 38 /// 三元组数据长度 (6+16+16)
 #define TESTS_TRIM_VALUE_LENGTH 4   /// Trim值长度 (4字节)
 #define TESTS_KEY_CAP_SIG_BUF_BYTES 32 /// 触摸通道原始数据缓冲(每通道2字节)，大于单芯片最大通道数即可
+#define TESTS_LCD_COLOR_WAKELOCK_NAME "factory_tests_lcd_color"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -1759,10 +1760,18 @@ int tests_tlvs_lcd_color_test_mode(comm_protocol_builder_t *builder,
     LOG_SRV("lcd color test: %s", mode ? "ENTER" : "EXIT");
     tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     EXCEPTION_CHECK_INT(tests_ctx);
+    tests_ctx->priv.lcd_set_color = 0;
     tests_ctx->tests_manager_set_current_mode(mode == 1 ? TST_LCD_COLOR_TYPE : TST_NONE_TYPE);
+
     power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    if (pm && pm->is_pm_suspend()) {
-        pm->pm_wakeup(PM_WAKEUP_REASON_FACTORY_RESUME);
+    EXCEPTION_CHECK_INT(pm);
+    if (mode == 1) {
+        if (pm->is_pm_suspend()) {
+            pm->pm_wakeup(PM_WAKEUP_REASON_FACTORY_RESUME);
+        }
+        pm->acquire_wakelock(TESTS_LCD_COLOR_WAKELOCK_NAME, -1);
+    } else {
+        pm->release_wakelock(TESTS_LCD_COLOR_WAKELOCK_NAME);
     }
 
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
@@ -1776,6 +1785,44 @@ int tests_tlvs_lcd_color_test_mode(comm_protocol_builder_t *builder,
     uint8_t result = 0x01; // 默认成功
     comm_protocol_tlv_node_t tlv_node = {
         .type = TESTS_TLV_LCD_COLOR_TEST_MODE,
+        .length = 1,
+        .value = &result,
+    };
+    return protocol_ctx->comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
+int tests_tlvs_set_lcd_color(comm_protocol_builder_t *builder,
+    comm_protocol_service_t *service, uint8_t *data, uint16_t data_len)
+{
+    EXCEPTION_CHECK_INT(builder && service);
+    protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
+    EXCEPTION_CHECK_INT(protocol_ctx);
+
+    uint8_t result = 0x00;
+    uint8_t color_id = 0;
+    if (data_len == 1 && data != NULL) {
+        color_id = data[0];
+        tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
+        EXCEPTION_CHECK_INT(tests_ctx);
+        if (tests_ctx->tests_manager_get_current_mode() != TST_LCD_COLOR_TYPE) {
+            LOGW("tests_tlvs_set_lcd_color: not in lcd color test mode");
+        } else if (color_id >= TESTS_LCD_COLOR_RED && color_id <= TESTS_LCD_COLOR_GRAYSCALE) {
+            tests_ctx->priv.lcd_set_color = color_id;
+            LOG_SRV("set lcd color: 0x%02x", color_id);
+            window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+            if (wm && wm->is_current_window(wm, ID_WINDOW_PRODUCT_TEST_MODE)) {
+                SEND_BROADCAST_ARGS2(ID_BROADCAST_FACTORY_TEST_CMD, TST_LCD_COLOR_SET_TYPE, color_id);
+            }
+            result = 0x01;
+        } else {
+            LOGW("tests_tlvs_set_lcd_color: invalid color 0x%02x", color_id);
+        }
+    } else {
+        LOGE("tests_tlvs_set_lcd_color: invalid data_len=%u, expected 1", (unsigned)data_len);
+    }
+
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = TESTS_TLV_SET_LCD_COLOR,
         .length = 1,
         .value = &result,
     };
