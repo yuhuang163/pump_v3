@@ -84,6 +84,10 @@ int read_back_light_level_from_ram(store_func_args_t args);
 /// 绑定状态
 int write_bind_status_to_ram(store_func_args_t args);
 int read_bind_status_from_ram(store_func_args_t args);
+/// 电池电量
+int write_battery_percent_to_ram(store_func_args_t args);
+int read_battery_percent_from_ram(store_func_args_t args);
+
 #ifdef __cplusplus
 }
 #endif

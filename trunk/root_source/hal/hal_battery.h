@@ -41,6 +41,7 @@ typedef enum {
     OP_CODE_BAT_CHARGE_FORCE_OPEN = 12,     /// 强制开启充电
     OP_CODE_BAT_PD_IS_READY = 13,           /// 查询PD充电状态
     OP_CODE_BAT_PERCENT_UPDATE = 14,        /// 同步电池电量到系统状态
+    OP_CODE_BAT_ADD_HEALTH_CHANGE_CALLBACK = 15, /// 注册电池健康变化回调
     OP_CODE_BAT_END
 } batery_dev_op_code_e;
 
@@ -59,6 +60,7 @@ typedef enum {
 } charge_event_e;
 
 typedef void (*charge_event_cb)(charge_event_e event);
+typedef void (*battery_health_cb)(uint8_t health);
 
 #ifdef __cplusplus
 }

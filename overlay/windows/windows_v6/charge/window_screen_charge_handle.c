@@ -15,7 +15,7 @@
 #define PAGE_STATIC_NAME                         charge
 #define PAGE_NAME_STR                            "charge"
 #define CHARGE_UI_KEY_CODE                       (KEY_CODE_POWER)
-#define CHARGE_UI_KEY_TYPE                       (KEY_EVENT_LONG_3S | KEY_EVENT_LONG_10S)
+#define CHARGE_UI_KEY_TYPE                       (KEY_EVENT_LONG_2S | KEY_EVENT_LONG_3S | KEY_EVENT_LONG_10S)
 #define CHARGE_PAGE_POLICY_TASK_NAME             "charge_page_policy"
 #define CHARGE_BLE_TEARDOWN_TASK_NAME            "charge_ble_teardown"
 
@@ -133,6 +133,12 @@ static void charge_ble_adapter_mismatch_policy(ui_proc_charge_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->ble);
+
+    if (proc->wm && proc->wm->is_window_factory_test_deployed() == 0) {
+        LOG_WM("factory test mode, ignore adapter mismatch");
+        return;
+    }
+
     if (proc->ble->ble_is_connected() > 0) {
         LOG_WM("adapter mismatch, delay 1s disconnect ble");
         POST_WM_TASK_HANDLER_DELAYED_ARG1(charge_ble_teardown_cb, 1000, proc,
@@ -175,10 +181,16 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
     }
 
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
-    /// 适配器不匹配页：不允许手动关机/退出（长按 10s 复位仍保留）
+    /// 适配器不匹配页
     if (proc->current_ui_type == CHARGE_UI_TYPE_ADAPTER ||
         (proc->battery && proc->battery->get_charge_status() == CHARGE_STATE_ERROR)) {
-        if (keytype == KEY_EVENT_LONG_10S) {
+        if (keytype == KEY_EVENT_LONG_2S && 
+            proc->wm && proc->wm->is_window_factory_test_deployed() == 0) {
+            LOG_WM("factory test mode, goto logo screen");
+            multi_func_msg_data_t msg = {0};
+            msg.union_body.extra.window_id = ID_WINDOW_LOGO;
+            proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        } else if (keytype == KEY_EVENT_LONG_10S) {
             LOG_WM("charge page reboot");
             msleep(20);
             platform_system_reboot();
@@ -188,7 +200,6 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
         return 0;
     }
 #endif
-
     if (keytype == KEY_EVENT_LONG_3S) {
         if (proc->battery && proc->battery->get_charge_status() != CHARGE_STATE_ERROR) {
             LOG_WM("key post exit charge policy task");

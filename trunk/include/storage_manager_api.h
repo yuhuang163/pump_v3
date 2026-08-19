@@ -70,6 +70,7 @@ typedef enum {
     STORE_ID_SYS_LANGUAGE,                  /// 系统语言类型
     STORE_ID_SYS_UTC_TIMESTAMP,             /// 系统时间戳
     STORE_ID_SYS_REBOOT_REASON,             /// 系统重启原因
+    STORE_ID_SYS_BATTERY_PERCENT,           /// 电池电量
     STORE_ID_SYS_STATE_INFO = 500,          /// 系统状态信息
     STORE_ID_SYS_GUIDE_DEPLOYED,            /// 向导部署标志
     STORE_ID_SYS_BATTERY_HEALTH,            /// 电池健康
