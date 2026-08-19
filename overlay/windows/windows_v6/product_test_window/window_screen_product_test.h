@@ -25,6 +25,7 @@ extern "C" {
 typedef enum {
     PRODUCT_TEST_HOME = 100,
     PRODUCT_TEST_LCD_COLOR,
+    PRODUCT_TEST_LCD_SET_COLOR,
     PRODUCT_TEST_AGING_TEST,
 } product_test_ui_action_e;
 
@@ -70,6 +71,7 @@ typedef struct {
     uint16_t current_ui_type; /// 当前UI类型. product_test_ui_type_e
     uint16_t power_off_hold_restore_ui_type; /// 关机确认页退出后恢复的测试 UI
     uint32_t lcd_color; /// 当前LCD颜色.
+    uint8_t lcd_color_id; /// 当前LCD颜色ID: 红0x01/绿0x02/蓝0x03/黑0x04/白0x05/灰度0x06.
     product_test_mode_e tests_mode; /// 产品测试模式.
     uint16_t popup_ui_type; /// 当前弹窗类型. product_test_popup_ui_type_e
     uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
@@ -86,6 +88,7 @@ void product_home_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycod
 void show_lcd_color_test_ui(ui_proc_product_test_t *proc);
 void lcd_color_test_ui_hdr_remove(void);
 void lcd_color_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint16_t keytype);
+bool product_test_set_lcd_color_by_id(ui_proc_product_test_t *proc, uint8_t color_id);
 void show_aging_test_ui(ui_proc_product_test_t *proc);
 void aging_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint16_t keytype);
 

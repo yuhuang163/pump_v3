@@ -22,6 +22,7 @@ typedef enum {
     TST_STRESS_TYPE = 0x0006,        /// 压力测试模式
     TST_COMMON_TYPE = 0x0007,        /// 通用测试模式
     TST_LCD_COLOR_TYPE = 0x0008,  /// LCD颜色测试模式
+    TST_LCD_COLOR_SET_TYPE = 0x0009, /// 设置LCD颜色
 } product_tst_report_type_e;
 
 /// 测试类型
@@ -123,6 +124,7 @@ typedef struct tests_manager_context {
         list_head_t product_test_list;
         uint8_t enabled;
         uint8_t current_mode;
+        uint8_t lcd_set_color; /// 产测设置LCD颜色: 红0x01/绿0x02/蓝0x03/黑0x04/白0x05/灰度0x06，0表示未设置
         struct product_tests_comm_context comm_ctx;
         struct factory_tests_context factory_ctx;
         struct hw_self_tests_context hw_self_ctx;

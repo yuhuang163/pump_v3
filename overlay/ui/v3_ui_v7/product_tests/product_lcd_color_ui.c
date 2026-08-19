@@ -12,11 +12,15 @@
 * DEFINES
 *****************************************************************************************
 */
+#define LCD_COLOR_GRAY_BAR_NUM                            (8)
+
 typedef struct {
     lv_obj_t *root;
+    lv_obj_t *gray_bars[LCD_COLOR_GRAY_BAR_NUM];
     lv_color_t s_color;
     uint8_t force_update;
-    uint8_t rsv[15];
+    uint8_t last_color_id;
+    uint8_t rsv[14];
 } product_lcd_color_display_info_t;
 
 /*
@@ -49,6 +53,42 @@ static void lcd_color_test_ui_init(void)
     lv_obj_clear_flag(product_info->root, LV_OBJ_FLAG_SCROLLABLE);          /// 禁止滚动
 }
 
+static void lcd_color_test_hide_gray_bars(void)
+{
+    for (uint8_t i = 0; i < LCD_COLOR_GRAY_BAR_NUM; i++) {
+        if (product_info->gray_bars[i] && lv_obj_is_valid(product_info->gray_bars[i])) {
+            lv_obj_add_flag(product_info->gray_bars[i], LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+static void lcd_color_test_show_gray_bars(void)
+{
+    int32_t w = lv_obj_get_width(product_info->root);
+    int32_t h = lv_obj_get_height(product_info->root);
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+
+    int32_t bar_w = w / LCD_COLOR_GRAY_BAR_NUM;
+    for (uint8_t i = 0; i < LCD_COLOR_GRAY_BAR_NUM; i++) {
+        if (product_info->gray_bars[i] == NULL || !lv_obj_is_valid(product_info->gray_bars[i])) {
+            product_info->gray_bars[i] = lv_obj_create(product_info->root);
+            lv_obj_set_style_border_width(product_info->gray_bars[i], 0, 0);
+            lv_obj_set_style_pad_all(product_info->gray_bars[i], 0, 0);
+            lv_obj_set_style_radius(product_info->gray_bars[i], 0, 0);
+            lv_obj_set_style_bg_opa(product_info->gray_bars[i], LV_OPA_COVER, 0);
+            lv_obj_clear_flag(product_info->gray_bars[i], LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+        }
+        lv_obj_clear_flag(product_info->gray_bars[i], LV_OBJ_FLAG_HIDDEN);
+        int32_t this_w = (i == LCD_COLOR_GRAY_BAR_NUM - 1) ? (w - bar_w * i) : bar_w;
+        lv_obj_set_size(product_info->gray_bars[i], this_w, h);
+        lv_obj_set_pos(product_info->gray_bars[i], bar_w * i, 0);
+        uint8_t gray = (uint8_t)((255 * i) / (LCD_COLOR_GRAY_BAR_NUM - 1));
+        lv_obj_set_style_bg_color(product_info->gray_bars[i], lv_color_make(gray, gray, gray), 0);
+    }
+}
+
 static void lcd_color_test_update(ui_manager_context_t *thiz)
 {
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)thiz->priv.play_info.user_data;
@@ -57,12 +97,20 @@ static void lcd_color_test_update(ui_manager_context_t *thiz)
         return;
     }
     lv_color_t color = lv_color_hex(proc->lcd_color);
-    if (lv_color_eq(color, product_info->s_color) && !product_info->force_update) {
+    if (product_info->last_color_id == proc->lcd_color_id &&
+        lv_color_eq(color, product_info->s_color) && !product_info->force_update) {
         return;
     }
     product_info->s_color = color;
-    LOG_UI("red: %x, green: %x, blue: %x, color: %x", color.red, color.green, color.blue, proc->lcd_color);
-    lv_obj_set_style_bg_color(product_info->root, color, 0);
+    product_info->last_color_id = proc->lcd_color_id;
+    LOG_UI("color_id: %d, red: %x, green: %x, blue: %x, color: %x",
+        proc->lcd_color_id, color.red, color.green, color.blue, proc->lcd_color);
+    if (proc->lcd_color_id == 0x06) {
+        lcd_color_test_show_gray_bars();
+    } else {
+        lcd_color_test_hide_gray_bars();
+        lv_obj_set_style_bg_color(product_info->root, color, 0);
+    }
     product_info->force_update = false;
 }
 

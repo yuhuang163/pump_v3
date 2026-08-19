@@ -98,19 +98,48 @@ void lcd_color_test_ui_hdr_remove(void)
     REMOVE_TASK_HANDLER_DIRECTLY(GOTO_LCD_COLOR_TEST_TASK_NAME);
 }
 
+bool product_test_set_lcd_color_by_id(ui_proc_product_test_t *proc, uint8_t color_id)
+{
+    EXCEPTION_CHECK_BOOL(proc);
+    switch (color_id) {
+        case 0x01: /// 红
+            proc->lcd_color = 0xFF0000;
+            break;
+        case 0x02: /// 绿
+            proc->lcd_color = 0x00FF00;
+            break;
+        case 0x03: /// 蓝
+            proc->lcd_color = 0x0000FF;
+            break;
+        case 0x04: /// 黑
+            proc->lcd_color = 0x000000;
+            break;
+        case 0x05: /// 白
+            proc->lcd_color = 0xFFFFFF;
+            break;
+        case 0x06: /// 灰度测试
+            proc->lcd_color = 0x808080;
+            break;
+        default:
+            return false;
+    }
+    proc->lcd_color_id = color_id;
+    return true;
+}
+
 void lcd_color_test_keyevent_cb(ui_proc_product_test_t *proc, uint16_t keycode, uint16_t keytype)
 {
     switch (keycode) {
         default:
             return;
         case KEY_CODE_START:
-            proc->lcd_color = 0x00FF00;
+            (void)product_test_set_lcd_color_by_id(proc, 0x02);
             break;
         case KEY_CODE_LEFT_CONTROL:
-            proc->lcd_color = 0xFF0000;
+            (void)product_test_set_lcd_color_by_id(proc, 0x01);
             break;
         case KEY_CODE_RIGHT_CONTROL:
-            proc->lcd_color = 0x0000FF;
+            (void)product_test_set_lcd_color_by_id(proc, 0x03);
             break;
     }
 
