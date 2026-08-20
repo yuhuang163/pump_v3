@@ -43,8 +43,8 @@ extern "C" {
  * 正式版本从100-900
 */
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-#define ROOT_FIRMWARE_VERSION                          212
-#define ROOT_FW_VERSION_STR                            "212"
+#define ROOT_FIRMWARE_VERSION                          313
+#define ROOT_FW_VERSION_STR                            "313"
 #else
 #define ROOT_FIRMWARE_VERSION                          355
 #define ROOT_FW_VERSION_STR                            "355"

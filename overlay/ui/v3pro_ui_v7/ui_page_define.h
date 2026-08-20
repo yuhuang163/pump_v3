@@ -13,7 +13,6 @@ extern "C" {
 #if IS_SUPPORT_LVGL
 #include "home_ui.h" // IWYU pragma: keepin
 #include "home_screen_saver_ui.h" // IWYU pragma: keepin
-#include "home_night_light_adjust_ui.h" // IWYU pragma: keepin
 #include "home_level_adjust_ui.h" // IWYU pragma: keepin
 #include "home_both_level_adjust_ui.h" // IWYU pragma: keepin
 #include "home_speed_adjust_ui.h" // IWYU pragma: keepin
