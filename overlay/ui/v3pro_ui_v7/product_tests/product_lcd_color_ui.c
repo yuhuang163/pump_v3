@@ -12,7 +12,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define LCD_COLOR_GRAY_BAR_NUM                            (8)
+#define LCD_COLOR_GRAY_BAR_NUM                            (16)
 
 typedef struct {
     lv_obj_t *root;
@@ -70,7 +70,8 @@ static void lcd_color_test_show_gray_bars(void)
         return;
     }
 
-    int32_t bar_w = w / LCD_COLOR_GRAY_BAR_NUM;
+    /// 参照 16 灰阶图：16 条等分水平条，上白(255) → 下黑(0)
+    int32_t bar_h = h / LCD_COLOR_GRAY_BAR_NUM;
     for (uint8_t i = 0; i < LCD_COLOR_GRAY_BAR_NUM; i++) {
         if (product_info->gray_bars[i] == NULL || !lv_obj_is_valid(product_info->gray_bars[i])) {
             product_info->gray_bars[i] = lv_obj_create(product_info->root);
@@ -81,10 +82,10 @@ static void lcd_color_test_show_gray_bars(void)
             lv_obj_clear_flag(product_info->gray_bars[i], LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
         }
         lv_obj_clear_flag(product_info->gray_bars[i], LV_OBJ_FLAG_HIDDEN);
-        int32_t this_w = (i == LCD_COLOR_GRAY_BAR_NUM - 1) ? (w - bar_w * i) : bar_w;
-        lv_obj_set_size(product_info->gray_bars[i], this_w, h);
-        lv_obj_set_pos(product_info->gray_bars[i], bar_w * i, 0);
-        uint8_t gray = (uint8_t)((255 * i) / (LCD_COLOR_GRAY_BAR_NUM - 1));
+        int32_t this_h = (i == LCD_COLOR_GRAY_BAR_NUM - 1) ? (h - bar_h * i) : bar_h;
+        lv_obj_set_size(product_info->gray_bars[i], w, this_h);
+        lv_obj_set_pos(product_info->gray_bars[i], 0, bar_h * i);
+        uint8_t gray = (uint8_t)(255 - (255 * i) / (LCD_COLOR_GRAY_BAR_NUM - 1));
         lv_obj_set_style_bg_color(product_info->gray_bars[i], lv_color_make(gray, gray, gray), 0);
     }
 }
