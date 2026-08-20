@@ -78,6 +78,54 @@ static void factory_tests_event_report_cb(void *user_data, uint16_t event_id, vo
     }
 }
 
+static void product_test_lcd_color_env_prepare(ui_proc_product_test_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+
+    if (proc->led && proc->led->hook) {
+        /// 先压制自适应，再改灯，避免 ALS 覆盖
+        if (proc->led->hook->set_adaptive_dimming_fct_suppress) {
+            proc->led->hook->set_adaptive_dimming_fct_suppress(proc->led, 1);
+        }
+#if IS_SUPPORT_NIGHT_LIGHT
+        if (proc->led->hook->set_night_light_level) {
+            proc->led->hook->set_night_light_level(proc->led, 0);
+        }
+#endif
+        if (proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, 0);
+        }
+    }
+
+    /// 屏幕背光 100%
+    if (proc->ui && proc->ui->hook) {
+        if (proc->ui->hook->set_ui_backlight_level_rate) {
+            proc->ui->hook->set_ui_backlight_level_rate(proc->ui, 100);
+        }
+        if (proc->ui->hook->set_ui_backlight_level) {
+            proc->ui->hook->set_ui_backlight_level(proc->ui, LCD_BACKLIGHT_LEVEL_MAX);
+        }
+    }
+    LOG_WM("lcd color env: adaptive_off, night_off, key_bl_off, bl=100");
+}
+
+static void product_test_lcd_color_env_restore(ui_proc_product_test_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+
+    if (proc->led && proc->led->hook) {
+        /// 恢复自适应
+        if (proc->led->hook->set_adaptive_dimming_fct_suppress) {
+            proc->led->hook->set_adaptive_dimming_fct_suppress(proc->led, 0);
+        }
+        /// 恢复产测默认按键灯
+        if (proc->led->hook->set_key_backlight) {
+            proc->led->hook->set_key_backlight(proc->led, 100);
+        }
+    }
+    LOG_WM("lcd color env restore: adaptive_on, key_bl=100");
+}
+
 static void product_test_ui_common_cb(hdr_post_args_t *args)
 {
     ui_proc_product_test_t *proc = args->user_data;
@@ -99,10 +147,12 @@ static void product_test_ui_common_cb(hdr_post_args_t *args)
             if (args->arg2 > 0) {
                 proc->tests_mode = PRODUCT_TEST_LCD_COLOR_MODE;
                 LOG_WM("show product home test ui for lcd color mode");
+                product_test_lcd_color_env_prepare(proc);
                 show_product_home_test_ui(proc);
             } else {
                 proc->tests_mode = PRODUCT_TEST_HOME_MODE;
                 LOG_WM("show home test ui");
+                product_test_lcd_color_env_restore(proc);
                 show_product_home_test_ui(proc);
             }
             break;
@@ -276,10 +326,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         }
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>PRODUCT_TEST_ON_CREATE");
-        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
-            LOG_WM("set key backlight to 100");
-            proc->led->hook->set_key_backlight(proc->led, 100);
-        }
         /// 获取当前测试模式
         uint8_t current_mode = TST_NONE_TYPE;
         if (proc->tests->tests_manager_get_current_mode) {
@@ -288,8 +334,13 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         /// 根据当前测试模式显示UI
         if (current_mode == TST_LCD_COLOR_TYPE) {
             proc->tests_mode = PRODUCT_TEST_LCD_COLOR_MODE;
+            product_test_lcd_color_env_prepare(proc);
             show_product_home_test_ui(proc);
         } else {
+            if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
+                LOG_WM("set key backlight to 100");
+                proc->led->hook->set_key_backlight(proc->led, 100);
+            }
             proc->tests_mode = PRODUCT_TEST_HOME_MODE;
             show_product_home_test_ui(proc);
         }
