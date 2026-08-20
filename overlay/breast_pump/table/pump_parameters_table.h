@@ -178,37 +178,37 @@ static const uint16_t long_level_table[BREAST_PUMP_LEVEL_MAX] = {
     SUCTION_LEVEL_40KPA, /// 40KPA
 };
 #else
-///龙一泵参数（泌乳-奶碗-类Spectra，20260801-新奶碗）
+///龙一泵参数（泌乳-奶碗-类Spectra，20260819-新奶碗）
 /// 吸力参数表：{泵力度, 抽气时间ms, 阀时间ms, 保压时间ms}，间歇时间由频次表运行时计算 [力度][速度]
 static const suction_parameters_t pump2_long_suction_table[BREAST_PUMP_LEVEL_MAX][PUMP_LONG_SUCTION_SPEED_MAX] = {
     /// speed 0 ~ 4（速度1~5：38/42/46/50/54 次/分；各档泵/阀/保压相同，仅频次不同）
     {{0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}, {0, 60, 250, LONG_SUCTION_HOLD_TIME}}, /// level  0, 0KPA
-    {{21, 300, 120, 280}, {21, 300, 120, 280}, {21, 300, 120, 280}, {21, 300, 120, 280}, {21, 300, 120, 280}}, /// level  1, 5KPA
-    {{25, 430, 160, 135}, {25, 430, 160, 135}, {25, 430, 160, 135}, {25, 430, 160, 135}, {25, 430, 160, 135}}, /// level  2, 10KPA
-    {{31, 520, 191,  65}, {31, 520, 191,  65}, {31, 520, 191,  65}, {31, 520, 191,  65}, {31, 520, 191,  65}}, /// level  3, 15KPA
-    {{36, 540, 211,  44}, {36, 540, 211,  44}, {36, 540, 211,  44}, {36, 540, 211,  44}, {36, 540, 211,  44}}, /// level  4, 18KPA
-    {{40, 559, 245,  25}, {40, 559, 245,  25}, {40, 559, 245,  25}, {40, 559, 245,  25}, {40, 559, 245,  25}}, /// level  5, 21KPA
-    {{42, 638, 249,   0}, {42, 638, 249,   0}, {42, 638, 249,   0}, {42, 638, 249,   0}, {42, 638, 249,   0}}, /// level  6, 24KPA
-    {{46, 639, 269,   0}, {46, 639, 269,   0}, {46, 639, 269,   0}, {46, 639, 269,   0}, {46, 639, 269,   0}}, /// level  7, 26KPA
-    {{52, 636, 274,   0}, {52, 636, 274,   0}, {52, 636, 274,   0}, {52, 636, 274,   0}, {52, 636, 274,   0}}, /// level  8, 28KPA
-    {{55, 648, 289,   0}, {55, 648, 289,   0}, {55, 648, 289,   0}, {55, 648, 289,   0}, {55, 648, 289,   0}}, /// level  9, 30KPA
-    {{60, 643, 295,   0}, {60, 643, 295,   0}, {60, 643, 295,   0}, {60, 643, 295,   0}, {60, 643, 295,   0}}, /// level 10, 32KPA
-    {{66, 641, 309,   0}, {66, 641, 309,   0}, {66, 641, 309,   0}, {66, 641, 309,   0}, {66, 641, 309,   0}}, /// level 11, 34KPA
-    {{71, 634, 323,   0}, {71, 634, 323,   0}, {71, 634, 323,   0}, {71, 634, 323,   0}, {71, 634, 323,   0}}, /// level 12, 36KPA
-    {{76, 644, 326,   0}, {76, 644, 326,   0}, {76, 644, 326,   0}, {76, 644, 326,   0}, {76, 644, 326,   0}}, /// level 13, 38KPA
-    {{80, 636, 333,   0}, {80, 636, 333,   0}, {80, 636, 333,   0}, {80, 636, 333,   0}, {80, 636, 333,   0}}, /// level 14, 39KPA
-    {{84, 638, 338,   0}, {84, 638, 338,   0}, {84, 638, 338,   0}, {84, 638, 338,   0}, {84, 638, 338,   0}}, /// level 15, 40KPA
+    {{20, 300, 120, 280}, {20, 300, 120, 280}, {20, 300, 120, 280}, {20, 300, 120, 280}, {20, 300, 120, 280}}, /// level  1, 5KPA
+    {{24, 430, 160, 135}, {24, 430, 160, 135}, {24, 430, 160, 135}, {24, 430, 160, 135}, {24, 430, 160, 135}}, /// level  2, 10KPA
+    {{28, 520, 191,  65}, {28, 520, 191,  65}, {28, 520, 191,  65}, {28, 520, 191,  65}, {28, 520, 191,  65}}, /// level  3, 15KPA
+    {{33, 540, 211,  44}, {33, 540, 211,  44}, {33, 540, 211,  44}, {33, 540, 211,  44}, {33, 540, 211,  44}}, /// level  4, 18KPA
+    {{37, 559, 245,  25}, {37, 559, 245,  25}, {37, 559, 245,  25}, {37, 559, 245,  25}, {37, 559, 245,  25}}, /// level  5, 21KPA
+    {{39, 638, 249,   0}, {39, 638, 249,   0}, {39, 638, 249,   0}, {39, 638, 249,   0}, {39, 638, 249,   0}}, /// level  6, 24KPA
+    {{43, 639, 269,   0}, {43, 639, 269,   0}, {43, 639, 269,   0}, {43, 639, 269,   0}, {43, 639, 269,   0}}, /// level  7, 26KPA
+    {{49, 636, 274,   0}, {49, 636, 274,   0}, {49, 636, 274,   0}, {49, 636, 274,   0}, {49, 636, 274,   0}}, /// level  8, 28KPA
+    {{52, 648, 289,   0}, {52, 648, 289,   0}, {52, 648, 289,   0}, {52, 648, 289,   0}, {52, 648, 289,   0}}, /// level  9, 30KPA
+    {{57, 643, 295,   0}, {57, 643, 295,   0}, {57, 643, 295,   0}, {57, 643, 295,   0}, {57, 643, 295,   0}}, /// level 10, 32KPA
+    {{63, 641, 309,   0}, {63, 641, 309,   0}, {63, 641, 309,   0}, {63, 641, 309,   0}, {63, 641, 309,   0}}, /// level 11, 34KPA
+    {{68, 634, 323,   0}, {68, 634, 323,   0}, {68, 634, 323,   0}, {68, 634, 323,   0}, {68, 634, 323,   0}}, /// level 12, 36KPA
+    {{72, 644, 326,   0}, {72, 644, 326,   0}, {72, 644, 326,   0}, {72, 644, 326,   0}, {72, 644, 326,   0}}, /// level 13, 38KPA
+    {{76, 636, 333,   0}, {76, 636, 333,   0}, {76, 636, 333,   0}, {76, 636, 333,   0}, {76, 636, 333,   0}}, /// level 14, 39KPA
+    {{80, 638, 338,   0}, {80, 638, 338,   0}, {80, 638, 338,   0}, {80, 638, 338,   0}, {80, 638, 338,   0}}, /// level 15, 40KPA
 };
 
-/// 吸力参数表（按摩-奶碗-类Spectra，20260801-新奶碗）//按摩力表 [力度][速度] 只用到0-5档
+/// 吸力参数表（按摩-奶碗-类Spectra，20260819-新奶碗）//按摩力表 [力度][速度] 只用到0-5档
 static const suction_parameters_t pump2_short_suction_table[BREAST_PUMP_LEVEL_MAX][SHORT_SUCTION_SPEED_MAX] = {
     /// speed 0 ~ 4（速度1~5：70/80/90/100/105 次/分）
     {{ 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}, { 0,  60, 250, SHORT_SUCTION_HOLD_TIME}}, /// level  0, 0KPA
-    {{22, 320, 132, SHORT_SUCTION_HOLD_TIME}, {23, 292, 132, SHORT_SUCTION_HOLD_TIME}, {25, 270, 132, SHORT_SUCTION_HOLD_TIME}, {31, 202, 132, SHORT_SUCTION_HOLD_TIME}, {31, 202, 132, SHORT_SUCTION_HOLD_TIME}}, /// level  1, 6KPA
-    {{31, 400, 182, SHORT_SUCTION_HOLD_TIME}, {32, 382, 182, SHORT_SUCTION_HOLD_TIME}, {50, 240, 182, SHORT_SUCTION_HOLD_TIME}, {67, 202, 182, SHORT_SUCTION_HOLD_TIME}, {67, 202, 182, SHORT_SUCTION_HOLD_TIME}}, /// level  2, 12KPA
-    {{49, 382, 202, SHORT_SUCTION_HOLD_TIME}, {55, 337, 202, SHORT_SUCTION_HOLD_TIME}, {55, 337, 202, SHORT_SUCTION_HOLD_TIME}, {70, 270, 202, SHORT_SUCTION_HOLD_TIME}, {70, 270, 202, SHORT_SUCTION_HOLD_TIME}}, /// level  3, 18KPA
-    {{58, 415, 230, SHORT_SUCTION_HOLD_TIME}, {72, 340, 230, SHORT_SUCTION_HOLD_TIME}, {76, 320, 230, SHORT_SUCTION_HOLD_TIME}, {87, 290, 230, SHORT_SUCTION_HOLD_TIME}, {87, 290, 230, SHORT_SUCTION_HOLD_TIME}}, /// level  4, 23KPA
-    {{65, 438, 251, SHORT_SUCTION_HOLD_TIME}, {85, 345, 249, SHORT_SUCTION_HOLD_TIME}, {86, 345, 249, SHORT_SUCTION_HOLD_TIME}, {92, 325, 249, SHORT_SUCTION_HOLD_TIME}, {93, 320, 241, SHORT_SUCTION_HOLD_TIME}}, /// level  5, 26KPA
+    {{20, 320, 132, SHORT_SUCTION_HOLD_TIME}, {22, 292, 132, SHORT_SUCTION_HOLD_TIME}, {23, 270, 132, SHORT_SUCTION_HOLD_TIME}, {29, 202, 132, SHORT_SUCTION_HOLD_TIME}, {29, 202, 132, SHORT_SUCTION_HOLD_TIME}}, /// level  1, 6KPA
+    {{29, 400, 182, SHORT_SUCTION_HOLD_TIME}, {30, 382, 182, SHORT_SUCTION_HOLD_TIME}, {46, 240, 182, SHORT_SUCTION_HOLD_TIME}, {60, 202, 182, SHORT_SUCTION_HOLD_TIME}, {60, 202, 182, SHORT_SUCTION_HOLD_TIME}}, /// level  2, 12KPA
+    {{44, 382, 202, SHORT_SUCTION_HOLD_TIME}, {50, 337, 202, SHORT_SUCTION_HOLD_TIME}, {50, 337, 202, SHORT_SUCTION_HOLD_TIME}, {64, 270, 202, SHORT_SUCTION_HOLD_TIME}, {64, 270, 202, SHORT_SUCTION_HOLD_TIME}}, /// level  3, 18KPA
+    {{55, 415, 230, SHORT_SUCTION_HOLD_TIME}, {69, 340, 230, SHORT_SUCTION_HOLD_TIME}, {73, 320, 230, SHORT_SUCTION_HOLD_TIME}, {84, 290, 230, SHORT_SUCTION_HOLD_TIME}, {84, 290, 230, SHORT_SUCTION_HOLD_TIME}}, /// level  4, 23KPA
+    {{61, 438, 251, SHORT_SUCTION_HOLD_TIME}, {82, 345, 249, SHORT_SUCTION_HOLD_TIME}, {82, 345, 249, SHORT_SUCTION_HOLD_TIME}, {87, 325, 249, SHORT_SUCTION_HOLD_TIME}, {87, 320, 241, SHORT_SUCTION_HOLD_TIME}}, /// level  5, 26KPA
     {{38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}, {38, 303, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  6, 13KPA
     {{46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}, {46, 290, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  7, 14KPA
     {{47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}, {47, 302, 140, SHORT_SUCTION_HOLD_TIME}}, /// level  8, 15KPA
