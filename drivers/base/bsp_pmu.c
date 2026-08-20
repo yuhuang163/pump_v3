@@ -14,6 +14,7 @@
  *****************************************************************************************
  */
 static rt_device_node_t *node = NULL;
+static bool s_full_load_running = false;   /// 满负载运行标志，由电机泵驱动在泵开启/暂停时设置
 
 /*
  * GLOBAL VARIABLE DEFINITIONS
@@ -100,5 +101,11 @@ void *register_device_for_pmu(list_head_t *list_head)
 
 bool is_full_load_running(void)
 {
-    return 0;
+    return s_full_load_running;
+    return false;
+}
+
+void bsp_set_full_load_running(bool is_running)
+{
+    s_full_load_running = is_running;
 }

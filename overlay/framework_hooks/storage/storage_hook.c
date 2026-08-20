@@ -486,13 +486,6 @@ static int on_post_storage_init_route(storage_manager_context_t *ctx)
     init_system_persist_info(ctx);
     /// 加载系统版本信息
     init_system_ver_info(ctx);
-    /// 同步电池电量
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    EXCEPTION_CHECK_INT(pbus);
-    struct rt_device_node *battery_dev = pbus->find_device(ID_DEVICE_BATTERY);
-    EXCEPTION_CHECK_INT(battery_dev);
-    uint32_t percent = ctx->priv.sys_info.state.battery_percent;
-    DEVICE_IOCTL_ARGS_NO_RET(battery_dev, OP_CODE_BAT_PERCENT_UPDATE, &percent);
     return 0;
 }
 

@@ -718,53 +718,73 @@ typedef enum {
 typedef struct {
     uint16_t vbus; /// 总线电压 mV
     uint16_t ibus; /// 总线电流 mA
-    uint16_t vbat; /// 电池电压 mV
+    uint16_t vbat; /// 电池电压 mV（滑动平均值）
+    uint16_t vbat_raw; /// 电池电压实时值 mV（未滤波）
+    uint16_t vbat_comp; /// 电池电压补偿后值 mV（未滤波）
     uint16_t ibat; /// 电池电流 mA
     uint16_t status; /// 状态寄存器
     float ntc_resistance; /// ntc电阻值 KΩ
     uint8_t charge_full; /// 满电状态
     uint8_t plug_in; /// 插拔状态
-    float temp; /// 温度℃
+    float temp; /// 温度℃（滑动平均值）
+    float temp_raw; /// 温度实时值℃（未滤波）
 } charge_chip_status_t;
 
-/// 输入电流限制
-#define IBUS_SCALE_CFG                      IBUS_SCALE_2
+/// 输入电流限制（IBUS_SCALE_2=12.5mA, IBUS_SCALE_1=6.25mA）
+/// 数值宏供 #if 比较选择，再映射到 enum 寄存器值与软件系数
+#define IBUS_SCALE_6_25MA                   0
+#define IBUS_SCALE_12_5MA                   1
+#define IBUS_SCALE_SEL                      IBUS_SCALE_12_5MA
 #define CHARGE_INPUT_CURRENT_LIMIT          3000
-#if IBUS_SCALE_CFG == IBUS_SCALE_2
+#if IBUS_SCALE_SEL == IBUS_SCALE_12_5MA
+#define IBUS_SCALE_CFG                      IBUS_SCALE_2
 #define CHARGE_INPUT_CURRENT_LIMIT_SCALE    50
 #define CHARGE_ADC_CURRENT_LIMIT_SCALE      12.5f
 #else
+#define IBUS_SCALE_CFG                      IBUS_SCALE_1
 #define CHARGE_INPUT_CURRENT_LIMIT_SCALE    25
 #define CHARGE_ADC_CURRENT_LIMIT_SCALE      6.25f
 #endif
 
-/// 输入电压限制
-#define VBUS_SCALE_CFG                      VBUS_SCALE_2
+/// 输入电压限制（VBUS_SCALE_2=40mV, VBUS_SCALE_1=20mV）
+#define VBUS_SCALE_20MV                     0
+#define VBUS_SCALE_40MV                     1
+#define VBUS_SCALE_SEL                      VBUS_SCALE_40MV
 #define CHARGE_INPUT_VOLTAGE_LIMIT          4200
-#if VBUS_SCALE_CFG == VBUS_SCALE_2
+#if VBUS_SCALE_SEL == VBUS_SCALE_40MV
+#define VBUS_SCALE_CFG                      VBUS_SCALE_2
 #define CHARGE_INPUT_VOLTAGE_LIMIT_SCALE    40
 #else
+#define VBUS_SCALE_CFG                      VBUS_SCALE_1
 #define CHARGE_INPUT_VOLTAGE_LIMIT_SCALE    20
 #endif
 
-/// 电池输入/输出电流限制
-#define IBAT_SCALE_CFG                      IBAT_SCALE_2
+/// 电池输入/输出电流限制（IBAT_SCALE_2=12.5mA, IBAT_SCALE_1=6.25mA）
+#define IBAT_SCALE_6_25MA                   0
+#define IBAT_SCALE_12_5MA                   1
+#define IBAT_SCALE_SEL                      IBAT_SCALE_12_5MA
 #define BATT_INPUT_CURRENT_LIMIT            2000
 #define BATT_OUTPUT_CURRENT_LIMIT           3000
 #define TEMP_ABNORMAL_CHARGING_CURRENT      600
-#if IBAT_SCALE_CFG == IBAT_SCALE_2
+#if IBAT_SCALE_SEL == IBAT_SCALE_12_5MA
+#define IBAT_SCALE_CFG                      IBAT_SCALE_2
 #define BATT_CURRENT_LIMIT_SCALE            50
 #define BATT_ADC_CURRENT_LIMIT_SCALE        12.5f
 #else
+#define IBAT_SCALE_CFG                      IBAT_SCALE_1
 #define BATT_CURRENT_LIMIT_SCALE            25
 #define BATT_ADC_CURRENT_LIMIT_SCALE        6.25f
 #endif
 
-/// 电池输入/输出电压限制
+/// 电池输入/输出电压限制（VBAT_SCALE_1=20mV, VBAT_SCALE_2=40mV）
+#define VBAT_SCALE_20MV                     0
+#define VBAT_SCALE_40MV                     1
+#define VBAT_SCALE_SEL                      VBAT_SCALE_20MV
+#if VBAT_SCALE_SEL == VBAT_SCALE_40MV
 #define VBAT_SCALE_CFG                      VBAT_SCALE_2
-#if VBAT_SCALE_CFG == VBAT_SCALE_2
 #define BATT_VOLTAGE_SCALE                  40
 #else
+#define VBAT_SCALE_CFG                      VBAT_SCALE_1
 #define BATT_VOLTAGE_SCALE                  20
 #endif
 

@@ -233,10 +233,12 @@ charging_temp_policy_handler(s_charge_status.temp);      // 截断为 62 / 33
 
 ```
 adapter_mismatch && plug_in  → CHARGE_STATE_ERROR
-charge_full && plug_in && is_charging → CHARGE_STATE_FULL
-plug_in && is_charging       → CHARGE_STATE_CHARGING
+charge_full && plug_in && is_charging && debounce>=100 → CHARGE_STATE_FULL
+plug_in && is_charging       → CHARGE_STATE_CHARGING（含硬件已满、去抖未满 100 拍）
 其他                         → CHARGE_STATE_UNCHARGE
 ```
+
+去抖满 100 拍前仍走 `charging_voltage_handler()`，便于 SOC 快拉靠近 ADC。SOC 细节见 [BATTERY_SOC_STRATEGY.md](../BATTERY_SOC_STRATEGY.md)。
 
 ### 7.2 满电判定
 
@@ -269,7 +271,7 @@ if (ret == BSP_OK) {
 
 ## 9. 上层电池管理（SOC）
 
-入口：`bsp_battery.c` → `battery_poll_handler()`
+入口：`bsp_battery.c` → `battery_voltage_poll()`。完整策略见 [BATTERY_SOC_STRATEGY.md](../BATTERY_SOC_STRATEGY.md)。
 
 | 充电状态 | SOC 算法分支 |
 |---------|-------------|

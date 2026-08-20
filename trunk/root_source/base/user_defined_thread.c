@@ -66,13 +66,13 @@
 #define DISCHARGE_PUMP_DURATION_MS        (10 * 60 * 1000)   /**< 泵奶持续时间：15分钟 */
 #define DISCHARGE_PAUSE_DURATION_MS       (1 * 60 * 1000)    /**< 暂停持续时间：1分钟 */
 #else
-#define DISCHARGE_PUMP_DURATION_MS        (10 * 60 * 1000)   /**< 泵奶持续时间：10分钟 */
-#define DISCHARGE_PAUSE_DURATION_MS       (15 * 1000)        /**< 暂停持续时间：15秒 */
+#define DISCHARGE_PUMP_DURATION_MS        (29 * 60 * 1000)   /**< 泵奶持续时间：10分钟 */
+#define DISCHARGE_PAUSE_DURATION_MS       (1 * 1000)         /**< 暂停持续时间：15秒 */
 #endif
 
-#define DISCHARGE_CHECK_INTERVAL_MS       1000                /**< 状态检查间隔：1秒 */
-#define DISCHARGE_MODE_SWITCH_DELAY_MS    500                 /**< 模式切换后等待生效的延迟 */
-#define DISCHARGE_RESTART_DELAY_MS        300                 /**< 重启前切换模式等待生效的延迟 */
+#define DISCHARGE_CHECK_INTERVAL_MS       1000               /**< 状态检查间隔：1秒 */
+#define DISCHARGE_MODE_SWITCH_DELAY_MS    500                /**< 模式切换后等待生效的延迟 */
+#define DISCHARGE_RESTART_DELAY_MS        300                /**< 重启前切换模式等待生效的延迟 */
 
 /**< 放电测试状态枚举 */
 typedef enum {
