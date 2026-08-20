@@ -186,9 +186,6 @@ void home_ui_change_hdr_remove(ui_proc_home_t *proc)
         case HOME_UI_TYPE_SETTINGS_SUCCESS:
             home_settings_success_ui_exit(proc);
             break;
-        case HOME_UI_TYPE_NIGHT_LIGHT_ADJUST:
-            home_night_light_adjust_ui_exit(proc);
-            break;
         case HOME_UI_TYPE_POWER_OFF_HOLD:
             home_power_off_hold_ui_exit(proc);
             break;
