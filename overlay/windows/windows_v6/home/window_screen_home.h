@@ -290,11 +290,6 @@ int home_start_pump_with_sub_ui(ui_proc_home_t *proc, pump_sub_ui_type_e sub_ui)
 void show_home_settings_success_ui(ui_proc_home_t *proc, bool is_need_start_pump);
 void home_settings_success_ui_exit(ui_proc_home_t *proc);
 
-/// 夜灯调节界面处理
-void show_home_night_light_adjust_ui(ui_proc_home_t *proc);
-void switch_home_night_light_adjust(ui_proc_home_t *proc, bool is_increase);
-void home_night_light_adjust_ui_exit(ui_proc_home_t *proc);
-
 /// 长按 power 关机确认页
 void show_home_power_off_hold_ui(ui_proc_home_t *proc);
 void home_power_off_hold_ui_exit(ui_proc_home_t *proc);

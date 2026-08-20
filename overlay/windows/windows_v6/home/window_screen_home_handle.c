@@ -171,12 +171,6 @@ static void home_start_key_event_handler(ui_proc_home_t *proc)
 
 static void home_knob_left_event_cb(ui_proc_home_t *proc)
 {
-#if IS_SUPPORT_NIGHT_LIGHT
-    if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
-        switch_home_night_light_adjust(proc, false);
-        return;
-    }
-#endif
     if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
         home_pump_level_adjust_handler(proc, false);
         return;
@@ -199,13 +193,6 @@ static void home_knob_left_event_cb(ui_proc_home_t *proc)
 
 static void home_knob_right_event_cb(ui_proc_home_t *proc)
 {
-#if IS_SUPPORT_NIGHT_LIGHT
-    if (proc->current_ui_type == HOME_UI_TYPE_NIGHT_LIGHT_ADJUST) {
-        switch_home_night_light_adjust(proc, true);
-        return;
-    }
-#endif
-
     if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
         home_pump_level_adjust_handler(proc, true);
         return;
