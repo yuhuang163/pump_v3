@@ -4,8 +4,9 @@
 */
 #include "hal_pwm.h"
 #include "hal_timer.h"
-#include "bsp_common.h" 
+#include "bsp_common.h"
 #include "bsp_config.h"
+#include "bsp_internal.h" // IWYU pragma: keep
 #include "motor_stall_detection.h" // IWYU pragma: keep
 #include "motor_pump.h" // IWYU pragma: keep
 
@@ -143,6 +144,19 @@ static void bsp_motor_pump_timer_stop(motor_pump_id_e id)
     PRINT_LOG("timer stop:%d\r\n", id);
 #endif
     timer_status[id].is_running = false;
+}
+
+/// 更新满负载状态：任一泵或阀在运行即视为满负载，通知电池补偿切换到大电流放电曲线
+static void motor_pump_full_load_status_update(void)
+{
+    bool is_full_load = false;
+    for (uint8_t i = 0; i < MOTOR_PUMP_ID_MAX; i++) {
+        if (pump_status[i].pump_is_running || pump_status[i].valve_is_running) {
+            is_full_load = true;
+            break;
+        }
+    }
+    bsp_set_full_load_running(is_full_load);
 }
 
 POSSIBLY_UNUSED static void bsp_motor_pump_timer_handler(void *param)
@@ -407,6 +421,7 @@ int bsp_motor_pump_parameter_set(void *args)
             } else {
                 LOGW("pump %d pump on duration_ms is 0", pump_id);
             }
+            motor_pump_full_load_status_update();
             break;
         case MOTOR_PUMP_OFF:
             pump_motor_stall_detection_stop(pump_id);
@@ -428,6 +443,7 @@ int bsp_motor_pump_parameter_set(void *args)
             }
             bsp_motor_pwm_irq_control(pump_id == MOTOR_PUMP_1 ? PWM_PUMP1_PIN : PWM_PUMP2_PIN, false);
             pump_status[pump_id].pump_irq_is_running = false;
+            motor_pump_full_load_status_update();
             break;
         case MOTOR_PUMP_OFF_AND_VALVE_ON:
             pump_motor_stall_detection_stop(pump_id);
@@ -453,6 +469,7 @@ int bsp_motor_pump_parameter_set(void *args)
             } else {
                 LOGW("pump %d pump off and valve on duration_ms is 0", pump_id);
             }
+            motor_pump_full_load_status_update();
             break;
         case MOTOR_VALVE_ON:
             pump_status[pump_id].valve_is_running = true;
@@ -466,6 +483,7 @@ int bsp_motor_pump_parameter_set(void *args)
             } else {
                 LOGW("pump %d valve on duration_ms is 0", pump_id);
             }
+            motor_pump_full_load_status_update();
             break;
         case MOTOR_VALVE_OFF:
             pump_status[pump_id].valve_is_running = false;
@@ -482,6 +500,7 @@ int bsp_motor_pump_parameter_set(void *args)
             } else {
                 LOGW("pump %d valve off duration_ms is 0", pump_id);
             }
+            motor_pump_full_load_status_update();
             break;
         case MOTOR_PUMP_OFF_AND_VALVE_OFF:
             memset(&pump_status[pump_id], 0, sizeof(motor_pump_status_t));
@@ -494,6 +513,7 @@ int bsp_motor_pump_parameter_set(void *args)
             if (ret != BSP_OK) {
                 LOGE("set valve off failed, ret=%d", ret);
             }
+            motor_pump_full_load_status_update();
             break;
         case MOTOR_PUMP_DUTY_ADJUST:
 #if IS_SUPPORT_PUMP_DUTY_ADJUST

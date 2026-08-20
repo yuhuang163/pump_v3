@@ -75,7 +75,11 @@ static const battery_float_voltage_t sc_charging_float_tables[] = {
     {SG_FLOAT_VOLTAGE_RATE_2, SG_FLOAT_VOLTAGE_THRESHOLD_3}, 
 };
 #else
+
+
+/// 电池原厂曲线
 static const capacity_data_t sc_batt_tables[] = {
+#if BATT_CURVE_VERSION == BATT_CURVE_VERSION_1
     {0,  8500, 8999}, 
     {1,  9000, 9499}, 
     {5,  9500, 10088}, 
@@ -88,17 +92,59 @@ static const capacity_data_t sc_batt_tables[] = {
     {70, 11618, 11937}, 
     {80, 11938, 12019}, 
     {90, 12020, BATT_FULL_VOLTAGE}, 
+#elif BATT_CURVE_VERSION == BATT_CURVE_VERSION_2
+    {0,  8500, 8999},
+    {1,  9000, 9499},
+    {5,  9500, 10079},  ///    576
+    {10, 10080, 10436}, ///    356
+    {20, 10437, 10808}, ///    371
+    {30, 10809, 11000}, ///    191
+    {40, 11001, 11240}, ///    239
+    {50, 11241, 11524}, ///    283
+    {60, 11525, 11769}, ///    244
+    {70, 11770, 12045}, ///    275
+    {80, 12046, 12230}, ///    184
+    {90, 12231, BATT_FULL_VOLTAGE}, /// 充电16 分钟
+#elif BATT_CURVE_VERSION == BATT_CURVE_VERSION_3
+    {0,  8500,  8999},
+    {1,  9000,  9975},
+    {5,  9976,  10289}, ///    314
+    {10, 10290, 10553}, ///    263
+    {20, 10554, 10770}, ///    217
+    {30, 10771, 10953}, ///    182
+    {40, 10954, 11180}, ///    226
+    {50, 11181, 11441}, ///    260
+    {60, 11442, 11672}, ///    230
+    {70, 11673, 11901}, ///    229
+    {80, 11902, 12132}, ///    230
+    {90, 12133, BATT_FULL_VOLTAGE}, /// 267
+#elif BATT_CURVE_VERSION == BATT_CURVE_VERSION_4
+    {0,  8500,  8999},
+    {1,  9000,  9266},
+    {5,  9267,  9799},  ///    576
+    {10, 9800,  10369}, ///    570
+    {20, 10370, 10671}, ///    302
+    {30, 10672, 10865}, ///    194
+    {40, 10866, 11083}, ///    217
+    {50, 11084, 11357}, ///    274
+    {60, 11358, 11633}, ///    276
+    {70, 11634, 11869}, ///    235
+    {80, 11870, 12121}, ///    251
+    {90, 12122, BATT_FULL_VOLTAGE}, /// 278
+#endif
 };
 
 static const battery_para_t sc_charging_tables[] = {
-    {0, THREE_CHARGING_FORCE_UPDATE_THRESHOLD}, 
+    {THREE_CHARGING_FORCE_UPDATE_RATE, THREE_CHARGING_FORCE_UPDATE_THRESHOLD}, 
     {THREE_CHARGING_DEBOUNCE_RATE_1, THREE_CHARGING_UPDATE_THRESHOLD_1}, 
     {THREE_CHARGING_DEBOUNCE_RATE_2, THREE_CHARGING_UPDATE_THRESHOLD_2}, 
     {THREE_CHARGING_DEBOUNCE_RATE_3, THREE_CHARGING_UPDATE_THRESHOLD_3}, 
+    {THREE_CHARGING_DEBOUNCE_RATE_4, THREE_CHARGING_UPDATE_THRESHOLD_4}, 
+    {THREE_CHARGING_DEBOUNCE_RATE_5, THREE_CHARGING_UPDATE_THRESHOLD_5}, 
 };
 
 static const battery_para_t sc_charge_tables[] = {
-    {0, THREE_UNCHARGE_FORCE_UPDATE_THRESHOLD}, 
+    {THREE_UNCHARGE_FORCE_UPDATE_RATE, THREE_UNCHARGE_FORCE_UPDATE_THRESHOLD}, 
     {THREE_UNCHARGE_DEBOUNCE_RATE_0, THREE_UNCHARGE_UPDATE_THRESHOLD_0}, 
     {THREE_UNCHARGE_DEBOUNCE_RATE_1, THREE_UNCHARGE_UPDATE_THRESHOLD_1}, 
     {THREE_UNCHARGE_DEBOUNCE_RATE_2, THREE_UNCHARGE_UPDATE_THRESHOLD_2}, 
@@ -112,6 +158,7 @@ static const battery_para_t sc_full_load_tables[] = {
     {THREE_UNCHARGE_DEBOUNCE_RATE_7, THREE_UNCHARGE_UPDATE_THRESHOLD_7}, 
     {THREE_UNCHARGE_DEBOUNCE_RATE_8, THREE_UNCHARGE_UPDATE_THRESHOLD_8}, 
     {THREE_UNCHARGE_DEBOUNCE_RATE_9, THREE_UNCHARGE_UPDATE_THRESHOLD_9}, 
+    {THREE_UNCHARGE_DEBOUNCE_RATE_10, THREE_UNCHARGE_UPDATE_THRESHOLD_10}, 
 };
 
 static const battery_float_voltage_t sc_charging_float_tables[] = {
@@ -129,6 +176,8 @@ static uint32_t s_charing_time_out_count= 0;
 static uint32_t s_batt_poll_time = 0;
 static RTC_DATA_ATTR double s_charging_curve_percent = 0;
 static RTC_DATA_ATTR battery_status_t battery;
+static uint16_t s_batt_full_voltage = BATT_FULL_VOLTAGE;   /// 动态满电电压，初始 BATT_FULL_VOLTAGE，充满时更新，下限 12400 上限 BATT_VOLTAGE_MAX
+static battery_health_cb s_battery_health_callback = NULL;
 #endif
 static rt_device_node_t *node = NULL;
 
@@ -144,19 +193,37 @@ static rt_device_node_t *node = NULL;
 #if IS_SUPPORT_BATTERY_POLL
 static void battery_health_update(void) 
 {
+#if IS_SUPPORT_BATTERY_HEALTH
+    if (battery.health < BATT_HEALTH_COEFF_MIN || battery.health > BATT_HEALTH_COEFF_MAX) {
+        battery.health = BATT_HEALTH_COEFF_MAX;
+    }
+#else
     battery.health = BATT_HEALTH_COEFF_MAX;
+#endif
     LOG_PBUS("battery health:%d", battery.health);
+}
+
+static void add_battery_health_callback(battery_health_cb cb)
+{
+    s_battery_health_callback = cb;
 }
 
 static void battery_health_set(uint16_t coeff)
 {
+#if IS_SUPPORT_BATTERY_HEALTH
     if (coeff < BATT_HEALTH_COEFF_MIN) {
         coeff = BATT_HEALTH_COEFF_MIN;
     } else if (coeff > BATT_HEALTH_COEFF_MAX) {
         coeff = BATT_HEALTH_COEFF_MAX;
     }
 
-    // battery.health = (uint8_t)coeff; /// 暂时不启用电池健康状态
+    if (battery.health != (uint8_t)coeff) {
+        battery.health = (uint8_t)coeff;
+        if (s_battery_health_callback) {
+            s_battery_health_callback(battery.health);
+        }
+    }
+#endif
     LOG_PBUS("battery health set:%d/%d", battery.health, coeff);
 }
 
@@ -189,7 +256,7 @@ static void battery_percent_handler(uint16_t current_voltage)
         return;
     }
 
-    cmp_val[0] = (sc_batt_tables[table_size - 1].vol_max * health) / BATT_HEALTH_COEFF_MAX;
+    cmp_val[0] = (s_batt_full_voltage * health) / BATT_HEALTH_COEFF_MAX;
     if (current_voltage >= cmp_val[0]) {
         current_voltage = cmp_val[0];
         battery.percent = 100;
@@ -198,7 +265,7 @@ static void battery_percent_handler(uint16_t current_voltage)
 
     for (i = 0; i < table_size; i++) { // 逐段遍历电压-电量映射表，定位当前电压落在哪个区间
         cmp_val[0] = (sc_batt_tables[i].vol_min * health) / BATT_HEALTH_COEFF_MAX; // 计算该段在“当前健康系数”下的最小电压阈值
-        cmp_val[1] = (sc_batt_tables[i].vol_max * health) / BATT_HEALTH_COEFF_MAX; // 计算该段在“当前健康系数”下的最大电压阈值
+        cmp_val[1] = ((i == (table_size - 1) ? s_batt_full_voltage : sc_batt_tables[i].vol_max) * health) / BATT_HEALTH_COEFF_MAX; // 计算该段在“当前健康系数”下的最大电压阈值（末段用动态满电电压）
         if (current_voltage >= cmp_val[0] && current_voltage <= cmp_val[1]) { // 命中区间：当前电压在该段上下限之间
             /// 取粗略百分比
             battery_percent = sc_batt_tables[i].percent; // 先取该段起始电量作为粗粒度基值
@@ -241,22 +308,27 @@ static double battery_voltage_by_percent_get(double percent)
     }
 
     if (percent >= 100) {
-        return ((double)sc_batt_tables[table_size - 1].vol_max * health) / BATT_HEALTH_COEFF_MAX;
+        return ((double)s_batt_full_voltage * health) / BATT_HEALTH_COEFF_MAX;
     }
 
     for (uint8_t i = 0; i < table_size; i++) {
-        double percent_min = ((double)sc_batt_tables[i].percent * health) / BATT_HEALTH_COEFF_MAX;
-        double percent_max = ((i + 1) < table_size) ? ((double)sc_batt_tables[i + 1].percent * health) / BATT_HEALTH_COEFF_MAX : 100;
+        /// 电量轴不随 health 缩放，与 battery_percent_handler 只缩放电压阈值保持互逆
+        double percent_min = (double)sc_batt_tables[i].percent;
+        double percent_max = ((i + 1) < table_size) ?
+            (double)sc_batt_tables[i + 1].percent : 100.0;
+        uint8_t last = ((i + 1) >= table_size);
 
-        if (percent >= percent_min && percent <= percent_max) {
-            uint16_t vol_min = ((double)sc_batt_tables[i].vol_min * health) / BATT_HEALTH_COEFF_MAX;
-            uint16_t vol_max = ((double)sc_batt_tables[i].vol_max * health) / BATT_HEALTH_COEFF_MAX;
+        /// 分段右端点归入下一段，使表节点电量对应本段 vol_min
+        if (percent >= percent_min && (last || percent < percent_max)) {
+            double vol_min = ((double)sc_batt_tables[i].vol_min * health) / BATT_HEALTH_COEFF_MAX;
+            double vol_max = ((double)(last ? s_batt_full_voltage : sc_batt_tables[i].vol_max) * health) /
+                BATT_HEALTH_COEFF_MAX;
             double percent_range = percent_max - percent_min;
-            double voltage = vol_min;
-            if (percent_range > 0) {
-                voltage += ((percent - percent_min) * (vol_max - vol_min)) / percent_range;
+            /// 与正向查表一致：电量跨度 ≤1 不插值，整段都回到 vol_min
+            if (percent_range <= 1.0 || vol_max <= vol_min) {
+                return vol_min;
             }
-            return voltage;
+            return vol_min + ((percent - percent_min) * (vol_max - vol_min)) / percent_range;
         }
     }
 
@@ -297,11 +369,38 @@ static double charging_current_curve_voltage_get(uint16_t ibat_ma, uint32_t poll
     return battery_voltage_by_percent_get(s_charging_curve_percent);
 }
 
+/// 放电电压补偿计算（按 ADC 电压，避免放电端虚低滞后减速）
+static double uncharge_vref_calculate(double vref_temp, uint16_t voltage, 
+                int16_t offset, bool is_full_load)
+{
+    if (voltage < 8000) {
+        return offset;
+    }
+
+    if (voltage < 8500) {
+        return (offset / 10.f);
+    }
+    
+    if (voltage < 9000) {
+        return is_full_load ? (vref_temp * 5) : (vref_temp * 2);
+    }
+
+    if (voltage < 9500) {
+        return is_full_load ? (vref_temp * 1.6) : (vref_temp * 1.2);
+    }
+
+    if (voltage < 10000) {
+        return is_full_load ? (vref_temp * 1.05) : (vref_temp * 1.01);
+    }
+    return vref_temp;
+}
+
 static void uncharge_voltage_handler(uint16_t voltage)
 {
     static RTC_DATA_ATTR double vref = 0;
-    static uint8_t comp_count= 0;
-    uint8_t vref_flag = 0;
+    double vref_temp = 0;
+    uint8_t vref_flag = 0, uncharge_type = 0;
+    uint8_t is_full_load = 0;
     int16_t step = 0;
     int16_t offset = 0;
 
@@ -314,80 +413,124 @@ static void uncharge_voltage_handler(uint16_t voltage)
     /// 赋初值
     if (battery.voltage == 0) {
         battery.voltage = voltage;
+        uncharge_type |= (1 << 0);
         goto CALC_EXIT;
     }
     
     /// 获取偏差值
     offset = battery.voltage - voltage;
 
-    /// 过滤旋律抖动
-    if (is_full_load_running()) {
+    /// 虚电快速补偿
+    if (battery.voltage > s_batt_full_voltage && voltage > s_batt_full_voltage && 
+        s_batt_full_voltage >= BATT_FULL_VOLTAGE) {
+        vref_temp = offset / 10.f;
+        vref_flag = 1;
+        uncharge_type |= (1 << 1);
+        goto CALC_EXIT;
+    }
+
+    /// 获取负载状态
+    is_full_load = is_full_load_running();
+
+    /// 满负载补偿
+    if (is_full_load) {
         for (uint8_t i = 0; i < LENGTH_OF_ARRAY(sc_full_load_tables); i++) {
             if (offset > sc_full_load_tables[i].dropout_voltage) {
-                vref += (i == 0) ? (offset / sc_full_load_tables[i].rate) : sc_full_load_tables[i].rate;
+                vref_temp = sc_full_load_tables[i].rate;
                 vref_flag = 1;
                 break;
             }
         }
+        uncharge_type |= (1 << 2);
         goto CALC_EXIT;
     }
 
-    /// 大偏差补偿：在“非满负载”放电场景下，按分段阈值对估算电压做回拉，避免显示电压长期高于真实采样
-    for (uint8_t i = 0; i < LENGTH_OF_ARRAY(sc_charge_tables); i++) { // 依次遍历放电补偿分段表，寻找当前偏差命中的第一段
-        if (offset > sc_charge_tables[i].dropout_voltage) { // 当“估算值-采样值”超过该段门限时，触发该段补偿策略
-            if (i == 0) { // 第一段：偏差极大，先走防抖强制校正，不叠加 vref 渐进补偿
-                comp_count++; // 连续大偏差计数 +1，用于去抖判定（防止瞬态尖峰误触发）
-                if (comp_count > BATT_FORCE_UPDATE_DEBOUNCE) { // 大偏差持续到达去抖阈值后，执行一次强制回拉
-                    vref = offset / 10.f;
-                    comp_count = 0; // 触发后清计数，重新开始下一轮去抖
-                    LOG_PBUS("uncharge compensation offset:%d", offset); // 记录强制补偿触发时的偏差值，便于参数调优
-                } else {
-                    vref = 0; // 清掉渐进补偿残差，避免与强制校正叠加导致跳变
-                }
-            } else{ // 非第一段：偏差较温和，采用 vref 累积 + step 离散更新的平滑策略
-                comp_count = 0; // 进入平滑段时清除强制补偿计数，避免跨段误触发
-                vref += (i == 1) ? sc_charge_tables[i].rate : (offset / sc_charge_tables[i].rate); // 第二段按固定增量，其后按比例增量，控制收敛速度
-            }
-            vref_flag = 1; // 标记“本轮命中补偿段”，后续结算阶段不清空 vref
-            break; // 分段表按优先级匹配到首段后即退出，避免多段叠加
+    /// 非满负载补偿
+    for (uint8_t i = 0; i < LENGTH_OF_ARRAY(sc_charge_tables); i++) { 
+        if (offset > sc_charge_tables[i].dropout_voltage) {
+            vref_temp = sc_charge_tables[i].rate;
+            vref_flag = 1;
+            uncharge_type |= (1 << 3);
+            break;
         }
     }
 
 CALC_EXIT:
-    if (vref_flag == 0) { // 本轮未命中任何补偿段，说明偏差不大或无需调整
-        vref = 0; // 清除浮点残差，避免历史累积引入无效微调
-        comp_count = 0; // 同步清除强制补偿计数，避免旧计数污染后续判定
-    } 
+    if (vref_flag == 0) { 
+        vref = 0; 
+    } else {
+        vref += uncharge_vref_calculate(vref_temp, voltage, offset, is_full_load);
+        if (vref > offset) {
+            vref = offset;
+        }
+    }
 
-    step = (int16_t) vref; // 将浮点补偿量离散为本轮可执行的整数步进（mV 级）
-    if (step) { // 仅当存在有效整数步进时更新，0 步进则保持当前估算值
-        battery.voltage = battery.voltage - step; // 在放电补偿路径中按 step 下调估算电压（回拉到采样侧）
-        vref = vref - step; // 保留小数残差到下一轮继续累计，降低量化误差
+    step = (int16_t) vref; 
+    if (step) { 
+        battery.voltage = battery.voltage - step; 
+        vref = vref - step;
     }
     
-    if (log_timer > BATT_LOG_INTERVAL || abs(step) > 5) {
-        BSP_LOG("uncharge", "type:%d, health:%d%%, percent:%d%%, batt:%dmv, adc:%dmv, offset:%d, step:%d, vref:%04f", 
-                battery.type, battery.health, battery.percent, battery.voltage, 
-                voltage, offset, step, vref);
+    if (log_timer > BATT_LOG_INTERVAL || abs(step) > 0) {
+        BSP_LOG("uncharge battery", "type:%d/%d, health:%d%%, percent:%d%%, batt:%dmv, adc:%dmv, offset:%d, step:%d, vref:%04f(%04f), load:%d", 
+                battery.type, uncharge_type, battery.health, battery.percent, battery.voltage, 
+                voltage, offset, step, vref, vref_temp, is_full_load);
     }
     battery_percent_handler(battery.voltage);
     s_charging_curve_percent = battery.percent;
 }
 
+/// 充电电压补偿计算（按估算电压，不用 ADC，避免充电端虚高提前加速/减速）
+static double charging_vref_calculate(double vref_temp, uint16_t voltage)
+{
+    if (voltage < 9200) {
+        return  (vref_temp * 0.88); // 1.2
+    }
+
+    if (voltage < 9500) {
+        return  vref_temp * 0.95; // 1.1
+    }
+
+    if (voltage < 10000) {
+        return vref_temp;
+    }
+
+    if (voltage < 11000) {
+        return vref_temp;
+    }
+
+    if (voltage < 12000) {
+        return vref_temp;
+    }
+
+    if (voltage < BATT_FULL_VOLTAGE) {
+        return (vref_temp * 0.98);
+    }
+
+    return (vref_temp * 0.90); 
+} 
+
 static void charging_voltage_handler(uint16_t voltage, uint32_t polling_interval)
 {
     static double vref = 0;
+    double vref_temp = 0;
     uint8_t vref_flag = 0;
     int16_t step = 0;
     int16_t offset = 0;
+    int16_t lag_offset = 0;
     uint16_t health_coeff = 0;
-    uint8_t table_size = 0, debounce = 0;
+    uint8_t table_size = 0, debounce = 0, charge_type = 0;
 
     /// 充电状态下重启电量补偿
     if (battery.voltage == 0) {
         battery.voltage = battery_charging_compensation(voltage);
+    } else if (s_charing_voltage_max == 0) {
+        /// 从放电切换到充电：重置估算电压到当前电量对应的开路电压，
+        /// 并同步充电曲线百分比基准，避免从放电低电压过度追赶导致电量虚高
+        battery.voltage = battery_voltage_by_percent_get(battery.percent);
+        s_charging_curve_percent = battery.percent;
     }
-    
+
     /// 获取充电电压最大值（测试发现异常充电时，高电压只能维持较短时间，不能拿来计算健康状态）
     if (s_charing_voltage_max < voltage) {
         s_charing_voltage_max = voltage;
@@ -413,64 +556,80 @@ static void charging_voltage_handler(uint16_t voltage, uint32_t polling_interval
         LOG_PBUS("charging cali, health:%d%%, %d%%, percent:%d%%", health_coeff, battery.health,
                   battery.percent);
     }
-
-    offset = voltage - battery.voltage; // 当前采样电压与内部电池电压估计值的差值（正值表示需要上调）
-
-    /// 充满快速拉升：在接近“充满判定”阶段，按去抖计数线性放大补偿，尽快把显示电压拉近真实值
-    debounce = get_charge_full_debounce(); // 获取“充满”状态去抖计数，计数越大说明越接近稳定充满
-    if (debounce > 20 && debounce < BATT_CHARGE_FULL_DEBOUNCE) { // 仅在快速拉升窗口内生效，避免刚充电和完全充满时突变
-        vref = (offset * debounce) / 1.0 / (BATT_CHARGE_FULL_DEBOUNCE -  20); // 依据去抖进度计算本轮浮点补偿量（除 1.0 保持浮点计算）
-        BSP_LOG("charge full", "%f, %d", vref, offset);
-        goto CALC_EXIT; // 快速拉升优先级最高，直接进入统一结算逻辑
-    }
     
+    /// 充电偏差计算
+    offset = voltage - battery.voltage; 
+    /// 充电浮压补偿
+    lag_offset = (int16_t)battery_charging_compensation(voltage) - (int16_t)battery.voltage;
     uint16_t ibat_ma = 0;
     bsp_charge_get_ibat_ma(&ibat_ma);
+    /// 充满快速拉升：在接近“充满判定”阶段，按去抖计数线性放大补偿，尽快把显示电压拉近真实值
+    debounce = get_charge_full_debounce(); 
+    if (offset > 0 && debounce > BATT_CHARGE_FULL_DEBOUNCE_IGNORE && debounce < BATT_CHARGE_FULL_DEBOUNCE) { 
+        vref_temp = ((double)offset * debounce) / (BATT_CHARGE_FULL_DEBOUNCE - BATT_CHARGE_FULL_DEBOUNCE_IGNORE); 
+        vref_flag = 1;
+        charge_type |= (1 << 0);
+        BSP_LOG("charge full", "%f, %d", vref_temp, offset);
+        goto CALC_EXIT; // 快速拉升优先级最高，直接进入统一结算逻辑
+    }
+
     if (ibat_ma > 100 && offset > 0) {
-        double charge_voltage = charging_current_curve_voltage_get(ibat_ma, polling_interval, offset);
-        if (s_charging_curve_percent >= 100) {
-            vref += (CHARGE_FULL_100MS_RATE * ibat_ma * polling_interval) / 100.0;
-            if (vref > offset) {
-                vref = offset;
+        /// 用浮压补偿后的开路电压偏差（估算滞后）判断加速追赶，排除充电端电压虚高的干扰
+        double charge_voltage = charging_current_curve_voltage_get(ibat_ma, polling_interval, lag_offset);
+        if (offset > THREE_CHARGING_FORCE_UPDATE_THRESHOLD) {
+            vref_temp = (offset - THREE_CHARGING_FORCE_UPDATE_THRESHOLD) / 10.f;
+            if (vref_temp < THREE_CHARGING_DEBOUNCE_RATE_1) {
+                vref_temp = THREE_CHARGING_DEBOUNCE_RATE_1;
             }
+            vref_flag = 1;
+        } else if (s_charging_curve_percent >= 100) {
+            vref_temp = (CHARGE_FULL_100MS_RATE * ibat_ma * polling_interval) / 100.0;
+            vref_flag = 1;
         } else {
             if (charge_voltage > battery.voltage) {
-                vref = charge_voltage - battery.voltage; 
-            } 
-        }
-        // BSP_LOG("charging", "%f/%f/%f, %d ,%d", vref, s_charging_curve_percent, charge_voltage, battery.voltage, offset);
-        goto CALC_EXIT;
-    }
-
-    /// 充电偏差计算：按分段表逐级叠加补偿，让电压变化更平滑（避免一次性跳变）
-    for (uint8_t i = 0; i < LENGTH_OF_ARRAY(sc_charging_tables); i++) { // 依次遍历每个补偿分段阈值
-        if (offset > sc_charging_tables[i].dropout_voltage) { // 当前偏差超过该段门限，说明该段补偿应生效
-            if (i == 0) { // 第一段：主补偿段，按偏差一半快速跟随
-                vref = offset / 100.f; // 先给一个较大基准补偿，快速收敛
-                LOG_PBUS("charging compensation offset:%d", offset); // 记录进入补偿的偏差值，便于调参
-            } else { // 后续段：继续叠加细调，控制收敛速度和稳定性
-                vref += (i == 1) ? (offset / sc_charging_tables[i].rate) : sc_charging_tables[i].rate; // 第二段按比例补偿，其它段按固定步进补偿
+                vref_temp = charge_voltage - battery.voltage; 
+                vref_flag = 1;
             }
-            vref_flag = 1; // 标记“本轮至少有一个分段命中”，后续不清零 vref
         }
-    }
-
-    if (vref_flag == 0) { // 没有命中任何补偿段，说明偏差很小或无需调整
-        vref = 0; // 清空浮点残差，防止历史残量造成无意义抖动
+        charge_type |= (1 << 1);
+        goto CALC_EXIT;
     } 
 
-CALC_EXIT:
-    step = (int16_t)vref; // 取整数步长作为本轮真正写入的电压修正量
-    if (step) { // 仅在有有效整数步进时更新，避免无效写入
-        battery.voltage = battery.voltage + step; // 应用本轮补偿到内部电压估计
-        vref = vref - step; // 保留小数残差到下轮累计，减少量化误差
+    /// 充电偏差计算：小电流时内阻压降已很小，用裸采样偏差回拉，避免浮压补偿把满电锁在 ADC-200mV
+    for (uint8_t i = 0; i < LENGTH_OF_ARRAY(sc_charging_tables); i++) {
+        if (offset > sc_charging_tables[i].dropout_voltage) {
+            if (i == 0) {
+                uint16_t voltage_diff = offset - sc_charging_tables[0].dropout_voltage;
+                vref_temp = voltage_diff > sc_charging_tables[0].rate ? sc_charging_tables[0].rate : voltage_diff;
+            } else {
+                vref_temp = sc_charging_tables[i].rate;
+            }
+            vref_flag = 1;
+            charge_type |= (1 << 2);
+            break;
+        }
     }
 
+CALC_EXIT:
+    if (vref_flag == 0 || battery.voltage >= BATT_VOLTAGE_MAX) { 
+        vref = 0; 
+    } else {
+        vref += charging_vref_calculate(vref_temp, voltage);
+        if (vref > offset) {
+            vref = offset;
+        }
+    }
+    step = (int16_t)vref; 
+    if (step) { 
+        battery.voltage = battery.voltage + step; 
+        vref = vref - step; 
+    }
     /// 测试日志
-    if (log_timer > BATT_LOG_INTERVAL || abs(step) > 5) {
-        BSP_LOG("charging", "type:%d, health:%d%%, percent:%d%%, batt:%dmv, adc:%dmv, offset:%d, step:%d, vref:%04f, max:%dmv, %dmv, time:%ld", 
-                battery.type, battery.health, battery.percent, battery.voltage,
-                voltage, offset, step, vref, s_charing_voltage_max, s_batt_voltage_max, s_charing_time_out_count);
+    if (log_timer > BATT_LOG_INTERVAL || abs(step) > 0) {
+        BSP_LOG("charging battery", "type:%d/%d, health:%d%%, percent:%d%%, batt:%dmv, adc:%dmv, offset:%d, step:%d, vref:%04f, max:%dmv, %dmv, time:%ld", 
+                battery.type, charge_type, battery.health, battery.percent, battery.voltage,
+                voltage, offset, step, vref, s_charing_voltage_max, 
+                s_batt_voltage_max, s_charing_time_out_count);
     }
     battery_percent_handler(battery.voltage);
 }
@@ -479,20 +638,32 @@ static void charge_full_voltage_handler(uint16_t voltage)
 {
     uint16_t health_coeff = 0;
     uint8_t table_size = 0;
-    if (battery.voltage < voltage) {
+
+    /// 动态更新满电电压：充满时按实际电压更新，下限 BATT_FULL_VOLTAGE，上限 BATT_VOLTAGE_MAX
+    uint16_t ibat_ma = 0;
+    bsp_charge_get_ibat_ma(&ibat_ma);
+    if (voltage > BATT_FULL_VOLTAGE && ibat_ma == 0) {
+        uint16_t new_full_voltage = (voltage > BATT_VOLTAGE_MAX) ? BATT_VOLTAGE_MAX : voltage;
+        if (new_full_voltage > s_batt_full_voltage) {
+            s_batt_full_voltage = new_full_voltage;
+        }
+    }
+
+    if (battery.voltage < voltage && ibat_ma == 0) {
         battery.voltage = voltage;
         table_size = LENGTH_OF_ARRAY(sc_batt_tables);
         health_coeff = ((voltage * 100) / sc_batt_tables[table_size - 1].vol_max);
         if (health_coeff > 0) {
-            health_coeff--;
+            health_coeff--; 
         }
+
         if ((health_coeff != battery.health)) {
             battery_health_set(health_coeff);
         }
     }
 
     if (log_timer > 20) {
-        BSP_LOG("charge full", "type:%d, health:%d%%, percent:%d%%, batt:%dmv, adc:%dmv", 
+        BSP_LOG("charge full battery", "type:%d, health:%d%%, percent:%d%%, batt:%dmv, adc:%dmv", 
                 battery.type, battery.health, battery.percent, battery.voltage, voltage);
     }
     battery_percent_handler(battery.voltage);
@@ -501,23 +672,31 @@ static void charge_full_voltage_handler(uint16_t voltage)
 
 static void battery_percent_update(uint8_t percent)
 {
-    if (percent == 0 || percent > 100) {
+    if (percent > 100) {
         LOGE("percent error:%d", percent);
+        return;
+    }
+
+    /// 显示分辨率只有 1%，电量相同则保留当前估算电压，避免同百分比内反查改压
+    if (percent == battery.percent) {
+        BSP_LOG("battery", "same percent, skip");
         return;
     }
 
     uint8_t offset_percent = percent > battery.percent ? 
         (percent - battery.percent) : (battery.percent - percent);
     if (offset_percent > 10) {
-        LOG_PBUS("offset:%d > 10, skip, percent:%d%% -> %d%%", 
+        BSP_LOG("percent update", "offset:%d > 10, skip, percent:%d%% -> %d%%", 
             offset_percent, battery.percent, percent);
         return;
     }
 
     uint8_t last_percent = battery.percent;
     uint16_t last_voltage = battery.voltage;
-    battery.voltage = battery_voltage_by_percent_get(percent);
-    LOG_PBUS("percent:%d%% -> %d%%, voltage:%dmv -> %dmv",
+    battery.percent = percent;
+    battery.voltage = (uint16_t)(battery_voltage_by_percent_get(percent) + 0.5);
+    s_charging_curve_percent = percent;
+    BSP_LOG("percent update", "percent:%d%% -> %d%%, voltage:%dmv -> %dmv",
         last_percent, battery.percent, last_voltage, battery.voltage);
 }
 
@@ -659,6 +838,14 @@ static int battery_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void 
         case OP_CODE_BAT_ADD_CHARGE_EVENT_CALLBACK:
             add_charge_event_callback((charge_event_cb)args);
             return 0;
+#if IS_SUPPORT_BATTERY_POLL
+        case OP_CODE_BAT_ADD_HEALTH_CHANGE_CALLBACK:
+            add_battery_health_callback((battery_health_cb)args);
+            return 0;
+#else
+        case OP_CODE_BAT_ADD_HEALTH_CHANGE_CALLBACK:
+            return 0;
+#endif
         case OP_CODE_BAT_GET_CHARGE_STATUS:
             return get_charge_state();
         case OP_CODE_BAT_GET_CHARGE_TEMPERATURE:

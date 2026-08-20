@@ -56,36 +56,46 @@ extern "C" {
 #define SG_FLOAT_VOLTAGE_RATE_2              100     /// 单节电池充电浮压调整阈值 偏差 
 
 /// 三节电池充电曲线参数
-#define THREE_CHARGING_FORCE_UPDATE_THRESHOLD   460     ///单位mV  偏差超阈值强制更新
-#define THREE_CHARGING_UPDATE_THRESHOLD_1       350     ///单位mV  偏差阈值1
-#define THREE_CHARGING_UPDATE_THRESHOLD_2       100     ///单位mV  偏差阈值2
-#define THREE_CHARGING_UPDATE_THRESHOLD_3       0       ///单位mV  偏差阈值2
-#define THREE_CHARGING_DEBOUNCE_RATE_1          1500.0  ///去抖率  
-#define THREE_CHARGING_DEBOUNCE_RATE_2          0.004   ///去抖率  
-#define THREE_CHARGING_DEBOUNCE_RATE_3          0.001   ///去抖率
+/// 充电浮压补偿阈值
+#define THREE_CHARGING_FORCE_UPDATE_THRESHOLD   (460)    ///单位mV  偏差阈值
+#define THREE_CHARGING_UPDATE_THRESHOLD_1       (350)    ///单位mV  偏差阈值1
+#define THREE_CHARGING_UPDATE_THRESHOLD_2       (300)    ///单位mV  偏差阈值2
+#define THREE_CHARGING_UPDATE_THRESHOLD_3       (200)    ///单位mV  偏差阈值3
+#define THREE_CHARGING_UPDATE_THRESHOLD_4       (50)     ///单位mV  偏差阈值4
+#define THREE_CHARGING_UPDATE_THRESHOLD_5       (0)      ///单位mV  偏差阈值5
+#define THREE_CHARGING_FORCE_UPDATE_RATE        (20)     /// 每拍回拉mV（>460mV）
+#define THREE_CHARGING_DEBOUNCE_RATE_1          (0.2)    /// 每拍回拉mV（350-460mV）
+#define THREE_CHARGING_DEBOUNCE_RATE_2          (0.015)  /// 每拍回拉mV（250-350mV）
+#define THREE_CHARGING_DEBOUNCE_RATE_3          (0.01)   /// 每拍回拉mV（150-250mV）
+#define THREE_CHARGING_DEBOUNCE_RATE_4          (0.008)  /// 每拍回拉mV（50-150mV）
+#define THREE_CHARGING_DEBOUNCE_RATE_5          (0.003)  /// 每拍回拉mV（0-50mV）
+
 /// 三节电池放电曲线参数
-#define THREE_UNCHARGE_FORCE_UPDATE_THRESHOLD   300    ///单位mV  偏差超阈值强制更新
-#define THREE_UNCHARGE_UPDATE_THRESHOLD_0       (240)  ///单位mV  偏差阈值0
-#define THREE_UNCHARGE_UPDATE_THRESHOLD_1       (180)  ///单位mV  偏差阈值1
+#define THREE_UNCHARGE_FORCE_UPDATE_THRESHOLD   (400)  ///单位mV  偏差阈值
+#define THREE_UNCHARGE_UPDATE_THRESHOLD_0       (300)  ///单位mV  偏差阈值0
+#define THREE_UNCHARGE_UPDATE_THRESHOLD_1       (200)  ///单位mV  偏差阈值1
 #define THREE_UNCHARGE_UPDATE_THRESHOLD_2       (100)  ///单位mV  偏差阈值2
-#define THREE_UNCHARGE_UPDATE_THRESHOLD_3       (50)   ///单位mV  偏差阈值3
+#define THREE_UNCHARGE_UPDATE_THRESHOLD_3       (40)   ///单位mV  偏差阈值3
 #define THREE_UNCHARGE_UPDATE_THRESHOLD_4       (0)    ///单位mV  偏差阈值4
-#define THREE_UNCHARGE_DEBOUNCE_RATE_0          (0.6)   ///去抖率  
-#define THREE_UNCHARGE_DEBOUNCE_RATE_1          800.0   ///去抖率  
-#define THREE_UNCHARGE_DEBOUNCE_RATE_2          500.0   ///去抖率 
-#define THREE_UNCHARGE_DEBOUNCE_RATE_3          200.0   ///去抖率  
-#define THREE_UNCHARGE_DEBOUNCE_RATE_4          120.0   ///去抖率  
+#define THREE_UNCHARGE_FORCE_UPDATE_RATE        (1)    /// 每拍回拉mV（>400mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_0          (0.5)   /// 每拍回拉mV（300-400mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_1          (0.25)  /// 每拍回拉mV（200-300mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_2          (0.15)  /// 每拍回拉mV（100-200mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_3          (0.1)   /// 每拍回拉mV（40-100mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_4          (0.02)  /// 每拍回拉mV（0-40mV）
 /// 三节电池大电流放电曲线参数
 #define THREE_UNCHARGE_UPDATE_THRESHOLD_5       (700)  ///单位mV  偏差阈值5
 #define THREE_UNCHARGE_UPDATE_THRESHOLD_6       (400)  ///单位mV  偏差阈值6
 #define THREE_UNCHARGE_UPDATE_THRESHOLD_7       (200)  ///单位mV  偏差阈值7
-#define THREE_UNCHARGE_UPDATE_THRESHOLD_8       (120)   ///单位mV  偏差阈值8
-#define THREE_UNCHARGE_UPDATE_THRESHOLD_9       (40)   ///单位mV  偏差阈值8
-#define THREE_UNCHARGE_DEBOUNCE_RATE_5          (20000.0)  
-#define THREE_UNCHARGE_DEBOUNCE_RATE_6          (0.007)   ///去抖率  
-#define THREE_UNCHARGE_DEBOUNCE_RATE_7          (0.001)  ///去抖率 
-#define THREE_UNCHARGE_DEBOUNCE_RATE_8          (0.0005)  ///去抖率  
-#define THREE_UNCHARGE_DEBOUNCE_RATE_9          (0.0001)  ///去抖率  
+#define THREE_UNCHARGE_UPDATE_THRESHOLD_8       (150)  ///单位mV  偏差阈值8
+#define THREE_UNCHARGE_UPDATE_THRESHOLD_9       (40)   ///单位mV  偏差阈值9
+#define THREE_UNCHARGE_UPDATE_THRESHOLD_10      (0)    ///单位mV  偏差阈值10
+#define THREE_UNCHARGE_DEBOUNCE_RATE_5          (0.8)     /// 每拍回拉mV（>700mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_6          (0.3)   /// 每拍回拉mV（400-700mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_7          (0.2)   /// 每拍回拉mV（200-400mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_8          (0.1)   /// 每拍回拉mV（150-200mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_9          (0.08)  /// 每拍回拉mV（40-150mV）
+#define THREE_UNCHARGE_DEBOUNCE_RATE_10         (0.01)  /// 每拍回拉mV（0-40mV）  
 /// 三节电池充电浮压调整阈值
 #define THREE_FLOAT_VOLTAGE_THRESHOLD_1         (12000)  ///单位mV  三节电池充电浮压调整阈值
 #define THREE_FLOAT_VOLTAGE_THRESHOLD_2         (11000)  ///单位mV  三节电池充电浮压调整阈值
@@ -94,24 +104,36 @@ extern "C" {
 #define THREE_FLOAT_VOLTAGE_RATE_1              460      /// 三节电池充电浮压调整阈值 偏差
 #define THREE_FLOAT_VOLTAGE_RATE_2              600      /// 三节电池充电浮压调整阈值 偏差
 /// 去抖配置
-#define BATT_FORCE_UPDATE_DEBOUNCE              5       /// 强制更新去抖
 #define BATT_CHARGE_FULL_DEBOUNCE               100     /// 充满去抖
 #define BATT_CHARGE_FULL_DEBOUNCE_IGNORE        20      /// 充满去抖忽略阈值
 /// 健康状态配置
-#define BATT_CHARGING_TIME_OUT                  (216000)   ///(6 * 60 * 60 * 1000 / 100)
+#define BATT_CHARGING_TIME_OUT                  (6 * 60 * 60 * 1000)
 #define BATT_HEALTH_COEFF_MIN                   (90)
 #define BATT_HEALTH_COEFF_MAX                   (100)
-
 #define BATT_FULL_VOLTAGE                       12400
-#define BATT_VOLTAGE_MAX                        12680
-/// 100ms 充电满率偏差系数 (240mV / 30mAh)  * (100ms / 3600s)
+#define BATT_VOLTAGE_MAX                        12550
 #define CHARGE_FULL_100MS_RATE                  (0.000222)  
+
 /// 电池容量
 #define BATT_MAX_CAPACITY                       (3200)  /// 12260:28mAH   9587:2890mAH  9237:3000mAh 
 #define BATT_MS_PER_HOUR                        (3600000.0)  /// 毫秒每小时
 #define BATT_MAX_CAPACITY_MAH                   ((double)BATT_MAX_CAPACITY * BATT_MS_PER_HOUR)
 #define BATT_CHARGE_MAX_RESISTANCE              (0.18)  /// 充电电池最大内阻值
-#define CHARGE_FORCE_UPDATE_THRESHOLD_OFFSET    (154)  /// 充电强制更新阈值偏移
+#define CHARGE_FORCE_UPDATE_THRESHOLD_OFFSET    (300)  /// 充电强制更新阈值偏移（原154，浮压补偿残余约270mV，需覆盖避免充电开始误触发加速追赶）
+
+
+/// 曲线版本号
+#define BATT_CURVE_VERSION_1                    (1) /// 原始曲线
+#define BATT_CURVE_VERSION_2                    (2) /// 测试曲线1
+#define BATT_CURVE_VERSION_3                    (3) /// 测试曲线2
+#define BATT_CURVE_VERSION_4                    (4)
+#define BATT_CURVE_VERSION_5                    (5)
+#define BATT_CURVE_VERSION_6                    (6)
+#define BATT_CURVE_VERSION_7                    (7)
+#define BATT_CURVE_VERSION_8                    (8)
+
+#define BATT_CURVE_VERSION                      (4)
+
 
 ///电池容量属性
 typedef struct {

@@ -161,6 +161,13 @@ static void polling_battery_status(void *user_data)
     EXCEPTION_CHECK_VOID(thiz);
     battery_state_info_t info = {0};
     info.battery_percent = local_get_battery_percent();
+    if (info.battery_percent != thiz->priv.battery_percent) {
+        thiz->priv.battery_percent = info.battery_percent;
+        storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+        if (st) {
+            st->put_store_ram_val(STORE_ID_SYS_BATTERY_PERCENT, info.battery_percent, 0, NULL);
+        }
+    }
     info.charge_status = local_get_charge_status();
     info.battery_state = get_battery_state(info.battery_percent, info.charge_status);
     LOG_MISC("#now bat percent:%d, state:%d/%d, charging:%d/%d",
@@ -247,6 +254,13 @@ static void charge_event_callback(charge_event_e event)
     misc->trigger_misc_work(MISC_WORK_MSG_ID_CHARGE_INTERRUPT);
 }
 
+static void battery_health_change_callback(uint8_t health)
+{
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(st);
+    st->put_store_ram_val(STORE_ID_SYS_BATTERY_HEALTH, health, 0, NULL);
+}
+
 static int on_post_battery_init(void *ptr)
 {
     battery_manager_context_t *ctx = ptr;
@@ -254,7 +268,23 @@ static int on_post_battery_init(void *ptr)
     thiz->priv.is_vbus_plug_in = local_is_vbus_plug_in();
     thiz->priv.charge_status = local_get_charge_status();
     if (ctx->priv.battery) {
+        storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+        if (st) {
+            int health = 0, percent = 0;
+            st->get_store_ram_val(STORE_ID_SYS_BATTERY_HEALTH, 0, 0, &health);
+            if (health < 90 || health > 100) {
+                health = 100;
+            }
+            st->get_store_ram_val(STORE_ID_SYS_BATTERY_PERCENT, 0, 0, &percent);
+            if (percent > 100) {
+                percent = 100;
+            }
+            DEVICE_IOCTL_ARGS_NO_RET(ctx->priv.battery, OP_CODE_BAT_HEALTH_SET, &health);
+            DEVICE_IOCTL_ARGS_NO_RET(ctx->priv.battery, OP_CODE_BAT_PERCENT_UPDATE, &percent);
+            LOG_MISC("sync battery health: %d, percent: %d", health, percent);
+        }
         DEVICE_IOCTL_ARGS_NO_RET(ctx->priv.battery, OP_CODE_BAT_ADD_CHARGE_EVENT_CALLBACK, charge_event_callback);
+        DEVICE_IOCTL_ARGS_NO_RET(ctx->priv.battery, OP_CODE_BAT_ADD_HEALTH_CHANGE_CALLBACK, battery_health_change_callback);
         DEVICE_IOCTL_NO_RET(thiz->priv.battery, OP_CODE_BAT_POLL_VOLTAGE);
     }
     misc_manager_context_t *misc = ctx->priv.misc;

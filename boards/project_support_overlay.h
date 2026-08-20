@@ -103,6 +103,8 @@ extern "C" {
 #define IS_SUPPORT_DEVICE_KNOB                           (1)
 /// 支持电池直采
 #define IS_SUPPORT_BATTERY_DIRECT_SAMPLING               (0)
+/// 支持电池健康系数（缩放电压-电量表，充电超时/充满时校准）
+#define IS_SUPPORT_BATTERY_HEALTH                        (0)
 /// 支持UART
 #define IS_SUPPORT_DEVICE_UART                           (1)
 /// 支持光传感器

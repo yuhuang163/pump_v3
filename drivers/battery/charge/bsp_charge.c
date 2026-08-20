@@ -8,7 +8,6 @@
 #include "bsp_charge.h"
 #include "bsp_ntc_map.h" // IWYU pragma: keep
 #include "bsp_battery_internal.h"
-#include <stdint.h>
 #if IS_SUPPORT_PD_CHARGE
 #include "bsp_charge_pd.h"
 #endif
@@ -32,6 +31,8 @@
 #define CHARGE_ABNORMAL_MAX_COUNT           20
 #define CHARGE_THREAD_POLL_INTERVAL         100
 #define CHARGE_TEMP_POLICY_POLL_INTERVAL    3
+#define CHARGE_VBAT_AVG_WINDOW              20   /// VBAT 采样滑动平均窗口（100ms 轮询 × 8 = 800ms）
+#define CHARGE_TEMP_AVG_WINDOW              20   /// NTC 温度滑动平均窗口（100ms 轮询 × 20 = 2s）
 /*
 * LOCAL VARIABLE DEFINITIONS)
 *****************************************************************************************
@@ -49,6 +50,16 @@ static uint16_t s_charging_current = 0;
 static charge_event_cb s_charge_event_callback = NULL;
 static thread_context_t s_charge_device_thd  = {0};
 static os_timer_id s_charge_timer_id;
+/// VBAT 滑动平均滤波
+static uint16_t s_vbat_window[CHARGE_VBAT_AVG_WINDOW] = {0};
+static uint32_t s_vbat_window_sum = 0;
+static uint8_t  s_vbat_window_cnt = 0;
+static uint8_t  s_vbat_window_idx = 0;
+/// NTC 温度滑动平均滤波
+static float    s_temp_window[CHARGE_TEMP_AVG_WINDOW] = {0};
+static float    s_temp_window_sum = 0;
+static uint8_t  s_temp_window_cnt = 0;
+static uint8_t  s_temp_window_idx = 0;
 static const char *charge_status_arr[] = {
     "charge error",
     "charge full",
@@ -327,6 +338,44 @@ POSSIBLY_UNUSED static int charge_ctrl0_config(void)
     return charge_write_nbyte(CHARGE_CTRL0_REG, &reg_data, 1);
 }
 
+/// VBAT 采集偏差补偿：对实时采样电压做修正（补偿策略未定，当前直接透传）。
+/// 后续标定/分段补偿在此实现，vbat 平均值基于本函数输出计算。
+static uint16_t charge_vbat_compensate(uint16_t raw_mv)
+{
+    // TODO: 接入两点标定 / 分段补偿
+    return raw_mv;
+}
+
+/// VBAT 滑动平均：对连续 CHARGE_VBAT_AVG_WINDOW 次电压值（补偿后）求均值，滤除抖动。
+/// 窗口未满时按已填充样本数取均值，上电即平滑输出，无需等待满窗。
+static uint16_t charge_vbat_average(uint16_t mv)
+{
+    uint16_t old = s_vbat_window[s_vbat_window_idx];
+    s_vbat_window[s_vbat_window_idx] = mv;
+    s_vbat_window_sum += mv;
+    s_vbat_window_sum -= old;
+    s_vbat_window_idx = (uint8_t)((s_vbat_window_idx + 1) % CHARGE_VBAT_AVG_WINDOW);
+    if (s_vbat_window_cnt < CHARGE_VBAT_AVG_WINDOW) {
+        s_vbat_window_cnt++;
+    }
+    return (uint16_t)(s_vbat_window_sum / s_vbat_window_cnt);
+}
+
+/// NTC 温度滑动平均：对连续 CHARGE_TEMP_AVG_WINDOW 次温度求均值，滤除抖动。
+/// 窗口未满时按已填充样本数取均值，上电即平滑输出，无需等待满窗。
+static float charge_temp_average(float temp)
+{
+    float old = s_temp_window[s_temp_window_idx];
+    s_temp_window[s_temp_window_idx] = temp;
+    s_temp_window_sum += temp;
+    s_temp_window_sum -= old;
+    s_temp_window_idx = (uint8_t)((s_temp_window_idx + 1) % CHARGE_TEMP_AVG_WINDOW);
+    if (s_temp_window_cnt < CHARGE_TEMP_AVG_WINDOW) {
+        s_temp_window_cnt++;
+    }
+    return s_temp_window_sum / s_temp_window_cnt;
+}
+
 static int charge_status_poll(charge_chip_status_t *status)
 {
     uint8_t reg_data[12] = {0};
@@ -340,7 +389,10 @@ static int charge_status_poll(charge_chip_status_t *status)
     data_ptr += 2;
     status->ibus = CHARGE_GET_10BIT_DATA(data_ptr) * CHARGE_ADC_CURRENT_LIMIT_SCALE;
     data_ptr += 2;
-    status->vbat = CHARGE_GET_10BIT_DATA(data_ptr) * BATT_VOLTAGE_SCALE;
+    uint16_t vbat_code = CHARGE_GET_10BIT_DATA(data_ptr);
+    status->vbat_raw = vbat_code * BATT_VOLTAGE_SCALE;                   // 实时值（未滤波）
+    status->vbat_comp = charge_vbat_compensate(status->vbat_raw);        // 补偿后值（暂等于实时值）
+    status->vbat = charge_vbat_average(status->vbat_comp);               // 平均值（对补偿后值求平均）
     data_ptr += 2;
     status->ibat = CHARGE_GET_10BIT_DATA(data_ptr) * BATT_ADC_CURRENT_LIMIT_SCALE;
     data_ptr += 2;
@@ -491,15 +543,19 @@ static void charge_device_thread(void *arg)
 #if IS_SUPPORT_DEVICE_CHARGE
         charge_status_poll(&s_charge_status);
         s_charge_status.charge_full = (s_charge_status.status & BAT_FULL_STATUS_POS) > 0 ? true : false;  
-        s_charge_status.temp = charge_ntc_temperature_get(s_charge_status.ntc_resistance);
+        s_charge_status.temp_raw = charge_ntc_temperature_get(s_charge_status.ntc_resistance);
+        s_charge_status.temp = charge_temp_average(s_charge_status.temp_raw);
 #if IS_SUPPORT_CHARGE_CURRENT_ADJUST
         charging_temp_policy_handler(s_charge_status.temp);
 #endif
         if (get_timestamp_ms(log_timer) > 2000) {
             log_timer = get_timestamp();
-            BSP_LOG("charge infos", "vbus:%dmV, ibus:%dmA, vbat:%dmV, ibat:%dmA, ntc:%.2fKOhm, temp:%.1f, status:0x%04X", 
-                     s_charge_status.vbus, s_charge_status.ibus, s_charge_status.vbat, s_charge_status.ibat, 
-                     s_charge_status.ntc_resistance, s_charge_status.temp, s_charge_status.status);
+            BSP_LOG("charge chip", "vbus:%dmV, ibus:%dmA, vbat:%d(%d/%d)mV, ibat:%dmA, ntc:%.2fKOhm, temp:%.1f(%.1f), status:0x%04X",
+                    s_charge_status.vbus, s_charge_status.ibus, 
+                    s_charge_status.vbat, s_charge_status.vbat_raw, s_charge_status.vbat_comp, 
+                    s_charge_status.ibat,
+                    s_charge_status.ntc_resistance, s_charge_status.temp, s_charge_status.temp_raw,
+                    s_charge_status.status);
         }
 #endif
     }
@@ -544,7 +600,7 @@ int get_charge_state(void)
     }
 
     if (s_charge_status.charge_full && s_charge_status.plug_in &&
-        is_charging) {
+        is_charging && s_charge_full_debounce >= BATT_CHARGE_FULL_DEBOUNCE) {
         return CHARGE_STATE_FULL;
     }  
 
