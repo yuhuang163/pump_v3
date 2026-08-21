@@ -104,7 +104,8 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
 #if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
         if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
             proc->led->hook->toggle_night_light(proc->led);
-            show_home_night_light_adjust_ui(proc);
+            // TODO: UI 就绪后恢复调用 show_home_night_light_adjust_ui(proc);
+            // show_home_night_light_adjust_ui(proc);
         }
         return;
 #endif

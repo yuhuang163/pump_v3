@@ -161,7 +161,7 @@ static void key_light_adaptive_thread(void *user_data)
 #if IS_SUPPORT_ADAPTIVE_DIMMING
     if (!thiz->hook->get_key_backlight_adaptive_dimming_switch(thiz)) {
         return;
-    } 
+    }
 #endif
     set_key_backlight_level(thiz, thiz->priv.key_light_adaptive_level);
 }
@@ -281,6 +281,7 @@ static void night_light_turn_off(led_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(thiz);
     thiz->priv.night_light_onoff = 0;
     thiz->priv.night_light_level = 0;
+    thiz->priv.night_light_switch = 0;
 #if IS_SUPPORT_ADAPTIVE_DIMMING
     adaptive_dimming_on_night_light_close();
 #endif
@@ -322,13 +323,13 @@ static void set_night_light_gear(led_manager_context_t *thiz, uint8_t gear)
         gear = NIGHT_LIGHT_GEAR_MAX - 1;
     }
 
-    if (gear == NIGHT_LIGHT_GEAR_L0) {
-        thiz->priv.night_light_gear = NIGHT_LIGHT_GEAR_L0;
-        thiz->priv.night_light_switch = 0;
-        night_light_turn_off(thiz);
-        led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_LEVEL);
-        return;
-    }
+    // if (gear == NIGHT_LIGHT_GEAR_L0) {
+    //     thiz->priv.night_light_gear = NIGHT_LIGHT_GEAR_L0;
+    //     thiz->priv.night_light_switch = 0;
+    //     night_light_turn_off(thiz);
+    //     led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_LEVEL);
+    //     return;
+    // }
 
     if (thiz->priv.night_light_gear == gear) {
         return;
@@ -399,6 +400,17 @@ static void set_night_light_switch(led_manager_context_t *thiz, uint8_t onoff)
     }
     thiz->priv.night_light_switch = v;
     LOG_MISC("set_night_light_switch (ram): %d", thiz->priv.night_light_switch);
+
+    if (v) {
+        if (!thiz->priv.night_light_onoff) {
+            night_light_turn_on(thiz);
+        }
+    } else {
+        if (thiz->priv.night_light_onoff) {
+            night_light_on_app_manual_off(thiz);
+        }
+    }
+
 #if IS_SUPPORT_ADAPTIVE_DIMMING
     if (v) {
         adaptive_dimming_on_night_light_switch_restored(thiz);

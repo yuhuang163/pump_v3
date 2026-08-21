@@ -19,6 +19,7 @@
 */
 #define ADAP_DIM_INVALID_DUTY                       255            /// 无效的LED亮度等级
 #define ADAPTIVE_DIMMING_DEBUG_LOG                  (0)            /// 自适应背光调试日志 0: 不打印 1: 打印
+/* ADAP_DIM_LUX_CALIB_THR_POINTS 见 adaptive_dimming.h */
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -43,7 +44,6 @@ static uint8_t s_nl_duty_pushed = ADAP_DIM_INVALID_DUTY;
 #endif
 static adaptive_dimming_info_t *adaptive = NULL;
 
-#define ADAP_DIM_LUX_CALIB_THR_POINTS           4   /// calib[0..3] 为分段阈值，calib[4] 预留
 static uint16_t light_sensor_data[10] = {0};
 static uint8_t s_light_report_batch_count = 0;
 static uint16_t s_lux_filtered = 0;
@@ -110,8 +110,13 @@ typedef struct {
     uint8_t duty;
 } adap_dim_lux_duty_knot_t;
 
-/// 与分段曲线关键点一致，段内线性插值（lux↑ → duty↑）
-static const adap_dim_lux_duty_knot_t s_back_lux_duty_knots[] = {
+#define ADAP_DIM_BACK_LUX_DUTY_KNOT_CNT          6
+#if IS_SUPPORT_NIGHT_LIGHT
+#define ADAP_DIM_NL_ADC_DUTY_KNOT_CNT            4
+#endif
+
+/// 与分段曲线关键点一致，段内线性插值（lux↑ → duty↑）；lux 轴由 s_lux_thr_* 运行时重建
+static adap_dim_lux_duty_knot_t s_back_lux_duty_knots[ADAP_DIM_BACK_LUX_DUTY_KNOT_CNT] = {
     {0u, ADAP_DIM_LED_LEVEL1_MIN},
     {ADAP_DIM_LUX_THR_VDARK, ADAP_DIM_LED_LEVEL1_MAX},
     {ADAP_DIM_LUX_THR_DARK, ADAP_DIM_LED_LEVEL2_MAX},
@@ -155,8 +160,7 @@ static uint8_t adaptive_dimming_back_duty_from_lux(uint16_t lux_avg)
         lux_avg = ADAP_DIM_LUX_MAX;
     }
     return adaptive_dimming_duty_interpolate(lux_avg, s_back_lux_duty_knots,
-                                           (uint8_t)(sizeof(s_back_lux_duty_knots) /
-                                                      sizeof(s_back_lux_duty_knots[0])));
+                                           ADAP_DIM_BACK_LUX_DUTY_KNOT_CNT);
 }
 
 uint16_t adaptive_dimming_get_filtered_lux(void)
@@ -165,8 +169,8 @@ uint16_t adaptive_dimming_get_filtered_lux(void)
 }
 
 #if IS_SUPPORT_NIGHT_LIGHT
-/// 夜灯 ALS：adc(mV) 轴 0/30/145/312，duty 为 pwm_table[] 索引；≥312 关断
-static const adap_dim_lux_duty_knot_t s_nl_adc_duty_knots[] = {
+/// 夜灯 ALS：lux 轴随 s_lux_thr_*；duty 为 pwm_table[] 索引；>= medium 关断
+static adap_dim_lux_duty_knot_t s_nl_adc_duty_knots[ADAP_DIM_NL_ADC_DUTY_KNOT_CNT] = {
     {0u, ADAP_DIM_NL_PWM_IDX_L1},
     {ADAP_DIM_LUX_THR_VDARK, ADAP_DIM_NL_PWM_IDX_L1},
     {ADAP_DIM_LUX_THR_DARK, ADAP_DIM_NL_PWM_IDX_L2},
@@ -175,47 +179,46 @@ static const adap_dim_lux_duty_knot_t s_nl_adc_duty_knots[] = {
 
 uint8_t adaptive_dimming_night_light_duty_from_lux(uint16_t lux_avg)
 {
-    if (lux_avg >= ADAP_DIM_LUX_THR_MEDIUM) {
+    if (lux_avg >= s_lux_thr_medium) {
         return ADAP_DIM_NL_PWM_IDX_OFF;
     }
     return adaptive_dimming_duty_interpolate(lux_avg, s_nl_adc_duty_knots,
-                                           (uint8_t)(sizeof(s_nl_adc_duty_knots) /
-                                                      sizeof(s_nl_adc_duty_knots[0])));
+                                           ADAP_DIM_NL_ADC_DUTY_KNOT_CNT);
 }
 #endif /* IS_SUPPORT_NIGHT_LIGHT */
 
 #if ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE
-/// 7.2.2 滞回映射表：上升阈值（lux），基准为上次已确认 lux
+/// 7.2.2 滞回映射表：上升阈值（lux），分段边界用运行时 s_lux_thr_*
 static uint16_t adaptive_dimming_hyst_rise_thr(uint16_t ref_adc)
 {
-    if (ref_adc > ADAP_DIM_LUX_THR_BRIGHT) {       // >839 mV (~300 lux)
+    if (ref_adc > s_lux_thr_bright) {
         return (uint16_t)((uint32_t)ref_adc * 25u / 100u);
     }
-    if (ref_adc > ADAP_DIM_LUX_THR_MEDIUM) {       // >312 mV (~100 lux)
+    if (ref_adc > s_lux_thr_medium) {
         return (uint16_t)((uint32_t)ref_adc * 20u / 100u);
     }
-    if (ref_adc > ADAP_DIM_LUX_THR_DARK) {        // >145 mV (~50 lux)
+    if (ref_adc > s_lux_thr_dark) {
         return 18u;
     }
-    if (ref_adc > ADAP_DIM_LUX_THR_VDARK) {        // >30 mV (~10 lux)
+    if (ref_adc > s_lux_thr_vdark) {
         return 12u;
     }
-    return 8u;                                    // 0~30 mV
+    return 8u;
 }
 
 /// 7.2.2 滞回映射表：下降阈值（lux）
 static uint16_t adaptive_dimming_hyst_fall_thr(uint16_t ref_adc)
 {
-    if (ref_adc > ADAP_DIM_LUX_THR_BRIGHT) {
+    if (ref_adc > s_lux_thr_bright) {
         return (uint16_t)((uint32_t)ref_adc * 15u / 100u);
     }
-    if (ref_adc > ADAP_DIM_LUX_THR_MEDIUM) {
+    if (ref_adc > s_lux_thr_medium) {
         return (uint16_t)((uint32_t)ref_adc * 12u / 100u);
     }
-    if (ref_adc > ADAP_DIM_LUX_THR_DARK) {
+    if (ref_adc > s_lux_thr_dark) {
         return 8u;
     }
-    if (ref_adc > ADAP_DIM_LUX_THR_VDARK) {
+    if (ref_adc > s_lux_thr_vdark) {
         return 5u;
     }
     return 3u;
@@ -305,7 +308,8 @@ static void adaptive_dimming_apply_outputs(led_manager_context_t *led)
     }
 
     ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
-    if (ui && ui->hook && led->hook && led->hook->get_ui_backlight_adaptive_dimming_switch(led)) {
+    // 按键和屏背光自适应开关共用，统一用 key 开关
+    if (ui && ui->hook && led->hook && led->hook->get_key_backlight_adaptive_dimming_switch(led)) {
         uint8_t ui_level = s_back_duty_target;
         if (ui_level != s_ui_duty_pushed) {
             ui->hook->ui_backlight_adaptive_level_update(ui, ui_level);
@@ -588,12 +592,52 @@ static int adaptive_dimming_lux_thr_is_monotonic(void)
            (s_lux_thr_bright <= ADAP_DIM_LUX_MAX);
 }
 
+static void adaptive_dimming_lux_knots_rebuild(void)
+{
+    s_back_lux_duty_knots[0].lux = 0u;
+    s_back_lux_duty_knots[0].duty = ADAP_DIM_LED_LEVEL1_MIN;
+    s_back_lux_duty_knots[1].lux = s_lux_thr_vdark;
+    s_back_lux_duty_knots[1].duty = ADAP_DIM_LED_LEVEL1_MAX;
+    s_back_lux_duty_knots[2].lux = s_lux_thr_dark;
+    s_back_lux_duty_knots[2].duty = ADAP_DIM_LED_LEVEL2_MAX;
+    s_back_lux_duty_knots[3].lux = s_lux_thr_medium;
+    s_back_lux_duty_knots[3].duty = ADAP_DIM_LED_LEVEL3_MAX;
+    s_back_lux_duty_knots[4].lux = s_lux_thr_bright;
+    s_back_lux_duty_knots[4].duty = ADAP_DIM_LED_LEVEL4_MAX;
+    s_back_lux_duty_knots[5].lux = ADAP_DIM_LUX_MAX;
+    s_back_lux_duty_knots[5].duty = ADAP_DIM_LED_LEVEL5_MAX;
+#if IS_SUPPORT_NIGHT_LIGHT
+    s_nl_adc_duty_knots[0].lux = 0u;
+    s_nl_adc_duty_knots[0].duty = ADAP_DIM_NL_PWM_IDX_L1;
+    s_nl_adc_duty_knots[1].lux = s_lux_thr_vdark;
+    s_nl_adc_duty_knots[1].duty = ADAP_DIM_NL_PWM_IDX_L1;
+    s_nl_adc_duty_knots[2].lux = s_lux_thr_dark;
+    s_nl_adc_duty_knots[2].duty = ADAP_DIM_NL_PWM_IDX_L2;
+    s_nl_adc_duty_knots[3].lux = s_lux_thr_medium;
+    s_nl_adc_duty_knots[3].duty = ADAP_DIM_NL_PWM_IDX_L3;
+#endif
+}
+
+/// 阈值变更后：重建 knots、复位去抖；滤波已就绪则按当前 lux 重算目标
+static void adaptive_dimming_lux_thr_on_changed(void)
+{
+    adaptive_dimming_lux_knots_rebuild();
+#if ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE
+    s_pending_lux = 0;
+    adaptive_dimming_debounce_reset();
+#endif
+    if (s_lux_filt_inited) {
+        adaptive_dimming_confirm_targets(s_lux_filtered);
+    }
+}
+
 static void adaptive_dimming_lux_thr_load_defaults(void)
 {
     s_lux_thr_vdark = ADAP_DIM_LUX_THR_VDARK;
     s_lux_thr_dark = ADAP_DIM_LUX_THR_DARK;
     s_lux_thr_medium = ADAP_DIM_LUX_THR_MEDIUM;
     s_lux_thr_bright = ADAP_DIM_LUX_THR_BRIGHT;
+    adaptive_dimming_lux_thr_on_changed();
 }
 
 static void adaptive_dimming_lux_thr_apply(const int32_t *calib)
@@ -613,8 +657,28 @@ static void adaptive_dimming_lux_thr_apply(const int32_t *calib)
         LOG_MISC("light sensor calib not monotonic, use default lux thr");
         return;
     }
+    adaptive_dimming_lux_thr_on_changed();
     LOG_MISC("lux thr from factory: vdark=%u dark=%u medium=%u bright=%u",
              s_lux_thr_vdark, s_lux_thr_dark, s_lux_thr_medium, s_lux_thr_bright);
+}
+
+int adaptive_dimming_lux_thr_reload_from_factory(void)
+{
+#if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
+    sensor_manager_context_t *sensor = (sensor_manager_context_t *)find_module(ID_MODULE_SENSOR);
+    EXCEPTION_CHECK_INT(sensor);
+    light_sensor_context_t *light_sensor =
+        (light_sensor_context_t *)sensor->find_sensor(ID_SENSOR_LIGHT_SENSOR);
+    EXCEPTION_CHECK_INT(light_sensor);
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_INT(st);
+    st->get_store_ram_val(STORE_ID_FACTORY_LIGHT_SENSOR_CALIB_DATA, 0, 0, light_sensor->priv.calib_tbl);
+    adaptive_dimming_lux_thr_apply(light_sensor->priv.calib_tbl);
+    return 0;
+#else
+    adaptive_dimming_lux_thr_load_defaults();
+    return 0;
+#endif
 }
 /*
 * GLOBAL FUNCTION DEFINITIONS

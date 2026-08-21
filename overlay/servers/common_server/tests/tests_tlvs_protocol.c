@@ -1400,6 +1400,13 @@ int tests_tlvs_light_sensor_calib_data_set(comm_protocol_builder_t *builder, com
                 } else {
                     result = 0x01; // 成功
                     LOG_SRV("tests_tlvs_light_sensor_calib_data_set: point=%u calib=%ld, success", point, (long)calib);
+                    /// S2：仅写完最后一个分段阈值点(point==3)后 reload，避免逐点写入过程中曲线抖动
+                    if (point == ADAP_DIM_LUX_CALIB_THR_RELOAD_POINT) {
+                        if (adaptive_dimming_lux_thr_reload_from_factory() != 0) {
+                            LOGW("tests_tlvs_light_sensor_calib_data_set: lux thr reload failed after point=%u",
+                                 point);
+                        }
+                    }
                 }
             }
         } else {
