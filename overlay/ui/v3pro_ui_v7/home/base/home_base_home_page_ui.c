@@ -47,6 +47,8 @@
 
 #define HOME_MAIN_HINT_Y                                (207 + 4)
 #define HOME_MAIN_HINT_TEXT                             "Press to start pumping"
+#define HOME_MAIN_HINT_TEXT_LOW_BAT                     "Can only support 1 pumping session,\nremember to charge."
+#define HOME_MAIN_HINT_TEXT_LOW_BAT_LINE_SPACE          (4)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_HINT_COLOR                            (0x00FF00)
 #else
@@ -435,12 +437,32 @@ static void home_main_hint_style_get(ui_shine_style_t *style)
     style->screen_w = HOME_MAIN_SCREEN_W;
 }
 
-static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode)
+static uint8_t home_main_hint_is_low_bat(const ui_proc_home_t *proc)
+{
+    if (proc == NULL) {
+        return 0;
+    }
+    return (proc->hint_low_bat == 1) ? 1 : 0;
+}
+
+static const char *home_main_hint_text_get(uint8_t is_low_bat)
+{
+    if (is_low_bat == 1) {
+        return HOME_MAIN_HINT_TEXT_LOW_BAT;
+    }
+    return HOME_MAIN_HINT_TEXT;
+}
+
+static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode,
+    const ui_proc_home_t *proc)
 {
     const uint32_t color = home_main_hint_color_get(mode);
+    const uint8_t is_low_bat = home_main_hint_is_low_bat(proc);
+    const char *text = home_main_hint_text_get(is_low_bat);
 
     if (info->main.hint_text != NULL && lv_obj_is_valid(info->main.hint_text) &&
-        info->main.shown_hint_color == color && info->force_update == false) {
+        info->main.shown_hint_color == color && info->main.shown_hint_low_bat == is_low_bat &&
+        info->force_update == false) {
         return;
     }
 
@@ -451,10 +473,13 @@ static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode)
         lv_obj_set_style_text_align(info->main.hint_text, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(info->main.hint_text, 0, 0); // Figma 2%: 19 * 0.02 ≈ 0.38 → 1px
     }
+    lv_obj_set_style_text_line_space(info->main.hint_text,
+        (is_low_bat == 1) ? HOME_MAIN_HINT_TEXT_LOW_BAT_LINE_SPACE : 0, 0);
     lv_obj_set_style_text_color(info->main.hint_text, lv_color_hex(color), 0);
-    lv_label_set_text(info->main.hint_text, HOME_MAIN_HINT_TEXT);
+    lv_label_set_text(info->main.hint_text, text);
     lv_obj_align(info->main.hint_text, LV_ALIGN_TOP_MID, 0, HOME_MAIN_HINT_Y);
     info->main.shown_hint_color = color;
+    info->main.shown_hint_low_bat = is_low_bat;
 }
 
 /** 裁剪窗内亮色扫光：字库栅格 + TEXT_SHINE_MASK 剖面烘焙软边 */
@@ -462,6 +487,7 @@ static void home_main_hint_mask_update(home_base_ui_info_t *info)
 {
     lv_obj_t *parent = home_page_parent_get(info);
     ui_shine_style_t style;
+    const char *text = home_main_hint_text_get(info->main.shown_hint_low_bat);
 
     if (info->main.hint_shine.mask != NULL && lv_obj_is_valid(info->main.hint_shine.mask) &&
         info->main.hint_shine.shine != NULL && lv_obj_is_valid(info->main.hint_shine.shine) &&
@@ -471,13 +497,20 @@ static void home_main_hint_mask_update(home_base_ui_info_t *info)
 
     home_main_hint_style_get(&style);
     ui_shine_prepare_from_text(&info->main.hint_shine, &style,
-        HOME_MAIN_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0);
+        text, &lv_font_aeonik_soft_19_medium, 0,
+        (info->main.shown_hint_low_bat == 1) ? HOME_MAIN_HINT_TEXT_LOW_BAT_LINE_SPACE : 0);
     ui_shine_update(&info->main.hint_shine, parent, &style, info->main.hint_text, 1);
 }
 
-static void home_main_hint_update(home_base_ui_info_t *info, uint8_t mode)
+static void home_main_hint_update(home_base_ui_info_t *info, uint8_t mode,
+    const ui_proc_home_t *proc)
 {
-    home_main_hint_text_update(info, mode);
+    const uint8_t prev_low_bat = info->main.shown_hint_low_bat;
+
+    home_main_hint_text_update(info, mode, proc);
+    if (info->main.shown_hint_low_bat != prev_low_bat) {
+        ui_shine_remove(&info->main.hint_shine);
+    }
     home_main_hint_mask_update(info);
 }
 
@@ -581,6 +614,7 @@ void home_main_page_ui_build(home_base_ui_info_t *info)
     memset(&info->main, 0, sizeof(info->main));
     info->main.shown_bg_id = 0;
     info->main.shown_hint_color = 0xFFFFFFFFU;
+    info->main.shown_hint_low_bat = 0xFF;
     info->main.shown_speed = 0xFF;
     info->main.shown_left_level = 0xFF;
     info->main.shown_right_level = 0xFF;
@@ -598,7 +632,14 @@ void home_main_page_ui_build(home_base_ui_info_t *info)
 #endif
     home_main_mode_title_update(info, mode);
     home_main_time_update(info, 0, 0, 0);
-    home_main_hint_update(info, mode);
+    {
+        ui_proc_home_t *proc = NULL;
+
+        if (info->ui != NULL) {
+            proc = (ui_proc_home_t *)info->ui->priv.play_info.user_data;
+        }
+        home_main_hint_update(info, mode, proc);
+    }
     home_main_speed_update(info, 0);
     home_main_level_label_update(&info->main.left_level, parent, "L",
         left_level, HOME_MAIN_LEFT_LEVEL_X, HOME_MAIN_LEFT_LEVEL_Y, HOME_MAIN_LEFT_LEVEL_W,
@@ -629,7 +670,7 @@ void home_main_page_ui_update(home_base_ui_info_t *info, ui_proc_home_t *proc)
     #endif
     home_main_mode_title_update(info, mode);
     home_main_time_update(info, 0, 0, 0);
-    home_main_hint_update(info, mode);
+    home_main_hint_update(info, mode, proc);
     home_main_hint_shine_anim_update(info);
     home_main_speed_update(info, speed);
     home_main_level_label_update(&info->main.left_level, home_page_parent_get(info), "L",

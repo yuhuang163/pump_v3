@@ -18,6 +18,7 @@ extern "C" {
 typedef enum {
     POWER_OFF_TEXT_POWERING_OFF = 0,   /* Powering off... */
     POWER_OFF_TEXT_AUTO_SHUT_OFF,      /* Auto shut off in\nprogress */
+    POWER_OFF_TEXT_LOW_POWER,          /* Battery to low to\npower off... */
 } power_off_text_type_e;
 
 /*

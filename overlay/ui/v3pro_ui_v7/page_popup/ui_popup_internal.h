@@ -120,6 +120,9 @@ uint16_t ui_popup_target_time_get(popup_ui_id_e type);
 
 void ui_popup_pump_runing_30m_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void ui_popup_pump_rest_mode_adjust_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+void ui_popup_low_power_start_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+#endif
 
 #ifdef __cplusplus
 }

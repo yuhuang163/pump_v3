@@ -62,7 +62,7 @@ typedef struct ui_proc_airplane_mode {
     uint8_t window_run_state; /// WM是否运行.
     uint16_t current_ui_type; /// 当前UI类型. airplane_mode_ui_type_e
     uint32_t power_off_idle_time; /// 关机倒计时起始时间.
-    uint8_t popup_ui_type; /// 当前弹窗类型. airplane_mode_popup_ui_type_e
+    uint8_t popup_ui_type; /// 当前弹窗类型. popup_ui_id_e
     uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
 } ui_proc_airplane_mode_t;
 
@@ -89,6 +89,11 @@ void airplane_mode_power_off_hold_ui_exit(ui_proc_airplane_mode_t *proc);
 void airplane_mode_power_off_hold_dismiss(ui_proc_airplane_mode_t *proc);
 void airplane_mode_power_off_hold_key_long_2s_handler(ui_proc_airplane_mode_t *proc);
 void airplane_mode_power_off_hold_key_up_handler(ui_proc_airplane_mode_t *proc);
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+void airplane_mode_forbid_start_tip_sync(ui_proc_airplane_mode_t *proc);
+uint8_t airplane_mode_forbid_start_key_is_blocked(ui_proc_airplane_mode_t *proc,
+    uint16_t keycode, uint16_t keytype);
+#endif
 #ifdef __cplusplus
 }
 #endif

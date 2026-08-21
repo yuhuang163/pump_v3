@@ -55,7 +55,8 @@ typedef struct {
     uint8_t force_update;
     uint8_t holding;
     uint8_t completed;
-    uint8_t rsv[9];
+    uint8_t popup_ui_index;
+    uint8_t rsv[8];
 } airplane_mode_display_info_t;
 
 /*
@@ -250,6 +251,7 @@ void ui_display_airplane_mode_prepare(ui_manager_context_t *thiz)
     airplane_info->force_update = true;
     airplane_info->holding = false;
     airplane_info->completed = false;
+    airplane_info->popup_ui_index = ID_POPUP_UI_NONE;
     ui_progress_arc_reset(&airplane_info->arc);
 }
 
@@ -260,6 +262,9 @@ void ui_display_airplane_mode_remove(ui_manager_context_t *thiz)
     airplane_mode_release_icon_buf(airplane_info->stim_key_icon, &airplane_info->stim_key_icon_buf);
     airplane_mode_release_icon_buf(airplane_info->add_icon, &airplane_info->add_icon_buf);
     airplane_mode_release_icon_buf(airplane_info->expr_key_icon, &airplane_info->expr_key_icon_buf);
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    ui_popup_remove(thiz);
+#endif
     LVGL_OBJ_DELETE(airplane_info->root);
     u_free(airplane_info);
     airplane_info = NULL;
@@ -279,6 +284,15 @@ int ui_display_airplane_mode_process(ui_manager_context_t *thiz)
     airplane_mode_key_icons_update(thiz);
     airplane_mode_texts_update();
     airplane_info->force_update = false;
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    {
+        popup_ui_id_e popup_type = ID_POPUP_UI_NONE;
+        if (proc->popup_ui_type == ID_POPUP_UI_LOW_POWER_START_TIP) {
+            popup_type = ID_POPUP_UI_LOW_POWER_START_TIP;
+        }
+        ui_popup_update(thiz, popup_type, airplane_info->root, &airplane_info->popup_ui_index);
+    }
+#endif
 
     if (airplane_info->holding && airplane_info->completed == false &&
         get_timestamp_ms(airplane_info->start_time) >= AIRPLANE_MODE_UNLOCK_DURATION_MS) {

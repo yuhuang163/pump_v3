@@ -226,6 +226,92 @@ void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type)
     proc->popup_ui_type = type;
 }
 
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+static uint8_t pump_battery_state_is_forbid_start(ui_proc_pump_t *proc)
+{
+    if (proc == NULL || proc->battery == NULL || proc->battery->get_battery_state == NULL) {
+        return 0;
+    }
+    return (proc->battery->get_battery_state() == BATTERY_STATE_FORBID_START) ? 1 : 0;
+}
+
+static void pump_forbid_start_pause_if_going(ui_proc_pump_t *proc)
+{
+    int pump_status = 0;
+    int control_source = 0;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    if (!PUMP_IS_GOING(pump_status)) {
+        return;
+    }
+
+    WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, 1);
+    proc->pump_status = BREAST_PUMP_PAUSE;
+    READ_PUMP_CONTROL_SOURCE(proc->pump, control_source);
+    data_bury_trigger_user_evt_t bury_evt = {
+        .evt_source = (control_source == true ? DATA_BURY_EVT_SOURCE_REMOTE_APP :
+            DATA_BURY_EVT_SOURCE_LOCAL),
+        .evt_type = DATA_BURY_USER_EVT_PAUSE,
+    };
+    DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
+    WRITE_PUMP_CONTROL_SOURCE(proc->pump, false);
+#if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
+    pump_pause_idle_start(proc);
+#endif
+    LOG_WM("forbid start, pause pump. status:%d", pump_status);
+}
+
+void pump_forbid_start_tip_sync(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (!pump_battery_state_is_forbid_start(proc)) {
+        if (proc->popup_ui_type == ID_POPUP_UI_LOW_POWER_START_TIP) {
+            pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+        }
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER ||
+        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_MANUAL) {
+        return;
+    }
+    pump_forbid_start_pause_if_going(proc);
+    if (proc->current_ui_type == PUMP_UI_TYPE_POWER_OFF_HOLD ||
+        proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
+        return;
+    }
+    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
+        show_pump_home_ui(proc);
+        return;
+    }
+    pump_popup_ui_type_update(proc, ID_POPUP_UI_LOW_POWER_START_TIP);
+}
+
+uint8_t pump_forbid_start_key_is_blocked(ui_proc_pump_t *proc, uint16_t keycode, uint16_t keytype)
+{
+    if (!pump_battery_state_is_forbid_start(proc)) {
+        return 0;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_POWER_OFF_HOLD ||
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
+        return 0;
+    }
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        return 0;
+    }
+    return 1;
+}
+#endif
+
 void pump_adjust_idle_touch(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
@@ -375,25 +461,6 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
         pump_stop_hold_dismiss(proc);
         return;
     }
-
-#if IS_SUPPORT_NIGHT_LIGHT
-    if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
-        uint8_t battery_state = proc->battery->get_battery_state();
-        if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-            battery_state == BATTERY_STATE_EMPTY ||
-            battery_state == BATTERY_STATE_FORBID_START) {
-            LOG_WM("battery state is low, ignore power key event.");
-            return;
-        }
-        
-#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
-        if (proc->led && proc->led->hook && proc->led->hook->sync_night_light_power_key) {
-            proc->led->hook->sync_night_light_power_key(proc->led);
-        }
-        return;
-#endif
-    }
-#endif
     LOG_WM("ignore power key event.");
 }
 

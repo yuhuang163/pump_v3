@@ -12,20 +12,14 @@ extern "C" {
 #define BATTERY_UI_SCREEN_W                                (PANLE_DISPLAY_W)
 #define BATTERY_UI_ICON_GAP                                (16)
 #define BATTERY_UI_BLE_ICON_W                              (24)
-#define BATTERY_UI_ECO_ICON_W                              (24)
 #define BATTERY_UI_Y_WITH_PEER                             (36)
 #define BATTERY_UI_Y_ALONE                                 (34)
-#define BATTERY_UI_ECO_Y                                   (34)
 #define BATTERY_UI_BLE_Y                                   (34)
 
 #define BASE_BATTERY_UI_X                                      (2)
 #define BASE_BATTERY_UI_Y                                      (BATTERY_UI_Y_ALONE)
 #define BASE_PUMP_HOME_BATTERY_UI_X                            (0)
 #define BASE_PUMP_HOME_BATTERY_UI_Y                            (BATTERY_UI_Y_ALONE)
-#define BASE_PUMP_HOME_BATTERY_UI_ECO_X                        (0)
-#define BASE_PUMP_HOME_BLE_UI_ECO_SHIFT_X                      (BATTERY_UI_ICON_GAP)
-#define BASE_PUMP_HOME_POWER_ECO_UI_X                          (0)
-#define BASE_PUMP_HOME_POWER_ECO_UI_Y                          (BATTERY_UI_ECO_Y)
 
 void battery_ui_init(ui_manager_context_t *thiz);
 void battery_ui_deinit(ui_manager_context_t *thiz);

@@ -166,7 +166,7 @@ static void home_screen_saver_hint_mask_update(void)
 
     home_screen_saver_hint_style_get(&style);
     ui_shine_prepare_from_text(&saver_info->hint_shine, &style,
-        HOME_SAVER_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0);
+        HOME_SAVER_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0, 0);
     ui_shine_update(&saver_info->hint_shine, saver_info->root, &style, saver_info->hint_text, 1);
 }
 

@@ -352,6 +352,9 @@ typedef struct {
 const static ui_popup_name_info_t ui_popup_name_infos[] = {
     { ID_POPUP_UI_PUMP_RUNING_30M_TIP, "pump Running 30 Minutes" },
     { ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP, "pump Rest Mode Cannot Adjust" },
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    { ID_POPUP_UI_LOW_POWER_START_TIP, "low power start tip" },
+#endif
 };
 
 const char *ui_popup_name_get(ui_manager_context_t *thiz, uint16_t popup_type)
@@ -371,6 +374,9 @@ uint16_t ui_popup_target_time_get(popup_ui_id_e type)
     switch (type) {
         case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
         case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        case ID_POPUP_UI_LOW_POWER_START_TIP:
+#endif
             return 3000;
         default:
             return 3000;

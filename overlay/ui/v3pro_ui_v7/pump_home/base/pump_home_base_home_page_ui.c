@@ -550,7 +550,7 @@ static void pump_home_main_hint_mask_update(pump_home_base_ui_info_t *info, bool
         info->main.hint_shine.mask_tick_ms = get_timestamp();
     }
     ui_shine_prepare_from_text(&info->main.hint_shine, &style,
-        PUMP_HOME_MAIN_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0);
+        PUMP_HOME_MAIN_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0, 0);
     ui_shine_update(&info->main.hint_shine, parent, &style, info->main.hint_text, 1);
     ui_shine_show(&info->main.hint_shine);
 }

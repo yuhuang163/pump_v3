@@ -25,6 +25,9 @@ static bool ui_popup_is_supported(popup_ui_id_e popup_type)
     switch (popup_type) {
         case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
         case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        case ID_POPUP_UI_LOW_POWER_START_TIP:
+#endif
             return true;
         default:
             return false;
@@ -47,6 +50,11 @@ static void ui_popup_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_t
         case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
             ui_popup_pump_rest_mode_adjust_tip_ui_update(thiz, popup_type);
             break;
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        case ID_POPUP_UI_LOW_POWER_START_TIP:
+            ui_popup_low_power_start_tip_ui_update(thiz, popup_type);
+            break;
+#endif
         default:
             break;
     }
@@ -138,9 +146,8 @@ void ui_popup_update(ui_manager_context_t *thiz,
         ui_popup_remove(thiz);
         ui_popup_prepare(thiz, parent, type);
         *ui_index = type;
-    } else {
-        ui_popup_process(thiz, type);
     }
+    ui_popup_process(thiz, type);
 
     /* 页面 chrome（模式页圆点/时间等）会 move_foreground，弹窗需始终置顶 */
     if (operation_info != NULL && operation_info->root.obj != NULL &&

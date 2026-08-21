@@ -162,6 +162,55 @@ static void airplane_mode_ui_display_remove(void *user_data)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+static uint8_t airplane_mode_battery_state_is_forbid_start(ui_proc_airplane_mode_t *proc)
+{
+    if (proc == NULL || proc->battery == NULL || proc->battery->get_battery_state == NULL) {
+        return 0;
+    }
+    return (proc->battery->get_battery_state() == BATTERY_STATE_FORBID_START) ? 1 : 0;
+}
+
+void airplane_mode_forbid_start_tip_sync(ui_proc_airplane_mode_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (!airplane_mode_battery_state_is_forbid_start(proc)) {
+        if (proc->popup_ui_type == ID_POPUP_UI_LOW_POWER_START_TIP) {
+            proc->popup_ui_type = ID_POPUP_UI_NONE;
+        }
+        return;
+    }
+    if (proc->current_ui_type == AIRPLANE_MODE_UI_TYPE_POWER_OFF_HOLD) {
+        return;
+    }
+    if (proc->current_ui_type != AIRPLANE_MODE_UI_TYPE_HOME) {
+        start_airplane_mode_ui(proc);
+        return;
+    }
+    proc->popup_ui_type = ID_POPUP_UI_LOW_POWER_START_TIP;
+}
+
+uint8_t airplane_mode_forbid_start_key_is_blocked(ui_proc_airplane_mode_t *proc,
+    uint16_t keycode, uint16_t keytype)
+{
+    if (!airplane_mode_battery_state_is_forbid_start(proc)) {
+        return 0;
+    }
+    if (proc->current_ui_type == AIRPLANE_MODE_UI_TYPE_POWER_OFF_HOLD) {
+        return 0;
+    }
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        return 0;
+    }
+    return 1;
+}
+#endif
+
 void start_airplane_mode_ui(ui_proc_airplane_mode_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
@@ -169,6 +218,9 @@ void start_airplane_mode_ui(ui_proc_airplane_mode_t *proc)
     proc->last_progress_ani_time = get_timestamp();
     proc->power_off_idle_time = get_timestamp();
     if (proc->current_ui_type == AIRPLANE_MODE_UI_TYPE_HOME) {
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        airplane_mode_forbid_start_tip_sync(proc);
+#endif
         return;
     }
     ui_play_info_t play_info = {
@@ -179,8 +231,11 @@ void start_airplane_mode_ui(ui_proc_airplane_mode_t *proc)
         .display_remove_cb = airplane_mode_ui_display_remove,
         .user_data = proc,
     };
-    ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = AIRPLANE_MODE_UI_TYPE_HOME;
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    airplane_mode_forbid_start_tip_sync(proc);
+#endif
+    ui->hook->ui_animation_play_init(ui, play_info);
 }
 
 void stop_airplane_mode_ui(ui_proc_airplane_mode_t *proc)
