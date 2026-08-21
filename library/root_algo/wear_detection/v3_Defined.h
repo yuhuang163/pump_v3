@@ -15,7 +15,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "1.0.0.1"
+#define V3_PRESSURE_ALGO_VERSION_STR    "2.0.0.0"
 
 // hardware parameters
 #define SAMPLE_RATE			(50)
@@ -50,34 +50,38 @@
 #define RAW_PUMP_POST_TAIL_POINTS	3 /* 每段结束后多采的原始压力点数（含 active->inactive 当前点） */
 #define RAW_PUMP_ACTIVE_CAP			128 /* 原始泵压力段最大缓存长度 */
 #define RAW_PUMP_SEG_MAX			(RAW_PUMP_ACTIVE_CAP + RAW_PUMP_POST_TAIL_POINTS)
-#define LONGYI_OR_SHIGUANG  0 //1: 龙一, 0: 时光
+#define LONGYI_OR_SHIGUANG  		2 	/* 2: 龙一-spectra; 1: 龙一, 0: 时光 */
 
-// target pressure for each level - v2.13
-static float EXPRESSION_THRESHOLD[] = { -6, -9.5, -12.5, -15, -17.5,
-											-19.5, -21.5, -23.5, -25.5, -27.5,
-											-29.5, -31.3, -32.9, -34.5, -36 };
-static float STIMULATION_THRESHOLD[] = { -6, -7.4,	-8.8, -10.2, -11.5,
-											-12.8, -14.1, -15.3, -16.5, -17.7,
-											-18.8, -19.9, -21, -22, -23 };
+/* target pressure for each level - v2.13 */
+/* TODO SPECTRA -- 20260801 - LONGYI*/
+static float EXPRESSION_THRESHOLD[] = { -5, -10, -15, -18, -21,
+											-24, -26, -28, -30, -32,
+											-34, -36, -38, -39, -40 };
+static float STIMULATION_THRESHOLD[] = { -6, -12,	-18, -23, -26};
+
+  
+/* mixed_threshold not used*/
 static float MIXED_THRESHOLD[] = { -4, -5, -6, -7.5, -11, -11, -16, -20,
 									   -25, -30, -35, -35, -40, -40, -40 };
 
-static float EXPRESSION_WORK_TIME[] = { 370, 404, 425, 440, 468,
-										  475, 490, 540, 548, 560,
-										  600, 620, 650, 685, 710 };
+static float EXPRESSION_WORK_TIME[] = { 300, 430, 520, 540, 559, 
+										638, 639, 636, 648, 643, 
+										641, 634, 644, 636, 638};
 
-static float STIMULATION_WORK_TIME[] = { 270, 245, 270, 270, 260,
-										  303, 290, 302, 285, 305,
-										  285, 305, 313, 340, 322 };
+static float STIMULATION_WORK_TIME[] = { 202, 202, 270, 320, 360};
 
-// unloaded threshold for wear detection 
-static float UNLOADED_EXPRESSION_THRESHOLD[] = { -4, -5, -6, -7.5, -11, -11, -16, -18,
-									   -18, -12, -35, -35, -40, -40, -40 };
-static float UNLOADED_STIMULATION_THRESHOLD[] = { -3, -3, -4, -5, -5.5, -5.5, -7, -8,
-									   -8, -9, -11, -12, -14, -15, -19 };
+/* unloaded threshold for wear detection */
+/* TODO */
+static float UNLOADED_EXPRESSION_THRESHOLD[] = { -2.5, -3.0, -10, -14.0, -16.0, 
+												-24.7, -29.2, -33.0, -36.0, -40.0, 
+												-45.0, -47.5, -52.5, -52.5, -55.0};
+static float UNLOADED_STIMULATION_THRESHOLD[] = {-3.5, -5.0, -12.0, -18.0, -24.2};
+
+/* mixed_threshold not used*/
 static float UNLOADED_MIXED_THRESHOLD[] = { -4, -5, -6, -7.5, -11, -11, -16, -18,
 									   -18, -12, -35, -35, -40, -40, -40 };
 
+/* realtime pwm adjustment --- not for this function*/
 static float expression_K_slope[] = { 0.9614, 0.3633, 0.5492, 0.6025, 0.0771,
 									0.0463, 0.1959, 0.2455, 0.0770, -0.0935,
 									 -0.0129, 0.0370, 0.0958, -0.0150, -0.0257 };
@@ -86,8 +90,10 @@ static float expression_intercep[] = { 0.8553, -4.6521, -4.7871, -5.0214, -17.60
 										-20.6986, -18.9113, -18.6675, -26.4728, -35.2280,
 										-35.4251, -35.3878, -34.7144, -41.3431, -42.9398 };
 
-///////////////////////////////////////////////////////from software
-/// 吸力状态
+
+/* from software, 吸力状态 */
+
+
 typedef enum {
 	SUCTION_STATUS_IDLE = 0,
 	SUCTION_STATUS_GENERATE,    /// 生成	泵开始工作
@@ -101,6 +107,18 @@ typedef enum {
 
 /////////////////////////////////////////////////////// for algorithm
 // pump_pressure_compensation
+
+
+/* 漏气分级 */
+typedef enum {
+	LEAKAGE_0 = 0,
+	LEAKAGE_PUMP,
+	LEAKAGE_SMALL,
+	LEAKAGE_MEDIUM,
+	LEAKAGE_LARGE,
+} leakage_status_e;
+
+
 
 typedef struct _GLOBAL_INFO
 {
