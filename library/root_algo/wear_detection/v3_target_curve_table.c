@@ -15,7 +15,304 @@
  * },
  */
 
-#if LONGYI_OR_SHIGUANG == 1
+#if LONGYI_OR_SHIGUANG == 2
+ //刺激L0
+static const float g_stim_0_60_p1[] =
+{ 0.0f };
+
+//刺激L1
+static const float g_stim_60_202_p1[] =
+{ 0.0f };
+
+//刺激L2
+static const float g_stim_120_202_p1[] =
+{ 0.0f };
+
+//刺激L3
+static const float g_stim_180_270_p1[] =
+{ 0.0f };
+
+//刺激L4
+static const float g_stim_230_320_p1[] =
+{ 0.0f };
+
+//刺激L5
+static const float g_stim_260_360_p1[] =
+{ 0.0f };
+
+
+//吸乳L0
+static const float g_expr_0_60_p1[] =
+{ 0.0f };
+
+//吸乳L1
+static const float g_expr_50_300_p1[] =
+{ 0.0f };
+
+//吸乳L2
+static const float g_expr_100_430_p1[] =
+{ 0.0f };
+
+//吸乳L3
+static const float g_expr_150_520_p1[] =
+{ 0.0f };
+
+//吸乳L4
+static const float g_expr_180_540_p1[] =
+{ 0.0f };
+
+//吸乳L5
+static const float g_expr_210_559_p1[] =
+{ 0.0f };
+
+//吸乳L6
+static const float g_expr_240_638_p1[] =
+{ 0.0f };
+
+//吸乳L7
+static const float g_expr_260_639_p1[] =
+{ 0.0f };
+
+//吸乳L8
+static const float g_expr_280_636_p1[] =
+{ 0.0f };
+
+//吸乳L9
+static const float g_expr_300_648_p1[] =
+{ 0.0f };
+
+//吸乳L10
+static const float g_expr_320_643_p1[] =
+{ 0.0f };
+
+//吸乳L11
+static const float g_expr_340_641_p1[] =
+{ 0.0f };
+
+//吸乳L12
+static const float g_expr_360_634_p1[] =
+{ 0.0f };
+
+//吸乳L13
+static const float g_expr_380_644_p1[] =
+{ 0.0f };
+
+//吸乳L14
+static const float g_expr_390_636_p1[] =
+{ 0.0f };
+
+//吸乳L15
+static const float g_expr_400_638_p1[] =
+{ 0.0f };
+
+
+/*    target_pressure; target_pump_time; target_pump_pressure; target_load_pressure; curve_len; *p1_curve;*/
+const STARGET_CURVE_ITEM g_target_curve_table[] =
+{
+    //刺激0
+   {
+       0u,
+       60u,
+       0.0f,
+       0.0f,
+       (unsigned short)(sizeof(g_stim_0_60_p1) / sizeof(g_stim_0_60_p1[0])),
+       g_stim_0_60_p1
+   },
+    //刺激1
+    {
+        6u,
+        202u,
+        -3.5f,
+        -6.0f,
+        (unsigned short)(sizeof(g_stim_60_202_p1) / sizeof(g_stim_60_202_p1[0])),
+        g_stim_60_202_p1
+    },
+    //刺激2
+    {
+        12u,
+        202u,
+        -5.0f,
+        -10.7f,
+        (unsigned short)(sizeof(g_stim_120_202_p1) / sizeof(g_stim_120_202_p1[0])),
+        g_stim_120_202_p1
+    },
+    //刺激3
+    {
+        18u,
+        270u,
+        -12.0f,
+        -16.0f,
+        (unsigned short)(sizeof(g_stim_180_270_p1) / sizeof(g_stim_180_270_p1[0])),
+        g_stim_180_270_p1
+    },
+    //刺激4
+    {
+        23u,
+        320u,
+        -18.0f,
+        -20.7f,
+        (unsigned short)(sizeof(g_stim_230_320_p1) / sizeof(g_stim_230_320_p1[0])),
+        g_stim_230_320_p1
+    },
+    //刺激5
+    {
+        26u,
+        360u,
+        -24.2f,
+        -28.0f,
+        (unsigned short)(sizeof(g_stim_260_360_p1) / sizeof(g_stim_260_360_p1[0])),
+        g_stim_260_360_p1
+    },
+
+    //吸乳L0
+    {
+        0u,
+        60u,
+        0.0f,
+        0.0f,
+        (unsigned short)(sizeof(g_expr_0_60_p1) / sizeof(g_expr_0_60_p1[0])),
+        g_expr_0_60_p1
+    },
+    //吸乳L1
+    {
+        5u,
+        300u,
+        -2.5f,
+        -5.0f,
+        (unsigned short)(sizeof(g_expr_50_300_p1) / sizeof(g_expr_50_300_p1[0])),
+        g_expr_50_300_p1
+    },
+    //吸乳L2
+    {
+        10u,
+        430u,
+        -3.0f,
+        -9.0f,
+        (unsigned short)(sizeof(g_expr_100_430_p1) / sizeof(g_expr_100_430_p1[0])),
+        g_expr_100_430_p1
+    },
+    //吸乳L3
+    {
+        15u,
+        520u,
+        -8.3f,
+        -14.0f,
+        (unsigned short)(sizeof(g_expr_150_520_p1) / sizeof(g_expr_150_520_p1[0])),
+        g_expr_150_520_p1
+    }
+    ,
+    //吸乳L4
+    {
+        18u,
+        540u,
+        -14.5f,
+        -15.57f,
+        (unsigned short)(sizeof(g_expr_180_540_p1) / sizeof(g_expr_180_540_p1[0])),
+        g_expr_180_540_p1
+    },
+    //吸乳L5
+    {
+        21u,
+        559u,
+        -17.2f,
+        -18.5f,
+        (unsigned short)(sizeof(g_expr_210_559_p1) / sizeof(g_expr_210_559_p1[0])),
+        g_expr_210_559_p1
+    }
+    ,
+    //吸乳L6
+    {
+        24u,
+        638u,
+        -24.7f,
+        -20.0f,
+        (unsigned short)(sizeof(g_expr_240_638_p1) / sizeof(g_expr_240_638_p1[0])),
+        g_expr_240_638_p1
+    },
+    //吸乳L7
+    {
+        26u,
+        639u,
+        -29.2f,
+        -24.2f,
+        (unsigned short)(sizeof(g_expr_260_639_p1) / sizeof(g_expr_260_639_p1[0])),
+        g_expr_260_639_p1
+    },
+    //吸乳L8
+    {
+        28u,
+        636u,
+        -33.0f,
+        -27.0f,
+        (unsigned short)(sizeof(g_expr_280_636_p1) / sizeof(g_expr_280_636_p1[0])),
+        g_expr_280_636_p1
+    },
+    //吸乳L9
+    {
+        30u,
+        648u,
+        -36.0f,
+        -27.1f,
+        (unsigned short)(sizeof(g_expr_300_648_p1) / sizeof(g_expr_300_648_p1[0])),
+        g_expr_300_648_p1
+    },
+    //吸乳L10
+    {
+        32u,
+        643u,
+        -40.0f,
+        -30.2f,
+        (unsigned short)(sizeof(g_expr_320_643_p1) / sizeof(g_expr_320_643_p1[0])),
+        g_expr_320_643_p1
+    },
+    //吸乳L11
+    {
+        34u,
+        641u,
+        -45.0f,
+        -30.0f,
+        (unsigned short)(sizeof(g_expr_340_641_p1) / sizeof(g_expr_340_641_p1[0])),
+        g_expr_340_641_p1
+    },
+    //吸乳L12
+    {
+        36u,
+        634u,
+        -47.5f,
+        -34.6f,
+        (unsigned short)(sizeof(g_expr_360_634_p1) / sizeof(g_expr_360_634_p1[0])),
+         g_expr_360_634_p1
+    },
+    //吸乳L13
+    {
+        38u,
+        644u,
+        -52.5f,
+        -39.5f,
+        (unsigned short)(sizeof(g_expr_380_644_p1) / sizeof(g_expr_380_644_p1[0])),
+        g_expr_380_644_p1
+    },
+    //吸乳L14
+    {
+        39u,
+        636u,
+        -52.5f,
+        -37.5f,
+        (unsigned short)(sizeof(g_expr_390_636_p1) / sizeof(g_expr_390_636_p1[0])),
+        g_expr_390_636_p1
+    },
+    //吸乳L15
+    {
+        40u,
+        638u,
+        -55.0f,
+        -39.0f,
+        (unsigned short)(sizeof(g_expr_400_638_p1) / sizeof(g_expr_400_638_p1[0])),
+        g_expr_400_638_p1
+    },
+    { 0u, 0u, 0.0f, 0.0f, 0u, 0 }
+};
+#elif LONGYI_OR_SHIGUANG == 1
 //刺激L0
 static const float g_stim_0_60_p1[] =
 {0.0f};
@@ -444,7 +741,7 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     },
     { 0u, 0u, 0.0f, 0.0f, 0u, 0 }
 };
-#else
+#elif
 //刺激L0
 static const float g_stim_0_60_p1[] =
 {0.0f};
