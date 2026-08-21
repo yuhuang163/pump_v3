@@ -107,16 +107,31 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
         if (led->hook->set_night_light_switch) {
             led->hook->set_night_light_switch(led, status->night_light_switch);
         }
-    } else if (led->hook->get_night_light_gear &&
-               status->night_light_gear != (uint8_t)led->hook->get_night_light_gear(led)) {
+    }
+    if (led->hook->get_night_light_gear &&
+        status->night_light_gear != (uint8_t)led->hook->get_night_light_gear(led)) {
         if (led->hook->set_night_light_gear) {
             led->hook->set_night_light_gear(led, status->night_light_gear);
+        }
+
+        /// 如果夜灯关闭时，APP端调节夜灯档位，设备端应当打开夜灯
+        if (led->hook->get_night_light_switch &&
+            led->hook->get_night_light_switch(led) == 0) {
+            if (led->hook->set_night_light_switch) {
+                led->hook->set_night_light_switch(led, 1);
+            }
         }
     }
 #endif
 
     if (led->hook->get_key_backlight_level &&
         status->screen_key_level != (uint8_t)led->hook->get_key_backlight_level(led)) {
+        // 用户手动调节屏幕/按键亮度时，关闭对应通道的自适应调节
+        // （按键和屏幕背光自适应共用 key_backlight_adaptive_dimming_switch）
+        // 下次开机时由全局总开关（Flash 持久化）恢复子开关状态
+        if (led->hook->set_key_backlight_adaptive_dimming_switch) {
+            led->hook->set_key_backlight_adaptive_dimming_switch(led, 0);
+        }
         if (ui && ui->hook && ui->hook->set_ui_backlight_level) {
             ui->hook->set_ui_backlight_level(ui, status->screen_key_level);
         }

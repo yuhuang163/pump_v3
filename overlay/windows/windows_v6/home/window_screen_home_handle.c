@@ -275,7 +275,6 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
         return;
     }
 
-
     LOG_WM("ignore key event.");
 }
 

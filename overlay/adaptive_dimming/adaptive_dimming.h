@@ -24,13 +24,16 @@ extern "C" {
 #ifndef ADAP_DIM_DIM_LUX_FAST_PATH
 #define ADAP_DIM_DIM_LUX_FAST_PATH              (1)
 #endif
-/// 屏/键背光 ALS：lux 分段阈值（与夜灯 ADAP_DIM_NL_LUX_THR_* 独立，勿混用）
+/// 屏/键背光 ALS：lux 分段阈值默认值（运行时由工厂 calib[0..3] 覆盖，无效时回退）
 #define ADAP_DIM_LUX_MAX                        1500u
 #define ADAP_DIM_LUX_THR_VDARK                  30u
 #define ADAP_DIM_LUX_THR_DARK                   145u
 #define ADAP_DIM_LUX_THR_MEDIUM                 312u
 #define ADAP_DIM_LUX_THR_BRIGHT                 839u
-
+/// 工厂光感校准表中用作分段阈值的点数（calib[0..3]，calib[4] 预留）
+#define ADAP_DIM_LUX_CALIB_THR_POINTS           4
+/// 产测 S2：写完最后一个阈值点（point == 本宏）后再 reload 生效
+#define ADAP_DIM_LUX_CALIB_THR_RELOAD_POINT     (ADAP_DIM_LUX_CALIB_THR_POINTS - 1)
 
 /// 屏/键背光 lux→duty knots（adaptive_dimming.c / s_back_lux_duty_knots）
 #define ADAP_DIM_LED_LEVEL1_MIN                 26u  /// 对应PWM表5%位置
@@ -115,6 +118,8 @@ typedef struct {
 */
 void adaptive_dimming_init(void);
 
+/// 从工厂存储重载 calib[0..3] 到运行时阈值并重建 knots（产测写齐后 / 调试热生效）
+int adaptive_dimming_lux_thr_reload_from_factory(void);
 
 /// 最近一次 EMA 滤波后的 lux（供夜灯开灯时立即对齐背光目标）
 uint16_t adaptive_dimming_get_filtered_lux(void);
@@ -123,11 +128,11 @@ uint16_t adaptive_dimming_get_filtered_lux(void);
 
 /// 夜灯 ALS 曲线 pwm_table[] 索引
 #define ADAP_DIM_NL_PWM_IDX_OFF                    0
-#define ADAP_DIM_NL_PWM_IDX_L1                     35u
-#define ADAP_DIM_NL_PWM_IDX_L2                     75u
-#define ADAP_DIM_NL_PWM_IDX_L3                     90u
+#define ADAP_DIM_NL_PWM_IDX_L1                     25u
+#define ADAP_DIM_NL_PWM_IDX_L2                     45u
+#define ADAP_DIM_NL_PWM_IDX_L3                     65u
 
-/// adc(mV) → pwm_table[] 索引（s_nl_adc_duty_knots 插值；adc >= ADAP_DIM_LUX_THR_MEDIUM 返回 OFF）
+/// adc/lux → pwm_table[] 索引（s_nl_adc_duty_knots 插值；lux >= 运行时 medium thr 返回 OFF）
 uint8_t adaptive_dimming_night_light_duty_from_lux(uint16_t lux_avg);
 
 /// 夜灯 ALS 路径开启（由 led_hook 在 turn_on 时调用，内部处理缓存失效与立即推送）

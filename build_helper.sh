@@ -436,6 +436,25 @@ build_resource_bin_dirs() {
 			fi
 			;;
 		V7)
+			# V7：V3Pro 优先 bin/v3pro_res_v7，否则 bin/v3_res_v7
+			if [[ "$product_family" == "V3Pro" ]]; then
+				RESOURCE_BIN_DIRS+=(
+					"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v7"
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v7"
+				)
+			else
+				RESOURCE_BIN_DIRS+=(
+					"$PROJECT_DIR/overlay/resources/bin/v3_res_v7"
+				)
+			fi
+			;;
+		V3PRO_V7)
+			RESOURCE_BIN_DIRS+=(
+				"$PROJECT_DIR/overlay/resources/bin/v3pro_res_v7"
+				"$PROJECT_DIR/overlay/resources/bin/v3_res_v7"
+			)
+			;;
+		V3_V7)
 			RESOURCE_BIN_DIRS+=(
 				"$PROJECT_DIR/overlay/resources/bin/v3_res_v7"
 			)
@@ -775,7 +794,7 @@ do_rename_and_archive() {
 	# V4 资源：bin/v3_res_v4 或 bin/v3pro_res_v4（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
 	# V5 资源：bin/v3_res_v5 或 bin/v3pro_res_v5（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
 	# V6 资源：bin/v3_res_v6 或 bin/v3pro_res_v6（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs）
-	# V7 资源：bin/v3_res_v7（优先 base/*_RES_base.bin）
+	# V7 资源：bin/v3_res_v7 或 bin/v3pro_res_v7（由 ROOT_RES_PATH / 产品族决定，见 build_resource_bin_dirs；优先 base/*_RES_base.bin）
 	# ROOT_RES_VERSION 定义为 major*100 + minor（随 ROOT_UI_VERSION：V2->102, ..., V6->106, V7->107）
 	local res_path res_version res_major res_minor res_major2 res_minor2 res_dir res_file res_source_dir
 	local res_lookup_dir
