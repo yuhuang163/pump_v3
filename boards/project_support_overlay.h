@@ -115,7 +115,7 @@ extern "C" {
 #define IS_SUPPORT_MODULE_RES                            (1)
 /// 支持自适应背光  
 #define IS_SUPPORT_ADAPTIVE_DIMMING                      (1)
-/// 设备端电源键 toggle 夜灯（暂关，保留 hook 接口供后续启用）
+/// 设备端电源键 toggle 夜灯（泵奶页 sync / 旧 UI home；V7 home 仍以开泵优先）
 #ifndef IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
 #define IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE             (0)
 #endif
