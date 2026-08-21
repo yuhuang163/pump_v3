@@ -492,6 +492,13 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    if (pump_forbid_start_key_is_blocked(proc, keycode, keytype)) {
+        LOG_WM("forbid start, ignore key event. code:%d type:%d", keycode, keytype);
+        pump_forbid_start_tip_sync(proc);
+        return 0;
+    }
+#endif
     if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
         LOG_WM("pump finish ui, ignore key event. type:%d code:%d", keytype, keycode);
         return 0;
@@ -565,17 +572,6 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
 
-    #if IS_SUPPORT_PUMP_MANUAL_END
-    if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
-        pump_stop_hold_key_long_2s_handler(proc);
-        return 0;
-    } 
-
-    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
-        pump_stop_hold_key_up_handler(proc);
-        return 0;
-    }
-    #else
     if (keytype == KEY_EVENT_LONG_2S &&
         (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
         pump_power_off_hold_key_long_2s_handler(proc);
@@ -587,7 +583,6 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         pump_power_off_hold_key_up_handler(proc);
         return 0;
     }
-    #endif
 
     if (PUMP_BOTH_CONTROL_LONG_PRESS(keytype) && keycode == KEY_CODE_BOTH_CONTROL) {
         /// 长按 L+R（2~10s）：与短按一致，进入/退出双边力度调节
@@ -793,9 +788,12 @@ static void on_pump_window_battery_state_change_cb(void *user_data, battery_stat
     }
 
 #if IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP
-    if (info->battery_state == BATTERY_STATE_EMPTY || 
-        info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
-        info->battery_state == BATTERY_STATE_FORBID_START) {
+    if (info->battery_state == BATTERY_STATE_EMPTY ||
+        info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN
+#if !IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        || info->battery_state == BATTERY_STATE_FORBID_START
+#endif
+        ) {
         if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
             proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT &&
             proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
@@ -806,6 +804,9 @@ static void on_pump_window_battery_state_change_cb(void *user_data, battery_stat
             return;
         }
     }
+#endif
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    pump_forbid_start_tip_sync(proc);
 #endif
 }
 
@@ -821,6 +822,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             on_pump_ui_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_pump_window_battery_state_change_cb);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        pump_forbid_start_tip_sync(proc);
+#endif
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         proc->current_ui_type = PUMP_UI_TYPE_NONE;

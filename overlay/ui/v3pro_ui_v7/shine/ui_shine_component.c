@@ -111,7 +111,7 @@ void ui_shine_prepare_from_tip(ui_shine_info_t *info, const ui_shine_style_t *st
 }
 
 void ui_shine_prepare_from_text(ui_shine_info_t *info, const ui_shine_style_t *style,
-    const char *text, const lv_font_t *font, int32_t letter_space)
+    const char *text, const lv_font_t *font, int32_t letter_space, int32_t line_space)
 {
     lv_draw_buf_t *text_buf;
 
@@ -121,7 +121,7 @@ void ui_shine_prepare_from_text(ui_shine_info_t *info, const ui_shine_style_t *s
         return;
     }
 
-    text_buf = ui_tip_shine_text_buf_create(text, font, letter_space);
+    text_buf = ui_tip_shine_text_buf_create(text, font, letter_space, line_space);
     if (text_buf == NULL) {
         return;
     }

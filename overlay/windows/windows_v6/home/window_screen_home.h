@@ -212,6 +212,9 @@ typedef struct {
     uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
     uint8_t both_control_long_acted; /// 本次 L+R 长按已处理进入/退出，忽略同一次按住的后续 LONG_xS
 
+    /// 电池状态（由电池回调更新，首页提示文案读取，不轮询电量）
+    uint8_t hint_low_bat; /// 1=BATTERY_STATE_LOW_POWER_RUN，显示第二套提示文案
+
     /// 子页导航栈（回历史页 / 回首页）
     home_ui_nav_t ui_nav;
 } ui_proc_home_t;
@@ -266,6 +269,10 @@ void home_speed_adjust_ui_dismiss(ui_proc_home_t *proc);
 
 /// 弹窗类型更新
 void home_popup_ui_type_update(ui_proc_home_t *proc, popup_ui_id_e type);
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+void home_forbid_start_tip_sync(ui_proc_home_t *proc);
+uint8_t home_forbid_start_key_is_blocked(ui_proc_home_t *proc, uint16_t keycode, uint16_t keytype);
+#endif
 
 /// 子模式（刺激/吸乳/混合/放松）同步：力度/速度页共用
 uint8_t home_sub_mode_type_get(ui_proc_home_t *proc);

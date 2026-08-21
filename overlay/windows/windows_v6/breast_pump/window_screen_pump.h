@@ -296,6 +296,10 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc);
 void pump_complete_event_handler(ui_proc_pump_t *proc);
 /// 弹窗类型更新
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type);
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+void pump_forbid_start_tip_sync(ui_proc_pump_t *proc);
+uint8_t pump_forbid_start_key_is_blocked(ui_proc_pump_t *proc, uint16_t keycode, uint16_t keytype);
+#endif
 /// 暂停态 start 按键灯 1Hz 闪烁 tick（仅 LED，不同步 UI）
 void pump_pause_led_tick(ui_proc_pump_t *proc);
 

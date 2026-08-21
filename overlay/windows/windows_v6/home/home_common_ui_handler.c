@@ -175,6 +175,54 @@ void home_popup_ui_type_update(ui_proc_home_t *proc, popup_ui_id_e type)
     proc->popup_ui_type = type;
 }
 
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+static uint8_t home_battery_state_is_forbid_start(ui_proc_home_t *proc)
+{
+    if (proc == NULL || proc->battery == NULL || proc->battery->get_battery_state == NULL) {
+        return 0;
+    }
+    return (proc->battery->get_battery_state() == BATTERY_STATE_FORBID_START) ? 1 : 0;
+}
+
+void home_forbid_start_tip_sync(ui_proc_home_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (!home_battery_state_is_forbid_start(proc)) {
+        if (proc->popup_ui_type == ID_POPUP_UI_LOW_POWER_START_TIP) {
+            home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+        }
+        return;
+    }
+    if (proc->current_ui_type == HOME_UI_TYPE_POWER_OFF_HOLD) {
+        return;
+    }
+    if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
+        start_home_ui_animation(proc);
+        return;
+    }
+    home_popup_ui_type_update(proc, ID_POPUP_UI_LOW_POWER_START_TIP);
+}
+
+uint8_t home_forbid_start_key_is_blocked(ui_proc_home_t *proc, uint16_t keycode, uint16_t keytype)
+{
+    if (!home_battery_state_is_forbid_start(proc)) {
+        return 0;
+    }
+    if (proc->current_ui_type == HOME_UI_TYPE_POWER_OFF_HOLD) {
+        return 0;
+    }
+    if (keytype == KEY_EVENT_LONG_2S &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        return 0;
+    }
+    if (keytype == KEY_EVENT_UP &&
+        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        return 0;
+    }
+    return 1;
+}
+#endif
+
 
 void home_ui_change_hdr_remove(ui_proc_home_t *proc)
 {

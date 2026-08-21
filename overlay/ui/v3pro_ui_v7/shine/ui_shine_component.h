@@ -75,7 +75,7 @@ void ui_shine_prepare_from_tip(ui_shine_info_t *info, const ui_shine_style_t *st
  * 从字库文案栅格后准备（临时 text buf 用完即销毁）。
  */
 void ui_shine_prepare_from_text(ui_shine_info_t *info, const ui_shine_style_t *style,
-    const char *text, const lv_font_t *font, int32_t letter_space);
+    const char *text, const lv_font_t *font, int32_t letter_space, int32_t line_space);
 
 /**
  * 创建/刷新 mask+shine；content 为 tip_img 或 hint_text（取其 x/y 对齐）。

@@ -47,6 +47,11 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
         case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
             LOG_WM("pump rest mode adjust tip popup dismissed.");
             break;
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        case ID_POPUP_UI_LOW_POWER_START_TIP:
+            LOG_WM("low power start tip popup dismissed.");
+            break;
+#endif
         default:
             break;
     }
@@ -110,16 +115,18 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
     proc->last_progress_ani_time = get_timestamp();
     /* 不在此清 ui_mode_page_index：力度/速度调节退出需回到进入前的模式页 */
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        pump_forbid_start_tip_sync(proc);
+#endif
         return;
-    } else {
-        pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
-        pump_ui_change_hdr_remove(proc);
     }
- 
-    int res_theme_type = RES_THEME_TYPE_BASE;
-    if (ui->priv.res) {
-        res_theme_type = ui->priv.res->get_sys_theme_type();
-    }
+
+    pump_ui_change_hdr_remove(proc);
+    pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+    proc->current_ui_type = PUMP_UI_TYPE_HOME;
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    pump_forbid_start_tip_sync(proc);
+#endif
 
     ui_play_info_t play_info = {
         .tag = "pump_home_screen",
@@ -130,7 +137,6 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
         .user_data = proc,
     };
     ui->hook->ui_animation_play_init(ui, play_info);
-    proc->current_ui_type = PUMP_UI_TYPE_HOME;
 }
 
 void switch_pump_status_ui(ui_proc_pump_t *proc)

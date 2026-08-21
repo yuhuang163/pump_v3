@@ -252,20 +252,118 @@ void ui_tip_shine_buf_destroy(lv_draw_buf_t *shine)
     lv_draw_buf_destroy(shine);
 }
 
+static const char *ui_tip_shine_text_line_end(const char *text)
+{
+    const char *p = text;
+
+    while (*p != '\0' && *p != '\n') {
+        p++;
+    }
+    return p;
+}
+
+static int32_t ui_tip_shine_text_line_width(const char *line, const char *line_end,
+    const lv_font_t *font, int32_t letter_space)
+{
+    const char *p = line;
+    int32_t width = 0;
+
+    while (p < line_end) {
+        uint32_t letter;
+        uint32_t letter_next;
+        lv_font_glyph_dsc_t g;
+
+        if (*p == '\r') {
+            p++;
+            continue;
+        }
+        letter = (uint8_t)*p;
+        p++;
+        letter_next = 0U;
+        if (p < line_end && *p != '\r') {
+            letter_next = (uint8_t)*p;
+        }
+        if (lv_font_get_glyph_dsc(font, &g, letter, letter_next)) {
+            width += (int32_t)g.adv_w + letter_space;
+        }
+    }
+    return width;
+}
+
+static void ui_tip_shine_text_blit_glyph(lv_draw_buf_t *out, lv_draw_buf_t **glyph_a8,
+    const lv_font_t *font, lv_font_glyph_dsc_t *g, int32_t pos_x, int32_t pos_y)
+{
+    lv_draw_buf_t *shaped;
+    const lv_draw_buf_t *bm;
+    int32_t dx;
+    int32_t dy;
+    int32_t gy;
+    int32_t gx;
+
+    if (out == NULL || glyph_a8 == NULL || *glyph_a8 == NULL || font == NULL || g == NULL) {
+        return;
+    }
+    if (g->box_w == 0U || g->box_h == 0U) {
+        return;
+    }
+
+    shaped = lv_draw_buf_reshape(*glyph_a8, LV_COLOR_FORMAT_A8, g->box_w, g->box_h, LV_STRIDE_AUTO);
+    if (shaped == NULL) {
+        return;
+    }
+    *glyph_a8 = shaped;
+    bm = lv_font_get_glyph_bitmap(g, *glyph_a8);
+    if (bm == NULL || bm->data == NULL) {
+        return;
+    }
+
+    dx = pos_x + g->ofs_x;
+    dy = pos_y + (int32_t)(font->line_height - font->base_line) - (int32_t)g->box_h - g->ofs_y;
+    for (gy = 0; gy < (int32_t)g->box_h; gy++) {
+        int32_t y = dy + gy;
+        const uint8_t *src;
+        lv_color32_t *dst;
+
+        if (y < 0 || (uint32_t)y >= out->header.h) {
+            continue;
+        }
+        src = bm->data + (uint32_t)gy * bm->header.stride;
+        dst = (lv_color32_t *)(out->data + (uint32_t)y * out->header.stride);
+        for (gx = 0; gx < (int32_t)g->box_w; gx++) {
+            int32_t x = dx + gx;
+            uint8_t a;
+
+            if (x < 0 || (uint32_t)x >= out->header.w) {
+                continue;
+            }
+            a = src[gx];
+            if (a == 0U) {
+                continue;
+            }
+            if (a >= dst[x].alpha) {
+                dst[x].red = 0xFF;
+                dst[x].green = 0xFF;
+                dst[x].blue = 0xFF;
+                dst[x].alpha = a;
+            }
+        }
+    }
+}
+
 lv_draw_buf_t *ui_tip_shine_text_buf_create(const char *text, const lv_font_t *font,
-    int32_t letter_space)
+    int32_t letter_space, int32_t line_space)
 {
     lv_point_t size;
     lv_draw_buf_t *out;
     lv_draw_buf_t *glyph_a8;
-    int32_t pos_x;
-    uint32_t i;
+    const char *p;
+    int32_t pos_y;
 
     if (text == NULL || font == NULL) {
         return NULL;
     }
 
-    lv_text_get_size(&size, text, font, letter_space, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    lv_text_get_size(&size, text, font, letter_space, line_space, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
     if (size.x <= 0 || size.y <= 0) {
         return NULL;
     }
@@ -290,73 +388,47 @@ lv_draw_buf_t *ui_tip_shine_text_buf_create(const char *text, const lv_font_t *f
         return NULL;
     }
 
-    pos_x = 0;
-    i = 0;
-    while (text[i] != '\0') {
-        uint32_t letter = (uint8_t)text[i];
-        uint32_t letter_next = (uint8_t)text[i + 1];
-        lv_font_glyph_dsc_t g;
-        int32_t dx;
-        int32_t dy;
-        int32_t gy;
-        int32_t gx;
+    p = text;
+    pos_y = 0;
+    while (*p != '\0') {
+        const char *line_end = ui_tip_shine_text_line_end(p);
+        int32_t line_w = ui_tip_shine_text_line_width(p, line_end, font, letter_space);
+        int32_t pos_x = (size.x - line_w) / 2;
 
-        i++;
-        if (letter == 0U) {
-            break;
-        }
-        if (!lv_font_get_glyph_dsc(font, &g, letter, letter_next)) {
-            continue;
+        if (pos_x < 0) {
+            pos_x = 0;
         }
 
-        if (g.box_w > 0U && g.box_h > 0U) {
-            lv_draw_buf_t *shaped = lv_draw_buf_reshape(glyph_a8, LV_COLOR_FORMAT_A8,
-                g.box_w, g.box_h, LV_STRIDE_AUTO);
-            const lv_draw_buf_t *bm;
+        while (p < line_end) {
+            uint32_t letter;
+            uint32_t letter_next;
+            lv_font_glyph_dsc_t g;
 
-            if (shaped == NULL) {
-                lv_font_glyph_release_draw_data(&g);
-                pos_x += (int32_t)g.adv_w + letter_space;
+            if (*p == '\r') {
+                p++;
                 continue;
             }
-            glyph_a8 = shaped;
-            bm = lv_font_get_glyph_bitmap(&g, glyph_a8);
-            if (bm != NULL && bm->data != NULL) {
-                dx = pos_x + g.ofs_x;
-                dy = (int32_t)(font->line_height - font->base_line) - (int32_t)g.box_h - g.ofs_y;
-                for (gy = 0; gy < (int32_t)g.box_h; gy++) {
-                    int32_t y = dy + gy;
-                    const uint8_t *src;
-                    lv_color32_t *dst;
-
-                    if (y < 0 || (uint32_t)y >= out->header.h) {
-                        continue;
-                    }
-                    src = bm->data + (uint32_t)gy * bm->header.stride;
-                    dst = (lv_color32_t *)(out->data + (uint32_t)y * out->header.stride);
-                    for (gx = 0; gx < (int32_t)g.box_w; gx++) {
-                        int32_t x = dx + gx;
-                        uint8_t a;
-
-                        if (x < 0 || (uint32_t)x >= out->header.w) {
-                            continue;
-                        }
-                        a = src[gx];
-                        if (a == 0U) {
-                            continue;
-                        }
-                        if (a >= dst[x].alpha) {
-                            dst[x].red = 0xFF;
-                            dst[x].green = 0xFF;
-                            dst[x].blue = 0xFF;
-                            dst[x].alpha = a;
-                        }
-                    }
-                }
+            letter = (uint8_t)*p;
+            p++;
+            letter_next = 0U;
+            if (p < line_end && *p != '\r') {
+                letter_next = (uint8_t)*p;
             }
+            if (!lv_font_get_glyph_dsc(font, &g, letter, letter_next)) {
+                continue;
+            }
+            ui_tip_shine_text_blit_glyph(out, &glyph_a8, font, &g, pos_x, pos_y);
             lv_font_glyph_release_draw_data(&g);
+            pos_x += (int32_t)g.adv_w + letter_space;
         }
-        pos_x += (int32_t)g.adv_w + letter_space;
+
+        if (*p == '\r') {
+            p++;
+        }
+        if (*p == '\n') {
+            p++;
+            pos_y += (int32_t)font->line_height + line_space;
+        }
     }
 
     lv_draw_buf_destroy(glyph_a8);

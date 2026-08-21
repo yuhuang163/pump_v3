@@ -31,8 +31,13 @@ static void power_off_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_power_off_t *proc = (ui_proc_power_off_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
-    ui_display_power_off_process(ui, proc->extra.arg1 == PM_POWER_OFF_TYPE_AUTO ? 
-        POWER_OFF_TEXT_AUTO_SHUT_OFF : POWER_OFF_TEXT_POWERING_OFF);
+    power_off_text_type_e text_type = POWER_OFF_TEXT_POWERING_OFF;
+    if (proc->extra.arg1 == PM_POWER_OFF_TYPE_AUTO) {
+        text_type = POWER_OFF_TEXT_AUTO_SHUT_OFF;
+    } else if (proc->extra.arg1 == PM_POWER_OFF_TYPE_LOW_POWER) {
+        text_type = POWER_OFF_TEXT_LOW_POWER;
+    }
+    ui_display_power_off_process(ui, text_type);
 }
 
 static void power_off_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)
@@ -162,6 +167,20 @@ void power_off_handle(ui_proc_power_off_t *proc)
 
 void start_power_off_ui_animation(ui_proc_power_off_t *proc)
 {
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+    uint8_t battery_state = BATTERY_STATE_NONE;
+    if (proc->battery) {
+        battery_state = proc->battery->get_battery_state();
+    }
+    
+    if ((battery_state == BATTERY_STATE_FORBID_START ||
+        battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+        battery_state == BATTERY_STATE_EMPTY) && 
+        proc->extra.arg1 == PM_POWER_OFF_TYPE_AUTO) {
+        proc->extra.arg1 = PM_POWER_OFF_TYPE_LOW_POWER;
+    }
+    LOG_WM("battery state: %d, power off type: %d", battery_state, proc->extra.arg1);
+#endif
     show_power_off_ui(proc);
     POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, POWER_OFF_DELAY_TIME, proc, POWER_OFF_TASK_NAME);
 }

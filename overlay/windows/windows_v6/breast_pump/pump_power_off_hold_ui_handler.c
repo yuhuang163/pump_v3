@@ -124,6 +124,9 @@ void pump_power_off_hold_dismiss(ui_proc_pump_t *proc)
     proc->power_off_hold_holding = 0;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_POWER_OFF_HOLD_COMPLETE_TASK_NAME);
     pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HISTORY);
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    pump_forbid_start_tip_sync(proc);
+#endif
 }
 
 void pump_power_off_hold_key_long_2s_handler(ui_proc_pump_t *proc)

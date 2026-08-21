@@ -22,6 +22,9 @@
 
 #define POWER_OFF_TEXT_POWERING_OFF_STR         "Powering off..."
 #define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR        "Auto Powering Off..."
+#define POWER_OFF_TEXT_LOW_POWER_STR            "Battery to low to\npower off..."
+#define PROGRESS_ARC_Y                          (121)
+#define POWER_OFF_TEXT_LOW_POWER_SHIFT_Y        (19)    /* 低电双行文案时整体上移 */
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -107,6 +110,9 @@ static const char *ui_power_off_text_get(power_off_text_type_e text_type)
     if (text_type == POWER_OFF_TEXT_AUTO_SHUT_OFF) {
         return POWER_OFF_TEXT_AUTO_SHUT_OFF_STR;
     }
+    if (text_type == POWER_OFF_TEXT_LOW_POWER) {
+        return POWER_OFF_TEXT_LOW_POWER_STR;
+    }
     return POWER_OFF_TEXT_POWERING_OFF_STR;
 }
 
@@ -126,7 +132,11 @@ static void ui_power_off_update(ui_manager_context_t *thiz, power_off_text_type_
     lv_obj_set_style_arc_color(ui_info->progress_arc, lv_color_hex(PROGRESS_ARC_COLOR), LV_PART_INDICATOR);
     lv_obj_set_style_arc_width(ui_info->progress_arc, PROGRESS_ARC_WIDTH, LV_PART_INDICATOR);
     lv_obj_set_style_arc_opa(ui_info->progress_arc, LV_OPA_COVER, LV_PART_INDICATOR);
-    lv_obj_align(ui_info->progress_arc, LV_ALIGN_TOP_MID, 0, 121);
+    int16_t arc_y = PROGRESS_ARC_Y;
+    if (text_type == POWER_OFF_TEXT_LOW_POWER) {
+        arc_y -= POWER_OFF_TEXT_LOW_POWER_SHIFT_Y;
+    }
+    lv_obj_align(ui_info->progress_arc, LV_ALIGN_TOP_MID, 0, arc_y);
     lv_obj_remove_style(ui_info->progress_arc, NULL, LV_PART_KNOB);
     if (ui_info->start_time == 0) {
         ui_info->start_time = get_timestamp();

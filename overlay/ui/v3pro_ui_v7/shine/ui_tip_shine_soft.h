@@ -45,11 +45,11 @@ void ui_tip_shine_apply_profile(lv_draw_buf_t *shine, const uint8_t *alpha_orig,
 void ui_tip_shine_buf_destroy(lv_draw_buf_t *shine);
 
 /**
- * 将字库文案栅格为白色 ARGB8888（alpha=字形覆盖）。失败返回 NULL。
- * 用于主页 hint 等无 tip PNG、需与 tip 相同 CPU 软边扫光的场景。
+ * 将字库文案栅格为白色 ARGB8888（alpha=字形覆盖）。支持换行并按行居中。
+ * 失败返回 NULL。用于主页 hint 等无 tip PNG、需与 tip 相同 CPU 软边扫光的场景。
  */
 lv_draw_buf_t *ui_tip_shine_text_buf_create(const char *text, const lv_font_t *font,
-    int32_t letter_space);
+    int32_t letter_space, int32_t line_space);
 
 #ifdef __cplusplus
 }

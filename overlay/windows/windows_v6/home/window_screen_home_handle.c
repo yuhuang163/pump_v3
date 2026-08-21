@@ -275,24 +275,6 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
         return;
     }
 
-#if IS_SUPPORT_NIGHT_LIGHT
-    if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
-        uint8_t battery_state = proc->battery->get_battery_state();
-        if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-            battery_state == BATTERY_STATE_EMPTY ||
-            battery_state == BATTERY_STATE_FORBID_START) {
-            LOG_WM("battery state is low, ignore power key event.");
-            return;
-        }
-        
-#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
-        if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-            proc->led->hook->toggle_night_light(proc->led);
-        }
-        return;
-#endif
-    }
-#endif
     LOG_WM("ignore key event.");
 }
 
@@ -399,6 +381,13 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
     LOG_WM("keyevent: %d, %d", keycode, keytype);
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    if (home_forbid_start_key_is_blocked(proc, keycode, keytype)) {
+        LOG_WM("forbid start, ignore key event. code:%d type:%d", keycode, keytype);
+        home_forbid_start_tip_sync(proc);
+        return 0;
+    }
+#endif
     /// 模式选择页倒计时中：任意按键刷新计时
     home_mode_select_idle_touch(proc);
     /// 力度/速度调节页倒计时中：任意按键刷新计时
@@ -620,6 +609,21 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
     POST_WM_TASK_HANDLER_NO_DELAY(home_broadcast_receive_ui_cb, &proc->broadcast_args, HOME_BROADCAST_TASK_NAME);
 }
 
+static void home_hint_low_bat_sync(ui_proc_home_t *proc, uint8_t battery_state)
+{
+    uint8_t hint_low_bat;
+
+    EXCEPTION_CHECK_VOID(proc);
+    if (battery_state == BATTERY_STATE_EMPTY ||
+        battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+        battery_state == BATTERY_STATE_FORBID_START) {
+        hint_low_bat = 0;
+    } else {
+        hint_low_bat = (battery_state == BATTERY_STATE_LOW_POWER_RUN) ? 1 : 0;
+    }
+    proc->hint_low_bat = hint_low_bat;
+}
+
 static void on_home_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_home_t *proc = (ui_proc_home_t *)user_data;
@@ -628,6 +632,7 @@ static void on_home_window_battery_state_change_cb(void *user_data, battery_stat
         LOG_WM("wm not running, ignore.");
         return;
     }
+    EXCEPTION_CHECK_VOID(info);
     
     if (info->charge_status == CHARGE_STATE_ERROR && proc->current_ui_type != HOME_UI_TYPE_PUMP_RESULT) {
         LOG_WM("charge status error, goto charge screen.");
@@ -637,12 +642,10 @@ static void on_home_window_battery_state_change_cb(void *user_data, battery_stat
         return;
     }
 
-    if (info->battery_state == BATTERY_STATE_EMPTY || 
-        info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || 
-        info->battery_state == BATTERY_STATE_FORBID_START) {
-    } else {
-
-    }
+    home_hint_low_bat_sync(proc, info->battery_state);
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    home_forbid_start_tip_sync(proc);
+#endif
 }
 
 static void home_ble_adv_recover_cb(hdr_post_args_t *args)
@@ -701,6 +704,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_home_window_battery_state_change_cb);
         home_ble_adv_check_and_recover(proc);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        home_forbid_start_tip_sync(proc);
+#endif
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
@@ -779,6 +785,9 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
     proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
+    if (proc->battery != NULL && proc->battery->get_battery_state != NULL) {
+        home_hint_low_bat_sync(proc, proc->battery->get_battery_state());
+    }
     proc->key = (key_input_context_t *)find_module(ID_MODULE_KEY_INPUT);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->pump = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);

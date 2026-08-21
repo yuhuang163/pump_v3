@@ -86,14 +86,22 @@ void start_home_ui_animation(ui_proc_home_t *proc)
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui->hook && ui->hook->ui_animation_play_init);  
     proc->last_progress_ani_time = get_timestamp();
-    home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     if (proc->current_ui_type == HOME_UI_TYPE_HOME) {
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+        home_forbid_start_tip_sync(proc);
+#endif
         return;
     }
 
     if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
         proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
     }
+
+    home_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+    proc->current_ui_type = HOME_UI_TYPE_HOME;
+#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
+    home_forbid_start_tip_sync(proc);
+#endif
 
     ui_play_info_t play_info = {
         .tag = "home_default_screen",
@@ -104,5 +112,4 @@ void start_home_ui_animation(ui_proc_home_t *proc)
         .user_data = proc,
     };
     ui->hook->ui_animation_play_init(ui, play_info);
-    proc->current_ui_type = HOME_UI_TYPE_HOME;
 }
