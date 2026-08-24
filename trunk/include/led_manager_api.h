@@ -112,7 +112,7 @@ typedef struct led_manager_context {
         uint8_t night_light_level;  /// 夜灯当前 PWM 亮度（pwm_table[] 索引；手动/ALS 共用）
         uint8_t night_light_gear;   /// 夜灯档位，后续评估是否可用night_light_level替代
         uint8_t night_light_adaptive_dimming_switch;  /// 夜灯自适应调节开关，用于屏蔽夜灯 ALS（屏蔽 ALS 时，不更新背光档位）（RAM）    
-#endif
+        #endif
         uint8_t key_light_level_max;
         uint8_t key_light_level_rate;
         uint8_t key_light_adaptive_level;

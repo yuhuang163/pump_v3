@@ -778,7 +778,7 @@ static void on_ui_battery_state_change_cb(void *user_data, battery_state_info_t 
         info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
         info->battery_state == BATTERY_STATE_FORBID_START ||
         info->battery_state == BATTERY_STATE_LOW_POWER_RUN) {
-        set_backlight_level_rate(ui, 50);
+        set_backlight_level_rate(ui, LOW_POWER_BRIGHTNESS_MAX_VALUE);
     } else {
         window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
         if (wm && wm->get_current_window_id() != ID_WINDOW_POWER_OFF &&

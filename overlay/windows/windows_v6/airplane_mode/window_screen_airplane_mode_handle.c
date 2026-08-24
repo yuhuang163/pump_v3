@@ -56,13 +56,6 @@ static int on_airplane_mode_keyevent_hdr(void *user_data, uint16_t keycode, uint
         LOG_WM("wm not running, ignore.");
         return 0;
     }
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-    if (airplane_mode_forbid_start_key_is_blocked(proc, keycode, keytype)) {
-        LOG_WM("forbid start, ignore key event. code:%d type:%d", keycode, keytype);
-        airplane_mode_forbid_start_tip_sync(proc);
-        return 0;
-    }
-#endif
     /// 按键操作刷新关机倒计时
     proc->power_off_idle_time = get_timestamp();
     if (keytype == KEY_EVENT_LONG_2S &&
@@ -113,9 +106,17 @@ static void on_airplane_mode_window_battery_state_change_cb(void *user_data, bat
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-    airplane_mode_forbid_start_tip_sync(proc);
-#endif
+
+    if ((info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+        info->battery_state == BATTERY_STATE_EMPTY) &&
+        !BATTERY_IS_CHARGING(info->charge_status) &&
+        proc->current_ui_type != AIRPLANE_MODE_UI_TYPE_POWER_OFF_HOLD) {
+        LOG_WM("low/empty power shutdown, goto battery screen.");
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
 }
 
 static int entry_event_cb(window_lift_cycle_e new_state, const struct window_context *thiz, const struct window_context *old_scr)
@@ -133,9 +134,6 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_airplane_mode_window_battery_state_change_cb);
         wm_ensure_ble_adv_started();
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-        airplane_mode_forbid_start_tip_sync(proc);
-#endif
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         airplane_mode_led_policy(proc, 1);

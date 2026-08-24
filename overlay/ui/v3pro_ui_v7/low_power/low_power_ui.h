@@ -8,7 +8,8 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "ui_manager_api.h" // IWYU pragma: keep
 
-void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz);
+/// show_countdown: 0=开机低电页不显示倒计时；非0=泵奶低电页显示 3s 倒计时
+void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz, uint8_t show_countdown);
 void ui_display_battery_low_power_remove(ui_manager_context_t *thiz);
 int ui_display_battery_low_power_process(ui_manager_context_t *thiz);
 

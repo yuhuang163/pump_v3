@@ -47,7 +47,8 @@
 
 #define HOME_MAIN_HINT_Y                                (207 + 4)
 #define HOME_MAIN_HINT_TEXT                             "Press to start pumping"
-#define HOME_MAIN_HINT_TEXT_LOW_BAT                     "Can only support 1 pumping session,\nremember to charge."
+#define HOME_MAIN_HINT_TEXT_LOW_BAT                     "Low battery, please charge."
+#define HOME_MAIN_HINT_TEXT_FORBID_START                "Battery too low to pump"
 #define HOME_MAIN_HINT_TEXT_LOW_BAT_LINE_SPACE          (4)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_HINT_COLOR                            (0x00FF00)
@@ -437,31 +438,39 @@ static void home_main_hint_style_get(ui_shine_style_t *style)
     style->screen_w = HOME_MAIN_SCREEN_W;
 }
 
-static uint8_t home_main_hint_is_low_bat(const ui_proc_home_t *proc)
+static uint8_t home_main_hint_type_get(const ui_proc_home_t *proc)
 {
     if (proc == NULL) {
-        return 0;
+        return HOME_HINT_TYPE_NORMAL;
     }
-    return (proc->hint_low_bat == 1) ? 1 : 0;
+    return proc->hint_low_bat;
 }
 
-static const char *home_main_hint_text_get(uint8_t is_low_bat)
+static const char *home_main_hint_text_get(uint8_t hint_type)
 {
-    if (is_low_bat == 1) {
+    if (hint_type == HOME_HINT_TYPE_FORBID_START) {
+        return HOME_MAIN_HINT_TEXT_FORBID_START;
+    }
+    if (hint_type == HOME_HINT_TYPE_LOW_BAT) {
         return HOME_MAIN_HINT_TEXT_LOW_BAT;
     }
     return HOME_MAIN_HINT_TEXT;
+}
+
+static uint8_t home_main_hint_line_space_get(uint8_t hint_type)
+{
+    return (hint_type == HOME_HINT_TYPE_LOW_BAT) ? HOME_MAIN_HINT_TEXT_LOW_BAT_LINE_SPACE : 0;
 }
 
 static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode,
     const ui_proc_home_t *proc)
 {
     const uint32_t color = home_main_hint_color_get(mode);
-    const uint8_t is_low_bat = home_main_hint_is_low_bat(proc);
-    const char *text = home_main_hint_text_get(is_low_bat);
+    const uint8_t hint_type = home_main_hint_type_get(proc);
+    const char *text = home_main_hint_text_get(hint_type);
 
     if (info->main.hint_text != NULL && lv_obj_is_valid(info->main.hint_text) &&
-        info->main.shown_hint_color == color && info->main.shown_hint_low_bat == is_low_bat &&
+        info->main.shown_hint_color == color && info->main.shown_hint_low_bat == hint_type &&
         info->force_update == false) {
         return;
     }
@@ -474,12 +483,12 @@ static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode,
         lv_obj_set_style_text_letter_space(info->main.hint_text, 0, 0); // Figma 2%: 19 * 0.02 ≈ 0.38 → 1px
     }
     lv_obj_set_style_text_line_space(info->main.hint_text,
-        (is_low_bat == 1) ? HOME_MAIN_HINT_TEXT_LOW_BAT_LINE_SPACE : 0, 0);
+        home_main_hint_line_space_get(hint_type), 0);
     lv_obj_set_style_text_color(info->main.hint_text, lv_color_hex(color), 0);
     lv_label_set_text(info->main.hint_text, text);
     lv_obj_align(info->main.hint_text, LV_ALIGN_TOP_MID, 0, HOME_MAIN_HINT_Y);
     info->main.shown_hint_color = color;
-    info->main.shown_hint_low_bat = is_low_bat;
+    info->main.shown_hint_low_bat = hint_type;
 }
 
 /** 裁剪窗内亮色扫光：字库栅格 + TEXT_SHINE_MASK 剖面烘焙软边 */
@@ -498,7 +507,7 @@ static void home_main_hint_mask_update(home_base_ui_info_t *info)
     home_main_hint_style_get(&style);
     ui_shine_prepare_from_text(&info->main.hint_shine, &style,
         text, &lv_font_aeonik_soft_19_medium, 0,
-        (info->main.shown_hint_low_bat == 1) ? HOME_MAIN_HINT_TEXT_LOW_BAT_LINE_SPACE : 0);
+        home_main_hint_line_space_get(info->main.shown_hint_low_bat));
     ui_shine_update(&info->main.hint_shine, parent, &style, info->main.hint_text, 1);
 }
 

@@ -155,8 +155,6 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     #if IS_SUPPORT_HOME_UI_TEST
     // proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_CONFIRM;
     proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN;
-    // proc->popup_ui_type = ID_POPUP_UI_PUMP_FINISH_TIMEOUT;
-    // proc->popup_ui_type = ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR;
     #else
     home_page_ui_update(home_info, proc);
     if (home_info->page.shown_page_index == HOME_PAGE_MAIN &&

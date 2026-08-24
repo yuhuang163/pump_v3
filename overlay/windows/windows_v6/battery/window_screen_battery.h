@@ -22,6 +22,7 @@ extern "C" {
 #endif
 
 #define BATTERY_LOW_POWER_TASK_NAME               "battery_low_power_task"
+#define BATTERY_LOW_POWER_TIMEOUT_MS              PM_SUSPEND_TIME_S /// 低电窗口 15 分钟超时关机
 
 
 /// 电池UI动作枚举

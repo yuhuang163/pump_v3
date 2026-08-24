@@ -48,10 +48,28 @@ static int battery_window_async_evt_handler_cb(struct window_event_data *evt_dat
 }
 
 
+static int battery_goto_charge_adapter_if_mismatch(ui_proc_battery_t *proc)
+{
+    EXCEPTION_CHECK_INT(proc);
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
+        LOG_WM("vbus plug in, goto charge screen");
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return 1;
+    }
+    return 0;
+}
+
 static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
 {
     WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_BATTERY);
     multi_func_msg_data_t msg = {0};
+
+    if (battery_goto_charge_adapter_if_mismatch(proc)) {
+        return;
+    }
 
     if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
         LOG_WM("goto airplane mode screen");
@@ -106,6 +124,23 @@ static void battery_ui_common_cb(hdr_post_args_t *args)
     }
 }
 
+static void battery_low_power_schedule_auto_off(ui_proc_battery_t *proc)
+{
+    uint8_t battery_state = BATTERY_STATE_NONE;
+
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->battery) {
+        battery_state = proc->battery->get_battery_state();
+    }
+    if (battery_state == BATTERY_STATE_EMPTY) {
+        POST_WM_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,
+            BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF, BATTERY_LOW_POWER_TASK_NAME);
+        return;
+    }
+    POST_WM_TASK_HANDLER_DELAYED_ARG2(battery_ui_common_cb, BATTERY_LOW_POWER_TIMEOUT_MS,
+        BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF, proc, BATTERY_LOW_POWER_TASK_NAME);
+}
+
 static void on_battery_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_battery_t *proc = (ui_proc_battery_t *)user_data;
@@ -114,12 +149,26 @@ static void on_battery_window_battery_state_change_cb(void *user_data, battery_s
         LOG_WM("wm not running, ignore.");
         return;
     }
-    
+    EXCEPTION_CHECK_VOID(info);
+
+    if (info->charge_status == CHARGE_STATE_ERROR &&
+        battery_goto_charge_adapter_if_mismatch(proc)) {
+        return;
+    }
+
     if (BATTERY_IS_CHARGING(info->charge_status)) {
         if (proc->current_ui_type == BATTERY_UI_TYPE_LOW_POWER) {
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,
                 BATTERY_HDR_ACTION_LOW_POWER_EXIT, BATTERY_LOW_POWER_TASK_NAME);
         }
+        return;
+    }
+
+    if (info->battery_state == BATTERY_STATE_EMPTY &&
+        proc->current_ui_type != BATTERY_UI_TYPE_POWER_OFF_HOLD) {
+        LOG_WM("battery empty, goto low power off.");
+        POST_WM_TASK_HANDLER_NO_DELAY_ARG1(battery_ui_common_cb, proc,
+            BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF, BATTERY_LOW_POWER_TASK_NAME);
     }
 }
 
@@ -144,6 +193,14 @@ static int on_battery_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_
     }
     if (keytype == KEY_EVENT_CLICK &&
         (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+        if (proc->current_ui_type == BATTERY_UI_TYPE_POWER_OFF_HOLD) {
+            return 0;
+        }
+        LOG_WM("click power/start, goto manual power off.");
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+        msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_MANUAL;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return 0;
     }
     return 0;
@@ -161,12 +218,14 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        if (battery_goto_charge_adapter_if_mismatch(proc)) {
+            return 0;
+        }
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
         }
         show_battery_low_power_ui(proc);
-        POST_WM_TASK_HANDLER_DELAYED_ARG2(battery_ui_common_cb, 3000, BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF,
-                proc, BATTERY_LOW_POWER_TASK_NAME);
+        battery_low_power_schedule_auto_off(proc);
     }
     return 0;
 }
@@ -235,9 +294,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
 
 void battery_low_power_auto_off_rearm(ui_proc_battery_t *proc)
 {
-    EXCEPTION_CHECK_VOID(proc);
-    POST_WM_TASK_HANDLER_DELAYED_ARG2(battery_ui_common_cb, 3000, BATTERY_HDR_ACTION_LOW_POWER_POWER_OFF,
-        proc, BATTERY_LOW_POWER_TASK_NAME);
+    battery_low_power_schedule_auto_off(proc);
 }
 
 

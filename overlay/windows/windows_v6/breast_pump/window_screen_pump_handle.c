@@ -41,6 +41,7 @@ do { \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SETTINGS_SUCCESS_DISPLAY_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_STOP_HOLD_COMPLETE_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_LOW_POWER_COMPLETE_TASK_NAME); \
 } while (0)
 
 /*
@@ -377,12 +378,7 @@ static bool pump_both_control_key_event(ui_proc_pump_t *proc)
         pump_both_level_adjust_ui_dismiss(proc);
         return true;
     }
-    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER) {
-        LOG_WM("pump finish timeout, ignore both control.");
-        return false;
-    }
+
     if (pump_rest_mode_blocks_adjust(proc)) {
         pump_show_rest_mode_adjust_tip(proc);
         return true;
@@ -394,15 +390,9 @@ static bool pump_both_control_key_event(ui_proc_pump_t *proc)
 static void pump_click_event_cb(ui_proc_pump_t *proc, uint16_t keycode)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR ||
         proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT) {
         LOG_WM("pump finish ui, ignore key event.");
-        return;
-    }
-
-    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_TIMEOUT ||
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR ||
-        proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_LOW_POWER) {
-        LOG_WM("pump finish timeout, ignore key event.");
         return;
     }
 
@@ -492,14 +482,8 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     ui_proc_pump_t *proc = user_data;
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_PUMP, 0);
     EXCEPTION_CHECK_INT(proc->pump);
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-    if (pump_forbid_start_key_is_blocked(proc, keycode, keytype)) {
-        LOG_WM("forbid start, ignore key event. code:%d type:%d", keycode, keytype);
-        pump_forbid_start_tip_sync(proc);
-        return 0;
-    }
-#endif
-    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
+    if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR) {
         LOG_WM("pump finish ui, ignore key event. type:%d code:%d", keytype, keycode);
         return 0;
     }
@@ -530,6 +514,22 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
     }
 #endif
 #endif
+
+    if (proc->current_ui_type == PUMP_UI_TYPE_LOW_POWER) {
+        if (keytype != KEY_EVENT_CLICK &&
+            !(keytype == KEY_EVENT_LONG_2S &&
+              (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) &&
+            !(keytype == KEY_EVENT_UP &&
+              (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) &&
+            !(keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_TRAVEL_LOCK) &&
+            !(PUMP_BOTH_CONTROL_LONG_PRESS(keytype) && keycode == KEY_CODE_BOTH_CONTROL)) {
+            LOG_WM("pump low power ui, ignore key event. type:%d code:%d",
+                keytype, keycode);
+            return 0;
+        }
+        LOG_WM("pump low power ui key exit, type:%d code:%d", keytype, keycode);
+        pump_low_power_ui_dismiss(proc);
+    }
 
     if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_LONG_2S) {
         if (proc->airplane_mode && proc->airplane_mode->hook && 
@@ -656,8 +656,15 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
         case ID_BROADCAST_BREAST_PUMP_STATE_CHANGE: {
             int state = bcd_args->arg1;
             if (state == BREAST_PUMP_BROADCAST_COMPLETED) {
+                if (proc->battery &&
+                    proc->battery->get_battery_state() == BATTERY_STATE_LOW_POWER_SHUTDOWN) {
+                    LOG_WM("low power shutdown, ignore pump complete goto home.");
+                    break;
+                }
                 if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
-                    proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT) {
+                    proc->current_ui_type != PUMP_UI_TYPE_FINISH_CHARGE_ERROR &&
+                    proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT &&
+                    proc->current_ui_type != PUMP_UI_TYPE_LOW_POWER) {
                     multi_func_msg_data_t msg = {0};
                     msg.union_body.extra.window_id = ID_WINDOW_HOME;
                     msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_RESULT;
@@ -666,7 +673,9 @@ static void pump_broadcast_receive_ui_cb(hdr_post_args_t *args)
                 }
             } else if (state == BREAST_PUMP_BROADCAST_TIMEOUT) {
                 if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
-                    proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT) {
+                    proc->current_ui_type != PUMP_UI_TYPE_FINISH_CHARGE_ERROR &&
+                    proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT &&
+                    proc->current_ui_type != PUMP_UI_TYPE_LOW_POWER) {
 #if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
                     pump_pause_idle_stop(proc);
 #endif
@@ -768,46 +777,53 @@ static void on_pump_window_battery_state_change_cb(void *user_data, battery_stat
         LOG_WM("charge status error");
         if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
             proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT &&
-            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
-            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
-            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
-            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
-            pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR);
+            proc->current_ui_type != PUMP_UI_TYPE_FINISH_CHARGE_ERROR) {
+            show_pump_finish_charge_error_ui(proc);
             if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
                 proc->led->hook->set_key_backlight(proc->led, 0);
             }
-            return;
         }
+        return;
     } else {
-        if (proc->popup_ui_type == ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR) {
+        if (proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR) {
+            LOG_WM("charge adapter recovered, dismiss charge error ui.");
             if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
                 proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
             }
-            pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+            pump_finish_charge_error_ui_dismiss(proc);
         }
     }
 
-#if IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP
-    if (info->battery_state == BATTERY_STATE_EMPTY ||
-        info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN
-#if !IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-        || info->battery_state == BATTERY_STATE_FORBID_START
-#endif
-        ) {
-        if (proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
+    if (info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN &&
+        !BATTERY_IS_CHARGING(info->charge_status) &&
+        proc->current_ui_type != PUMP_UI_TYPE_POWER_OFF_HOLD) {
+        LOG_WM("low power shutdown, goto power off.");
+        if (proc->pump) {
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END,
+                DATA_BURY_END_REASON_LOW_BATTERY, 0);
+            WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_FINISH, 1);
+            proc->pump_status = BREAST_PUMP_FINISH;
+        }
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+        msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_LOW_POWER;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
+    if (info->battery_state == BATTERY_STATE_FORBID_START) {
+        if (proc->low_power_ui_shown == 0 &&
+            proc->current_ui_type != PUMP_UI_TYPE_FINISH_TIMEOUT &&
+            proc->current_ui_type != PUMP_UI_TYPE_FINISH_CHARGE_ERROR &&
             proc->current_ui_type != PUMP_UI_TYPE_PAUSE_TIMEOUT &&
-            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_TIMEOUT &&
-            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR &&
-            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_LOW_POWER &&
-            proc->popup_ui_type != ID_POPUP_UI_PUMP_FINISH_MANUAL) {
-            pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_FINISH_LOW_POWER);
+            proc->current_ui_type != PUMP_UI_TYPE_LOW_POWER) {
+            proc->low_power_ui_shown = 1;
+            show_pump_low_power_ui(proc);
             return;
         }
+    } else {
+        proc->low_power_ui_shown = 0;
     }
-#endif
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-    pump_forbid_start_tip_sync(proc);
-#endif
 }
 
 static int entry_event_cb(window_lift_cycle_e new_state,
@@ -822,9 +838,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             on_pump_ui_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_pump_window_battery_state_change_cb);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-        pump_forbid_start_tip_sync(proc);
-#endif
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         proc->current_ui_type = PUMP_UI_TYPE_NONE;

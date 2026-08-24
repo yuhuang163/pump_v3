@@ -31,28 +31,14 @@ static void pumping_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t pop
     LOG_WM("===> popup %d ui display complete.", popup_ui_index);
     pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     switch (popup_ui_index) {
-        case ID_POPUP_UI_PUMP_FINISH_CHARGE_ERROR:
-        case ID_POPUP_UI_PUMP_FINISH_LOW_POWER:
-        case ID_POPUP_UI_PUMP_FINISH_TIMEOUT:
-            pump_complete_event_handler(proc);
-            break;
-        case ID_POPUP_UI_PUMP_FINISH_MANUAL:
-            /// 长按 3s 圆弧闭环，跳转 home 泵奶完成页
-            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_MANUAL, 0);
-            pump_complete_event_handler(proc);
-            break;
         case ID_POPUP_UI_PUMP_RUNING_30M_TIP:
             LOG_WM("pump running 30m tip popup dismissed.");
             break;
         case ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP:
             LOG_WM("pump rest mode adjust tip popup dismissed.");
             break;
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-        case ID_POPUP_UI_LOW_POWER_START_TIP:
-            LOG_WM("low power start tip popup dismissed.");
-            break;
-#endif
         default:
+            LOG_WM("unknown popup ui index: %d", popup_ui_index);
             break;
     }
 }
@@ -115,18 +101,12 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
     proc->last_progress_ani_time = get_timestamp();
     /* 不在此清 ui_mode_page_index：力度/速度调节退出需回到进入前的模式页 */
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-        pump_forbid_start_tip_sync(proc);
-#endif
         return;
     }
 
     pump_ui_change_hdr_remove(proc);
     pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
     proc->current_ui_type = PUMP_UI_TYPE_HOME;
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-    pump_forbid_start_tip_sync(proc);
-#endif
 
     ui_play_info_t play_info = {
         .tag = "pump_home_screen",
