@@ -175,28 +175,6 @@ static void polling_battery_status(void *user_data)
         thiz->priv.is_vbus_plug_in, info.charge_status);
     if (thiz->priv.battery_state !=  info.battery_state) {
         thiz->priv.battery_state =  info.battery_state;
-        if (thiz->priv.battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-            thiz->priv.battery_state == BATTERY_STATE_EMPTY) {
-            window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-            if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 && 
-                wm->is_current_window(wm, ID_WINDOW_LOGO) == 0 &&
-                wm->is_current_window(wm, ID_WINDOW_POWER_OFF) == 0) {
-                #if (IS_SUPPORT_LOW_POWER_FORBID_START_TIP == 0)
-                multi_func_msg_data_t msg = {0};
-                msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
-                msg.union_body.extra.arg1 = ID_POPUP_UI_LOW_POWER;
-                msg.union_body.extra.popup_exit_time = 3000;
-                msg.union_body.extra.forbid_short_press_exit_popup = true;
-                wm->dispatch_new_window_args(wm, &msg);
-                #endif
-                /// 如果当前是泵奶窗口，则触发泵奶结束埋点
-                if(wm->is_current_window(wm, ID_WINDOW_PUMP) == 0) {
-                    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_LOW_BATTERY, 0);
-                }
-            } else {
-                LOG_MISC("in charge or logo window, ignore popup window.");
-            }
-        }
     }
     dispatch_battery_state_client(thiz, &info);
 }

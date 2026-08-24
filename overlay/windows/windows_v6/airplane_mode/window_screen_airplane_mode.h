@@ -89,11 +89,6 @@ void airplane_mode_power_off_hold_ui_exit(ui_proc_airplane_mode_t *proc);
 void airplane_mode_power_off_hold_dismiss(ui_proc_airplane_mode_t *proc);
 void airplane_mode_power_off_hold_key_long_2s_handler(ui_proc_airplane_mode_t *proc);
 void airplane_mode_power_off_hold_key_up_handler(ui_proc_airplane_mode_t *proc);
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-void airplane_mode_forbid_start_tip_sync(ui_proc_airplane_mode_t *proc);
-uint8_t airplane_mode_forbid_start_key_is_blocked(ui_proc_airplane_mode_t *proc,
-    uint16_t keycode, uint16_t keytype);
-#endif
 #ifdef __cplusplus
 }
 #endif

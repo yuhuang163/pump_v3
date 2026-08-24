@@ -15,14 +15,21 @@
 #define LOW_POWER_ICON_Y                                      (94)
 #define LOW_POWER_TEXT_Y                                      (200)
 #define LOW_POWER_TEXT_COLOR                                  (0xFFFFFF)
+#define LOW_POWER_COUNTDOWN_Y                                 (331)
+#define LOW_POWER_COUNTDOWN_COLOR                             (0x999999)
+#define LOW_POWER_COUNTDOWN_MAX                               (3)
 
 typedef struct {
     lv_obj_t * root;
     lv_obj_t * background;
     lv_obj_t * icon;
     lv_obj_t * text;
+    lv_obj_t * countdown;
+    uint32_t start_time;
     uint8_t force_update;
-    uint8_t rsv[15];
+    uint8_t show_countdown;
+    uint8_t shown_value;
+    uint8_t rsv[13];
 } low_power_display_info_t;
 
 /*
@@ -131,11 +138,46 @@ static void low_power_text_update(void)
     lv_obj_align(low_power_info->text, LV_ALIGN_TOP_MID, 0, LOW_POWER_TEXT_Y);
 }
 
+static void low_power_countdown_update(void)
+{
+    char num_buf[8] = {0};
+    uint8_t num;
+    uint8_t show_num;
+
+    if (low_power_info->show_countdown == 0) {
+        if (low_power_info->countdown != NULL && lv_obj_is_valid(low_power_info->countdown)) {
+            lv_obj_add_flag(low_power_info->countdown, LV_OBJ_FLAG_HIDDEN);
+        }
+        return;
+    }
+
+    if (low_power_info->countdown == NULL || !lv_obj_is_valid(low_power_info->countdown)) {
+        low_power_info->countdown = lv_label_create(low_power_info->root);
+        EXCEPTION_CHECK_VOID(low_power_info->countdown);
+    }
+
+    num = get_timestamp_ms(low_power_info->start_time) / 1000;
+    show_num = (num > LOW_POWER_COUNTDOWN_MAX) ? 0 : (LOW_POWER_COUNTDOWN_MAX - num);
+    if (low_power_info->force_update == false &&
+        low_power_info->shown_value == show_num) {
+        return;
+    }
+
+    snprintf(num_buf, sizeof(num_buf), "%u s", (unsigned)(show_num == 0 ? 1 : show_num));
+    lv_label_set_text(low_power_info->countdown, num_buf);
+    lv_obj_set_style_text_color(low_power_info->countdown, lv_color_hex(LOW_POWER_COUNTDOWN_COLOR), 0);
+    lv_obj_set_style_text_font(low_power_info->countdown, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_align(low_power_info->countdown, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(low_power_info->countdown, LV_ALIGN_TOP_MID, 0, LOW_POWER_COUNTDOWN_Y);
+    low_power_info->shown_value = show_num;
+    lv_obj_clear_flag(low_power_info->countdown, LV_OBJ_FLAG_HIDDEN);
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz)
+void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz, uint8_t show_countdown)
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (low_power_info == NULL) {
@@ -143,6 +185,9 @@ void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz)
         EXCEPTION_CHECK_VOID(low_power_info);
     }
     low_power_info->force_update = true;
+    low_power_info->show_countdown = show_countdown;
+    low_power_info->shown_value = 0xFF;
+    low_power_info->start_time = get_timestamp();
     low_power_root_init();
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
@@ -163,6 +208,7 @@ int ui_display_battery_low_power_process(ui_manager_context_t *thiz)
     low_power_bg_update(thiz);
     low_power_icon_update(thiz);
     low_power_text_update();
+    low_power_countdown_update();
     low_power_info->force_update = false;
     thiz->priv.fps_count++;
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {

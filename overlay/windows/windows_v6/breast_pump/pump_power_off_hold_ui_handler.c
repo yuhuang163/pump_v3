@@ -124,9 +124,6 @@ void pump_power_off_hold_dismiss(ui_proc_pump_t *proc)
     proc->power_off_hold_holding = 0;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_POWER_OFF_HOLD_COMPLETE_TASK_NAME);
     pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HISTORY);
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-    pump_forbid_start_tip_sync(proc);
-#endif
 }
 
 void pump_power_off_hold_key_long_2s_handler(ui_proc_pump_t *proc)
@@ -134,8 +131,10 @@ void pump_power_off_hold_key_long_2s_handler(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc);
     if (proc->current_ui_type == PUMP_UI_TYPE_POWER_OFF_HOLD ||
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR ||
         proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT ||
-        proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
+        proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH ||
+        proc->current_ui_type == PUMP_UI_TYPE_LOW_POWER) {
         return;
     }
 

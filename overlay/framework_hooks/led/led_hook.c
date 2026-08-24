@@ -472,6 +472,7 @@ static int night_light_on_post_init(led_manager_context_t *thiz)
         thiz->priv.night_light_gear = (uint8_t)tmp;
     }
 
+    // set_night_light_switch(thiz, 1);
     // TODO: 后续考虑使用夜灯硬件强制关闭
     // night_light_hw_force_off(thiz);
     return 0;
@@ -549,13 +550,13 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
                     set_key_backlight(thiz, LED_LEVEL_MAX);
                 }
             } else if (arg1 == PM_BROADCAST_SYS_IDLE) {
-                set_key_backlight_level_rate(thiz, 50);
+                set_key_backlight_level_rate(thiz, IDLE_BRIGHTNESS_MAX_VALUE);
             } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
                 battery_manager_context_t *batt = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
                 if (batt && batt->priv.battery_state == BATTERY_STATE_NONE) {
                     set_key_backlight_level_rate(thiz, 100);
                 } else {
-                    set_key_backlight_level_rate(thiz, 50);
+                    set_key_backlight_level_rate(thiz, LOW_POWER_BRIGHTNESS_MAX_VALUE);
                 }
             }
             break;
@@ -578,11 +579,11 @@ static void on_led_battery_state_change_cb(void *user_data, battery_state_info_t
             toggle_night_light(thiz);
         }
 #endif
-        set_key_backlight_level_rate(thiz, 50);
+        set_key_backlight_level_rate(thiz, LOW_POWER_BRIGHTNESS_MAX_VALUE);
     } else {
         power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
         if (pm && pm->is_pm_idle()) {
-            set_key_backlight_level_rate(thiz, 50);
+            set_key_backlight_level_rate(thiz, IDLE_BRIGHTNESS_MAX_VALUE);
         } else {
             set_key_backlight_level_rate(thiz, 100);
         }

@@ -17,7 +17,8 @@ extern "C" {
 /// 泵奶动画频率
 #define PUMP_ANIMATION_FREQ                    (20)
 #define PUMP_SPEED_ANIMATION_FREQ              (25)
-#define PUMP_LEVEL_ANIMATION_FREQ              (20) 
+#define PUMP_LEVEL_ANIMATION_FREQ              (20)
+#define PUMP_LOW_POWER_COMPLETE_TASK_NAME      "pump_low_power_complete" 
 
 /// 是否支持泵奶中切换韵律
 #define IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM  (1)
@@ -145,8 +146,10 @@ typedef enum {
     PUMP_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
     PUMP_UI_TYPE_SPEED_ADJUST, /// 速度调节
     PUMP_UI_TYPE_FINISH_TIMEOUT, /// 泵奶超时结算（1.2h）
+    PUMP_UI_TYPE_FINISH_CHARGE_ERROR, /// 适配器不匹配结束提示
     PUMP_UI_TYPE_PAUSE_TIMEOUT, /// 暂停无操作超时结算（方案1→自动关机 / 方案2可按键退出）
     PUMP_UI_TYPE_WILL_FINISH, /// 韵律即将结束提示
+    PUMP_UI_TYPE_LOW_POWER, /// 泵奶中低电量提示（3s 倒计时，可按键退出）
     PUMP_UI_TYPE_MAX
 } pump_ui_type_e;
 
@@ -237,6 +240,7 @@ typedef struct {
     /// 长按关机确认
     uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
     uint8_t both_control_long_acted; /// 本次 L+R 长按已处理进入/退出，忽略同一次按住的后续 LONG_xS
+    uint8_t low_power_ui_shown; /// 本次泵奶窗口已展示过低电页，电量恢复前不再重复弹出
 
     /// 子页导航栈（回历史页 / 回首页）
     pump_ui_nav_t ui_nav;
@@ -296,10 +300,6 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc);
 void pump_complete_event_handler(ui_proc_pump_t *proc);
 /// 弹窗类型更新
 void pump_popup_ui_type_update(ui_proc_pump_t *proc, popup_ui_id_e type);
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-void pump_forbid_start_tip_sync(ui_proc_pump_t *proc);
-uint8_t pump_forbid_start_key_is_blocked(ui_proc_pump_t *proc, uint16_t keycode, uint16_t keytype);
-#endif
 /// 暂停态 start 按键灯 1Hz 闪烁 tick（仅 LED，不同步 UI）
 void pump_pause_led_tick(ui_proc_pump_t *proc);
 
@@ -378,6 +378,11 @@ void pump_speed_adjust_ui_dismiss(ui_proc_pump_t *proc);
 void show_pump_finish_timeout_ui(ui_proc_pump_t *proc);
 void pump_finish_timeout_ui_exit(ui_proc_pump_t *proc);
 
+/// 适配器不匹配结束提示页（3s 倒计时 → 首页结果页；倒计时中适配器恢复则回泵奶首页）
+void show_pump_finish_charge_error_ui(ui_proc_pump_t *proc);
+void pump_finish_charge_error_ui_exit(ui_proc_pump_t *proc);
+void pump_finish_charge_error_ui_dismiss(ui_proc_pump_t *proc);
+
 #if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
 /// 暂停无操作超时结算页（方案1：自动关机；方案2：可按键退出）
 void show_pump_pause_timeout_ui(ui_proc_pump_t *proc);
@@ -398,6 +403,11 @@ void pump_pause_idle_stop(ui_proc_pump_t *proc);
 void show_pump_will_finish_ui(ui_proc_pump_t *proc);
 void pump_will_finish_ui_exit(ui_proc_pump_t *proc);
 void pump_will_finish_ui_dismiss(ui_proc_pump_t *proc);
+
+/// 泵奶中低电量提示页（3s 倒计时；按任意按键退出并执行对应功能；超时回首页，若覆盖了 30 分钟提醒则恢复）
+void show_pump_low_power_ui(ui_proc_pump_t *proc);
+void pump_low_power_ui_exit(ui_proc_pump_t *proc);
+void pump_low_power_ui_dismiss(ui_proc_pump_t *proc);
 
 #ifdef __cplusplus
 }

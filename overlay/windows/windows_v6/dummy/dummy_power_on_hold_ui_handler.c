@@ -181,7 +181,7 @@ void show_dummy_power_on_hold_ui(ui_proc_dummy_t *proc)
     proc->current_ui_type = DUMMY_UI_TYPE_POWER_ON_HOLD;
     proc->power_on_hold_holding = 0;
     if (ui->hook->set_ui_backlight_level_rate) {
-        ui->hook->set_ui_backlight_level_rate(ui, 50);
+        ui->hook->set_ui_backlight_level_rate(ui, IDLE_BRIGHTNESS_MAX_VALUE);
     }
 }
 

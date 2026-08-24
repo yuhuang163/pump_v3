@@ -101,7 +101,8 @@ void pump_pause_settle_trigger(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc && proc->pump);
 
     if (proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT ||
-        proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT) {
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR) {
         LOG_WM("pump pause settle ignored, ui:%u", (unsigned)proc->current_ui_type);
         return;
     }

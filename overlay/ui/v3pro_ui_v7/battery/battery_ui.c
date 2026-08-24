@@ -153,12 +153,6 @@ static uint8_t battery_ui_is_charging_detect(battery_manager_context_t *battery,
     if (BATTERY_IS_CHARGING(charge_status)) {
         return 1;
     }
-    if (charge_status == CHARGE_STATE_ERROR || charge_status == CHARGE_STATE_NO_BATT) {
-        return 0;
-    }
-    if (battery != NULL && battery->is_vbus_plug_in != NULL && battery->is_vbus_plug_in() > 0) {
-        return 1;
-    }
     return 0;
 }
 

@@ -109,7 +109,7 @@ typedef struct {
     lv_obj_t *time_colon[HOME_BASE_MAIN_TIME_COLON_COUNT]; /// 三段：HH-MM / MM-SS 冒号 BAJ
     lv_draw_buf_t *time_colon_buf;      /// HOUR_COLON 预解码（两冒号共用）
     lv_obj_t *time_colon_2seg;          /// 两段：居中 CLOCK_COLON
-    lv_obj_t *hint_text;                /// Press to start pumping / 低电量提示
+    lv_obj_t *hint_text;                /// Press to start pumping / 低电 / 禁止启动
     ui_shine_info_t hint_shine;         /// 扫光（字库文案软边）
     lv_obj_t *speed_icon;
     lv_obj_t *speed_value;
@@ -117,7 +117,7 @@ typedef struct {
     lv_obj_t *right_level;              /// Rx
     uint16_t shown_bg_id;
     uint32_t shown_hint_color;
-    uint8_t shown_hint_low_bat;         /// 1=低电量文案，0xFF=未初始化
+    uint8_t shown_hint_low_bat;         /// HOME_HINT_TYPE_*，0xFF=未初始化
     uint8_t shown_hours;
     uint8_t shown_minutes;
     uint8_t shown_seconds;

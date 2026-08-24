@@ -381,13 +381,6 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         return 0;
     }
     LOG_WM("keyevent: %d, %d", keycode, keytype);
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-    if (home_forbid_start_key_is_blocked(proc, keycode, keytype)) {
-        LOG_WM("forbid start, ignore key event. code:%d type:%d", keycode, keytype);
-        home_forbid_start_tip_sync(proc);
-        return 0;
-    }
-#endif
     /// 模式选择页倒计时中：任意按键刷新计时
     home_mode_select_idle_touch(proc);
     /// 力度/速度调节页倒计时中：任意按键刷新计时
@@ -611,17 +604,17 @@ static void on_home_ui_broadcast_receive_cb(broadcast_mask_id_t id, void *contex
 
 static void home_hint_low_bat_sync(ui_proc_home_t *proc, uint8_t battery_state)
 {
-    uint8_t hint_low_bat;
+    uint8_t hint_type;
 
     EXCEPTION_CHECK_VOID(proc);
-    if (battery_state == BATTERY_STATE_EMPTY ||
-        battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-        battery_state == BATTERY_STATE_FORBID_START) {
-        hint_low_bat = 0;
+    if (battery_state == BATTERY_STATE_FORBID_START) {
+        hint_type = HOME_HINT_TYPE_FORBID_START;
+    } else if (battery_state == BATTERY_STATE_LOW_POWER_RUN) {
+        hint_type = HOME_HINT_TYPE_LOW_BAT;
     } else {
-        hint_low_bat = (battery_state == BATTERY_STATE_LOW_POWER_RUN) ? 1 : 0;
+        hint_type = HOME_HINT_TYPE_NORMAL;
     }
-    proc->hint_low_bat = hint_low_bat;
+    proc->hint_low_bat = hint_type;
 }
 
 static void on_home_window_battery_state_change_cb(void *user_data, battery_state_info_t *info)
@@ -642,10 +635,17 @@ static void on_home_window_battery_state_change_cb(void *user_data, battery_stat
         return;
     }
 
+    if (info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN &&
+        !BATTERY_IS_CHARGING(info->charge_status) &&
+        proc->current_ui_type != HOME_UI_TYPE_POWER_OFF_HOLD) {
+        LOG_WM("low power shutdown, goto battery screen.");
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+
     home_hint_low_bat_sync(proc, info->battery_state);
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-    home_forbid_start_tip_sync(proc);
-#endif
 }
 
 static void home_ble_adv_recover_cb(hdr_post_args_t *args)
@@ -704,9 +704,6 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_home_window_battery_state_change_cb);
         home_ble_adv_check_and_recover(proc);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
-#if IS_SUPPORT_LOW_POWER_FORBID_START_TIP
-        home_forbid_start_tip_sync(proc);
-#endif
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
