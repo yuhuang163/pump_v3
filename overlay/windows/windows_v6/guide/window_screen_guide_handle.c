@@ -136,10 +136,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->page_index = GUIDE_PAGE_QRCODE;
         const uint8_t already_deployed = (wm->is_window_guidance_deployed() != 0) ? 1 : 0;
         proc->qrcode_only_session = already_deployed;
-#if GUIDE_SET_DEPLOYED_FLAG_ON_ENTER
-        wm->set_window_guidance_deployed_flag(true);
-        LOG_WM("set guidance deployed flag on enter, already_deployed:%d.", already_deployed);
-#endif
+
         proc->page_enter_time = get_timestamp();
         guide_led_backlight_update(proc);
         proc->mode_selected = 0;

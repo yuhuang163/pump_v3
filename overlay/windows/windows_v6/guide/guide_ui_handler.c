@@ -25,10 +25,8 @@ static void guide_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_guide_t *proc = (ui_proc_guide_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
-#if !GUIDE_SET_DEPLOYED_FLAG_ON_ENTER
     proc->wm->set_window_guidance_deployed_flag(true);
     LOG_WM("set guidance deployed flag on exit.");
-#endif
     multi_func_msg_data_t msg = {0};
     LOG_WM("goto home window.");
 #if IS_SUPPORT_GUIDE_PUMP_START
@@ -386,23 +384,20 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
                     LOG_WM("guide deployed, exit from qrcode page");
                     guide_exit_to_home(proc);
                 } else {
-#if IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
-                    guide_page_advance(proc, GUIDE_PAGE_WELCOME_ANIM);
-#else
-                    {
-                        int res_theme_type = RES_THEME_TYPE_BASE;
-                        if (proc->ui && proc->ui->priv.res) {
-                            res_theme_type = proc->ui->priv.res->get_sys_theme_type();
-                        }
-                        guide_page_advance(proc, (res_theme_type == RES_THEME_TYPE_CUSTOM)
-                            ? GUIDE_PAGE_WELCOME_ANIM : GUIDE_PAGE_INTRO);
-                    }
-#endif
+                    #if GUIDE_SET_DEPLOYED_FLAG_ON_ENTER
+                    proc->wm->set_window_guidance_deployed_flag(true);
+                    LOG_WM("set guidance deployed flag on welcome anim page.");
+                    #endif
+                    guide_page_advance(proc, GUIDE_PAGE_INTRO);               
                 }
             }
             break;
         case GUIDE_PAGE_INTRO:
             if (keycode == KEY_CODE_START) {
+                #if GUIDE_SET_DEPLOYED_FLAG_ON_ENTER
+                proc->wm->set_window_guidance_deployed_flag(true);
+                LOG_WM("set guidance deployed flag on intro page.");
+                #endif
                 guide_page_advance(proc, GUIDE_PAGE_PUMP_START_GUIDE);
             }
             break;
