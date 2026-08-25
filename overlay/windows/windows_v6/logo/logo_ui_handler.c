@@ -33,7 +33,7 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
         LOG_WM("goto none theme screen");
         msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
+        goto OPEN_NIGHT_LIGHT;
     }
 #endif
 
@@ -56,7 +56,7 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
         LOG_WM("goto airplane mode screen");
         msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
+        goto OPEN_NIGHT_LIGHT;
     }
 
 #if IS_SUPPORT_GUIDE_WINDOW
@@ -64,7 +64,7 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
+        goto OPEN_NIGHT_LIGHT;
     }
 #else
     if (proc->wm->is_window_guidance_deployed() == 0) {
@@ -75,6 +75,19 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
+
+OPEN_NIGHT_LIGHT:
+#if IS_SUPPORT_NIGHT_LIGHT
+    if (proc->led && proc->led->hook &&
+        proc->led->hook->get_night_light_startup_switch &&
+        proc->led->hook->get_night_light_startup_switch(proc->led) &&
+        proc->led->hook->set_night_light_onoff) {
+        proc->led->hook->set_night_light_onoff(proc->led, true);
+        if (proc->led->hook->set_night_light_adaptive_dimming_switch) {
+            proc->led->hook->set_night_light_adaptive_dimming_switch(proc->led, 1);
+        }
+    }
+#endif
 }
 
 static void logo_ui_after_policy(ui_manager_context_t *ui, int index)

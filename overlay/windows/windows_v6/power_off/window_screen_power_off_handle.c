@@ -107,8 +107,8 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
         case POWER_OFF_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
             power_off_force_save_battery_percent(proc);
-            if (proc->ui->hook && proc->ui->hook->set_ui_backlight_level_rate) {
-                proc->ui->hook->set_ui_backlight_level_rate(proc->ui, 100);
+            if (proc->led && proc->led->hook && proc->led->hook->set_ui_backlight_level_rate) {
+                proc->led->hook->set_ui_backlight_level_rate(proc->led, 100);
             }
             LOG_WM("goto logo window.");
             msg.union_body.extra.window_id = ID_WINDOW_LOGO;
@@ -218,13 +218,13 @@ static int entry_event_cb(window_lift_cycle_e new_state,
 #endif
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
-        if (proc->led->hook->set_key_backlight) {
+        if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 0);
         }
 
 #if IS_SUPPORT_NIGHT_LIGHT
-        if (proc->led->hook->set_night_light_level) {   
-            proc->led->hook->set_night_light_level(proc->led, 0);
+        if (proc->led && proc->led->hook && proc->led->hook->set_night_light_onoff) {
+            proc->led->hook->set_night_light_onoff (proc->led, 0);
         }
 #endif
         if (proc->pm) {

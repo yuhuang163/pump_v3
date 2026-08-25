@@ -93,6 +93,7 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_SYS_ADAPTIVE_SWITCH, write_global_adaptive_switch_to_ram},
 #if IS_SUPPORT_NIGHT_LIGHT
     {STORE_ID_SYS_NIGHT_LIGHT_GEAR, write_night_light_gear_to_ram},
+    {STORE_ID_SYS_NIGHT_LIGHT_STARTUP_SWITCH, write_night_light_startup_switch_to_ram},
 #endif
     {STORE_ID_SYS_BACK_LIGHT_LEVEL, write_back_light_level_to_ram},
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, write_airplane_mode_state_to_ram},
@@ -140,6 +141,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_SYS_ADAPTIVE_SWITCH, read_global_adaptive_switch_from_ram},
 #if IS_SUPPORT_NIGHT_LIGHT
     {STORE_ID_SYS_NIGHT_LIGHT_GEAR, read_night_light_gear_from_ram},
+    {STORE_ID_SYS_NIGHT_LIGHT_STARTUP_SWITCH, read_night_light_startup_switch_from_ram},
 #endif
     {STORE_ID_SYS_BACK_LIGHT_LEVEL, read_back_light_level_from_ram},
     {STORE_ID_SYS_AIRPLANE_MODE_STATE, read_airplane_mode_state_from_ram},

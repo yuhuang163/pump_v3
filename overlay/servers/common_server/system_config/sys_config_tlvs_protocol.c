@@ -49,6 +49,7 @@ static void test_led_post_task_handler(hdr_post_args_t *args)
     if (led->hook && led->hook->set_night_light_adaptive_dimming_switch) {
         led->hook->set_night_light_adaptive_dimming_switch(led, 0); /// 关闭夜灯自适应调光.
     }
+
     if (led->hook && led->hook->set_night_light_level) {
         led->hook->set_night_light_level(led, LED_LEVEL_MAX); /// 设置夜灯亮度为最大.
     }
@@ -196,14 +197,15 @@ int sys_config_tlvs_display_test(comm_protocol_builder_t *builder, comm_protocol
         if (cmd == 0x00 || cmd == 0x01) {
             if (led) {
                 led->set_led_onoff(PUMP_LED_ALL_ID, cmd == 0x00 ? LED_STATUS_OFF : LED_STATUS_ON);
-#if IS_SUPPORT_NIGHT_LIGHT
+                #if IS_SUPPORT_NIGHT_LIGHT
                 if (led->hook && led->hook->set_night_light_adaptive_dimming_switch) {
                     led->hook->set_night_light_adaptive_dimming_switch(led, 0); /// 关闭夜灯自适应调光.
                 }
+
                 if (led->hook && led->hook->set_night_light_level) {
                     led->hook->set_night_light_level(led, cmd == 0x00 ? 0 : LED_LEVEL_MAX); /// 设置夜灯亮度为最大.
                 }
-#endif
+                #endif
                 if (cmd == 0x01) {
                     POST_TASK_HANDLER_DELAYED_ARG0(test_led_post_task_handler, 100, "display_test_cb");
                 }

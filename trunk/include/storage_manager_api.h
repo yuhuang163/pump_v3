@@ -82,6 +82,7 @@ typedef enum {
     STORE_ID_SYS_ADAPTIVE_SWITCH,           /// global_adaptive_switch（Flash sys_state）
     STORE_ID_SYS_NIGHT_LIGHT_GEAR,          /// 夜灯档位 L0~L3
     STORE_ID_SYS_BACK_LIGHT_LEVEL,          /// LCD+按键背光亮度
+    STORE_ID_SYS_NIGHT_LIGHT_STARTUP_SWITCH, /// 夜灯开机自动开启 0-关 1-开
     STORE_ID_USER_BIND_INFO = 600,          /// 用户绑定信息
     STORE_ID_SYS_BIND_STATUS,               /// 绑定状态
     STORE_ID_IMG_RES_OTA_INFO = 700,        /// 图片资源OTA信息

@@ -178,11 +178,14 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
             return;
         }
         
-#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
-        if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-            proc->led->hook->toggle_night_light(proc->led);
-            /// 调节页 LVGL 尚未实现（prepare/process 为空）；切动画会 remove 首页导致黑屏。
-            /// 与吸乳页一致：仅 toggle 夜灯，待 home_night_light_adjust_ui.c 补齐后再进调节 UI。
+#if IS_SUPPORT_NIGHT_LIGHT
+        if (proc->led && proc->led->hook && proc->led->hook->set_night_light_onoff) {
+            int onoff = proc->led->hook->get_night_light_onoff(proc->led);
+            uint8_t next = onoff > 0 ? 0 : 1;
+            proc->led->hook->set_night_light_onoff(proc->led, next);
+            if (next && proc->led->hook->set_night_light_adaptive_dimming_switch) {
+                proc->led->hook->set_night_light_adaptive_dimming_switch(proc->led, 1);
+            }
         }
 #endif
     }

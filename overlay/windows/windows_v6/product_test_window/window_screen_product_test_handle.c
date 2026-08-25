@@ -83,27 +83,23 @@ static void product_test_lcd_color_env_prepare(ui_proc_product_test_t *proc)
     EXCEPTION_CHECK_VOID(proc);
 
     if (proc->led && proc->led->hook) {
-        /// 先压制自适应，再改灯，避免 ALS 覆盖
-        if (proc->led->hook->set_adaptive_dimming_fct_suppress) {
-            proc->led->hook->set_adaptive_dimming_fct_suppress(proc->led, 1);
+        #if IS_SUPPORT_NIGHT_LIGHT
+        if (proc->led->hook->set_night_light_onoff) {
+            proc->led->hook->set_night_light_onoff(proc->led, 0);
         }
-#if IS_SUPPORT_NIGHT_LIGHT
-        if (proc->led->hook->set_night_light_level) {
-            proc->led->hook->set_night_light_level(proc->led, 0);
-        }
-#endif
+        #endif
         if (proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 0);
         }
     }
 
     /// 屏幕背光 100%
-    if (proc->ui && proc->ui->hook) {
-        if (proc->ui->hook->set_ui_backlight_level_rate) {
-            proc->ui->hook->set_ui_backlight_level_rate(proc->ui, 100);
+    if (proc->led && proc->led->hook) {
+        if (proc->led->hook->set_ui_backlight_level_rate) {
+            proc->led->hook->set_ui_backlight_level_rate(proc->led, 100);
         }
-        if (proc->ui->hook->set_ui_backlight_level) {
-            proc->ui->hook->set_ui_backlight_level(proc->ui, LCD_BACKLIGHT_LEVEL_MAX);
+        if (proc->led->hook->set_ui_backlight_level) {
+            proc->led->hook->set_ui_backlight_level(proc->led, LCD_BACKLIGHT_LEVEL_MAX);
         }
     }
     LOG_WM("lcd color env: adaptive_off, night_off, key_bl_off, bl=100");
@@ -114,10 +110,6 @@ static void product_test_lcd_color_env_restore(ui_proc_product_test_t *proc)
     EXCEPTION_CHECK_VOID(proc);
 
     if (proc->led && proc->led->hook) {
-        /// 恢复自适应
-        if (proc->led->hook->set_adaptive_dimming_fct_suppress) {
-            proc->led->hook->set_adaptive_dimming_fct_suppress(proc->led, 0);
-        }
         /// 恢复产测默认按键灯
         if (proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 100);

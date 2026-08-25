@@ -127,8 +127,8 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
         //set_log_ouput_level(US_LOG_LEVEL_NONE);
 #if IS_SUPPORT_NIGHT_LIGHT        
         /// 屏蔽自适应
-        if (led && led->hook && led->hook->set_adaptive_dimming_fct_suppress) {
-            led->hook->set_adaptive_dimming_fct_suppress(led, 1);
+        if (led && led->hook && led->hook->set_global_adaptive_dimming_switch) {
+            led->hook->set_global_adaptive_dimming_switch(led, 1);
         }
 #endif        
         tests_ctx->tests_manager_set_current_mode(TST_FACTORY_TYPE);
@@ -151,8 +151,8 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
             set_log_ouput_level(US_LOG_LEVEL_VERBOSE);
 #if IS_SUPPORT_NIGHT_LIGHT        
             /// 恢复自适应夜灯
-            if (led && led->hook && led->hook->set_adaptive_dimming_fct_suppress) {
-                led->hook->set_adaptive_dimming_fct_suppress(led, 0);
+            if (led && led->hook && led->hook->set_global_adaptive_dimming_switch) {
+                led->hook->set_global_adaptive_dimming_switch(led, 0);
             }
 #endif
             tests_ctx->tests_manager_set_current_mode(TST_NONE_TYPE);
@@ -1348,14 +1348,14 @@ int tests_tlvs_lcd_backlight_control(comm_protocol_builder_t *builder, comm_prot
 
     uint8_t result = 0x00;
     if (data_len == 1 && data != NULL) {
-        ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
-        if (ui && ui->hook && ui->hook->set_ui_backlight_level) {
+        led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+        if (led && led->hook && led->hook->set_ui_backlight_level) {
             /// 设置夜灯LCD背光
-            ui->hook->set_ui_backlight_level(ui, data[0] ? LCD_BACKLIGHT_LEVEL_MAX : 0);
+            led->hook->set_ui_backlight_level(led, data[0] ? LCD_BACKLIGHT_LEVEL_MAX : 0);
             result = 0x01;
             LOG_SRV("tests_tlvs_lcd_backlight_control: %s", data[0] ? "ON" : "OFF");
         } else {
-            LOGW("tests_tlvs_lcd_backlight_control: ui manager or hook unavailable");
+            LOGW("tests_tlvs_lcd_backlight_control: led manager or hook unavailable");
         }
     } else {
         LOGE("tests_tlvs_lcd_backlight_control: invalid data_len=%u, expected 1", (unsigned)data_len);

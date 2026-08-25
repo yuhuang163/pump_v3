@@ -24,12 +24,6 @@ extern "C" {
 #endif
 #define LVGL_HDR_TASK_PERIOD                    (16)
 
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-#define IS_UI_BACKLIGHT_ADAPTIVE                (1)
-#else
-#define IS_UI_BACKLIGHT_ADAPTIVE                (0)
-#endif
-
 typedef enum {
     ANI_TIMER_DRAW_BEFORE = 0, /// 背景合并之前
     ANI_TIMER_DRAW_AFTER,      /// 背景合并之后
@@ -99,9 +93,6 @@ typedef struct ui_manager_context {
         struct rt_device_node *led_dev;     /// LED设备
         bool is_playing_ui_animation;       /// 是否正在播放UI动画
         bool is_playing_ui_overlay;         /// 是否正在播放UI overlay（弹窗等叠加层）
-        uint8_t ui_backlight_level;         /// 背光亮度
-        uint8_t ui_backlight_level_rate;    /// LCD背光调光系数
-        uint8_t ui_backlight_adaptive_val;  /// LCD背光自适应亮度
         bool lv_tick_timer_running;  /// LVGL定时器是否正在运行
     #if IS_SUPPORT_LVGL
         bool lvgl_initialized;      /// LVGL是否已初始化完成
@@ -134,11 +125,6 @@ typedef struct ui_manager_context {
         void (*ui_animation_play_deinit)(struct ui_manager_context *thiz);
         void (*ui_animation_overlay_init)(struct ui_manager_context *thiz, ui_play_info_t play_info);
         void (*ui_animation_overlay_deinit)(struct ui_manager_context *thiz);
-        void (*set_ui_backlight_level)(struct ui_manager_context *thiz, uint8_t level);
-        void (*set_ui_backlight_level_rate)(struct ui_manager_context *thiz, uint8_t rate);
-#if IS_UI_BACKLIGHT_ADAPTIVE
-        void (*ui_backlight_adaptive_level_update)(struct ui_manager_context *thiz, uint8_t level);
-#endif
     } *hook;
 } ui_manager_context_t;
 

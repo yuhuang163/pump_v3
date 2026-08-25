@@ -62,9 +62,10 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
     memset(status, 0, sizeof(*status));
     if (led && led->hook) {
 #if IS_SUPPORT_NIGHT_LIGHT
-        if (led->hook->get_night_light_switch) {
-            status->night_light_switch = led->hook->get_night_light_switch(led) > 0 ? 1 : 0;
+        if (led->hook->get_night_light_onoff) {
+            status->night_light_switch = led->hook->get_night_light_onoff(led) > 0 ? 1 : 0;
         }
+        
         if (led->hook->get_night_light_gear) {
             status->night_light_gear = (uint8_t)led->hook->get_night_light_gear(led);
         }
@@ -82,7 +83,6 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
 static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_t *status)
 {
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
 
     if (led == NULL || led->hook == NULL) {
         LOG_SRV("led is null or hook is null");
@@ -102,25 +102,16 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
     }
 
 #if IS_SUPPORT_NIGHT_LIGHT
-    if (led->hook->get_night_light_switch &&
-        status->night_light_switch != (uint8_t)led->hook->get_night_light_switch(led)) {
-        if (led->hook->set_night_light_switch) {
-            led->hook->set_night_light_switch(led, status->night_light_switch);
+    if (led->hook->set_night_light_onoff) {
+        uint8_t nl_on = status->night_light_switch > 0 ? 1 : 0;
+        led->hook->set_night_light_onoff(led, nl_on);
+        if (nl_on && led->hook->set_night_light_adaptive_dimming_switch) {
+            led->hook->set_night_light_adaptive_dimming_switch(led, 1);
         }
     }
-    if (led->hook->get_night_light_gear &&
-        status->night_light_gear != (uint8_t)led->hook->get_night_light_gear(led)) {
-        if (led->hook->set_night_light_gear) {
-            led->hook->set_night_light_gear(led, status->night_light_gear);
-        }
 
-        /// 如果夜灯关闭时，APP端调节夜灯档位，设备端应当打开夜灯
-        if (led->hook->get_night_light_switch &&
-            led->hook->get_night_light_switch(led) == 0) {
-            if (led->hook->set_night_light_switch) {
-                led->hook->set_night_light_switch(led, 1);
-            }
-        }
+    if (led->hook->set_night_light_gear) {
+        led->hook->set_night_light_gear(led, status->night_light_gear);
     }
 #endif
 
@@ -132,8 +123,8 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
         if (led->hook->set_key_backlight_adaptive_dimming_switch) {
             led->hook->set_key_backlight_adaptive_dimming_switch(led, 0);
         }
-        if (ui && ui->hook && ui->hook->set_ui_backlight_level) {
-            ui->hook->set_ui_backlight_level(ui, status->screen_key_level);
+        if (led->hook->set_ui_backlight_level) {
+            led->hook->set_ui_backlight_level(led, status->screen_key_level);
         }
         if (led->hook->set_key_backlight_level) {
             led->hook->set_key_backlight_level(led, status->screen_key_level);

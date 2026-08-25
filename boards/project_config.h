@@ -144,8 +144,6 @@ extern "C" {
 #define DEFAULT_LEVEL_VALUE                            (1)
 /// 默认速度值
 #define DEFAULT_SPEED_VALUE                            (0)
-/// 电池电量低于 20% 时，亮度最大值
-#define LOW_POWER_BRIGHTNESS_MAX_VALUE                 (60)
 /// IDLE 状态时，亮度最大值
 #define IDLE_BRIGHTNESS_MAX_VALUE                      (50)
 #ifdef __cplusplus

@@ -24,6 +24,7 @@
 #define BLE_ALGO_SAMPLING_INTERVAL_SHELL_CMD   "#algoSmpIntvl"
 #define BLE_NIGHT_LIGHT_ADAPTIVE_SHELL_CMD     "#LightAdaptive"
 #define BLE_NIGHT_LIGHT_SWITCH_SHELL_CMD       "#NightLightSwitch"
+#define BLE_NIGHT_LIGHT_STARTUP_SHELL_CMD      "#NightLightStartup"
 #define BLE_GLOBAL_ADAPTIVE_DIMMING_SWITCH_SHELL_CMD "#GlobalAdaptive"
 #define BLE_NIGHT_LIGHT_GEAR_SHELL_CMD         "#NightLightGear"
 #define BLE_BACK_LIGHT_LEVEL_SHELL_CMD         "#BackLightLevel"
@@ -54,6 +55,7 @@ static void ble_shell_algo_sampling_control(const uint8_t *param, uint16_t len);
 static void ble_shell_algo_sampling_interval(const uint8_t *param, uint16_t len);
 static void ble_shell_night_light_adaptive(const uint8_t *param, uint16_t len); /// @deprecated
 static void ble_shell_night_light_switch(const uint8_t *param, uint16_t len); /// 夜灯开关
+static void ble_shell_night_light_startup(const uint8_t *param, uint16_t len); /// 夜灯开机自动开启
 static void ble_shell_global_adaptive_dimming_switch(const uint8_t *param, uint16_t len);
 static void ble_shell_night_light_gear(const uint8_t *param, uint16_t len); /// 夜灯档位
 static void ble_shell_back_light_level(const uint8_t *param, uint16_t len); /// 背光亮度
@@ -81,6 +83,7 @@ static const ble_factory_shell_t shell_list[] = {
     {BLE_ALGO_SAMPLING_INTERVAL_SHELL_CMD, ble_shell_algo_sampling_interval},
     {BLE_ALGO_SAMPLING_DATA_SHELL_CMD, ble_shell_algo_sampling_control},
     {BLE_NIGHT_LIGHT_ADAPTIVE_SHELL_CMD, ble_shell_night_light_adaptive}, /// @deprecated
+    {BLE_NIGHT_LIGHT_STARTUP_SHELL_CMD, ble_shell_night_light_startup},
     {BLE_NIGHT_LIGHT_SWITCH_SHELL_CMD, ble_shell_night_light_switch},
     {BLE_GLOBAL_ADAPTIVE_DIMMING_SWITCH_SHELL_CMD, ble_shell_global_adaptive_dimming_switch},
     {BLE_NIGHT_LIGHT_GEAR_SHELL_CMD, ble_shell_night_light_gear},
@@ -388,8 +391,22 @@ static void ble_shell_night_light_switch(const uint8_t *param, uint16_t len)
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_VOID(led && led->hook);
 #if IS_SUPPORT_NIGHT_LIGHT
-    if (led->hook->set_night_light_switch) {
-        led->hook->set_night_light_switch(led, data); /// 设置夜灯开关.
+    if (led->hook->set_night_light_onoff) {
+        led->hook->set_night_light_onoff(led, data ? 1 : 0); /// 设置夜灯开关.
+    }
+#endif
+}
+
+static void ble_shell_night_light_startup(const uint8_t *param, uint16_t len)
+{
+    int data = 0;
+    sscanf((const char *)param, "%d", &data);
+    LOG_BLE("shell night light startup switch %d", data);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    EXCEPTION_CHECK_VOID(led && led->hook);
+#if IS_SUPPORT_NIGHT_LIGHT
+    if (led->hook->set_night_light_startup_switch) {
+        led->hook->set_night_light_startup_switch(led, data);
     }
 #endif
 }
@@ -444,11 +461,8 @@ static void ble_shell_back_light_level(const uint8_t *param, uint16_t len)
     if (led->hook->set_key_backlight_level) {
         led->hook->set_key_backlight_level(led, level); /// 设置背光亮度.
     }
-
-    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
-    EXCEPTION_CHECK_VOID(ui && ui->hook);   
-    if (ui->hook->set_ui_backlight_level) {
-        ui->hook->set_ui_backlight_level(ui, level); /// 设置屏背光亮度.
+    if (led->hook->set_ui_backlight_level) {
+        led->hook->set_ui_backlight_level(led, level); /// 设置屏背光亮度.
     }
 }
 
@@ -457,9 +471,11 @@ static void ble_shell_lcd_backlight(const uint8_t *param, uint16_t len)
     int backlight = 0;
     sscanf((const char *)param, "%d", &backlight);
     LOG_BLE("shell lcd backlight:%d", backlight);
-    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
-    EXCEPTION_CHECK_VOID(ui && ui->hook);
-    ui->hook->set_ui_backlight_level(ui, backlight);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    EXCEPTION_CHECK_VOID(led && led->hook);
+    if (led->hook->set_ui_backlight_level) {
+        led->hook->set_ui_backlight_level(led, backlight);
+    }
 }
 
 static void ble_shell_led_night_light(const uint8_t *param, uint16_t len)

@@ -127,24 +127,6 @@ void pump_sub_ui_exit_handler(ui_proc_pump_t *proc)
 
 void pump_power_key_event_handler(ui_proc_pump_t *proc)
 {
-#if IS_SUPPORT_NIGHT_LIGHT
-    if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
-        uint8_t battery_state = proc->battery->get_battery_state();
-        if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-            battery_state == BATTERY_STATE_EMPTY ||
-            battery_state == BATTERY_STATE_FORBID_START) {
-            LOG_WM("battery state is low, ignore power key event.");
-            return;
-        }
-        
-#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
-        if (proc->led && proc->led->hook && proc->led->hook->sync_night_light_power_key) {
-            proc->led->hook->sync_night_light_power_key(proc->led);
-        }
-        return;
-#endif
-    }
-#endif
     LOG_WM("ignore power key event.");
 }
 

@@ -71,6 +71,18 @@ static void battery_low_power_exit_cb(ui_proc_battery_t *proc)
         return;
     }
 
+#if IS_SUPPORT_NIGHT_LIGHT
+    if (proc->led && proc->led->hook &&
+        proc->led->hook->get_night_light_startup_switch &&
+        proc->led->hook->get_night_light_startup_switch(proc->led) &&
+        proc->led->hook->set_night_light_onoff) {
+        proc->led->hook->set_night_light_onoff(proc->led, true);
+        if (proc->led->hook->set_night_light_adaptive_dimming_switch) {
+            proc->led->hook->set_night_light_adaptive_dimming_switch(proc->led, 1);
+        }
+    }
+#endif
+
     if (proc->airplane && proc->airplane->is_on_airplane_mode()) {
         LOG_WM("goto airplane mode screen");
         msg.union_body.extra.window_id = ID_WINDOW_AIRPLANE_MODE;

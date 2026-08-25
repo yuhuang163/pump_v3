@@ -429,7 +429,7 @@ static void on_servers_led_state_cb(void *user_data, led_state_info_t *info)
         return;
     }
     LOG_SRV("led state change: evt=%d onoff=%d level=%d adaptive=%d/%d",
-            info->evt_id, info->night_light_switch, info->night_light_gear,
+            info->evt_id, info->night_light_onoff, info->night_light_gear,
             info->global_adaptive_dimming_switch, info->screen_key_level);
     memcpy(light, info, sizeof(led_state_info_t));
     ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_LIGHT_STATUS_CHANGE);

@@ -129,15 +129,15 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
             return;
         }
         
-#if IS_SUPPORT_DEVICE_NIGHT_LIGHT_TOGGLE
-        if (proc->led && proc->led->hook && proc->led->hook->toggle_night_light) {
-            proc->led->hook->toggle_night_light(proc->led);
-            if (proc->led->hook->set_night_light_switch && proc->led->hook->get_night_light_onoff) {
-                proc->led->hook->set_night_light_switch(proc->led,
-                    proc->led->hook->get_night_light_onoff(proc->led) ? 1u : 0u);
+#if IS_SUPPORT_NIGHT_LIGHT
+        if (proc->led && proc->led->hook && 
+            proc->led->hook->set_night_light_onoff && proc->led->hook->get_night_light_onoff) {
+            int onoff = proc->led->hook->get_night_light_onoff(proc->led);
+            uint8_t next = onoff > 0 ? 0 : 1;
+            proc->led->hook->set_night_light_onoff(proc->led, next);
+            if (next && proc->led->hook->set_night_light_adaptive_dimming_switch) {
+                proc->led->hook->set_night_light_adaptive_dimming_switch(proc->led, 1);
             }
-            // TODO: UI 就绪后恢复调用 show_home_night_light_adjust_ui(proc);
-            // show_home_night_light_adjust_ui(proc);
         }
         return;
 #endif
