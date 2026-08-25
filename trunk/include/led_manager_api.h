@@ -100,7 +100,8 @@ typedef struct led_manager_context {
         int (*get_ui_backlight_adaptive_dimming_switch)(struct led_manager_context *ctx);
         void (*set_global_adaptive_dimming_switch)(struct led_manager_context *ctx, uint8_t onoff);
         int (*get_global_adaptive_dimming_switch)(struct led_manager_context *ctx);
-
+        void (*set_global_backlight_level)(struct led_manager_context *ctx, uint8_t level);
+        int (*get_global_backlight_level)(struct led_manager_context *ctx);
     } *hook;
 /// private:
     struct __led_private {
@@ -117,7 +118,8 @@ typedef struct led_manager_context {
         uint8_t night_light_gear;   /// 夜灯档位，后续评估是否可用night_light_level替代
         uint8_t night_light_adaptive_dimming_switch;  /// 夜灯自适应调节开关，用于屏蔽夜灯 ALS（屏蔽 ALS 时，不更新背光档位）（RAM） 
         #endif
-        uint8_t key_light_level_max;
+        uint8_t global_backlight_level;     /// 全局面板背光亮度
+        uint8_t key_light_level;
         uint8_t key_light_level_rate;
         uint8_t key_light_adaptive_level;
         uint8_t ui_backlight_level;         /// LCD 背光亮度

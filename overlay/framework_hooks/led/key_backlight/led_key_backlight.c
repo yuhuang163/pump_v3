@@ -57,16 +57,20 @@ static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
 }
 
-static void set_key_backlight_level(led_manager_context_t *thiz, uint8_t level_max)
+static void set_key_backlight_level(led_manager_context_t *thiz, uint8_t level)
 {
-    uint8_t level_max_with_rate = level_max * thiz->priv.key_light_level_rate / 100;
-    if (level_max_with_rate == thiz->priv.key_light_level_max) {
+    if (level > thiz->priv.global_backlight_level) {
+        level = thiz->priv.global_backlight_level;
+    }
+
+    uint8_t level_with_rate = level * thiz->priv.key_light_level_rate / 100;
+    if (level_with_rate == thiz->priv.key_light_level) {
         return;
     }
-    thiz->priv.key_light_level_max = level_max_with_rate;
+    thiz->priv.key_light_level = level_with_rate;
     led_level_msg_t msg = {
         .led_index = PUMP_LED_ALL_ID,
-        .level_max = thiz->priv.key_light_level_max,
+        .level_max = thiz->priv.key_light_level,
     };
     if (thiz->priv.led_dev) {
         thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_LEVEL_MAX_SET, (void *)&msg);
@@ -76,7 +80,7 @@ static void set_key_backlight_level(led_manager_context_t *thiz, uint8_t level_m
 
 static int get_key_backlight_level(led_manager_context_t *thiz)
 {
-    return thiz->priv.key_light_level_max;
+    return thiz->priv.key_light_level;
 }
 
 static void key_light_adaptive_level_update(led_manager_context_t *thiz, uint8_t level)
