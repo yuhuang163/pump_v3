@@ -28,10 +28,11 @@ static void set_ui_backlight_level_internal(led_manager_context_t *thiz, uint16_
 
 static void set_ui_backlight_level(led_manager_context_t *thiz, uint8_t level)
 {
-    uint8_t level_with_rate;
-
     EXCEPTION_CHECK_VOID(thiz);
-    level_with_rate = level * thiz->priv.ui_backlight_level_rate / 100;
+    if (level > thiz->priv.global_backlight_level) {
+        level = thiz->priv.global_backlight_level;
+    }
+    uint8_t level_with_rate = level * thiz->priv.ui_backlight_level_rate / 100;
     if (level_with_rate > LCD_BACKLIGHT_LEVEL_MAX) {
         level_with_rate = LCD_BACKLIGHT_LEVEL_MAX;
     }

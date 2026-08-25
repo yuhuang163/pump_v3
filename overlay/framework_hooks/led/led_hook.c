@@ -25,7 +25,7 @@ static void led_hook_fill_state_snapshot(led_manager_context_t *thiz, led_broadc
     info->night_light_gear = thiz->priv.night_light_gear;
 #endif
     info->global_adaptive_dimming_switch = thiz->priv.global_adaptive_dimming_switch;
-    info->screen_key_level = thiz->priv.key_light_level_max;
+    info->screen_key_level = thiz->priv.key_light_level;
 }
 
 static int led_hook_led_state_snapshot_changed(const led_state_info_t *cur, const led_state_info_t *last)
@@ -79,6 +79,25 @@ static int get_global_adaptive_dimming_switch(led_manager_context_t *thiz)
     return thiz->priv.global_adaptive_dimming_switch;
 }
 
+static void set_global_backlight_level(led_manager_context_t *thiz, uint8_t level)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    if (level < 20 || level > LED_LEVEL_MAX) {
+        return;
+    }
+    thiz->priv.global_backlight_level = level;
+    thiz->hook->set_key_backlight_adaptive_dimming_switch(thiz, 0);
+    thiz->hook->set_ui_backlight_adaptive_dimming_switch(thiz, 0);
+    thiz->hook->set_key_backlight_level(thiz, level);
+    thiz->hook->set_ui_backlight_level(thiz, level);
+    LOG_MISC("global backlight level: %d", thiz->priv.global_backlight_level);
+}
+
+static int get_global_backlight_level(led_manager_context_t *thiz)
+{
+    return thiz->priv.global_backlight_level;
+}
+
 static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
 {
     led_manager_context_t *thiz = context;
@@ -106,11 +125,11 @@ static int on_post_init_route(led_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_INT(thiz);
     thiz->priv.power = (power_manager_context_t *)find_module(ID_MODULE_POWER);
-    thiz->priv.key_light_level_max = LED_LEVEL_MAX;
+    thiz->priv.key_light_level = LED_LEVEL_MAX;
     thiz->priv.key_light_level_rate = 100;
     thiz->priv.ui_backlight_level_rate = 100;
     thiz->priv.ui_backlight_adaptive_val = LCD_BACKLIGHT_LEVEL_MIN;
-
+    thiz->priv.global_backlight_level = LED_LEVEL_MAX;
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     if (pbus) {
         thiz->priv.panel_dev = pbus->find_device(ID_DEVICE_DISPLAY_PANEL);
@@ -172,4 +191,6 @@ void register_led_hook(led_manager_context_t *ctx)
     #endif
     ctx->hook->set_global_adaptive_dimming_switch = set_global_adaptive_dimming_switch;
     ctx->hook->get_global_adaptive_dimming_switch = get_global_adaptive_dimming_switch;
+    ctx->hook->set_global_backlight_level = set_global_backlight_level;
+    ctx->hook->get_global_backlight_level = get_global_backlight_level;
 }
