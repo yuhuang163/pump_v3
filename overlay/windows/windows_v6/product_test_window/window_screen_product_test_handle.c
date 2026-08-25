@@ -168,6 +168,13 @@ static void product_test_ui_common_cb(hdr_post_args_t *args)
         case PRODUCT_TEST_AGING_TEST:
             if (args->arg2 > 0) {
                 proc->tests_mode = PRODUCT_TEST_AGING_TEST_MODE;
+                if (proc->tests) {
+                    if (proc->tests->tests_manager_set_current_mode) {
+                        proc->tests->tests_manager_set_current_mode(TST_AGING_TEST_TYPE);
+                    }
+                    proc->tests->add_product_tests_evt_lisenser(proc, TST_FACTORY_TYPE, factory_tests_event_report_cb);
+                    proc->tests->tests_manager_set_enable(true);
+                }
                 LOG_WM("show aging test ui");
                 show_aging_test_ui(proc);
             }else {
