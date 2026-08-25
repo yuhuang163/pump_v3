@@ -78,6 +78,8 @@ int read_global_adaptive_switch_from_ram(store_func_args_t args);
 #if IS_SUPPORT_NIGHT_LIGHT
 int write_night_light_gear_to_ram(store_func_args_t args);
 int read_night_light_gear_from_ram(store_func_args_t args);
+int write_night_light_startup_switch_to_ram(store_func_args_t args);
+int read_night_light_startup_switch_from_ram(store_func_args_t args);
 #endif
 int write_back_light_level_to_ram(store_func_args_t args);
 int read_back_light_level_from_ram(store_func_args_t args);

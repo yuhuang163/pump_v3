@@ -180,8 +180,8 @@ void show_dummy_power_on_hold_ui(ui_proc_dummy_t *proc)
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = DUMMY_UI_TYPE_POWER_ON_HOLD;
     proc->power_on_hold_holding = 0;
-    if (ui->hook->set_ui_backlight_level_rate) {
-        ui->hook->set_ui_backlight_level_rate(ui, IDLE_BRIGHTNESS_MAX_VALUE);
+    if (proc->led && proc->led->hook && proc->led->hook->set_ui_backlight_level_rate) {
+        proc->led->hook->set_ui_backlight_level_rate(proc->led, IDLE_BRIGHTNESS_MAX_VALUE);
     }
 }
 
@@ -192,8 +192,8 @@ void stop_dummy_ui_animation(ui_proc_dummy_t *proc)
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui && ui->hook && ui->hook->ui_animation_play_deinit);
     ui->hook->ui_animation_play_deinit(ui);
-    if (ui->hook->set_ui_backlight_level_rate) {
-        ui->hook->set_ui_backlight_level_rate(ui, 100);
+    if (proc->led && proc->led->hook && proc->led->hook->set_ui_backlight_level_rate) {
+        proc->led->hook->set_ui_backlight_level_rate(proc->led, 100);
     }
     proc->last_progress_ani_time = get_timestamp();
 }

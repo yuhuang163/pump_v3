@@ -791,22 +791,18 @@ BATTERY_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/battery \
 	-I$(PROJECT_ROOT)/trunk/root_source/battery
 
-# 夜灯（仅 V3PRO）
+# 夜灯驱动（仅 V3PRO）
 ifeq ($(ROOT_PRODUCT_ID),$(ROOT_PRODUCT_V3PRO_ID))
-LED_NIGHT_LIGHT_INC := -I$(PROJECT_ROOT)/overlay/night_light
 LED_NIGHT_LIGHT_DRIVER_SRCS := $(wildcard $(PROJECT_ROOT)/drivers/led/night_light/*.c)
-LED_NIGHT_LIGHT_OVERLAY_SRCS := $(wildcard $(PROJECT_ROOT)/overlay/night_light/*.c)
 else
-LED_NIGHT_LIGHT_INC :=
 LED_NIGHT_LIGHT_DRIVER_SRCS :=
-LED_NIGHT_LIGHT_OVERLAY_SRCS :=
 endif
 
 # 灯模块头文件
 LED_MODULE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/overlay/adaptive_dimming \
-	$(LED_NIGHT_LIGHT_INC) \
 	-I$(PROJECT_ROOT)/overlay/framework_hooks/led \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/led/night_light \
 	-I$(PROJECT_ROOT)/trunk/root_source/led
 
 # 系统异常模块头文件
@@ -1392,8 +1388,8 @@ BATTERY_MODULE_SRCS := \
 # 灯模块源码
 LED_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/overlay/adaptive_dimming/*.c) \
-	$(LED_NIGHT_LIGHT_OVERLAY_SRCS) \
 	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/led/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/led/night_light/*.c) \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/led/*.c)
 
 # 系统异常模块源码

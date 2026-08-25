@@ -327,7 +327,8 @@ typedef struct {
     uint8_t global_adaptive_switch;             /// App 自动调光总开关（Flash 唯一 ALS 持久化）
     uint8_t night_light_gear;                   /// 夜灯档位
     uint8_t back_light_level;                   /// LCD+按键背光系数 0~100，App 钳 5~80
-    uint8_t rsv[28];              /// 保留
+    uint8_t night_light_startup_on;             /// 夜灯开机自动开：0-关 1-开
+    uint8_t rsv[27];              /// 保留
 } sys_state_info_t;
 
 typedef struct {

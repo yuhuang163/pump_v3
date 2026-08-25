@@ -41,7 +41,7 @@ do { \
 /// LED 状态快照（注册回调分发载荷）
 typedef struct {
     uint8_t evt_id;                       /// led_broadcast_id_e
-    uint8_t night_light_switch;           /// 夜灯开关
+    uint8_t night_light_onoff;            /// 夜灯开关
     uint8_t night_light_gear;             /// 夜灯档位
     uint8_t global_adaptive_dimming_switch;  /// 自适应全局开关
     uint8_t screen_key_level;                /// 屏幕/按键背光亮度
@@ -74,59 +74,59 @@ typedef struct led_manager_context {
     struct __led_manager_hook {
         int (*on_post_init_route)(struct led_manager_context *ctx);
         int (*on_broadcast_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata);
-#if IS_SUPPORT_NIGHT_LIGHT
+        #if IS_SUPPORT_NIGHT_LIGHT
         int (*get_night_light_onoff)(struct led_manager_context *ctx);
-        int (*toggle_night_light)(struct led_manager_context *ctx);
+        int (*set_night_light_onoff)(struct led_manager_context *ctx, uint8_t onoff);
         void (*set_night_light_level)(struct led_manager_context *ctx, uint8_t level);
         int (*get_night_light_level)(struct led_manager_context *ctx);
         void (*set_night_light_gear)(struct led_manager_context *ctx, uint8_t gear);
         int (*get_night_light_gear)(struct led_manager_context *ctx);
-        void (*set_night_light_switch)(struct led_manager_context *ctx, uint8_t onoff);
-        int (*get_night_light_switch)(struct led_manager_context *ctx);
+        void (*set_night_light_startup_switch)(struct led_manager_context *ctx, uint8_t onoff);
+        int (*get_night_light_startup_switch)(struct led_manager_context *ctx); 
         void (*set_night_light_adaptive_dimming_switch)(struct led_manager_context *ctx, uint8_t onoff);
         int (*get_night_light_adaptive_dimming_switch)(struct led_manager_context *ctx);
-        /// 电源键开启夜灯接口
-        int (*sync_night_light_power_key)(struct led_manager_context *ctx);
-#endif
+        #endif
         void (*set_key_backlight)(struct led_manager_context *ctx, uint8_t level);
         void (*set_key_backlight_level)(struct led_manager_context *ctx, uint8_t level);
+        void (*set_key_backlight_level_rate)(struct led_manager_context *ctx, uint8_t rate);
         int (*get_key_backlight_level)(struct led_manager_context *ctx);
         void (*key_light_adaptive_level_update)(struct led_manager_context *ctx, uint8_t level);
         void (*set_key_backlight_adaptive_dimming_switch)(struct led_manager_context *ctx, uint8_t onoff);
+        void (*set_ui_backlight_level)(struct led_manager_context *ctx, uint8_t level);
+        void (*set_ui_backlight_level_rate)(struct led_manager_context *ctx, uint8_t rate);
+        void (*ui_backlight_adaptive_level_update)(struct led_manager_context *ctx, uint8_t level);
         void (*set_global_adaptive_dimming_switch)(struct led_manager_context *ctx, uint8_t onoff);
         int (*get_global_adaptive_dimming_switch)(struct led_manager_context *ctx);
-        void (*set_adaptive_dimming_fct_suppress)(struct led_manager_context *ctx, uint8_t onoff);/// 工厂模式下,屏/键/夜灯子 ALS 开关抑制
         int (*get_ui_backlight_adaptive_dimming_switch)(struct led_manager_context *ctx);
         int (*get_key_backlight_adaptive_dimming_switch)(struct led_manager_context *ctx);
     } *hook;
 /// private:
     struct __led_private {
         struct rt_device_node  *led_dev;
+        struct rt_device_node  *panel_dev;  /// LCD 面板，用于屏背光 ioctl
         broadcast_obj_t m_bcd;
         struct power_manager_context *power;
         list_head_t client_list;
         os_mutex_id m_lock;
         #if IS_SUPPORT_NIGHT_LIGHT
         uint8_t night_light_onoff;  /// 夜灯亮度开关
-        uint8_t night_light_switch; /// 夜灯功能开关，用于区分夜灯功能是否开启
+        uint8_t night_light_startup_switch; /// 夜灯开机自动开启（RAM 镜像 Flash）
         uint8_t night_light_level;  /// 夜灯当前 PWM 亮度（pwm_table[] 索引；手动/ALS 共用）
         uint8_t night_light_gear;   /// 夜灯档位，后续评估是否可用night_light_level替代
-        uint8_t night_light_adaptive_dimming_switch;  /// 夜灯自适应调节开关，用于屏蔽夜灯 ALS（屏蔽 ALS 时，不更新背光档位）（RAM）    
+        uint8_t night_light_adaptive_dimming_switch;  /// 夜灯自适应调节开关，用于屏蔽夜灯 ALS（屏蔽 ALS 时，不更新背光档位）（RAM） 
         #endif
         uint8_t key_light_level_max;
         uint8_t key_light_level_rate;
         uint8_t key_light_adaptive_level;
+        uint8_t ui_backlight_level;         /// LCD 背光亮度
+        uint8_t ui_backlight_level_rate;    /// LCD 背光调光系数
+        uint8_t ui_backlight_adaptive_val;  /// LCD 背光自适应亮度
 
         uint8_t global_adaptive_dimming_switch;         /// 自适应全局开关（RAM，随 global）
         uint8_t ui_backlight_adaptive_dimming_switch;   /// UI 背光 ALS 开关（RAM，随 global）
         uint8_t key_backlight_adaptive_dimming_switch;  /// 按键背光 ALS 开关（RAM，随 global）
     } priv;
 } led_manager_context_t;
-
-#if IS_SUPPORT_NIGHT_LIGHT
-/// App 手动关闭夜灯（关 ALS 子开关并 turn_off）
-void night_light_on_app_manual_off(led_manager_context_t *led);
-#endif
 
 #ifdef __cplusplus
 }

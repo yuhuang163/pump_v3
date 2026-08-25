@@ -35,7 +35,7 @@ extern "C" {
 /// 产测 S2：写完最后一个阈值点（point == 本宏）后再 reload 生效
 #define ADAP_DIM_LUX_CALIB_THR_RELOAD_POINT     (ADAP_DIM_LUX_CALIB_THR_POINTS - 1)
 
-/// 屏/键背光 lux→duty knots（adaptive_dimming.c / s_back_lux_duty_knots）
+/// 屏/键背光 lux→duty knots（key_backlight ALS）
 #define ADAP_DIM_LED_LEVEL1_MIN                 26u  /// 对应PWM表5%位置
 #define ADAP_DIM_LED_LEVEL1_MAX                 35u  /// 对应PWM表10%位置
 #define ADAP_DIM_LED_LEVEL2_MIN                 35u  /// 对应PWM表10%位置
@@ -101,6 +101,20 @@ extern "C" {
 
 
 
+#define ADAP_DIM_INVALID_DUTY                   255            /// 无效的LED亮度等级
+
+typedef struct {
+    uint16_t lux;
+    uint8_t duty;
+} adap_dim_lux_duty_knot_t;
+
+typedef struct {
+    uint16_t vdark;
+    uint16_t dark;
+    uint16_t medium;
+    uint16_t bright;
+} adaptive_dimming_lux_thr_t;
+
 typedef struct {
     uint8_t is_acquire_complete; /// 采集完成标志
     uint8_t index; /// 采集索引
@@ -124,27 +138,12 @@ int adaptive_dimming_lux_thr_reload_from_factory(void);
 /// 最近一次 EMA 滤波后的 lux（供夜灯开灯时立即对齐背光目标）
 uint16_t adaptive_dimming_get_filtered_lux(void);
 
-#if IS_SUPPORT_NIGHT_LIGHT
+/// 运行时 lux 分段阈值（工厂 calib 覆盖后的值）
+void adaptive_dimming_get_lux_thr(adaptive_dimming_lux_thr_t *out);
 
-/// 夜灯 ALS 曲线 pwm_table[] 索引
-#define ADAP_DIM_NL_PWM_IDX_OFF                    0
-#define ADAP_DIM_NL_PWM_IDX_L1                     25u
-#define ADAP_DIM_NL_PWM_IDX_L2                     45u
-#define ADAP_DIM_NL_PWM_IDX_L3                     65u
-
-/// adc/lux → pwm_table[] 索引（s_nl_adc_duty_knots 插值；lux >= 运行时 medium thr 返回 OFF）
-uint8_t adaptive_dimming_night_light_duty_from_lux(uint16_t lux_avg);
-
-/// 夜灯 ALS 路径开启（由 led_hook 在 turn_on 时调用，内部处理缓存失效与立即推送）
-void adaptive_dimming_on_night_light_open(led_manager_context_t *led);
-
-/// 夜灯关闭（由 led_hook 在 turn_off 时调用）
-void adaptive_dimming_on_night_light_close(void);
-
-/// 夜灯已亮时 switch 从关恢复（由 led_hook 在 set_night_light_switch(1) 时调用）
-void adaptive_dimming_on_night_light_switch_restored(led_manager_context_t *led);
-
-#endif
+/// lux-duty 折线插值（各灯 ALS 曲线共用）
+uint8_t adaptive_dimming_duty_interpolate(uint16_t lux, const adap_dim_lux_duty_knot_t *knots,
+                                          uint8_t knot_cnt);
 
 #define PANEL_BACKLIGHT_APP_RATE_MIN        1u//1u
 #define PANEL_BACKLIGHT_APP_RATE_MAX        100u//80u//100u

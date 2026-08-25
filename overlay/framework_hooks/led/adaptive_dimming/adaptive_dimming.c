@@ -3,7 +3,7 @@
 *****************************************************************************************
 */
 #include "root_common_api.h" // IWYU pragma: keep
-#include "adaptive_dimming.h" // IWYU pragma: keep
+#include "led_hook_internal.h" // IWYU pragma: keep
 #include "light_sensor_module.h" // IWYU pragma: keep
 #if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
 #include "storage_manager_api.h" // IWYU pragma: keep
@@ -17,9 +17,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define ADAP_DIM_INVALID_DUTY                       255            /// 无效的LED亮度等级
 #define ADAPTIVE_DIMMING_DEBUG_LOG                  (0)            /// 自适应背光调试日志 0: 不打印 1: 打印
-/* ADAP_DIM_LUX_CALIB_THR_POINTS 见 adaptive_dimming.h */
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -30,18 +28,6 @@ static uint16_t s_lux_thr_dark = ADAP_DIM_LUX_THR_DARK;
 static uint16_t s_lux_thr_medium = ADAP_DIM_LUX_THR_MEDIUM;
 static uint16_t s_lux_thr_bright = ADAP_DIM_LUX_THR_BRIGHT;
 
-
-/// 确认后的 target；键灯 slew 逼近；屏默认直推 target（BSP 爬坡），可选 s_ui_duty_slew
-static uint8_t s_back_duty_target = ADAP_DIM_LED_LEVEL1_MIN;
-static uint8_t s_key_duty_slew = ADAP_DIM_LED_LEVEL1_MIN;
-static uint8_t s_key_duty_pushed = ADAP_DIM_INVALID_DUTY;
-static uint8_t s_ui_duty_pushed = ADAP_DIM_INVALID_DUTY;
-
-#if IS_SUPPORT_NIGHT_LIGHT
-static uint8_t s_nl_duty_target = 0;
-static uint8_t s_nl_duty_slew = 0;
-static uint8_t s_nl_duty_pushed = ADAP_DIM_INVALID_DUTY;
-#endif
 static adaptive_dimming_info_t *adaptive = NULL;
 
 static uint16_t light_sensor_data[10] = {0};
@@ -66,10 +52,6 @@ static uint16_t s_lux_last_batch_lux = 0;
 static uint8_t s_lux_last_batch_valid = 0;
 static uint16_t s_pending_lux = 0;               ///< 去抖期间跟踪的最新 lux，确认时一次映射目标
 #endif
-/*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -105,28 +87,8 @@ static void on_light_sensor_data_cb(void *user_data, uint8_t *data, int data_len
 #endif
 }
 
-typedef struct {
-    uint16_t lux;
-    uint8_t duty;
-} adap_dim_lux_duty_knot_t;
-
-#define ADAP_DIM_BACK_LUX_DUTY_KNOT_CNT          6
-#if IS_SUPPORT_NIGHT_LIGHT
-#define ADAP_DIM_NL_ADC_DUTY_KNOT_CNT            4
-#endif
-
-/// 与分段曲线关键点一致，段内线性插值（lux↑ → duty↑）；lux 轴由 s_lux_thr_* 运行时重建
-static adap_dim_lux_duty_knot_t s_back_lux_duty_knots[ADAP_DIM_BACK_LUX_DUTY_KNOT_CNT] = {
-    {0u, ADAP_DIM_LED_LEVEL1_MIN},
-    {ADAP_DIM_LUX_THR_VDARK, ADAP_DIM_LED_LEVEL1_MAX},
-    {ADAP_DIM_LUX_THR_DARK, ADAP_DIM_LED_LEVEL2_MAX},
-    {ADAP_DIM_LUX_THR_MEDIUM, ADAP_DIM_LED_LEVEL3_MAX},
-    {ADAP_DIM_LUX_THR_BRIGHT, ADAP_DIM_LED_LEVEL4_MAX},
-    {ADAP_DIM_LUX_MAX, ADAP_DIM_LED_LEVEL5_MAX},
-};
-
-static uint8_t adaptive_dimming_duty_interpolate(uint16_t lux, const adap_dim_lux_duty_knot_t *knots,
-                                                 uint8_t knot_cnt)
+uint8_t adaptive_dimming_duty_interpolate(uint16_t lux, const adap_dim_lux_duty_knot_t *knots,
+                                          uint8_t knot_cnt)
 {
     if (knot_cnt == 0) {
         return 0;
@@ -154,38 +116,19 @@ static uint8_t adaptive_dimming_duty_interpolate(uint16_t lux, const adap_dim_lu
     return knots[knot_cnt - 1].duty;
 }
 
-static uint8_t adaptive_dimming_back_duty_from_lux(uint16_t lux_avg)
-{
-    if (lux_avg > ADAP_DIM_LUX_MAX) {
-        lux_avg = ADAP_DIM_LUX_MAX;
-    }
-    return adaptive_dimming_duty_interpolate(lux_avg, s_back_lux_duty_knots,
-                                           ADAP_DIM_BACK_LUX_DUTY_KNOT_CNT);
-}
-
 uint16_t adaptive_dimming_get_filtered_lux(void)
 {
     return s_lux_filtered;
 }
 
-#if IS_SUPPORT_NIGHT_LIGHT
-/// 夜灯 ALS：lux 轴随 s_lux_thr_*；duty 为 pwm_table[] 索引；>= medium 关断
-static adap_dim_lux_duty_knot_t s_nl_adc_duty_knots[ADAP_DIM_NL_ADC_DUTY_KNOT_CNT] = {
-    {0u, ADAP_DIM_NL_PWM_IDX_L1},
-    {ADAP_DIM_LUX_THR_VDARK, ADAP_DIM_NL_PWM_IDX_L1},
-    {ADAP_DIM_LUX_THR_DARK, ADAP_DIM_NL_PWM_IDX_L2},
-    {ADAP_DIM_LUX_THR_MEDIUM, ADAP_DIM_NL_PWM_IDX_L3},
-};
-
-uint8_t adaptive_dimming_night_light_duty_from_lux(uint16_t lux_avg)
+void adaptive_dimming_get_lux_thr(adaptive_dimming_lux_thr_t *out)
 {
-    if (lux_avg >= s_lux_thr_medium) {
-        return ADAP_DIM_NL_PWM_IDX_OFF;
-    }
-    return adaptive_dimming_duty_interpolate(lux_avg, s_nl_adc_duty_knots,
-                                           ADAP_DIM_NL_ADC_DUTY_KNOT_CNT);
+    EXCEPTION_CHECK_VOID(out);
+    out->vdark = s_lux_thr_vdark;
+    out->dark = s_lux_thr_dark;
+    out->medium = s_lux_thr_medium;
+    out->bright = s_lux_thr_bright;
 }
-#endif /* IS_SUPPORT_NIGHT_LIGHT */
 
 #if ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE
 /// 7.2.2 滞回映射表：上升阈值（lux），分段边界用运行时 s_lux_thr_*
@@ -255,13 +198,13 @@ static void adaptive_dimming_debounce_reset(void)
 }
 #endif /* ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE */
 
-/// 一次确认：按当前 lux 更新屏/键/夜灯目标 duty
+/// 一次确认：按当前 lux 更新各灯目标 duty
 static void adaptive_dimming_confirm_targets(uint16_t lux_avg)
 {
-    uint8_t new_back = adaptive_dimming_back_duty_from_lux(lux_avg);
-    s_back_duty_target = new_back;
+    led_key_backlight_als_on_lux(lux_avg);
+    led_ui_backlight_als_on_lux(lux_avg);
 #if IS_SUPPORT_NIGHT_LIGHT
-    s_nl_duty_target = adaptive_dimming_night_light_duty_from_lux(lux_avg);
+    led_night_light_als_on_lux(lux_avg);
 #endif
 #if ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE
     s_last_applied_lux = lux_avg;
@@ -269,112 +212,6 @@ static void adaptive_dimming_confirm_targets(uint16_t lux_avg)
     adaptive_dimming_debounce_reset();
 #endif
 }
-
-static void adaptive_dimming_slew_one(uint8_t *cur, uint8_t target, uint8_t step_up, uint8_t step_down)
-{
-    if (*cur < target) {
-        uint8_t delta = target - *cur;
-
-        if (delta > step_up) {
-            delta = step_up;
-        }
-        *cur += delta;
-    } else if (*cur > target) {
-        uint8_t delta = *cur - target;
-
-        if (delta > step_down) {
-            delta = step_down;
-        }
-        *cur -= delta;
-    }
-}
-
-static void adaptive_dimming_slew_step(void)
-{
-    //adaptive_dimming_slew_one(&s_key_duty_slew, s_back_duty_target, ADAP_DIM_DUTY_SLEW_STEP_UP,
-    //                          ADAP_DIM_DUTY_SLEW_STEP_DOWN);
-    s_key_duty_slew = s_back_duty_target;
-#if IS_SUPPORT_NIGHT_LIGHT
-    s_nl_duty_slew = s_nl_duty_target;
-#endif
-}
-
-static void adaptive_dimming_apply_outputs(led_manager_context_t *led)
-{
-    if (led->hook && led->hook->get_key_backlight_adaptive_dimming_switch(led) && led->hook->key_light_adaptive_level_update &&
-        s_key_duty_slew != s_key_duty_pushed) {
-        led->hook->key_light_adaptive_level_update(led, s_key_duty_slew);
-        s_key_duty_pushed = s_key_duty_slew;
-    }
-
-    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
-    // 按键和屏背光自适应开关共用，统一用 key 开关
-    if (ui && ui->hook && led->hook && led->hook->get_key_backlight_adaptive_dimming_switch(led)) {
-        uint8_t ui_level = s_back_duty_target;
-        if (ui_level != s_ui_duty_pushed) {
-            ui->hook->ui_backlight_adaptive_level_update(ui, ui_level);
-            s_ui_duty_pushed = ui_level;
-        }
-    }
-
-#if IS_SUPPORT_NIGHT_LIGHT
-    if (led->hook && led->hook->get_night_light_adaptive_dimming_switch(led) &&
-        led->hook->get_night_light_onoff && led->hook->get_night_light_onoff(led) &&
-        led->hook->set_night_light_level && (s_nl_duty_slew != s_nl_duty_pushed)) {
-        led->hook->set_night_light_level(led, s_nl_duty_slew);
-        s_nl_duty_pushed = s_nl_duty_slew;
-    }
-#endif
-}
-
-#if IS_SUPPORT_NIGHT_LIGHT
-static void adaptive_dimming_night_light_invalidate_pushed(void)
-{
-    s_nl_duty_pushed = ADAP_DIM_INVALID_DUTY;
-}
-
-static void adaptive_dimming_night_light_push_now(led_manager_context_t *led)
-{
-    if (!led || !led->hook) {
-        return;
-    }
-    if (!led->hook->get_night_light_adaptive_dimming_switch(led)) {
-        return;
-    }
-    if (!led->hook->get_night_light_onoff || !led->hook->get_night_light_onoff(led)) {
-        return;
-    }
-    if (!led->hook->set_night_light_level) {
-        return;
-    }
-    uint8_t duty = s_nl_duty_target;
-    if (duty == 0) {
-        duty = adaptive_dimming_night_light_duty_from_lux(adaptive_dimming_get_filtered_lux());
-    }
-    s_nl_duty_slew = duty;
-    s_nl_duty_target = duty;
-    s_nl_duty_pushed = ADAP_DIM_INVALID_DUTY;
-    led->hook->set_night_light_level(led, duty);
-    s_nl_duty_pushed = duty;
-}
-
-void adaptive_dimming_on_night_light_open(led_manager_context_t *led)
-{
-    adaptive_dimming_night_light_invalidate_pushed();
-    adaptive_dimming_night_light_push_now(led);
-}
-
-void adaptive_dimming_on_night_light_close(void)
-{
-    adaptive_dimming_night_light_invalidate_pushed();
-}
-
-void adaptive_dimming_on_night_light_switch_restored(led_manager_context_t *led)
-{
-    adaptive_dimming_night_light_invalidate_pushed();
-    adaptive_dimming_night_light_push_now(led);
-}
-#endif
 
 /// 对批均值做滤波：变暗直接跟批均值；变亮保留 EMA + 快跟，避免亮环境抖动。
 static uint16_t adaptive_dimming_lux_filter(uint16_t raw_avg)
@@ -523,8 +360,8 @@ static void adaptive_dimming_polling_thread(void *user_data)
         adaptive->capture_data.is_acquire_complete = 0;
         lux_for_duty = adaptive_dimming_lux_filter((uint16_t)(lux_sum / ADAP_DIM_DATA_SIZE));
 #if ADAPTIVE_DIMMING_DEBUG_LOG
-        LOG_MISC("lux raw_avg: %lu, filt: %u, tgt: %u, key_slew: %u", (unsigned long)(lux_sum / ADAP_DIM_DATA_SIZE),
-                 (unsigned)lux_for_duty, (unsigned)s_back_duty_target, (unsigned)s_key_duty_slew);
+        LOG_MISC("lux raw_avg: %lu, filt: %u", (unsigned long)(lux_sum / ADAP_DIM_DATA_SIZE),
+                 (unsigned)lux_for_duty);
 #endif
 #if ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE
         s_lux_last_batch_lux = lux_for_duty;
@@ -546,12 +383,11 @@ static void adaptive_dimming_polling_thread(void *user_data)
 #else
         adaptive_dimming_confirm_targets(lux_for_duty);
 #endif
-        // adaptive_dimming_apply_outputs(led);
     }
 
 }
 
-/// 快周期：键灯 slew + 屏写 target/slew + 夜灯直写（屏/夜灯 BSP 爬坡）
+/// 快周期：分发到各灯 ALS 输出（屏/夜灯 BSP 爬坡）
 static void adaptive_dimming_slew_thread(void *user_data)
 {
     led_manager_context_t *led = (led_manager_context_t *)user_data;
@@ -562,8 +398,11 @@ static void adaptive_dimming_slew_thread(void *user_data)
         return;
     }
 #endif
-    adaptive_dimming_slew_step();
-    adaptive_dimming_apply_outputs(led);
+    led_key_backlight_als_apply(led);
+    led_ui_backlight_als_apply(led);
+#if IS_SUPPORT_NIGHT_LIGHT
+    led_night_light_als_apply(led);
+#endif
 }
 
 #define LIGHT_SENSOR_USER_CALIB_INVALID_MARK      ((int32_t)0xFFFFFFFF)
@@ -594,27 +433,9 @@ static int adaptive_dimming_lux_thr_is_monotonic(void)
 
 static void adaptive_dimming_lux_knots_rebuild(void)
 {
-    s_back_lux_duty_knots[0].lux = 0u;
-    s_back_lux_duty_knots[0].duty = ADAP_DIM_LED_LEVEL1_MIN;
-    s_back_lux_duty_knots[1].lux = s_lux_thr_vdark;
-    s_back_lux_duty_knots[1].duty = ADAP_DIM_LED_LEVEL1_MAX;
-    s_back_lux_duty_knots[2].lux = s_lux_thr_dark;
-    s_back_lux_duty_knots[2].duty = ADAP_DIM_LED_LEVEL2_MAX;
-    s_back_lux_duty_knots[3].lux = s_lux_thr_medium;
-    s_back_lux_duty_knots[3].duty = ADAP_DIM_LED_LEVEL3_MAX;
-    s_back_lux_duty_knots[4].lux = s_lux_thr_bright;
-    s_back_lux_duty_knots[4].duty = ADAP_DIM_LED_LEVEL4_MAX;
-    s_back_lux_duty_knots[5].lux = ADAP_DIM_LUX_MAX;
-    s_back_lux_duty_knots[5].duty = ADAP_DIM_LED_LEVEL5_MAX;
+    led_key_backlight_als_rebuild_knots();
 #if IS_SUPPORT_NIGHT_LIGHT
-    s_nl_adc_duty_knots[0].lux = 0u;
-    s_nl_adc_duty_knots[0].duty = ADAP_DIM_NL_PWM_IDX_L1;
-    s_nl_adc_duty_knots[1].lux = s_lux_thr_vdark;
-    s_nl_adc_duty_knots[1].duty = ADAP_DIM_NL_PWM_IDX_L1;
-    s_nl_adc_duty_knots[2].lux = s_lux_thr_dark;
-    s_nl_adc_duty_knots[2].duty = ADAP_DIM_NL_PWM_IDX_L2;
-    s_nl_adc_duty_knots[3].lux = s_lux_thr_medium;
-    s_nl_adc_duty_knots[3].duty = ADAP_DIM_NL_PWM_IDX_L3;
+    led_night_light_als_rebuild_knots();
 #endif
 }
 
@@ -689,14 +510,10 @@ void adaptive_dimming_init(void)
 #if ADAP_DIM_USE_ENCODER_KNOB_SHIELD
     s_encoder_suppress_ticks = 0;
 #endif
-    s_back_duty_target = ADAP_DIM_LED_LEVEL1_MIN;
-    s_key_duty_slew = ADAP_DIM_LED_LEVEL1_MIN;
-    s_key_duty_pushed = ADAP_DIM_INVALID_DUTY;
-    s_ui_duty_pushed = ADAP_DIM_INVALID_DUTY;
+    led_key_backlight_als_init();
+    led_ui_backlight_als_init();
 #if IS_SUPPORT_NIGHT_LIGHT
-    s_nl_duty_target = 0;
-    s_nl_duty_slew = 0;
-    s_nl_duty_pushed = ADAP_DIM_INVALID_DUTY;
+    led_night_light_als_init();
 #endif
 #if ADAP_DIM_USE_LUX_SIGNIFICANT_SETTLE_GATE
     s_last_applied_lux = 0;
