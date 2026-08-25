@@ -74,8 +74,8 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
         if (led->hook->get_global_adaptive_dimming_switch) {
             status->adaptive_switch = led->hook->get_global_adaptive_dimming_switch(led) > 0 ? 1 : 0;
         }
-        if (led->hook->get_key_backlight_level) {
-            status->screen_key_level = (uint8_t)led->hook->get_key_backlight_level(led);
+        if (led->hook->get_global_backlight_level) {
+            status->screen_key_level = (uint8_t)led->hook->get_global_backlight_level(led);
         }
     }
 }
@@ -83,6 +83,8 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
 static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_t *status)
 {
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    uint8_t want_adaptive;
+    uint8_t cur_adaptive = 0;
 
     if (led == NULL || led->hook == NULL) {
         LOG_SRV("led is null or hook is null");
@@ -93,42 +95,53 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
         return 0;
     }
 
-    // 如果状态与当前状态不一致，则设置（比对统一走 get_* hook）
-    if (led->hook->get_global_adaptive_dimming_switch &&
-        status->adaptive_switch != (uint8_t)led->hook->get_global_adaptive_dimming_switch(led)) {
-        if (led->hook->set_global_adaptive_dimming_switch) {
-            led->hook->set_global_adaptive_dimming_switch(led, status->adaptive_switch);
+    want_adaptive = status->adaptive_switch > 0 ? 1 : 0;
+    if (led->hook->get_global_adaptive_dimming_switch) {
+        cur_adaptive = led->hook->get_global_adaptive_dimming_switch(led) > 0 ? 1 : 0;
+    }
+
+    /// App 一包下发全量快照。adaptive=1 时同包的 gear / screen_key_level 不能走手动通路：
+    /// set_night_light_gear、改屏键亮度都会关 ALS，否则「开自适应」会被后写的档位/亮度打成手动。
+    if (want_adaptive) {
+        if (cur_adaptive != 1 && led->hook->set_global_adaptive_dimming_switch) {
+            led->hook->set_global_adaptive_dimming_switch(led, 1);
         }
+#if IS_SUPPORT_NIGHT_LIGHT
+        if (led->hook->set_night_light_onoff) {
+            uint8_t nl_on = status->night_light_switch > 0 ? 1 : 0;
+
+            led->hook->set_night_light_onoff(led, nl_on);
+            if (nl_on && led->hook->set_night_light_adaptive_dimming_switch) {
+                led->hook->set_night_light_adaptive_dimming_switch(led, 1);
+            }
+        }
+#endif
+        return 1;
+    }
+
+    if (cur_adaptive != 0 && led->hook->set_global_adaptive_dimming_switch) {
+        led->hook->set_global_adaptive_dimming_switch(led, 0);
     }
 
 #if IS_SUPPORT_NIGHT_LIGHT
     if (led->hook->set_night_light_onoff) {
-        uint8_t nl_on = status->night_light_switch > 0 ? 1 : 0;
-        led->hook->set_night_light_onoff(led, nl_on);
-        if (nl_on && led->hook->set_night_light_adaptive_dimming_switch) {
-            led->hook->set_night_light_adaptive_dimming_switch(led, 1);
-        }
+        led->hook->set_night_light_onoff(led, status->night_light_switch > 0 ? 1 : 0);
     }
-
     if (led->hook->set_night_light_gear) {
         led->hook->set_night_light_gear(led, status->night_light_gear);
     }
 #endif
 
-    if (led->hook->get_key_backlight_level &&
-        status->screen_key_level != (uint8_t)led->hook->get_key_backlight_level(led)) {
-        // 用户手动调节屏幕/按键亮度时，关闭对应通道的自适应调节
-        // （按键和屏幕背光自适应共用 key_backlight_adaptive_dimming_switch）
-        // 下次开机时由全局总开关（Flash 持久化）恢复子开关状态
-        if (led->hook->set_key_backlight_adaptive_dimming_switch) {
-            led->hook->set_key_backlight_adaptive_dimming_switch(led, 0);
+    if (led->hook->get_global_backlight_level && led->hook->set_global_backlight_level &&
+        status->screen_key_level != (uint8_t)led->hook->get_global_backlight_level(led)) {
+        uint8_t level = status->screen_key_level;
+
+        if (level < 20) {
+            level = 20;
+        } else if (level > LED_LEVEL_MAX) {
+            level = LED_LEVEL_MAX;
         }
-        if (led->hook->set_ui_backlight_level) {
-            led->hook->set_ui_backlight_level(led, status->screen_key_level);
-        }
-        if (led->hook->set_key_backlight_level) {
-            led->hook->set_key_backlight_level(led, status->screen_key_level);
-        }
+        led->hook->set_global_backlight_level(led, level);
     }
 
     return 1;

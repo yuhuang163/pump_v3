@@ -131,20 +131,23 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         if (proc->led && proc->led->hook) {
+            uint8_t adaptive = 0;
+
             if (proc->led->hook->set_ui_backlight_level_rate) {
                 proc->led->hook->set_ui_backlight_level_rate(proc->led, 100);
             }
-            
-            if (proc->led->hook->set_ui_backlight_adaptive_dimming_switch) {
-                proc->led->hook->set_ui_backlight_adaptive_dimming_switch(proc->led, 1);
-            }
-
             if (proc->led->hook->set_key_backlight_level_rate) {
                 proc->led->hook->set_key_backlight_level_rate(proc->led, 100);
             }
 
+            if (proc->led->hook->get_global_adaptive_dimming_switch) {
+                adaptive = proc->led->hook->get_global_adaptive_dimming_switch(proc->led) > 0 ? 1 : 0;
+            }
+            if (proc->led->hook->set_ui_backlight_adaptive_dimming_switch) {
+                proc->led->hook->set_ui_backlight_adaptive_dimming_switch(proc->led, adaptive);
+            }
             if (proc->led->hook->set_key_backlight_adaptive_dimming_switch) {
-                proc->led->hook->set_key_backlight_adaptive_dimming_switch(proc->led, 1);
+                proc->led->hook->set_key_backlight_adaptive_dimming_switch(proc->led, adaptive);
             }
         }
 

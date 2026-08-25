@@ -23,7 +23,6 @@ void set_key_backlight_level_rate(led_manager_context_t *thiz, uint8_t rate);
 void key_backlight_on_battery_state_change(led_manager_context_t *thiz, battery_state_info_t *info);
 void key_backlight_on_broadcast(led_manager_context_t *thiz, broadcast_mask_id_t id, int arg1);
 #if IS_SUPPORT_ADAPTIVE_DIMMING
-void panel_backlight_apply_app_rate(uint8_t rate);
 void led_key_backlight_als_init(void);
 void led_key_backlight_als_rebuild_knots(void);
 void led_key_backlight_als_on_lux(uint16_t lux);

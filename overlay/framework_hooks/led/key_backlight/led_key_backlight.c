@@ -35,6 +35,9 @@ static uint8_t s_key_duty_pushed = ADAP_DIM_INVALID_DUTY;
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static int get_key_backlight_adaptive_dimming_switch(led_manager_context_t *thiz);
+static void set_key_backlight_level(led_manager_context_t *thiz, uint8_t level);
+
 static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
 {
     EXCEPTION_CHECK_VOID(thiz);
@@ -45,6 +48,18 @@ static void set_key_backlight(led_manager_context_t *thiz, uint8_t level)
         LOGE("system power off, ignore set key backlight.");
         return;
     }
+
+    /// 点亮走当前策略亮度（ALS 目标或全局上限 * rate），避免窗口 STATUS_SET(100)
+    /// 和 ALS 的 LEVEL_MAX_SET 互相覆盖；灭灯仍直写 0，不改上限。
+    if (level > 0) {
+        if (get_key_backlight_adaptive_dimming_switch(thiz)) {
+            set_key_backlight_level(thiz, thiz->priv.key_light_adaptive_level);
+        } else {
+            set_key_backlight_level(thiz, level);
+        }
+        level = LED_LEVEL_MAX;
+    }
+
     led_status_msg_t msg = {
         .led_index = PUMP_LED_ALL_ID,
         .led_status = {
@@ -100,9 +115,6 @@ static void key_light_adaptive_level_update(led_manager_context_t *thiz, uint8_t
 static void set_key_backlight_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
 {
     thiz->priv.key_backlight_adaptive_dimming_switch = onoff ? 1u : 0u;
-    if (onoff == 0) {
-        set_key_backlight_level_rate(thiz, 100);
-    }
 }
 
 static int get_key_backlight_adaptive_dimming_switch(led_manager_context_t *thiz)
@@ -119,14 +131,29 @@ static int get_key_backlight_adaptive_dimming_switch(led_manager_context_t *thiz
 */
 void set_key_backlight_level_rate(led_manager_context_t *thiz, uint8_t rate)
 {
+    uint8_t old_rate;
+    uint8_t pre_level;
+
+    EXCEPTION_CHECK_VOID(thiz);
     if (rate > 100) {
         rate = 100;
     }
     if (thiz->priv.key_light_level_rate == rate) {
         return;
     }
+    old_rate = thiz->priv.key_light_level_rate;
     LOG_MISC("set key backlight level rate: %d", rate);
     thiz->priv.key_light_level_rate = rate;
+
+    /// key_light_level 已是乘过旧 rate 的值，还原目标后再按新 rate 落地
+    if (old_rate == 0) {
+        pre_level = thiz->priv.key_light_level;
+    } else {
+        uint16_t pre = (uint16_t)thiz->priv.key_light_level * 100u / old_rate;
+
+        pre_level = (pre > LED_LEVEL_MAX) ? (uint8_t)LED_LEVEL_MAX : (uint8_t)pre;
+    }
+    set_key_backlight_level(thiz, pre_level);
 }
 
 void key_backlight_on_battery_state_change(led_manager_context_t *thiz, battery_state_info_t *info)
@@ -163,11 +190,19 @@ void key_backlight_on_broadcast(led_manager_context_t *thiz, broadcast_mask_id_t
                 thiz->set_led_onoff(PUMP_LED_ALL_ID, LED_STATUS_OFF);
             } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
                 window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
-                if (wm && wm->is_current_window(wm, ID_WINDOW_CHARGE) == 0 &&
-                    wm->is_current_window(wm, ID_WINDOW_GUIDE) == 0 &&
-                    wm->is_current_window(wm, ID_WINDOW_POWER_OFF) == 0) {
-                    set_key_backlight(thiz, LED_LEVEL_MAX);
+                power_manager_context_t *pm = (power_manager_context_t *)find_module(ID_MODULE_POWER);
+
+                /// Dummy 是休眠占位，目标窗自己点灯；待机页需要灭灯。避免 Resume 先拉满再被关掉。
+                if (pm && pm->is_pm_idle()) {
+                    break;
                 }
+                if (wm && (wm->is_current_window(wm, ID_WINDOW_DUMMY) ||
+                           wm->is_current_window(wm, ID_WINDOW_CHARGE) ||
+                           wm->is_current_window(wm, ID_WINDOW_GUIDE) ||
+                           wm->is_current_window(wm, ID_WINDOW_POWER_OFF))) {
+                    break;
+                }
+                set_key_backlight(thiz, LED_LEVEL_MAX);
             } else if (arg1 == PM_BROADCAST_SYS_IDLE) {
                 set_key_backlight_level_rate(thiz, IDLE_BRIGHTNESS_MAX_VALUE);
             } else if (arg1 == PM_BROADCAST_SYS_IDLE_RELEASE) {
@@ -195,29 +230,15 @@ void key_light_adaptive_thread(void *user_data)
     if (!thiz->hook->get_key_backlight_adaptive_dimming_switch(thiz)) {
         return;
     }
+    /// 首包 lux 未确认前不落地，避免目标 0 把键灯压到 BSP 下限
+    if (s_key_duty_pushed == ADAP_DIM_INVALID_DUTY) {
+        return;
+    }
 #endif
     set_key_backlight_level(thiz, thiz->priv.key_light_adaptive_level);
 }
 
 #if IS_SUPPORT_ADAPTIVE_DIMMING
-void panel_backlight_apply_app_rate(uint8_t rate)
-{
-    if (rate < PANEL_BACKLIGHT_APP_RATE_MIN) {
-        rate = PANEL_BACKLIGHT_APP_RATE_MIN;
-    } else if (rate > PANEL_BACKLIGHT_APP_RATE_MAX) {
-        rate = PANEL_BACKLIGHT_APP_RATE_MAX;
-    }
-    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    if (st) {
-        st->put_store_ram_val(STORE_ID_SYS_BACK_LIGHT_LEVEL, rate, 0, NULL);
-    }
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    if (led) {
-        set_key_backlight_level_rate(led, rate);
-    }
-    LOG_MISC("panel backlight app rate: %d", rate);
-}
-
 uint8_t led_key_backlight_als_duty_from_lux(uint16_t lux_avg)
 {
     if (lux_avg > ADAP_DIM_LUX_MAX) {

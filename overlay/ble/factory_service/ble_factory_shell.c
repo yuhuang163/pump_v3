@@ -26,6 +26,7 @@
 #define BLE_NIGHT_LIGHT_SWITCH_SHELL_CMD       "#NightLightSwitch"
 #define BLE_NIGHT_LIGHT_STARTUP_SHELL_CMD      "#NightLightStartup"
 #define BLE_GLOBAL_ADAPTIVE_DIMMING_SWITCH_SHELL_CMD "#GlobalAdaptive"
+#define BLE_GLOBAL_BACKLIGHT_LEVEL_SHELL_CMD   "#GlobalBacklight"
 #define BLE_NIGHT_LIGHT_GEAR_SHELL_CMD         "#NightLightGear"
 #define BLE_BACK_LIGHT_LEVEL_SHELL_CMD         "#BackLightLevel"
 #define BLE_NIGHT_LIGHT_LEVEL_SHELL_CMD        "#NightLightLevel"
@@ -57,6 +58,7 @@ static void ble_shell_night_light_adaptive(const uint8_t *param, uint16_t len); 
 static void ble_shell_night_light_switch(const uint8_t *param, uint16_t len); /// 夜灯开关
 static void ble_shell_night_light_startup(const uint8_t *param, uint16_t len); /// 夜灯开机自动开启
 static void ble_shell_global_adaptive_dimming_switch(const uint8_t *param, uint16_t len);
+static void ble_shell_global_backlight_level(const uint8_t *param, uint16_t len); /// 全局背光亮度
 static void ble_shell_night_light_gear(const uint8_t *param, uint16_t len); /// 夜灯档位
 static void ble_shell_back_light_level(const uint8_t *param, uint16_t len); /// 背光亮度
 static void ble_shell_night_light_level(const uint8_t *param, uint16_t len); /// 夜灯亮度
@@ -86,6 +88,7 @@ static const ble_factory_shell_t shell_list[] = {
     {BLE_NIGHT_LIGHT_STARTUP_SHELL_CMD, ble_shell_night_light_startup},
     {BLE_NIGHT_LIGHT_SWITCH_SHELL_CMD, ble_shell_night_light_switch},
     {BLE_GLOBAL_ADAPTIVE_DIMMING_SWITCH_SHELL_CMD, ble_shell_global_adaptive_dimming_switch},
+    {BLE_GLOBAL_BACKLIGHT_LEVEL_SHELL_CMD, ble_shell_global_backlight_level},
     {BLE_NIGHT_LIGHT_GEAR_SHELL_CMD, ble_shell_night_light_gear},
     {BLE_BACK_LIGHT_LEVEL_SHELL_CMD, ble_shell_back_light_level},
     {BLE_NIGHT_LIGHT_LEVEL_SHELL_CMD, ble_shell_night_light_level},
@@ -423,6 +426,18 @@ static void ble_shell_global_adaptive_dimming_switch(const uint8_t *param, uint1
     }
 }
 
+static void ble_shell_global_backlight_level(const uint8_t *param, uint16_t len)
+{
+    int level = 0;
+    sscanf((const char *)param, "%d", &level);
+    LOG_BLE("shell global backlight level %d", level);
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    EXCEPTION_CHECK_VOID(led && led->hook);
+    if (led->hook->set_global_backlight_level) {
+        led->hook->set_global_backlight_level(led, (uint8_t)level); /// 设置全局背光亮度.
+    }
+}
+
 static void ble_shell_night_light_gear(const uint8_t *param, uint16_t len)
 {
     int gear = 0;
@@ -458,11 +473,28 @@ static void ble_shell_back_light_level(const uint8_t *param, uint16_t len)
     LOG_BLE("shell back light level %d", level);
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_VOID(led && led->hook);
-    if (led->hook->set_key_backlight_level) {
-        led->hook->set_key_backlight_level(led, level); /// 设置背光亮度.
+
+    /// 关屏/键 ALS，避免自适应线程约 30ms 后把产测亮度盖掉
+    if (led->hook->set_global_backlight_level &&
+        level >= 20 && level <= LED_LEVEL_MAX) {
+        led->hook->set_global_backlight_level(led, (uint8_t)level);
+        return;
     }
+
+    if (led->hook->set_key_backlight_adaptive_dimming_switch) {
+        led->hook->set_key_backlight_adaptive_dimming_switch(led, 0);
+    }
+
+    if (led->hook->set_ui_backlight_adaptive_dimming_switch) {
+        led->hook->set_ui_backlight_adaptive_dimming_switch(led, 0);
+    }
+
+    if (led->hook->set_key_backlight_level) {
+        led->hook->set_key_backlight_level(led, (uint8_t)level);
+    }
+    
     if (led->hook->set_ui_backlight_level) {
-        led->hook->set_ui_backlight_level(led, level); /// 设置屏背光亮度.
+        led->hook->set_ui_backlight_level(led, (uint8_t)level);
     }
 }
 
@@ -473,6 +505,9 @@ static void ble_shell_lcd_backlight(const uint8_t *param, uint16_t len)
     LOG_BLE("shell lcd backlight:%d", backlight);
     led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     EXCEPTION_CHECK_VOID(led && led->hook);
+    if (led->hook->set_ui_backlight_adaptive_dimming_switch) {
+        led->hook->set_ui_backlight_adaptive_dimming_switch(led, 0); /// 关屏 ALS，避免产测亮度被覆盖
+    }
     if (led->hook->set_ui_backlight_level) {
         led->hook->set_ui_backlight_level(led, backlight);
     }

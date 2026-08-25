@@ -25,7 +25,7 @@ static void led_hook_fill_state_snapshot(led_manager_context_t *thiz, led_broadc
     info->night_light_gear = thiz->priv.night_light_gear;
 #endif
     info->global_adaptive_dimming_switch = thiz->priv.global_adaptive_dimming_switch;
-    info->screen_key_level = thiz->priv.key_light_level;
+    info->screen_key_level = thiz->priv.ui_backlight_level;
 }
 
 static int led_hook_led_state_snapshot_changed(const led_state_info_t *cur, const led_state_info_t *last)
@@ -90,6 +90,10 @@ static void set_global_backlight_level(led_manager_context_t *thiz, uint8_t leve
     thiz->hook->set_ui_backlight_adaptive_dimming_switch(thiz, 0);
     thiz->hook->set_key_backlight_level(thiz, level);
     thiz->hook->set_ui_backlight_level(thiz, level);
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (st) {
+        st->put_store_ram_val(STORE_ID_SYS_BACK_LIGHT_LEVEL, thiz->priv.global_backlight_level, 0, NULL);
+    }
     LOG_MISC("global backlight level: %d", thiz->priv.global_backlight_level);
 }
 
@@ -127,8 +131,9 @@ static int on_post_init_route(led_manager_context_t *thiz)
     thiz->priv.power = (power_manager_context_t *)find_module(ID_MODULE_POWER);
     thiz->priv.key_light_level = LED_LEVEL_MAX;
     thiz->priv.key_light_level_rate = 100;
+    thiz->priv.key_light_adaptive_level = LED_LEVEL_MAX;
     thiz->priv.ui_backlight_level_rate = 100;
-    thiz->priv.ui_backlight_adaptive_val = LCD_BACKLIGHT_LEVEL_MIN;
+    thiz->priv.ui_backlight_adaptive_val = LCD_BACKLIGHT_LEVEL_MAX;
     thiz->priv.global_backlight_level = LED_LEVEL_MAX;
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     if (pbus) {
@@ -137,16 +142,21 @@ static int on_post_init_route(led_manager_context_t *thiz)
 
     storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     if (st) {
-        int tmp = 0;
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-        tmp = PANEL_BACKLIGHT_APP_RATE_DEFAULT;
-        st->get_store_ram_val(STORE_ID_SYS_BACK_LIGHT_LEVEL, 0, 0, &tmp);
-        if (tmp < (int)PANEL_BACKLIGHT_APP_RATE_MIN || tmp > (int)PANEL_BACKLIGHT_APP_RATE_MAX) {
-            tmp = PANEL_BACKLIGHT_APP_RATE_DEFAULT;
-        }
-        panel_backlight_apply_app_rate((uint8_t)tmp);
+        int tmp = LED_LEVEL_MAX;
 
-        /// 获取全局自适应开关
+        st->get_store_ram_val(STORE_ID_SYS_BACK_LIGHT_LEVEL, 0, 0, &tmp);
+        if (tmp < 20 || tmp > (int)LED_LEVEL_MAX) {
+            tmp = LED_LEVEL_MAX;
+        }
+        thiz->priv.global_backlight_level = (uint8_t)tmp;
+        if (thiz->hook->set_key_backlight_level) {
+            thiz->hook->set_key_backlight_level(thiz, (uint8_t)tmp);
+        }
+        if (thiz->hook->set_ui_backlight_level) {
+            thiz->hook->set_ui_backlight_level(thiz, (uint8_t)tmp);
+        }
+        LOG_MISC("global backlight level: %d", thiz->priv.global_backlight_level);
+#if IS_SUPPORT_ADAPTIVE_DIMMING
         st->get_store_ram_val(STORE_ID_SYS_ADAPTIVE_SWITCH, 0, 0, &tmp);
         thiz->priv.global_adaptive_dimming_switch = (uint8_t)tmp;
         LOG_MISC("global adaptive:%d", thiz->priv.global_adaptive_dimming_switch);
