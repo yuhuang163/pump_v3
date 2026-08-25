@@ -41,6 +41,9 @@ static void set_ui_backlight_level(led_manager_context_t *thiz, uint8_t level)
 
 static void set_ui_backlight_level_rate(led_manager_context_t *thiz, uint8_t rate)
 {
+    uint8_t old_rate;
+    uint8_t pre_level;
+
     EXCEPTION_CHECK_VOID(thiz);
     if (rate < 20 || rate > 100) {
         LOGE("set ui backlight rate error");
@@ -49,15 +52,64 @@ static void set_ui_backlight_level_rate(led_manager_context_t *thiz, uint8_t rat
     if (thiz->priv.ui_backlight_level_rate == rate) {
         return;
     }
+    old_rate = thiz->priv.ui_backlight_level_rate;
     LOG_MISC("set ui backlight level rate: %d", rate);
     thiz->priv.ui_backlight_level_rate = rate;
+
+    /// ui_backlight_level 已是乘过旧 rate 的值，还原目标后再按新 rate 落地
+    if (old_rate == 0) {
+        pre_level = thiz->priv.ui_backlight_level;
+    } else {
+        uint16_t pre = (uint16_t)thiz->priv.ui_backlight_level * 100u / old_rate;
+
+        pre_level = (pre > LCD_BACKLIGHT_LEVEL_MAX) ? (uint8_t)LCD_BACKLIGHT_LEVEL_MAX : (uint8_t)pre;
+    }
+    set_ui_backlight_level(thiz, pre_level);
+}
+
+static int get_ui_backlight_adaptive_dimming_switch(led_manager_context_t *thiz)
+{
+    if (!thiz->priv.global_adaptive_dimming_switch) {
+        return 0;
+    }
+    return thiz->priv.ui_backlight_adaptive_dimming_switch ? 1 : 0;
+}
+
+static void set_ui_backlight_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    thiz->priv.ui_backlight_adaptive_dimming_switch = onoff ? 1u : 0u;
+}
+
+/// 开机 / Resume 点亮屏背光：ALS 开则用当前目标，否则拉到全局上限，避免先冲到 MAX 再被 ALS 拉回
+static void ui_backlight_turn_on(led_manager_context_t *thiz)
+{
+    uint8_t level;
+    uint8_t level_with_rate;
+
+    EXCEPTION_CHECK_VOID(thiz);
+    if (get_ui_backlight_adaptive_dimming_switch(thiz)) {
+        level = thiz->priv.ui_backlight_adaptive_val;
+        if (level > thiz->priv.global_backlight_level) {
+            level = thiz->priv.global_backlight_level;
+        }
+        level_with_rate = level * thiz->priv.ui_backlight_level_rate / 100;
+        if (level_with_rate > LCD_BACKLIGHT_LEVEL_MAX) {
+            level_with_rate = LCD_BACKLIGHT_LEVEL_MAX;
+        } else if (level_with_rate < LCD_BACKLIGHT_LEVEL_MIN) {
+            level_with_rate = LCD_BACKLIGHT_LEVEL_MIN;
+        }
+        set_ui_backlight_level_internal(thiz, level_with_rate);
+        return;
+    }
+    set_ui_backlight_level(thiz, LCD_BACKLIGHT_LEVEL_MAX);
 }
 
 #if IS_SUPPORT_ADAPTIVE_DIMMING
 static void ui_backlight_adaptive_level_update(led_manager_context_t *thiz, uint8_t level)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    if (!thiz->hook->get_key_backlight_adaptive_dimming_switch(thiz)) {
+    if (!get_ui_backlight_adaptive_dimming_switch(thiz)) {
         return;
     }
     if (level > LCD_BACKLIGHT_LEVEL_MAX) {
@@ -70,17 +122,6 @@ static void ui_backlight_adaptive_level_update(led_manager_context_t *thiz, uint
 }
 #endif
 
-static int get_ui_backlight_adaptive_dimming_switch(led_manager_context_t *thiz)
-{
-    return thiz->priv.ui_backlight_adaptive_dimming_switch ? 1 : 0;
-}
-
-static void set_ui_backlight_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
-{
-    EXCEPTION_CHECK_VOID(thiz);
-    thiz->priv.ui_backlight_adaptive_dimming_switch = onoff;
-}
-
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -89,13 +130,22 @@ static void set_ui_backlight_adaptive_dimming_switch(led_manager_context_t *thiz
 void ui_backlight_adaptive_thread(void *user_data)
 {
     led_manager_context_t *thiz = (led_manager_context_t *)user_data;
+    uint8_t level;
     uint8_t level_with_rate;
 
     EXCEPTION_CHECK_VOID(thiz);
-    if (!thiz->hook->get_key_backlight_adaptive_dimming_switch(thiz)) {
+    if (!get_ui_backlight_adaptive_dimming_switch(thiz)) {
         return;
     }
-    level_with_rate = thiz->priv.ui_backlight_adaptive_val * thiz->priv.ui_backlight_level_rate / 100;
+    /// 首包 lux 未确认前不落地，避免开机先把屏背光压到 MIN
+    if (s_ui_duty_pushed == ADAP_DIM_INVALID_DUTY) {
+        return;
+    }
+    level = thiz->priv.ui_backlight_adaptive_val;
+    if (level > thiz->priv.global_backlight_level) {
+        level = thiz->priv.global_backlight_level;
+    }
+    level_with_rate = level * thiz->priv.ui_backlight_level_rate / 100;
     if (level_with_rate > LCD_BACKLIGHT_LEVEL_MAX) {
         level_with_rate = LCD_BACKLIGHT_LEVEL_MAX;
     } else if (level_with_rate < LCD_BACKLIGHT_LEVEL_MIN) {
@@ -116,7 +166,7 @@ void led_ui_backlight_als_on_lux(uint16_t lux)
 
 void led_ui_backlight_als_apply(led_manager_context_t *led)
 {
-    if (led->hook && led->hook->get_key_backlight_adaptive_dimming_switch(led) &&
+    if (led->hook && get_ui_backlight_adaptive_dimming_switch(led) &&
         led->hook->ui_backlight_adaptive_level_update) {
         if (s_ui_duty_target != s_ui_duty_pushed) {
             led->hook->ui_backlight_adaptive_level_update(led, s_ui_duty_target);
@@ -159,14 +209,14 @@ void ui_backlight_on_broadcast(led_manager_context_t *thiz, broadcast_mask_id_t 
             if (arg1 == SYSTEM_BROADCAST_POWER_OFF) {
                 set_ui_backlight_level(thiz, 0);
             } else if (arg1 == SYSTEM_BROADCAST_POWER_ON) {
-                set_ui_backlight_level(thiz, LCD_BACKLIGHT_LEVEL_MAX);
+                ui_backlight_turn_on(thiz);
             }
             break;
         case ID_BROADCAST_PM_STATE_CHANGE:
             if (arg1 == PM_BROADCAST_SYS_SUSPEND) {
                 set_ui_backlight_level(thiz, 0);
             } else if (arg1 == PM_BROADCAST_SYS_RESUME) {
-                set_ui_backlight_level(thiz, LCD_BACKLIGHT_LEVEL_MAX);
+                ui_backlight_turn_on(thiz);
             }
             break;
         default:

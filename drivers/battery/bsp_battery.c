@@ -784,15 +784,18 @@ static int battery_dev_read(struct rt_device_node *dev, void *buf, uint32_t n_by
     int val = battery_pencent_get();
     // static uint8_t last_val = 0;
     // static uint32_t last_time = 0;
-    // if (get_timestamp_ms(last_time) > 1000 && last_val < 100) {
+    
+    // if (get_timestamp_ms(last_time) > ((last_val > 80) ? 2000 : 50) &&
+    //     last_val < 100) {
     //     last_time = get_timestamp();
     //     last_val++;
     // }
-
-    // if (val > (last_val + 6)) {
+    
+    // uint8_t end_val = 0;
+    // if (val > (last_val + end_val)) {
     //     val = val - last_val;
     // } else {
-    //     val = 6;
+    //     val = end_val;
     // }
     // val = 4;
 #else
