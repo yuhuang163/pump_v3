@@ -254,7 +254,7 @@ int ui_display_product_tests_home_process(ui_manager_context_t *thiz)
     uint8_t mac_addr[6] = {0};
     proc->ble->get_mac_addr(mac_addr);
     product_tests_qrcode_update(thiz, mac_addr);
-    product_tests_aging_info_update(thiz, proc);
+    //product_tests_aging_info_update(thiz, proc);
     product_tests_mac_name_update(thiz, mac_addr);
 #if IS_SUPPORT_BATTERY_PERCENT
     product_tests_battery_percent_update(thiz, proc->battery->get_battery_percent());

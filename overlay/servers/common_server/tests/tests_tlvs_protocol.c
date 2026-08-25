@@ -25,6 +25,9 @@
 #define TESTS_TRIM_VALUE_LENGTH 4   /// Trim值长度 (4字节)
 #define TESTS_KEY_CAP_SIG_BUF_BYTES 32 /// 触摸通道原始数据缓冲(每通道2字节)，大于单芯片最大通道数即可
 #define TESTS_LCD_COLOR_WAKELOCK_NAME "factory_tests_lcd_color"
+/// 新建产测窗后延后切老化 UI，需晚于 ON_RESUME 置 RUNNING（约 150ms+）
+#define AGING_UI_BROADCAST_DELAY_MS   (500)
+#define AGING_UI_BROADCAST_TASK_NAME  "aging_ui_broadcast_cb"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -75,6 +78,27 @@ static void test_factory_aging_test_enter_post_task_handler(hdr_post_args_t *arg
         return;
     }
     tests_ctx->set_factory_tests_event_process(FAC_TST_AGING_TEST_ENTER_EVENT, args->arg1, args->arg2, NULL);
+}
+
+/// 新建产测窗场景：等窗口 RUNNING 后再广播切老化 UI，避免立刻广播被丢掉
+static void test_factory_aging_ui_broadcast_post_task_handler(hdr_post_args_t *args)
+{
+    (void)args;
+    tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
+    EXCEPTION_CHECK_VOID(tests_ctx);
+    if (tests_ctx->tests_manager_get_current_mode() != TST_AGING_TEST_TYPE) {
+        LOG_SRV("aging ui broadcast ignored, current mode=%d",
+            tests_ctx->tests_manager_get_current_mode());
+        return;
+    }
+    window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
+    EXCEPTION_CHECK_VOID(wm);
+    if (wm->is_current_window(wm, ID_WINDOW_PRODUCT_TEST_MODE) == 0) {
+        LOG_SRV("aging ui broadcast ignored, product_test window not ready");
+        return;
+    }
+    LOG_SRV("aging ui delayed broadcast");
+    SEND_BROADCAST_ARGS2(ID_BROADCAST_FACTORY_TEST_CMD, TST_AGING_TEST_TYPE, 1);
 }
 
 /*
@@ -195,6 +219,9 @@ int tests_tlvs_aging_test_mode(comm_protocol_builder_t *builder, comm_protocol_s
             multi_func_msg_data_t msg = {0};
             msg.union_body.extra.window_id = ID_WINDOW_PRODUCT_TEST_MODE;
             wm->dispatch_new_window_args(wm, &msg);
+            /// 等 ON_RESUME 置 RUNNING 后再广播，否则会被 wm not running 丢掉
+            POST_TASK_HANDLER_DELAYED_ARG0(test_factory_aging_ui_broadcast_post_task_handler,
+                AGING_UI_BROADCAST_DELAY_MS, AGING_UI_BROADCAST_TASK_NAME);
         }
         else {
             SEND_BROADCAST_ARGS2(ID_BROADCAST_FACTORY_TEST_CMD, TST_AGING_TEST_TYPE, 1);
@@ -235,6 +262,7 @@ int tests_tlvs_aging_test_mode_exit(comm_protocol_builder_t *builder, comm_proto
 
     /* 退出老化模式 */
     REMOVE_TASK_HANDLER_DIRECTLY("aging_test_cb");
+    REMOVE_TASK_HANDLER_DIRECTLY(AGING_UI_BROADCAST_TASK_NAME);
     tests_ctx->tests_manager_set_current_mode(TST_NONE_TYPE);
     window_manager_context_t *wm = (window_manager_context_t *)find_module(ID_MODULE_WM);
     EXCEPTION_CHECK_INT(wm);

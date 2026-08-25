@@ -26,8 +26,10 @@
 #define AGING_TEST_MAC_NAME_Y                                (80)
 #define AGING_TEST_AGING_INFO_X                              (AGING_TEST_MAC_NAME_X)
 #define AGING_TEST_AGING_INFO_Y                              (AGING_TEST_MAC_NAME_Y + 36)
+#define AGING_TEST_AGING_STATUS_X                            (AGING_TEST_MAC_NAME_X)
+#define AGING_TEST_AGING_STATUS_Y                            (AGING_TEST_AGING_INFO_Y + 48)
 #define AGING_TEST_BATTERY_PERCENT_X                         (AGING_TEST_MAC_NAME_X )
-#define AGING_TEST_BATTERY_PERCENT_Y                         (AGING_TEST_MAC_NAME_Y + 36*2)
+#define AGING_TEST_BATTERY_PERCENT_Y                         (AGING_TEST_AGING_STATUS_Y + 52)
 
 typedef struct {
     const char *name;
@@ -41,7 +43,8 @@ typedef struct {
 #if IS_SUPPORT_BATTERY_PERCENT
     lv_obj_t * battery_percent;
 #endif
-    lv_obj_t * aging_info;  // 老化信息显示
+    lv_obj_t * aging_info;    // 老化时间
+    lv_obj_t * aging_status;  // aging-running / aging-complete
     uint8_t force_update;
     uint8_t mac_addr[6];
     bool all_color_change;
@@ -137,34 +140,40 @@ static void aging_test_ui_aging_info_update(ui_manager_context_t *thiz, ui_proc_
     EXCEPTION_CHECK_VOID(tests_info->root);
     EXCEPTION_CHECK_VOID(proc);
     EXCEPTION_CHECK_VOID(proc->tests);
-    EXCEPTION_CHECK_VOID(proc->pump);
-    
-    // 创建或获取label对象
+
     if (tests_info->aging_info == NULL || !lv_obj_is_valid(tests_info->aging_info)) {
         tests_info->aging_info = lv_label_create(tests_info->root);
         EXCEPTION_CHECK_VOID(tests_info->aging_info);
     }
-    
-    // 计算老化时间（单位：秒）
+    if (tests_info->aging_status == NULL || !lv_obj_is_valid(tests_info->aging_status)) {
+        tests_info->aging_status = lv_label_create(tests_info->root);
+        EXCEPTION_CHECK_VOID(tests_info->aging_status);
+    }
+
+    /*
+     * 老化页本身即表示处于老化 UI，状态必须常显。
+     * 勿再依赖 current_mode：产线竞态下 mode 可能短暂偏离 TST_AGING_TEST_TYPE，
+     * 会导致标签被 HIDDEN，而背景色/MAC 仍在刷新。
+     * 时间与状态分两个 label：时间在上，状态在下（约 2 倍字号）。
+     * 当前字体无中文 glyph：aging-complete / aging-running。
+     */
     uint32_t age_time = 0;
     int ret = proc->tests->get_factory_tests_event_process(FAC_TST_AGING_TEST_GET_CURRENT_AGE_TIME_EVENT, 0, 0, &age_time);
     if (ret != 0) {
-        // 如果获取失败，使用默认值0
         age_time = 0;
     }
-    
-    //如果正处在老化测试中，则加上pump的运行时间
-	if (proc->tests->tests_manager_get_current_mode() == TST_AGING_TEST_TYPE) {
-        //显示老化时间标识
-        lv_obj_clear_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
-	}
-	else {
-        //老化时间标识隐藏
-        lv_obj_add_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
-        return;
+
+    uint32_t target_time = proc->tests->priv.factory_ctx.aging_target_info.total_target_time;
+    bool aging_done = (proc->tests->priv.factory_ctx.aging_result_info.aging_status
+                       == AGING_TEST_STATUS_SUCCESS);
+    if (!aging_done && target_time > 0 && age_time >= target_time) {
+        aging_done = true;
     }
-    
-    //转换为时分秒格式（小时可能超过 255，不可用 uint8_t）
+    /* 完成后冻结时间，避免 current_cycle 继续累加导致“完成了还在跑” */
+    if (aging_done && target_time > 0 && age_time > target_time) {
+        age_time = target_time;
+    }
+
     uint32_t hours = age_time / 3600U;
     uint32_t minutes = (age_time % 3600U) / 60U;
     uint32_t seconds = age_time % 60U;
@@ -173,14 +182,26 @@ static void aging_test_ui_aging_info_update(ui_manager_context_t *thiz, ui_proc_
         "aging-time-%02luh-%02lum-%02lus",
         (unsigned long)hours, (unsigned long)minutes, (unsigned long)seconds);
     lv_label_set_text(tests_info->aging_info, aging_info_str);
-    lv_obj_set_style_text_color(tests_info->aging_info, lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
+    lv_obj_set_style_text_color(tests_info->aging_info,
+        lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
     lv_obj_set_style_text_font(tests_info->aging_info, &lv_font_aeonik_soft_19_medium, 0);
     lv_obj_set_style_text_align(tests_info->aging_info, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_style_bg_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);  /// 背景透明
-    lv_obj_set_style_border_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);  /// 边框透明
-    lv_obj_align(tests_info->aging_info, LV_ALIGN_TOP_LEFT, 
+    lv_obj_set_style_bg_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);
+    lv_obj_align(tests_info->aging_info, LV_ALIGN_TOP_LEFT,
         AGING_TEST_AGING_INFO_X, AGING_TEST_AGING_INFO_Y);
-    lv_obj_clear_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);  /// 确保可见
+    lv_obj_clear_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);
+
+    lv_label_set_text(tests_info->aging_status, aging_done ? "aging-complete" : "aging-running");
+    lv_obj_set_style_text_color(tests_info->aging_status,
+        lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
+    lv_obj_set_style_text_font(tests_info->aging_status, &lv_font_aeonik_soft_33_medium, 0);
+    lv_obj_set_style_text_align(tests_info->aging_status, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_set_style_bg_opa(tests_info->aging_status, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_opa(tests_info->aging_status, LV_OPA_TRANSP, 0);
+    lv_obj_align(tests_info->aging_status, LV_ALIGN_TOP_LEFT,
+        AGING_TEST_AGING_STATUS_X, AGING_TEST_AGING_STATUS_Y);
+    lv_obj_clear_flag(tests_info->aging_status, LV_OBJ_FLAG_HIDDEN);
 }
 
 /*
