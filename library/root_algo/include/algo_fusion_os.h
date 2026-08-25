@@ -138,7 +138,7 @@ static thread_context_t *thd[ALGO_THREAD_MAX_NUM] = {NULL};
 
 #define IS_SUPPORT_ALGO_LOG                      1
 
-#define ALGO_LOG_SEVERITY_LVL                    4   
+#define ALGO_LOG_SEVERITY_LVL                    1   
 #define ALGO_LOG_TAG                             "ALGO_DETECTION"
 
 #define ALGO_LOG_LVL_DEBUG                       4

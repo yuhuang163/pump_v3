@@ -58,19 +58,6 @@ static void set_night_light_level_internal(led_manager_context_t *thiz, uint8_t 
     thiz->priv.night_light_level = level;
 }
 
-static int night_light_als_switch_is_on(led_manager_context_t *thiz)
-{
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-    if (!thiz || !thiz->priv.global_adaptive_dimming_switch) {
-        return 0;
-    }
-
-    return thiz->priv.night_light_adaptive_dimming_switch ? 1 : 0;
-#else
-    return 0;
-#endif
-}
-
 #if IS_SUPPORT_ADAPTIVE_DIMMING
 static uint8_t night_light_als_duty_from_lux(uint16_t lux_avg)
 {
@@ -84,39 +71,33 @@ static uint8_t night_light_als_duty_from_lux(uint16_t lux_avg)
                                            ADAP_DIM_NL_ADC_DUTY_KNOT_CNT);
 }
 
-static uint8_t night_light_als_current_duty(void)
-{
-    if (s_nl_duty_target != 0) {
-        return s_nl_duty_target;
-    }
-    return night_light_als_duty_from_lux(adaptive_dimming_get_filtered_lux());
-}
 #endif
 
 static void night_light_apply_manual_brightness(led_manager_context_t *thiz)
 {
-    uint8_t level;
-    if (thiz->priv.night_light_gear != NIGHT_LIGHT_GEAR_L0) {
-        level = night_light_policy_gear_to_level(thiz->priv.night_light_gear);
-    } else {
-#if IS_SUPPORT_ADAPTIVE_DIMMING
-        level = night_light_als_current_duty();
-#else
-        level = night_light_policy_gear_to_level(night_light_policy_safety_gear());
-#endif
+    uint8_t gear = thiz->priv.night_light_gear;
+
+    /* 自适应关闭后开灯：L0 不是有效手动亮度，用默认档 L2 */
+    if (gear == NIGHT_LIGHT_GEAR_L0) {
+        gear = night_light_policy_default_gear();
     }
-    set_night_light_level_internal(thiz, level);
+    set_night_light_level_internal(thiz, night_light_policy_gear_to_level(gear));
 }
 
 static void set_night_light_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
 {
+    EXCEPTION_CHECK_VOID(thiz);
+    LOG_MISC("dimming switch: %d, global adaptive: %d", onoff, thiz->priv.global_adaptive_dimming_switch);
+    if (thiz->priv.global_adaptive_dimming_switch == 0 && onoff > 0) {
+        return;
+    }
+
     uint8_t v = onoff ? 1u : 0u;
 
-    EXCEPTION_CHECK_VOID(thiz);
-    LOG_MISC("set_night_light_adaptive_dimming_switch: %d", v);
     if (thiz->priv.night_light_adaptive_dimming_switch == v) {
         return;
     }
+
     thiz->priv.night_light_adaptive_dimming_switch = v;
     if (!thiz->priv.night_light_onoff) {
         return;
@@ -134,7 +115,7 @@ static void set_night_light_adaptive_dimming_switch(led_manager_context_t *thiz,
 
 static int get_night_light_adaptive_dimming_switch(led_manager_context_t *thiz)
 {
-    return night_light_als_switch_is_on(thiz);
+    return thiz->priv.night_light_adaptive_dimming_switch;
 }
 
 static void night_light_turn_off(led_manager_context_t *thiz)
@@ -153,7 +134,7 @@ static void night_light_turn_on(led_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
     thiz->priv.night_light_onoff = 1;
-    if (night_light_als_switch_is_on(thiz)) {
+    if (thiz->priv.night_light_adaptive_dimming_switch) {
         #if IS_SUPPORT_ADAPTIVE_DIMMING
         s_nl_duty_pushed = ADAP_DIM_INVALID_DUTY;
         led_night_light_als_apply(thiz);
@@ -172,7 +153,7 @@ static void set_night_light_level(led_manager_context_t *thiz, uint8_t level)
         level = NIGHT_LIGHT_LEVEL_MAX;
     }
     /* ALS 把亮度调到 L0(0) 只改 PWM，逻辑开关保持开 */
-    if (!(night_light_als_switch_is_on(thiz) && level == 0)) {
+    if (thiz->priv.night_light_adaptive_dimming_switch == 0 && level == 0) {
         thiz->priv.night_light_onoff = level > 0 ? 1 : 0;
     }
     set_night_light_level_internal(thiz, level);
@@ -317,10 +298,11 @@ void led_night_light_als_apply(led_manager_context_t *led)
 {
     EXCEPTION_CHECK_VOID(led);
     /* 关灯时空跑：只更新 target，不写 PWM */
-    if (!led->priv.night_light_onoff || !night_light_als_switch_is_on(led)) {
+    if (!led->priv.night_light_onoff || led->priv.night_light_adaptive_dimming_switch == 0) {
         s_nl_duty_pushed = ADAP_DIM_INVALID_DUTY;
         return;
     }
+
     if (s_nl_duty_target == s_nl_duty_pushed) {
         return;
     }

@@ -266,6 +266,12 @@ void led_key_backlight_als_init(void)
 }
 #endif
 
+void key_backlight_on_post_init(led_manager_context_t *thiz)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    thiz->priv.key_backlight_adaptive_dimming_switch = thiz->priv.global_adaptive_dimming_switch;
+}
+
 void led_key_backlight_bind(led_manager_context_t *ctx)
 {
     EXCEPTION_CHECK_VOID(ctx && ctx->hook);
