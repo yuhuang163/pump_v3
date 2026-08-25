@@ -17,6 +17,7 @@ extern "C" {
 void led_hook_notify_state(led_manager_context_t *thiz, led_broadcast_id_e evt);
 
 void led_key_backlight_bind(led_manager_context_t *ctx);
+void key_backlight_on_post_init(led_manager_context_t *thiz);
 void key_light_adaptive_thread(void *user_data);
 void set_key_backlight_level_rate(led_manager_context_t *thiz, uint8_t rate);
 void key_backlight_on_battery_state_change(led_manager_context_t *thiz, battery_state_info_t *info);
@@ -31,6 +32,7 @@ uint8_t led_key_backlight_als_duty_from_lux(uint16_t lux);
 #endif
 
 void led_ui_backlight_bind(led_manager_context_t *ctx);
+void ui_backlight_on_post_init(led_manager_context_t *thiz);
 void ui_backlight_on_battery_state_change(led_manager_context_t *thiz, battery_state_info_t *info);
 void ui_backlight_on_broadcast(led_manager_context_t *thiz, broadcast_mask_id_t id, int arg1);
 #if IS_SUPPORT_ADAPTIVE_DIMMING

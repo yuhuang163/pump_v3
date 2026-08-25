@@ -5,32 +5,16 @@
 #include "led_hook_internal.h" // IWYU pragma: keep
 
 /*
+* LOCAL VARIABLE DEFINITIONS
+*****************************************************************************************
+*/
+static led_state_info_t s_last_reported_led_state;
+static uint8_t s_last_reported_led_state_valid;
+
+/*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void adaptive_dimming_sync_sub_switches(led_manager_context_t *thiz, uint8_t onoff)
-{
-    uint8_t v = onoff ? 1u : 0u;
-
-    if (thiz) {
-        thiz->priv.key_backlight_adaptive_dimming_switch = v;
-        thiz->priv.ui_backlight_adaptive_dimming_switch = v;
-#if IS_SUPPORT_NIGHT_LIGHT
-        thiz->priv.night_light_adaptive_dimming_switch = v;
-#endif
-    }
-}
-
-/// 从 Flash 恢复 global_adaptive_switch 到三路 ALS 子开关（开机、上电、产测退出）
-static void adaptive_dimming_restore_sub_switches(led_manager_context_t *thiz)
-{
-    uint8_t g = thiz->priv.global_adaptive_dimming_switch ? 1u : 0u;
-
-    adaptive_dimming_sync_sub_switches(thiz, g);
-}
-
-static led_state_info_t s_last_reported_led_state;
-static uint8_t s_last_reported_led_state_valid;
 
 static void led_hook_fill_state_snapshot(led_manager_context_t *thiz, led_broadcast_id_e evt,
                                          led_state_info_t *info)
@@ -74,15 +58,18 @@ void led_hook_notify_state(led_manager_context_t *thiz, led_broadcast_id_e evt)
 static void set_global_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    if (onoff != thiz->priv.global_adaptive_dimming_switch)
-    {
-        thiz->priv.global_adaptive_dimming_switch = onoff ? 1u : 0u;
+    if (onoff != thiz->priv.global_adaptive_dimming_switch) {
+        thiz->priv.global_adaptive_dimming_switch = onoff;
         LOG_MISC("global_adaptive_dimming_switch (ram): %d", thiz->priv.global_adaptive_dimming_switch);
         storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
         if (st) {
             st->put_store_ram_val(STORE_ID_SYS_ADAPTIVE_SWITCH, thiz->priv.global_adaptive_dimming_switch, 0, NULL);
         }
-        adaptive_dimming_sync_sub_switches(thiz, thiz->priv.global_adaptive_dimming_switch);
+        thiz->hook->set_key_backlight_adaptive_dimming_switch(thiz, thiz->priv.global_adaptive_dimming_switch);
+        thiz->hook->set_ui_backlight_adaptive_dimming_switch(thiz, thiz->priv.global_adaptive_dimming_switch);
+        #if IS_SUPPORT_NIGHT_LIGHT
+        thiz->hook->set_night_light_adaptive_dimming_switch(thiz, thiz->priv.global_adaptive_dimming_switch);
+        #endif
         led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_ADAPTIVE);
     }
 }
@@ -143,7 +130,7 @@ static int on_post_init_route(led_manager_context_t *thiz)
         /// 获取全局自适应开关
         st->get_store_ram_val(STORE_ID_SYS_ADAPTIVE_SWITCH, 0, 0, &tmp);
         thiz->priv.global_adaptive_dimming_switch = (uint8_t)tmp;
-        adaptive_dimming_restore_sub_switches(thiz);
+        LOG_MISC("global adaptive:%d", thiz->priv.global_adaptive_dimming_switch);
 #endif
     }
 
@@ -152,6 +139,9 @@ static int on_post_init_route(led_manager_context_t *thiz)
         return -1;
     }
 #endif
+
+    key_backlight_on_post_init(thiz);
+    ui_backlight_on_post_init(thiz);
 
 #if IS_SUPPORT_ADAPTIVE_DIMMING
     adaptive_dimming_init();

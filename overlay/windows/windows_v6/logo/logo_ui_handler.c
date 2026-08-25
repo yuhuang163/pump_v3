@@ -77,6 +77,7 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 
 OPEN_NIGHT_LIGHT:
+    ; /* 夜灯宏关闭时标签不能悬空 */
 #if IS_SUPPORT_NIGHT_LIGHT
     if (proc->led && proc->led->hook &&
         proc->led->hook->get_night_light_startup_switch &&
