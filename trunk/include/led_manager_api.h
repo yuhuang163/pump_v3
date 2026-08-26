@@ -45,6 +45,7 @@ typedef struct {
     uint8_t night_light_gear;             /// 夜灯档位
     uint8_t global_adaptive_dimming_switch;  /// 自适应全局开关
     uint8_t screen_key_level;                /// 屏幕/按键背光亮度
+    uint8_t night_light_startup_switch;      /// 开机夜灯默认开关
 } led_state_info_t;
 
 typedef void (*on_led_state_cb_ptr)(void *user_data, led_state_info_t *info);

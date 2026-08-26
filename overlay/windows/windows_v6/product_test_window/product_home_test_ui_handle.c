@@ -24,7 +24,8 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
 {
     ui_proc_product_test_t *proc = (ui_proc_product_test_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PRODUCT_TEST_MODE);
-    multi_func_msg_data_t msg = {0};    
+    multi_func_msg_data_t msg = {0};
+    /* 充电/低电窗自身退出时会开开机夜灯；引导/主页与 logo 一致在此落地 */
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
         proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
         LOG_WM("vbus plug in, goto charge screen");
@@ -45,7 +46,7 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
         LOG_WM("goto guide screen");
         msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
+        goto OPEN_NIGHT_LIGHT;
     }
 #else
     if (proc->wm->is_window_guidance_deployed() == 0) {
@@ -56,6 +57,21 @@ static void product_home_test_display_completed_cb(hdr_post_args_t *args)
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
+
+OPEN_NIGHT_LIGHT:
+    ; /* 夜灯宏关闭时标签不能悬空 */
+#if IS_SUPPORT_NIGHT_LIGHT
+    /* logo→产测会跳过开机夜灯；产测退出进用户界面时补开 */
+    if (proc->led && proc->led->hook &&
+        proc->led->hook->get_night_light_startup_switch &&
+        proc->led->hook->get_night_light_startup_switch(proc->led) &&
+        proc->led->hook->set_night_light_onoff) {
+        proc->led->hook->set_night_light_onoff(proc->led, true);
+        if (proc->led->hook->set_night_light_adaptive_dimming_switch) {
+            proc->led->hook->set_night_light_adaptive_dimming_switch(proc->led, 1);
+        }
+    }
+#endif
 }
 
 static void product_home_test_ui_after_policy(ui_manager_context_t *ui, int index)

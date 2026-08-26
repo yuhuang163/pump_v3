@@ -237,6 +237,7 @@ static void set_night_light_startup_switch(led_manager_context_t *thiz, uint8_t 
     if (st) {
         st->put_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_STARTUP_SWITCH, thiz->priv.night_light_startup_switch, 0, NULL);
     }
+    led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_ONOFF);
 }
 
 static int get_night_light_startup_switch(led_manager_context_t *thiz)
