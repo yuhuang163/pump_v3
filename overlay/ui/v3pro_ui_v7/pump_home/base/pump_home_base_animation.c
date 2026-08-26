@@ -74,6 +74,11 @@ static bool pump_home_animation_res_get(uint8_t mode_index, uint8_t mode_type, u
     }
 }
 
+static bool pump_home_animation_should_hide(const pump_home_base_animation_info_t *anim)
+{
+    return anim->hidden_by_mode_switch || anim->hidden_by_seal_check;
+}
+
 static void pump_home_animation_wave_align(pump_home_base_ui_info_t *info)
 {
     lv_coord_t y = PUMP_HOME_WAVE_Y;
@@ -148,7 +153,7 @@ static void pump_home_animation_apply(pump_home_base_ui_info_t *info, uint16_t s
     anim->shown_frame_res_id = PUMP_HOME_ANIM_FRAME_RES_INVALID;
     anim->last_frame_tick_ms = 0;
     pump_home_animation_frame_show(info, anim->frame_res_id);
-    if (anim->hidden_by_mode_switch) {
+    if (pump_home_animation_should_hide(anim)) {
         lv_obj_add_flag(anim->wave, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_clear_flag(anim->wave, LV_OBJ_FLAG_HIDDEN);
@@ -189,6 +194,7 @@ void pump_home_base_animation_ui_remove(pump_home_base_ui_info_t *info)
     info->animation.anim_play_state = 0;
     info->animation.paused_by_transition = 0;
     info->animation.hidden_by_mode_switch = 0;
+    info->animation.hidden_by_seal_check = 0;
 }
 
 void pump_home_base_animation_pause(pump_home_base_ui_info_t *info)
@@ -228,7 +234,7 @@ void pump_home_base_animation_ui_update(pump_home_base_ui_info_t *info)
         pump_home_animation_wave_align(info);
     }
 
-    if (anim->hidden_by_mode_switch) {
+    if (pump_home_animation_should_hide(anim)) {
         if (anim->wave != NULL && lv_obj_is_valid(anim->wave)) {
             lv_obj_add_flag(anim->wave, LV_OBJ_FLAG_HIDDEN);
         }

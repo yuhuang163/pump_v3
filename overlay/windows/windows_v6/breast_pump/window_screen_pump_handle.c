@@ -42,6 +42,7 @@ do { \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_STOP_HOLD_COMPLETE_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_LOW_POWER_COMPLETE_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_LEAK_TASK_NAME); \
 } while (0)
 
 /*
@@ -271,6 +272,10 @@ static void pump_knob_left_event_cb(ui_proc_pump_t *proc)
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
         pump_mode_adjust_handler(proc, true);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
+        pump_seal_leak_page_adjust(proc, true);
     }
 }
 
@@ -303,6 +308,10 @@ static void pump_knob_right_event_cb(ui_proc_pump_t *proc)
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
         pump_mode_adjust_handler(proc, false);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
+        pump_seal_leak_page_adjust(proc, false);
     }
 }
 
@@ -837,6 +846,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_KEYEVENT_CB(proc->key, "pump_wm", proc, PUMP_UI_KEY_CODE, PUMP_UI_KEY_TYPE,
             on_pump_ui_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_pump_window_battery_state_change_cb);
+        pump_seal_leak_init(proc);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
@@ -880,6 +890,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             REMOVE_ALL_HANDER_TASK();
             SET_WINDOW_CONTEXT(NULL);
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
+            pump_seal_leak_exit(proc);
             unregister_broadcast_receiver(&proc->receiver);
             remove_breast_pump_result_cb(proc);
             REMOVE_KEYEVENT_CB(proc->key, on_pump_ui_keyevent_hdr);

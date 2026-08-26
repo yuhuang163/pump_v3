@@ -88,6 +88,13 @@
 #define PUMP_HOME_MAIN_MODE_SWITCH_LINE_SPACE           (8)
 #define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT \
     "Switched to %s.\nLevel and speed may changed."
+/// 漏气检测文案：与 home 首页 hint 字号/颜色/位置对齐
+#define PUMP_HOME_MAIN_SEAL_CHECK_Y                     (207 + 4)
+#define PUMP_HOME_MAIN_SEAL_CHECKING_TEXT               "Checking seal..."
+#define PUMP_HOME_MAIN_SEAL_RESULT_TEXT                 "Seal check passed"
+#define PUMP_HOME_MAIN_SEAL_CHECK_MASK_W                (PUMP_HOME_BASE_MAIN_HINT_SHINE_W)
+#define PUMP_HOME_MAIN_SEAL_CHECK_MASK_Y                (PUMP_HOME_MAIN_SEAL_CHECK_Y)
+
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -157,6 +164,29 @@ static uint32_t pump_home_main_hint_color_get(uint8_t mode)
             return PUMP_HOME_MAIN_HINT_COLOR_STIMULATION;
     }
 #endif
+}
+
+static bool pump_home_main_seal_check_showing(const ui_proc_pump_t *proc, bool paused)
+{
+    if (paused || proc == NULL) {
+        return false;
+    }
+    return proc->seal_tip == PUMP_SEAL_TIP_CHECKING ||
+        proc->seal_tip == PUMP_SEAL_TIP_RESULT;
+}
+
+static const char *pump_home_main_seal_check_text_get(const ui_proc_pump_t *proc)
+{
+    if (proc == NULL) {
+        return NULL;
+    }
+    if (proc->seal_tip == PUMP_SEAL_TIP_CHECKING) {
+        return PUMP_HOME_MAIN_SEAL_CHECKING_TEXT;
+    }
+    if (proc->seal_tip == PUMP_SEAL_TIP_RESULT) {
+        return PUMP_HOME_MAIN_SEAL_RESULT_TEXT;
+    }
+    return NULL;
 }
 
 static void pump_home_main_obj_flag_set(lv_obj_t *obj, bool visible)
@@ -575,7 +605,8 @@ static void pump_home_main_hint_shine_anim_update(pump_home_base_ui_info_t *info
     ui_shine_anim_update(&info->main.hint_shine, &style, info->main.hint_text, anim_paused);
 }
 
-static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, uint8_t mode_type, bool paused)
+static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, uint8_t mode_type,
+    bool paused, bool seal_showing)
 {
     char tip_buf[64] = {0};
     const uint8_t pump_mode = info->mode.new_index;
@@ -600,8 +631,8 @@ static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, ui
         mode_switch = 0;
     }
     
-    /// 暂停时，不显示模式切换提示
-    if (paused) {
+    /// 暂停或漏气文案展示时，不显示模式切换提示
+    if (paused || seal_showing) {
         mode_switch = 0;
     }
 
@@ -652,6 +683,109 @@ static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, ui
         pump_home_main_time_layout_invalidate(info);
     }
     info->main.shown_mode_switch = mode_switch;
+}
+
+static void pump_home_main_seal_check_style_get(ui_shine_style_t *style)
+{
+    ui_shine_style_init(style);
+    style->mask_w = PUMP_HOME_MAIN_SEAL_CHECK_MASK_W;
+    style->mask_y = PUMP_HOME_MAIN_SEAL_CHECK_MASK_Y;
+    style->screen_w = PUMP_HOME_MAIN_SCREEN_W;
+}
+
+static void pump_home_main_seal_check_mask_update(pump_home_base_ui_info_t *info, bool show,
+    const char *text)
+{
+    lv_obj_t *parent = pump_home_page_parent_get(info);
+    ui_shine_style_t style;
+
+    if (!show || text == NULL) {
+        ui_shine_hide(&info->main.seal_check_shine);
+        return;
+    }
+
+    if (info->main.seal_check_shine.mask != NULL && lv_obj_is_valid(info->main.seal_check_shine.mask) &&
+        info->main.seal_check_shine.shine != NULL && lv_obj_is_valid(info->main.seal_check_shine.shine) &&
+        info->force_update == false && info->main.shown_seal_check != 0) {
+        ui_shine_show(&info->main.seal_check_shine);
+        return;
+    }
+
+    pump_home_main_seal_check_style_get(&style);
+    info->main.seal_check_shine.mask_x = (int16_t)(-(int16_t)style.mask_w);
+    info->main.seal_check_shine.mask_tick_ms = get_timestamp();
+    ui_shine_prepare_from_text(&info->main.seal_check_shine, &style,
+        text, &lv_font_aeonik_soft_19_medium, 0, 0);
+    ui_shine_update(&info->main.seal_check_shine, parent, &style, info->main.seal_check_label, 1);
+    ui_shine_show(&info->main.seal_check_shine);
+}
+
+static void pump_home_main_seal_check_shine_anim_update(pump_home_base_ui_info_t *info, bool show)
+{
+    ui_shine_style_t style;
+    uint8_t anim_paused;
+
+    if (!show) {
+        return;
+    }
+
+    pump_home_main_seal_check_style_get(&style);
+    anim_paused = info->animation.paused_by_transition ? 1 : 0;
+    ui_shine_anim_update(&info->main.seal_check_shine, &style, info->main.seal_check_label,
+        anim_paused);
+}
+
+static void pump_home_main_seal_check_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc,
+    uint8_t mode, bool paused)
+{
+    const bool show = pump_home_main_seal_check_showing(proc, paused);
+    const char *text = show ? pump_home_main_seal_check_text_get(proc) : NULL;
+    const uint32_t color = pump_home_main_hint_color_get(mode);
+    bool state_changed;
+    bool text_changed = false;
+
+    if (info->main.seal_check_label == NULL || !lv_obj_is_valid(info->main.seal_check_label)) {
+        info->main.seal_check_label = lv_label_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(info->main.seal_check_label);
+        lv_obj_set_style_text_font(info->main.seal_check_label, &lv_font_aeonik_soft_19_medium, 0);
+        lv_obj_set_style_text_align(info->main.seal_check_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_letter_space(info->main.seal_check_label, 0, 0);
+        info->main.shown_seal_check = 0xFF;
+        info->main.shown_seal_color = 0xFFFFFFFFU;
+        info->main.shown_seal_text[0] = '\0';
+    }
+
+    if (show && text != NULL) {
+        text_changed = (strncmp(info->main.shown_seal_text, text,
+            sizeof(info->main.shown_seal_text)) != 0);
+    }
+
+    state_changed = (info->main.shown_seal_check != (show ? 1 : 0)) ||
+        (show && info->main.shown_seal_color != color) ||
+        text_changed ||
+        (info->force_update != 0);
+
+    if (state_changed) {
+        if (show && text != NULL) {
+            lv_obj_set_style_text_color(info->main.seal_check_label, lv_color_hex(color), 0);
+            lv_label_set_text(info->main.seal_check_label, text);
+            lv_obj_align(info->main.seal_check_label, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MAIN_SEAL_CHECK_Y);
+            pump_home_main_obj_flag_set(info->main.seal_check_label, true);
+            strncpy(info->main.shown_seal_text, text, sizeof(info->main.shown_seal_text) - 1);
+            info->main.shown_seal_text[sizeof(info->main.shown_seal_text) - 1] = '\0';
+            info->main.shown_seal_color = color;
+        } else {
+            pump_home_main_obj_flag_set(info->main.seal_check_label, false);
+            info->main.shown_seal_text[0] = '\0';
+        }
+        if (text_changed) {
+            ui_shine_remove(&info->main.seal_check_shine);
+        }
+    }
+
+    info->animation.hidden_by_seal_check = show ? 1 : 0;
+    pump_home_main_seal_check_mask_update(info, show, text);
+    info->main.shown_seal_check = show ? 1 : 0;
 }
 
 static void pump_home_main_speed_update(pump_home_base_ui_info_t *info, uint8_t speed)
@@ -730,6 +864,7 @@ void pump_home_main_page_ui_build(pump_home_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
     ui_shine_remove(&info->main.hint_shine);
+    ui_shine_remove(&info->main.seal_check_shine);
     pump_home_main_time_colon_release(info);
     memset(&info->main, 0, sizeof(info->main));
     info->main.shown_bg_id = 0;
@@ -743,12 +878,16 @@ void pump_home_main_page_ui_build(pump_home_base_ui_info_t *info)
     info->main.shown_digit_size = 0;
     info->main.shown_paused = 0xFF;
     info->main.shown_mode_switch = 0;
+    info->main.shown_seal_check = 0;
+    info->main.shown_seal_color = 0xFFFFFFFFU;
+    info->main.shown_seal_text[0] = '\0';
     info->main.tracked_mode_type = 0xFF;
     info->main.tracked_pump_mode = 0xFF;
     info->main.tip_mode_type = 0xFF;
     info->main.mode_switch_time = 0;
     info->animation.paused_by_transition = 0;
     info->animation.hidden_by_mode_switch = 0;
+    info->animation.hidden_by_seal_check = 0;
 }
 
 void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc)
@@ -797,7 +936,11 @@ void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
     pump_home_main_bg_update(info, mode);
 #endif
     pump_home_main_mode_title_update(info, mode);
-    pump_home_main_mode_switch_update(info, info->mode.new_mode_type, paused);
+    pump_home_main_mode_switch_update(info, info->mode.new_mode_type, paused,
+        pump_home_main_seal_check_showing(proc, paused));
+    pump_home_main_seal_check_update(info, proc, mode, paused);
+    pump_home_main_seal_check_shine_anim_update(info,
+        pump_home_main_seal_check_showing(proc, paused));
     pump_home_main_time_update(info, hours, minutes, seconds, paused);
     pump_home_base_animation_ui_update(info);
     pump_home_main_play_icon_update(info, paused);
@@ -824,6 +967,7 @@ void pump_home_main_page_ui_remove(pump_home_base_ui_info_t *info)
     ui_img_baj_release_decoded_buf(info->main.play_icon);
     ui_img_baj_release_decoded_buf(info->main.speed_icon);
     ui_shine_remove(&info->main.hint_shine);
+    ui_shine_remove(&info->main.seal_check_shine);
     memset(&info->main, 0, sizeof(info->main));
 }
 
