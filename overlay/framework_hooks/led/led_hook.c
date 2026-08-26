@@ -23,6 +23,7 @@ static void led_hook_fill_state_snapshot(led_manager_context_t *thiz, led_broadc
 #if IS_SUPPORT_NIGHT_LIGHT
     info->night_light_onoff = thiz->priv.night_light_onoff;
     info->night_light_gear = thiz->priv.night_light_gear;
+    info->night_light_startup_switch = thiz->priv.night_light_startup_switch;
 #endif
     info->global_adaptive_dimming_switch = thiz->priv.global_adaptive_dimming_switch;
     info->screen_key_level = thiz->priv.ui_backlight_level;
@@ -33,10 +34,11 @@ static int led_hook_led_state_snapshot_changed(const led_state_info_t *cur, cons
     return cur->night_light_onoff != last->night_light_onoff ||
            cur->night_light_gear != last->night_light_gear ||
            cur->global_adaptive_dimming_switch != last->global_adaptive_dimming_switch ||
-           cur->screen_key_level != last->screen_key_level;
+           cur->screen_key_level != last->screen_key_level ||
+           cur->night_light_startup_switch != last->night_light_startup_switch;
 }
 
-/// 仅当 night_light_switch / gear / global_adaptive / screen_key_level 相对上次上报有变化时分发
+/// 仅当 night_light / adaptive / screen_key / startup 相对上次上报有变化时分发
 void led_hook_notify_state(led_manager_context_t *thiz, led_broadcast_id_e evt)
 {
     led_state_info_t info = {0};

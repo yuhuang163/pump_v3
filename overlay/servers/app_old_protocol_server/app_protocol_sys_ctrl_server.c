@@ -45,7 +45,8 @@ static void app_old_comm_light_status_from_cab(const uint8_t *cab, app_old_comm_
 
 static uint8_t app_old_comm_light_status_validate_set_req(const app_old_comm_light_status_t *status)
 {
-    if (status->night_light_switch > 1 || status->adaptive_switch > 1) {
+    if (status->night_light_switch > 1 || status->adaptive_switch > 1 ||
+        status->night_light_startup_switch > 1) {
         return 0;
     }
     if (status->night_light_gear > 4 ||
@@ -68,6 +69,10 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
         
         if (led->hook->get_night_light_gear) {
             status->night_light_gear = (uint8_t)led->hook->get_night_light_gear(led);
+        }
+        if (led->hook->get_night_light_startup_switch) {
+            status->night_light_startup_switch =
+                led->hook->get_night_light_startup_switch(led) > 0 ? 1 : 0;
         }
 #endif
 
@@ -102,6 +107,13 @@ static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_
 
     /// App 一包下发全量快照。adaptive=1 时同包的 gear / screen_key_level 不能走手动通路：
     /// set_night_light_gear、改屏键亮度都会关 ALS，否则「开自适应」会被后写的档位/亮度打成手动。
+    /// 开机夜灯默认开关与自适应无关，两条路径都要落地。
+#if IS_SUPPORT_NIGHT_LIGHT
+    if (led->hook->set_night_light_startup_switch) {
+        led->hook->set_night_light_startup_switch(led, status->night_light_startup_switch > 0 ? 1 : 0);
+    }
+#endif
+
     if (want_adaptive) {
         if (cur_adaptive != 1 && led->hook->set_global_adaptive_dimming_switch) {
             led->hook->set_global_adaptive_dimming_switch(led, 1);
@@ -406,9 +418,10 @@ void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab)
     }
 
     app_old_comm_light_status_from_cab(cab, &light_status);
-    LOG_SRV(" light ctrl: switch=%d level=%d adaptive=%d screen_key=%d",
+    LOG_SRV(" light ctrl: switch=%d level=%d adaptive=%d screen_key=%d startup=%d",
             light_status.night_light_switch, light_status.night_light_gear,
-            light_status.adaptive_switch, light_status.screen_key_level);
+            light_status.adaptive_switch, light_status.screen_key_level,
+            light_status.night_light_startup_switch);
     /// 触发灯光状态设置埋点 (EVT_008: 灯光状态设置)
     {
         data_bury_trigger_user_evt_t bury_evt = {
@@ -431,9 +444,10 @@ void app_old_comm_handle_get_light_status_req(uint8_t cal, uint8_t *cab)
         LOGE(" Invalid CAL for get light status (expected 0, got %d)", cal);
     }
     app_old_comm_fill_light_status(&light_status);
-    LOG_SRV(" get light status: switch=%d level=%d adaptive=%d screen_key=%d",
+    LOG_SRV(" get light status: switch=%d level=%d adaptive=%d screen_key=%d startup=%d",
             light_status.night_light_switch, light_status.night_light_gear,
-            light_status.adaptive_switch, light_status.screen_key_level);
+            light_status.adaptive_switch, light_status.screen_key_level,
+            light_status.night_light_startup_switch);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_LIGHT_STATUS,
                                                APP_OLD_COMM_LIGHT_STATUS_CAL, (uint8_t *)&light_status);
 }
@@ -447,9 +461,10 @@ void app_old_comm_report_light_status(uint8_t arg1, void *val)
         return;
     }
     app_old_comm_fill_light_status(&light_status);
-    LOG_SRV(" report light status: switch=%d level=%d adaptive=%d screen_key=%d",
+    LOG_SRV(" report light status: switch=%d level=%d adaptive=%d screen_key=%d startup=%d",
             light_status.night_light_switch, light_status.night_light_gear,
-            light_status.adaptive_switch, light_status.screen_key_level);
+            light_status.adaptive_switch, light_status.screen_key_level,
+            light_status.night_light_startup_switch);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NOTIFY, APP_OLD_COMM_CID_NOTIFY_LIGHT_STATUS,
                                                APP_OLD_COMM_LIGHT_STATUS_CAL, (uint8_t *)&light_status);
 }
