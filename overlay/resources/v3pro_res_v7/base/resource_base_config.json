@@ -3,7 +3,7 @@
     "version": "2.0",
     "description": "资源包配置文件 - 映射资源ID到实际图片文件",
     "resource_type": "IMG_RES_TYPE_UI",
-    "language": "IMG_RES_LANG_TYPE_ZH",
+    "language": "IMG_RES_LANG_TYPE_EN",
     "compressed": false,
     "config_hint": "base 主题资源 ID 区间 [0 .. 10000]。建议按 resource_id（数值ID）升序添加/维护 resources；打包脚本会根据头文件解析出的数值ID自动排序后再打包。动画资源可使用 resource_ranges 配置范围。"
   },
@@ -433,6 +433,27 @@
       "resource_id": "BASE_RES_ID_PUMP_WILL_FINISH_TIP_ICON",
       "description": "泵奶即将结束提示图标",
       "file": "baj/icon_will_finsh_tip_84x84_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    }, 
+    {
+      "resource_id": "BASE_RES_ID_CHECK_CUP_ICON",
+      "description": "检查杯盖图标",
+      "file": "baj/icon_check_cup_208x208_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_CHECK_FIT_ICON",
+      "description": "检查滤芯图标",
+      "file": "baj/icon_check_fit_208x208_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_CHECK_TUBING_ICON",
+      "description": "检查管道图标",
+      "file": "baj/icon_check_tubing_208x208_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     }

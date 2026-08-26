@@ -42,6 +42,8 @@ extern "C" {
 
 /** 主页提示扫光宽度（像素，CPU 软边剖面） */
 #define PUMP_HOME_BASE_MAIN_HINT_SHINE_W                 (140)
+/** 漏气检测/结果文案缓冲长度（含 '\0'） */
+#define PUMP_HOME_MAIN_SEAL_TIP_TEXT_LEN                 (32)
 
 /// 页间过渡动画参数（与 home base 一致）
 #ifndef PUMP_HOME_BASE_PAGE_TRANSITION_MS
@@ -115,6 +117,7 @@ typedef struct {
     uint8_t anim_play_state; /// 动画播放状态: 0: 播放, 1: 暂停.
     uint8_t paused_by_transition; /// 过渡期间暂停波形动画
     uint8_t hidden_by_mode_switch; /// 子模式切换提醒期间隐藏并停止波形
+    uint8_t hidden_by_seal_check; /// 漏气检测/结果文案期间隐藏并停止波形
     uint32_t last_frame_tick_ms; /// 上次切帧时间
 } pump_home_base_animation_info_t;
 
@@ -143,6 +146,8 @@ typedef struct {
     lv_obj_t *hint_text;                /// Press to resume
     ui_shine_info_t hint_shine;         /// 扫光（字库文案软边）
     lv_obj_t *mode_switch_label;        /// 子模式切换提醒文案
+    lv_obj_t *seal_check_label;         /// 漏气检测 / 结果文案
+    ui_shine_info_t seal_check_shine;   /// 漏气文案扫光（字库软边）
     lv_obj_t *speed_icon;
     lv_obj_t *speed_value;
     lv_obj_t *left_level;               /// Lx
@@ -158,11 +163,14 @@ typedef struct {
     uint8_t shown_right_level;
     uint8_t shown_paused;               /// 当前是否显示暂停态
     uint8_t shown_mode_switch;          /// 当前是否显示子模式切换提醒
+    uint8_t shown_seal_check;           /// 当前是否显示漏气检测/结果文案
+    uint32_t shown_seal_color;          /// 漏气文案当前颜色
     uint8_t tracked_mode_type;          /// 用于检测子模式切换
     uint8_t tracked_pump_mode;          /// 用于区分韵律内子模式切换 / 工作模式切换
     uint8_t tip_mode_type;              /// 提醒文案对应的子模式
     uint32_t mode_switch_time;          /// 子模式切换提醒起始时间
     char shown_title[PUMP_HOME_BASE_CUSTOM_MODE_NAME_LEN];
+    char shown_seal_text[PUMP_HOME_MAIN_SEAL_TIP_TEXT_LEN]; /// 当前漏气文案
 } pump_home_base_main_page_info_t;
 
 /// 模式选择页固定层（挂 root，不参与切页位移动画；无文案提示/扫光）

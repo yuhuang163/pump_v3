@@ -50,6 +50,7 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
         pump_mode_page_index_clamp(proc);
         pump_mode_select_idle_timeout_handler(proc);
+        pump_seal_check_tick(proc);
     }
     ui_display_pump_home_screen_process(ui);
     pump_pause_led_tick(proc);
@@ -106,6 +107,10 @@ void show_pump_home_ui(ui_proc_pump_t *proc)
 
     pump_ui_change_hdr_remove(proc);
     pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
+    if (proc->current_ui_type == PUMP_UI_TYPE_NONE &&
+        PUMP_IS_GOING(proc->pump_status) && proc->seal_check_time == 0) {
+        pump_seal_check_start(proc);
+    }
     proc->current_ui_type = PUMP_UI_TYPE_HOME;
 
     ui_play_info_t play_info = {
@@ -149,13 +154,16 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         }
         WRITE_PUMP_WORK_STATUS(proc->pump, next_status, 1);
         proc->pump_status = next_status;
+        pump_seal_check_start(proc);
 #if PUMP_PAUSE_IDLE_TIMEOUT_ENABLE
         pump_pause_idle_stop(proc);
 #endif
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         LOG_UI("pump start: %d, page index: %d", pump_status, proc->ui_mode_page_index);
         /* 首页/力度/速度调节页：start 不改 page_index，也不回退导航栈 */
-        if (proc->current_ui_type != PUMP_UI_TYPE_HOME &&
+        if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
+            pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
+        } else if (proc->current_ui_type != PUMP_UI_TYPE_HOME &&
             proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
             proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST &&
             proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
@@ -164,6 +172,8 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
     } else {
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, 1);
         proc->pump_status = BREAST_PUMP_PAUSE;
+        proc->seal_tip = PUMP_SEAL_TIP_NONE;
+        proc->seal_check_time = 0;
         ///状态变化 触发泵奶停止埋点事件
         {
             int control_source = 0;

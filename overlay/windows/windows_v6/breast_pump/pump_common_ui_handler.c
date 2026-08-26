@@ -54,7 +54,9 @@ static void switch_pump_status_handler(ui_proc_pump_t *proc)
 static void pump_ui_nav_restore_frame(ui_proc_pump_t *proc, const pump_ui_nav_frame_t *frame)
 {
     EXCEPTION_CHECK_VOID(proc && frame);
-    proc->ui_mode_page_index = frame->page_index;
+    if (frame->ui_type != PUMP_UI_TYPE_SEAL_LEAK) {
+        proc->ui_mode_page_index = frame->page_index;
+    }
     proc->ui_nav.restoring = 1;
     switch (frame->ui_type) {
         case PUMP_UI_TYPE_LEVEL_ADJUST:
@@ -66,6 +68,10 @@ static void pump_ui_nav_restore_frame(ui_proc_pump_t *proc, const pump_ui_nav_fr
             break;
         case PUMP_UI_TYPE_SPEED_ADJUST:
             show_pump_speed_adjust_ui(proc);
+            break;
+        case PUMP_UI_TYPE_SEAL_LEAK:
+            proc->seal_leak_page_index = frame->page_index;
+            show_pump_seal_leak_ui(proc);
             break;
         case PUMP_UI_TYPE_HOME:
         default:
@@ -103,7 +109,11 @@ void pump_ui_nav_push(ui_proc_pump_t *proc)
     }
     frame = &proc->ui_nav.stack[proc->ui_nav.depth++];
     frame->ui_type = proc->current_ui_type;
-    frame->page_index = proc->ui_mode_page_index;
+    if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
+        frame->page_index = proc->seal_leak_page_index;
+    } else {
+        frame->page_index = proc->ui_mode_page_index;
+    }
     frame->level_side = proc->level_adjust_side;
 #if PUMP_MODE_SELECT_IDLE_EXIT_ENABLE
     /// 离开首页进子页时暂停倒计时，返回后重新计时
@@ -171,6 +181,7 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc)
     pump_pause_timeout_ui_exit(proc);
 #endif
     pump_will_finish_ui_exit(proc);
+    pump_seal_leak_ui_exit(proc);
     pump_low_power_ui_exit(proc);
     pump_level_adjust_ui_exit(proc);
     pump_both_level_adjust_ui_exit(proc);
@@ -212,6 +223,9 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
 #endif
         case PUMP_UI_TYPE_WILL_FINISH:
             pump_will_finish_ui_exit(proc);
+            break;
+        case PUMP_UI_TYPE_SEAL_LEAK:
+            pump_seal_leak_ui_exit(proc);
             break;
         case PUMP_UI_TYPE_LOW_POWER:
             pump_low_power_ui_exit(proc);
@@ -376,6 +390,15 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
         pump_stop_hold_dismiss(proc);
         return;
     }
+
+    if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
+        if (pump_seal_leak_restrict_keys(proc)) {
+            LOG_WM("seal leak guide page, ignore power start.");
+            return;
+        }
+        pump_seal_leak_resume(proc);
+        return;
+    }
     LOG_WM("ignore power key event.");
 }
 
@@ -485,6 +508,70 @@ void pump_sub_mode_state_init(ui_proc_pump_t *proc, uint8_t clamp_level)
     if (clamp_level) {
         pump_sub_mode_level_clamp(proc, proc->sub_mode_type);
     }
+}
+
+void pump_seal_check_start(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    proc->seal_check_time = get_timestamp();
+    proc->seal_result_time = 0;
+    proc->seal_tip = PUMP_SEAL_TIP_CHECKING;
+    proc->seal_result = PUMP_SEAL_RESULT_NONE;
+    LOG_WM("seal check start.");
+}
+
+void pump_seal_check_tick(ui_proc_pump_t *proc)
+{
+    uint32_t elapsed_ms = 0;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    if (!PUMP_IS_GOING(proc->pump_status) || proc->seal_check_time == 0) {
+        proc->seal_tip = PUMP_SEAL_TIP_NONE;
+        proc->seal_check_time = 0;
+        return;
+    }
+
+    elapsed_ms = get_timestamp_ms(proc->seal_check_time);
+    if (elapsed_ms < PUMP_SEAL_CHECKING_MS) {
+        proc->seal_tip = PUMP_SEAL_TIP_CHECKING;
+        return;
+    }
+
+    if (proc->seal_tip == PUMP_SEAL_TIP_CHECKING) {
+        uint8_t result = proc->seal_result;
+
+        if (result == PUMP_SEAL_RESULT_NONE) {
+            result = PUMP_SEAL_RESULT_NO_LEAK;
+        }
+        if (result == PUMP_SEAL_RESULT_SEVERE) {
+            proc->seal_tip = PUMP_SEAL_TIP_NONE;
+            proc->seal_check_time = 0;
+            LOG_WM("seal check severe leak, jump leak ui.");
+            pump_seal_leak_jump_severe(proc);
+            return;
+        }
+        if (result == PUMP_SEAL_RESULT_SLIGHT) {
+            proc->seal_tip = PUMP_SEAL_TIP_NONE;
+            proc->seal_check_time = 0;
+            LOG_WM("seal check slight leak, hide result.");
+            return;
+        }
+        proc->seal_tip = PUMP_SEAL_TIP_RESULT;
+        proc->seal_result_time = get_timestamp();
+        LOG_WM("seal check passed, show result.");
+        return;
+    }
+
+    if (proc->seal_tip == PUMP_SEAL_TIP_RESULT) {
+        if (get_timestamp_ms(proc->seal_result_time) >= PUMP_SEAL_RESULT_TIMEOUT_MS) {
+            proc->seal_tip = PUMP_SEAL_TIP_NONE;
+            proc->seal_check_time = 0;
+        }
+        return;
+    }
+
+    proc->seal_tip = PUMP_SEAL_TIP_NONE;
+    proc->seal_check_time = 0;
 }
 
 void pump_sub_mode_sync_tick(ui_proc_pump_t *proc, pump_sub_mode_sync_e sync)
