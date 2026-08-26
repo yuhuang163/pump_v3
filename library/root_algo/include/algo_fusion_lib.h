@@ -49,7 +49,7 @@ typedef struct {
 } SRESULT_INFO;*/
 
 typedef struct {
-    uint8_t wear_status[2];   /// 0: 未佩戴 1: 正常佩戴
+    uint8_t wear_status[2];   /// 泵奶未启动结果无效状态:0,佩戴正常无漏气：1,佩戴微小漏气:2，佩戴强漏气:3
     uint8_t compensation_status[2];     // 0: 不补偿, 1: 减小气压; 2:加大气压
     int compensation_delta_pwm[2];               // 0: 不补偿, -10000~-1:PWM减小, 1~10000: PWM增加
     /*SRESULT_INFO debug_info[2];                    /// 调试信息，包含特征值等*/

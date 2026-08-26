@@ -27,6 +27,8 @@ typedef struct {
 */
 static servers_system_info_t *servers_sys_info = NULL;
 static uint8_t s_power_off_sync_d0_done = 0;
+static uint8_t s_air_leak_micro = 0;
+static uint8_t s_air_leak_strong = 0;
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -138,6 +140,63 @@ static void on_pump_over_30min_report(servers_manager_context_t *ctx, int state)
         .val = NULL,
     };
     app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+}
+
+static void on_air_leak_micro_report(servers_manager_context_t *ctx, int active)
+{
+    EXCEPTION_CHECK_VOID(ctx);
+    servers_publish_data_args_t args_temp = {
+        .arg1 = OLD_PUBLISH_ABNORMAL_AIR_LEAK,
+        .arg2 = active ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
+        .val = NULL,
+    };
+    app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+}
+
+static void on_air_leak_strong_report(servers_manager_context_t *ctx, int active)
+{
+    EXCEPTION_CHECK_VOID(ctx);
+    servers_publish_data_args_t args_temp = {
+        .arg1 = OLD_PUBLISH_ABNORMAL_STRONG_AIR_LEAK,
+        .arg2 = active ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
+        .val = NULL,
+    };
+    app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+}
+
+static uint8_t servers_wear_has_result(const uint8_t *wear, uint8_t target)
+{
+    uint8_t i;
+
+    for (i = 0; i < AIR_PRESSURE_NUM; i++) {
+        if (wear[i] == target) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void on_algo_result_air_leak_cb(void *user_data, algo_breast_pump_data_t *result)
+{
+    servers_manager_context_t *ctx = (servers_manager_context_t *)user_data;
+    algo_manager_context_t *algo_ctx = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+    uint8_t micro;
+    uint8_t strong;
+
+    EXCEPTION_CHECK_VOID(ctx && ctx->dispatch_servers_event_wrapper && result);
+    if (algo_ctx == NULL || algo_ctx->get_algo_enabled == NULL || !algo_ctx->get_algo_enabled()) {
+        return;
+    }
+    micro = servers_wear_has_result(result->wear_detection.result, ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK);
+    strong = servers_wear_has_result(result->wear_detection.result, ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK);
+    if (s_air_leak_micro != micro) {
+        s_air_leak_micro = micro;
+        ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_AIR_LEAK_MICRO_REPORT);
+    }
+    if (s_air_leak_strong != strong) {
+        s_air_leak_strong = strong;
+        ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_AIR_LEAK_STRONG_REPORT);
+    }
 }
 
 static void on_charge_status_report(servers_manager_context_t *ctx, int state)
@@ -318,6 +377,12 @@ static int servers_work_thread_route(servers_manager_context_t *ctx, servers_pub
         case SERVERS_PUBLISH_DATA_PUMP_OVER_30MIN_REPORT:
             on_pump_over_30min_report(ctx, 1);
             break;
+        case SERVERS_PUBLISH_DATA_AIR_LEAK_MICRO_REPORT:
+            on_air_leak_micro_report(ctx, s_air_leak_micro);
+            break;
+        case SERVERS_PUBLISH_DATA_AIR_LEAK_STRONG_REPORT:
+            on_air_leak_strong_report(ctx, s_air_leak_strong);
+            break;
         case SERVERS_PUBLISH_DATA_BATTERY_CHARGE_NORMAL_REPORT:
             on_charge_status_report(ctx, servers_sys_info->battery.charge_status);
             break;
@@ -489,6 +554,11 @@ static int on_post_servers_init_route(struct servers_manager_context *ctx)
     servers_sys_info = u_malloz(sizeof(servers_system_info_t));
     led_manager_context_t *led_ctx = (led_manager_context_t *)find_module(ID_MODULE_LED);
     ADD_LED_STATE_CB(led_ctx, ctx, on_servers_led_state_cb);
+
+    algo_manager_context_t *algo_ctx = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+    if (algo_ctx && algo_ctx->add_algo_result_listener) {
+        algo_ctx->add_algo_result_listener(ctx, on_algo_result_air_leak_cb);
+    }
 
     return 0;
 }

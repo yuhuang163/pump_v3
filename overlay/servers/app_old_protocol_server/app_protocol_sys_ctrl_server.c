@@ -198,6 +198,7 @@ static const char* app_old_comm_get_abnormal_type_str(old_publish_abnormal_type_
         case OLD_PUBLISH_ABNORMAL_FAULT_WARNING: return "FAULT_WARNING";
         case OLD_PUBLISH_ABNORMAL_RHYTHM_SWITCHED: return "RHYTHM_SWITCHED";
         case OLD_PUBLISH_ABNORMAL_PUMP_OVER_30MIN: return "PUMP_OVER_30MIN";
+        case OLD_PUBLISH_ABNORMAL_STRONG_AIR_LEAK: return "STRONG_AIR_LEAK";
         default: return "UNKNOWN_ERROR";
     }
 }
@@ -502,60 +503,57 @@ void app_old_comm_report_abnormal(uint8_t abnormal_type, uint8_t abnormal_state)
     app_old_comm_handle_dev_abnormal_report(&args);
 }
 
+static uint8_t app_old_comm_algo_has_wear_result(uint8_t target)
+{
+    algo_manager_context_t *algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+    uint8_t i;
+
+    if (algo == NULL) {
+        return OLD_PUBLISH_ABNORMAL_STATE_CLEARED;
+    }
+    for (i = 0; i < AIR_PRESSURE_NUM; i++) {
+        if (algo->priv.algo_data.wear_detection.result[i] == target) {
+            return OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
+        }
+    }
+    return OLD_PUBLISH_ABNORMAL_STATE_CLEARED;
+}
+
+static uint8_t app_old_comm_abnormal_flag(int active)
+{
+    return active ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED;
+}
+
 /// APP检查异常
 void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab)
 {
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    EXCEPTION_CHECK_VOID(pbus);
-    struct rt_device_node *battery = pbus->find_device(ID_DEVICE_BATTERY);
     airplane_mode_context_t *air_ctx = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
-    EXCEPTION_CHECK_VOID(air_ctx);
-
     battery_manager_context_t *batt_ctx = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    EXCEPTION_CHECK_VOID(batt_ctx);
- 
-    int percent = 0;
+    struct rt_device_node *battery;
+    app_old_comm_abnormal_infor_t report = {0};
+    int percent = 100;
+
+    (void)cal;
+    (void)cab;
+    EXCEPTION_CHECK_VOID(pbus && air_ctx && batt_ctx);
+    battery = pbus->find_device(ID_DEVICE_BATTERY);
     if (battery) {
         DEVICE_READ_ARGS(battery, &percent, sizeof(percent));
-    } else {
-        percent = 100;
     }
-    uint8_t report_data[10] = {0};
-    uint8_t data_len = 0;
-    ///电量不足无法开始
-    if (percent <= FORBID_START_BAT_PERCENTAGE) {
-        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
-    }else {
-        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_CLEARED;
-    }
-    ///设备低电
-    report_data[data_len++] = 0;
-    ///设备低电即将关机
-    if (percent <= LOW_BAT_PERCENTAGE) {
-        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
-    }else {
-        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_CLEARED;
-    }
-    ///设备漏气提醒
-    report_data[data_len++] = 0;
-    ///旅行锁
-    if (air_ctx->is_on_airplane_mode()) {
-        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
-    }
-    else {
-        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_CLEARED;
-    }
-    ///适配器
-    if (batt_ctx->get_charge_status() == CHARGE_STATE_ERROR) {
-        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE;
-    }
-    else {
-        report_data[data_len++] = OLD_PUBLISH_ABNORMAL_STATE_CLEARED;
-    }
-    /// Log report_data: low bat cannot start, low battery, low bat shutdown soon, air leak, travel lock, adapter error
-    LOG_SRV("low_bat_cnst=%d, low_bat=%d, low_bat_shut_soon=%d, air_leak=%d, travel_lock=%d, adapter_error=%d",
-        report_data[0], report_data[1], report_data[2], report_data[3], report_data[4], report_data[5]);
-    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_ABNORMAL_INFOR, \
-        data_len, report_data);
+
+    report.cannot_start = app_old_comm_abnormal_flag(percent <= FORBID_START_BAT_PERCENTAGE);
+    report.low_battery = app_old_comm_abnormal_flag(percent <= LOW_POWER_RUN_PERCENTAGE);
+    report.shutdown_soon = app_old_comm_abnormal_flag(percent <= LOW_BAT_PERCENTAGE);
+    report.micro_air_leak = app_old_comm_algo_has_wear_result(ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK);
+    report.travel_lock = app_old_comm_abnormal_flag(air_ctx->is_on_airplane_mode());
+    report.adapter_error = app_old_comm_abnormal_flag(batt_ctx->get_charge_status() == CHARGE_STATE_ERROR);
+    report.strong_air_leak = app_old_comm_algo_has_wear_result(ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK);
+
+    LOG_SRV("cannot_start=%d, low_bat=%d, shut_soon=%d, micro_leak=%d, travel_lock=%d, adapter=%d, strong_leak=%d",
+            report.cannot_start, report.low_battery, report.shutdown_soon, report.micro_air_leak,
+            report.travel_lock, report.adapter_error, report.strong_air_leak);
+    app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_GET_ABNORMAL_INFOR,
+                                               APP_OLD_COMM_ABNORMAL_INFOR_CAL, (uint8_t *)&report);
 }
 

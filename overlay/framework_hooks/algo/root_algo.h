@@ -10,6 +10,13 @@ extern "C" {
  ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
 #include "motor_policy.h" // IWYU pragma: keep
+/// 佩戴检测结果枚举
+typedef enum {
+    ALGO_WEAR_DETECTION_RESULT_INVALID = 0,
+    ALGO_WEAR_DETECTION_RESULT_NORMAL = 1,
+    ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK = 2,
+    ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK = 3,
+} algo_wear_detection_result_e;
 
 /// 算法输出数据
 typedef struct {
