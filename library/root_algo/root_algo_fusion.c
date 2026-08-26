@@ -47,7 +47,7 @@ static void wear_detection_process_data(void)
         /// TODO: 实现佩戴检测算法
         V3WearDetectionMain(s_air_pressure_data);
         /// TODO: 修改算法结果s_result
-        GetWearDetectionResult(s_result.wear_status);
+        GetWearDetectionResult(s_result.wear_status);/// 泵奶未启动结果无效状态:0,佩戴正常无漏气：1,佩戴微小漏气:2，佩戴强漏气:3
         GetCompensationStatus(s_result.compensation_status, s_result.compensation_delta_pwm);
         // // TODO: 实现气压补偿算法
         // V3ProAlgoMain(s_air_pressure_data);          // 不做气压补偿，采集数据
@@ -143,6 +143,7 @@ void algo_fusion_lib_input(algo_fusion_input_data_t *input)
     switch (data_type){
         case ALGO_SENSOR_ATTR_AIR_PRESSURE:
         {
+            s_air_pressure_data.do_work = ((algo_air_pressure_data_t*)input->sensor_data)->do_work; /// 是否正在泵奶
             s_air_pressure_data.air_pressure[0] = ((algo_air_pressure_data_t*)input->sensor_data)->air_pressure[0];
             s_air_pressure_data.air_pressure[1] = ((algo_air_pressure_data_t*)input->sensor_data)->air_pressure[1];
             s_air_pressure_data.pump_state[0].level = ((algo_air_pressure_data_t*)input->sensor_data)->pump_state[0].level;

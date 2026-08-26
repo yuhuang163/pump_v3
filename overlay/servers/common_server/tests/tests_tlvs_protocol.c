@@ -721,10 +721,13 @@ int tests_tlvs_suction_compensation(comm_protocol_builder_t *builder, comm_proto
 
     LOG_SRV("tests_tlvs_suction_compensation: %s", onoff ? "ON" : "OFF");
 
-    // TODO: 实现吸力补偿开关逻辑
     motor_manager_context_t *motor_obj = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
     EXCEPTION_CHECK_INT(motor_obj);
     motor_obj->set_suction_compensation_enabled(onoff ? true : false);
+
+    algo_manager_context_t *algo_obj = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+    EXCEPTION_CHECK_INT(algo_obj);
+    algo_obj->set_algo_enabled(onoff ? true : false);
 
     // 应答格式: Length=1, Value=0x00失败/0x01成功
     uint8_t result = 0x01; // 默认成功

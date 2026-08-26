@@ -46,6 +46,19 @@ typedef struct __attribute__((packed)) {
 
 #define APP_OLD_COMM_LIGHT_STATUS_CAL  ((uint8_t)sizeof(app_old_comm_light_status_t))
 
+/// 0xEC ACK 异常状态快照
+typedef struct __attribute__((packed)) {
+    uint8_t cannot_start;     /// 电量不足无法启动
+    uint8_t low_battery;      /// 设备低电
+    uint8_t shutdown_soon;    /// 低电即将关机
+    uint8_t micro_air_leak;   /// 设备微漏气提醒
+    uint8_t travel_lock;      /// 进入旅行锁
+    uint8_t adapter_error;    /// 适配器异常
+    uint8_t strong_air_leak;  /// 设备强漏气提醒
+} app_old_comm_abnormal_infor_t;
+
+#define APP_OLD_COMM_ABNORMAL_INFOR_CAL  ((uint8_t)sizeof(app_old_comm_abnormal_infor_t))
+
 void app_old_comm_handle_set_bind_req(uint8_t cal, uint8_t *cab);
 void app_old_comm_handle_heartbeat_req(void);
 void app_old_comm_handle_set_rtc_req(uint8_t cal, uint8_t *cab);

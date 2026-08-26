@@ -62,7 +62,7 @@ typedef enum {
     APP_OLD_COMM_CID_GET_BURY_POINT_DATA = 0xBB,  // 获取埋点数据
     //APP_OLD_COMM_CID_GET_FLANGE_STATUS = 0xBC,    // 获取法兰状态
     APP_OLD_COMM_CID_SET_TRAVEL_LOCK = 0xBD,      // Travel lock control
-    APP_OLD_COMM_CID_GET_ABNORMAL_INFOR = 0xEC,   //获取设备异常
+    APP_OLD_COMM_CID_GET_ABNORMAL_INFOR = 0xEC,   //获取设备异常(ACK CAL=7)
 
     APP_OLD_COMM_CID_CTRL_DEV = 0xC0, // 功能控制
     APP_OLD_COMM_CID_SET_BIND = 0xC1, // 设置绑定

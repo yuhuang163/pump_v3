@@ -46,11 +46,24 @@ static void on_sensor_data_algo_cb(void *user_data, uint8_t *data, int data_len)
 static void algo_out_result_cb(algo_fusion_result_t *algo_result)
 {  
     static uint16_t log_count = 0;
+    uint8_t old_wear[AIR_PRESSURE_NUM];
     EXCEPTION_CHECK_VOID(algo_result);
     algo_manager_context_t *ctx = s_algo_ctx;
     EXCEPTION_CHECK_VOID(ctx);
-    if (algo_result->wear_status[0] != ctx->priv.algo_data.wear_detection.result[0] ||
-        algo_result->wear_status[1] != ctx->priv.algo_data.wear_detection.result[1]) {
+    memcpy(old_wear, ctx->priv.algo_data.wear_detection.result, sizeof(old_wear));
+    if (!ctx->priv.is_algo_enabled) {
+        /// 算法未启用，结果上报默认值
+        algo_result->wear_status[0] = ALGO_WEAR_DETECTION_RESULT_INVALID;
+        algo_result->wear_status[1] = ALGO_WEAR_DETECTION_RESULT_INVALID;
+        algo_result->compensation_status[0] = 0;
+        algo_result->compensation_status[1] = 0;
+        algo_result->compensation_delta_pwm[0] = 0;
+        algo_result->compensation_delta_pwm[1] = 0;
+        algo_manager_dispatch_to_clients(ctx);
+        return;
+    }
+    if (algo_result->wear_status[0] != old_wear[0] ||
+        algo_result->wear_status[1] != old_wear[1]) {
         data_bury_trigger_wear_detection_t bury_wear = {
             .detection_type = DATA_BURY_WEAR_DETECTION_TYPE_PRESSURE,
             .detection_data = DATA_BURY_PACK_WEAR_DETECTION_DATA(algo_result->wear_status[0],
@@ -58,21 +71,6 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
         };
         DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_WEAR_DETECTION, 0, 0, &bury_wear);
     }
-    /*
-    if (algo_result->wear_status[0] != ctx->priv.algo_data.wear_detection.result[0] || \
-         algo_result->wear_status[1] != ctx->priv.algo_data.wear_detection.result[1]) {
-        if (0 == algo_result->wear_status[0] || 0 == algo_result->wear_status[1]) {
-            /// 未佩戴，通知app未佩戴
-            servers_publish_data_args_t args_temp = {
-                .arg1 = OLD_PUBLISH_ABNORMAL_AIR_LEAK,
-                .arg2 = OLD_PUBLISH_ABNORMAL_STATE_ACTIVE,
-                .val = NULL,
-            };
-            servers_manager_context_t *servers_ctx = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
-            EXCEPTION_CHECK_VOID(servers_ctx);
-            servers_ctx->hook->app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
-        }
-    }*/
     ctx->priv.algo_data.wear_detection.result[0] = algo_result->wear_status[0];
     ctx->priv.algo_data.wear_detection.result[1] = algo_result->wear_status[1];
     ctx->priv.algo_data.wear_detection.compensation_status[0] = algo_result->compensation_status[0];

@@ -37,6 +37,7 @@ typedef struct algo_manager_context {
         list_head_t client_list;
         int algo_inited;
         uint8_t is_sampling;          /// 是否正在采集
+        bool is_algo_enabled;         /// 算法开关 默认开启
         algo_breast_pump_data_t algo_data; /// 算法数据
         algo_breast_pump_data_t m_result;  /// 最近一次分发的算法结果快照
         struct motor_manager_context *motor;
@@ -49,6 +50,10 @@ typedef struct algo_manager_context {
     void (*get_algo_data)(algo_breast_pump_data_t *algo_data);
     int (*add_algo_result_listener)(void *user_data, on_algo_result_cb_ptr cb);
     void (*remove_algo_result_listener)(on_algo_result_cb_ptr cb);
+    /// 设置算法开关
+    void (*set_algo_enabled)(bool enabled);
+    /// 获取算法开关
+    bool (*get_algo_enabled)(void);
     struct __algo_manager_hook {
         int (*on_post_init_route)(struct algo_manager_context *ctx);
         int (*on_algo_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data);

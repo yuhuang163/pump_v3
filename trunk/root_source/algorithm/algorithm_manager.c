@@ -117,6 +117,19 @@ static void algo_remove_result_listener(on_algo_result_cb_ptr cb)
     MUTEX_UNLOCK(algo_obj->priv.m_lock);
 }
 
+static void set_algo_enabled(bool enabled)
+{
+    EXCEPTION_CHECK_VOID(algo_obj);
+    algo_obj->priv.is_algo_enabled = enabled;
+    LOG_ALGO("algo enabled: %d", enabled);
+}
+
+static bool get_algo_enabled(void)
+{
+    EXCEPTION_CHECK_INT(algo_obj);
+    return algo_obj->priv.is_algo_enabled;
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -125,11 +138,14 @@ void *register_module_for_algo_fusion_new(list_head_t *list_head)
 {
     MALLOC_FOR_PTR(ptr, algo_manager_context_t);
     ptr->priv.algo_inited = 0;
+    ptr->priv.is_algo_enabled = true;
     MUTEX_INIT(&ptr->priv.m_lock, algo_client_mutex);
     USE_INIT_LIST_HEAD(&ptr->priv.client_list);
     ptr->get_algo_data = get_algo_data;
     ptr->add_algo_result_listener = algo_add_result_listener;
     ptr->remove_algo_result_listener = algo_remove_result_listener;
+    ptr->set_algo_enabled = set_algo_enabled;
+    ptr->get_algo_enabled = get_algo_enabled;
     algo_obj = ptr;
     return ADD_MODULE("algo", ID_MODULE_ALGO_HUB, on_perpare_algo_init, 
         on_post_algo_init, ptr, list_head, sizeof(algo_manager_context_t));
