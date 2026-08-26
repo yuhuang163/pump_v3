@@ -125,12 +125,20 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
     if (mode == 1) {
         /* 进入产测模式 */
         //set_log_ouput_level(US_LOG_LEVEL_NONE);
-#if IS_SUPPORT_NIGHT_LIGHT        
-        /// 屏蔽自适应
-        if (led && led->hook && led->hook->set_global_adaptive_dimming_switch) {
-            led->hook->set_global_adaptive_dimming_switch(led, 1);
+        /// 屏蔽自适应（只改各通道开关，不写全局 flash，避免污染用户设置）
+        if (led && led->hook) {
+            if (led->hook->set_ui_backlight_adaptive_dimming_switch) {
+                led->hook->set_ui_backlight_adaptive_dimming_switch(led, 0);
+            }
+            if (led->hook->set_key_backlight_adaptive_dimming_switch) {
+                led->hook->set_key_backlight_adaptive_dimming_switch(led, 0);
+            }
+#if IS_SUPPORT_NIGHT_LIGHT
+            if (led->hook->set_night_light_adaptive_dimming_switch) {
+                led->hook->set_night_light_adaptive_dimming_switch(led, 0);
+            }
+#endif
         }
-#endif        
         tests_ctx->tests_manager_set_current_mode(TST_FACTORY_TYPE);
         tests_ctx->set_factory_tests_event_process(FAC_TST_ENTER_EVENT, 0, 0, NULL);
         /// 唤醒电源管理模块
@@ -149,12 +157,21 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
         } else {
             /* 退出产测模式 */
             set_log_ouput_level(US_LOG_LEVEL_VERBOSE);
-#if IS_SUPPORT_NIGHT_LIGHT        
-            /// 恢复自适应夜灯
-            if (led && led->hook && led->hook->set_global_adaptive_dimming_switch) {
-                led->hook->set_global_adaptive_dimming_switch(led, 0);
-            }
+            /// 按全局偏好恢复各通道自适应
+            if (led && led->hook && led->hook->get_global_adaptive_dimming_switch) {
+                uint8_t adaptive = (uint8_t)led->hook->get_global_adaptive_dimming_switch(led);
+                if (led->hook->set_ui_backlight_adaptive_dimming_switch) {
+                    led->hook->set_ui_backlight_adaptive_dimming_switch(led, adaptive);
+                }
+                if (led->hook->set_key_backlight_adaptive_dimming_switch) {
+                    led->hook->set_key_backlight_adaptive_dimming_switch(led, adaptive);
+                }
+#if IS_SUPPORT_NIGHT_LIGHT
+                if (led->hook->set_night_light_adaptive_dimming_switch) {
+                    led->hook->set_night_light_adaptive_dimming_switch(led, adaptive);
+                }
 #endif
+            }
             tests_ctx->tests_manager_set_current_mode(TST_NONE_TYPE);
             tests_ctx->set_factory_tests_event_process(FAC_TST_EXIT_EVENT, 0, 0, NULL);
             /* 关闭测试窗口 */
@@ -1350,7 +1367,13 @@ int tests_tlvs_lcd_backlight_control(comm_protocol_builder_t *builder, comm_prot
     if (data_len == 1 && data != NULL) {
         led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
         if (led && led->hook && led->hook->set_ui_backlight_level) {
-            /// 设置夜灯LCD背光
+            /// 关屏 ALS，避免自适应线程把产测亮度盖掉（关背光后会被拉回 MIN~当前档）
+            if (led->hook->set_ui_backlight_adaptive_dimming_switch) {
+                led->hook->set_ui_backlight_adaptive_dimming_switch(led, 0);
+            }
+            if (data[0] && led->hook->set_ui_backlight_level_rate) {
+                led->hook->set_ui_backlight_level_rate(led, 100);
+            }
             led->hook->set_ui_backlight_level(led, data[0] ? LCD_BACKLIGHT_LEVEL_MAX : 0);
             result = 0x01;
             LOG_SRV("tests_tlvs_lcd_backlight_control: %s", data[0] ? "ON" : "OFF");

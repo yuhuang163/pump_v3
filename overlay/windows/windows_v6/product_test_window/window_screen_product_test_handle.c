@@ -93,8 +93,11 @@ static void product_test_lcd_color_env_prepare(ui_proc_product_test_t *proc)
         }
     }
 
-    /// 屏幕背光 100%
+    /// 屏幕背光 100%（先关 ALS，避免被自适应线程覆盖）
     if (proc->led && proc->led->hook) {
+        if (proc->led->hook->set_ui_backlight_adaptive_dimming_switch) {
+            proc->led->hook->set_ui_backlight_adaptive_dimming_switch(proc->led, 0);
+        }
         if (proc->led->hook->set_ui_backlight_level_rate) {
             proc->led->hook->set_ui_backlight_level_rate(proc->led, 100);
         }
@@ -113,6 +116,12 @@ static void product_test_lcd_color_env_restore(ui_proc_product_test_t *proc)
         /// 恢复产测默认按键灯
         if (proc->led->hook->set_key_backlight) {
             proc->led->hook->set_key_backlight(proc->led, 100);
+        }
+        /// 按全局偏好恢复屏 ALS（prepare 里关过）
+        if (proc->led->hook->get_global_adaptive_dimming_switch &&
+            proc->led->hook->set_ui_backlight_adaptive_dimming_switch) {
+            uint8_t adaptive = (uint8_t)proc->led->hook->get_global_adaptive_dimming_switch(proc->led);
+            proc->led->hook->set_ui_backlight_adaptive_dimming_switch(proc->led, adaptive);
         }
     }
     LOG_WM("lcd color env restore: adaptive_on, key_bl=100");
