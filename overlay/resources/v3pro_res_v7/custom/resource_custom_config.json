@@ -3,7 +3,7 @@
     "version": "2.0",
     "description": "custom 资源包配置文件 - 映射资源ID到实际图片文件",
     "resource_type": "IMG_RES_TYPE_UI",
-    "language": "IMG_RES_LANG_TYPE_ZH",
+    "language": "IMG_RES_LANG_TYPE_EN",
     "compressed": false,
     "config_hint": "custom 主题资源 ID 区间 [10000 .. 20000]。建议按 resource_id（数值ID）升序添加/维护 resources；打包脚本会根据头文件解析出的数值ID自动排序后再打包。动画资源可使用 resource_ranges 配置范围。"
   },

@@ -76,6 +76,9 @@ typedef enum {
     BASE_RES_ID_PUMP_TIME_LABEL, /// 泵奶时间标签
     BASE_RES_ID_TEXT_SHINE_MASK, /// 文案扫光蒙层
     BASE_RES_ID_PUMP_WILL_FINISH_TIP_ICON, /// 泵奶即将结束提示图标
+    BASE_RES_ID_CHECK_CUP_ICON, /// 检查杯盖图标
+    BASE_RES_ID_CHECK_FIT_ICON, /// 检查滤芯图标
+    BASE_RES_ID_CHECK_TUBING_ICON, /// 检查管道图标
 
     /* 动画组 [1000..] */
     BASE_RES_ID_STIMULATION_ANIM_START = 1000, /// 刺激动画-开始
