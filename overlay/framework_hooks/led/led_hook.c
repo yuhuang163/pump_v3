@@ -38,22 +38,45 @@ static int led_hook_led_state_snapshot_changed(const led_state_info_t *cur, cons
            cur->night_light_startup_switch != last->night_light_startup_switch;
 }
 
-/// 仅当 night_light / adaptive / screen_key / startup 相对上次上报有变化时分发
-void led_hook_notify_state(led_manager_context_t *thiz, led_broadcast_id_e evt)
+/// 由当前屏背光反推不含 rate 的逻辑亮度；屏已关返回 0
+static uint8_t led_ui_current_level_without_rate(led_manager_context_t *thiz)
 {
-    led_state_info_t info = {0};
+    uint8_t rate = thiz->priv.ui_backlight_level_rate;
 
-    EXCEPTION_CHECK_VOID(thiz);
-    led_hook_fill_state_snapshot(thiz, evt, &info);
-    if (s_last_reported_led_state_valid &&
-        !led_hook_led_state_snapshot_changed(&info, &s_last_reported_led_state)) {
+    if (thiz->priv.ui_backlight_level == 0) {
+        return 0;
+    }
+    if (rate == 0) {
+        return thiz->priv.ui_backlight_level;
+    }
+    uint16_t pre = (uint16_t)thiz->priv.ui_backlight_level * 100u / rate;
+
+    if (pre > LCD_BACKLIGHT_LEVEL_MAX) {
+        pre = LCD_BACKLIGHT_LEVEL_MAX;
+    }
+    return (uint8_t)pre;
+}
+
+/// 关全局 ALS 前：把当前屏亮度（不含 rate）写入 global_backlight_level 并落盘
+static void led_capture_ui_to_global_backlight(led_manager_context_t *thiz)
+{
+    uint8_t level = led_ui_current_level_without_rate(thiz);
+
+    if (level == 0) {
         return;
     }
-    s_last_reported_led_state = info;
-    s_last_reported_led_state_valid = 1;
-    if (thiz->notify_led_state_change) {
-        thiz->notify_led_state_change(&info);
+    level = led_clamp_global_backlight_level(level);
+    if (level == thiz->priv.global_backlight_level) {
+        return;
     }
+    thiz->priv.global_backlight_level = level;
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (st) {
+        st->put_store_ram_val(STORE_ID_SYS_BACK_LIGHT_LEVEL, thiz->priv.global_backlight_level, 0, NULL);
+    }
+    LOG_MISC("capture ui to global backlight: %d (actual:%d rate:%d)",
+             thiz->priv.global_backlight_level, thiz->priv.ui_backlight_level,
+             thiz->priv.ui_backlight_level_rate);
 }
 
 /// App 设置总开关：写 Flash global_adaptive_switch，并同步三路 ALS 子开关（RAM）
@@ -61,6 +84,10 @@ static void set_global_adaptive_dimming_switch(led_manager_context_t *thiz, uint
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (onoff != thiz->priv.global_adaptive_dimming_switch) {
+        /// 关总开关前先记下当前屏亮度，避免随后钉全局时把 ALS 现场盖掉
+        if (!onoff) {
+            led_capture_ui_to_global_backlight(thiz);
+        }
         thiz->priv.global_adaptive_dimming_switch = onoff;
         LOG_MISC("global_adaptive_dimming_switch (ram): %d", thiz->priv.global_adaptive_dimming_switch);
         storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
@@ -84,9 +111,10 @@ static int get_global_adaptive_dimming_switch(led_manager_context_t *thiz)
 static void set_global_backlight_level(led_manager_context_t *thiz, uint8_t level)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    if (level < 20 || level > LED_LEVEL_MAX) {
+    if (level > LED_LEVEL_MAX) {
         return;
     }
+    level = led_clamp_global_backlight_level(level);
     thiz->priv.global_backlight_level = level;
     thiz->hook->set_key_backlight_adaptive_dimming_switch(thiz, 0);
     thiz->hook->set_ui_backlight_adaptive_dimming_switch(thiz, 0);
@@ -104,13 +132,44 @@ static int get_global_backlight_level(led_manager_context_t *thiz)
     return thiz->priv.global_backlight_level;
 }
 
+/// 从 Flash 读回已存储的全局亮度
+static void led_reload_persisted_global_backlight(led_manager_context_t *thiz)
+{
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    int tmp = LED_LEVEL_MAX;
+
+    if (!st) {
+        thiz->priv.global_backlight_level = LED_LEVEL_MAX;
+        return;
+    }
+    st->get_store_ram_val(STORE_ID_SYS_BACK_LIGHT_LEVEL, 0, 0, &tmp);
+    if (tmp < 0 || tmp > (int)LED_LEVEL_MAX) {
+        tmp = LED_LEVEL_MAX;
+    } else {
+        tmp = led_clamp_global_backlight_level((uint8_t)tmp);
+    }
+    thiz->priv.global_backlight_level = (uint8_t)tmp;
+}
+
 static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, int arg1, int arg2, broadcast_priv_data_t *pdata)
 {
     led_manager_context_t *thiz = context;
+    uint8_t als;
 
     (void)arg2;
     (void)pdata;
     EXCEPTION_CHECK_INT(thiz);
+    /// 开机：读回已落盘的全局亮度。总开关开则恢复屏/键 ALS，关掉则用该亮度做手动值
+    if (id.code == ID_BROADCAST_SYS_STATE_CHANGE && arg1 == SYSTEM_BROADCAST_POWER_ON) {
+        als = thiz->priv.global_adaptive_dimming_switch ? 1u : 0u;
+        led_reload_persisted_global_backlight(thiz);
+        if (thiz->hook->set_key_backlight_adaptive_dimming_switch) {
+            thiz->hook->set_key_backlight_adaptive_dimming_switch(thiz, als);
+        }
+        if (thiz->hook->set_ui_backlight_adaptive_dimming_switch) {
+            thiz->hook->set_ui_backlight_adaptive_dimming_switch(thiz, als);
+        }
+    }
     key_backlight_on_broadcast(thiz, id, arg1);
     ui_backlight_on_broadcast(thiz, id, arg1);
     return 0;
@@ -147,8 +206,10 @@ static int on_post_init_route(led_manager_context_t *thiz)
         int tmp = LED_LEVEL_MAX;
 
         st->get_store_ram_val(STORE_ID_SYS_BACK_LIGHT_LEVEL, 0, 0, &tmp);
-        if (tmp < 20 || tmp > (int)LED_LEVEL_MAX) {
+        if (tmp < 0 || tmp > (int)LED_LEVEL_MAX) {
             tmp = LED_LEVEL_MAX;
+        } else {
+            tmp = led_clamp_global_backlight_level((uint8_t)tmp);
         }
         thiz->priv.global_backlight_level = (uint8_t)tmp;
         if (thiz->hook->set_key_backlight_level) {
@@ -189,6 +250,41 @@ static int on_post_init_route(led_manager_context_t *thiz)
     battery_manager_context_t *battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
     ADD_BATTERY_STATE_CB(battery, thiz, on_led_battery_state_change_cb);
     return 0;
+}
+
+/*
+* GLOBAL FUNCTION DEFINITIONS
+*****************************************************************************************
+*/
+uint8_t led_clamp_global_backlight_level(uint8_t level)
+{
+    if (level > LED_LEVEL_MAX || level == 0) {
+        return LED_LEVEL_MAX;
+    }
+
+    if (level < GLOBAL_BACKLIGHT_LEVEL_MIN) {
+        level = GLOBAL_BACKLIGHT_LEVEL_MIN;
+    }
+    
+    return level;
+}
+
+/// 仅当 night_light / adaptive / screen_key / startup 相对上次上报有变化时分发
+void led_hook_notify_state(led_manager_context_t *thiz, led_broadcast_id_e evt)
+{
+    led_state_info_t info = {0};
+
+    EXCEPTION_CHECK_VOID(thiz);
+    led_hook_fill_state_snapshot(thiz, evt, &info);
+    if (s_last_reported_led_state_valid &&
+        !led_hook_led_state_snapshot_changed(&info, &s_last_reported_led_state)) {
+        return;
+    }
+    s_last_reported_led_state = info;
+    s_last_reported_led_state_valid = 1;
+    if (thiz->notify_led_state_change) {
+        thiz->notify_led_state_change(&info);
+    }
 }
 
 void register_led_hook(led_manager_context_t *ctx)

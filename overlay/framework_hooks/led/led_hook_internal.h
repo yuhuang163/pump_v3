@@ -13,8 +13,10 @@ extern "C" {
 
 #define FORBID_START_BRIGHTNESS_MAX_VALUE                 (40)
 #define LOW_POWER_RUN_BRIGHTNESS_MAX_VALUE                (60)
+#define GLOBAL_BACKLIGHT_LEVEL_MIN                        (20)  /// 全局手动亮度下限
 
 void led_hook_notify_state(led_manager_context_t *thiz, led_broadcast_id_e evt);
+uint8_t led_clamp_global_backlight_level(uint8_t level);
 
 void led_key_backlight_bind(led_manager_context_t *ctx);
 void key_backlight_on_post_init(led_manager_context_t *thiz);

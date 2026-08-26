@@ -168,16 +168,16 @@ static void set_night_light_gear(led_manager_context_t *thiz, uint8_t gear)
     }
 
     LOG_MISC("set_night_light_gear: %d", gear);
-    
-    if (thiz->priv.night_light_gear == gear) {
-        return;
-    }
-    thiz->priv.night_light_gear = gear;
-    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    if (st) {
-        st->put_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_GEAR, thiz->priv.night_light_gear, 0, NULL);
+
+    if (thiz->priv.night_light_gear != gear) {
+        thiz->priv.night_light_gear = gear;
+        storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+        if (st) {
+            st->put_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_GEAR, thiz->priv.night_light_gear, 0, NULL);
+        }
     }
 #if IS_SUPPORT_ADAPTIVE_DIMMING
+    /// 用户明确选档：关夜灯 ALS。档位未变也要关，否则环境亮时 PWM 仍停在 0
     set_night_light_adaptive_dimming_switch(thiz, 0);
 #endif
     if (thiz->priv.night_light_onoff) {
