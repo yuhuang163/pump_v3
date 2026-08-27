@@ -15,6 +15,8 @@
 #define POWER_ON_TIMEOUT_MS_DEFAULT                 (2000 - POWER_ON_BOOT_RUN_TIME_MS)     /// 电源按键超时时间，单位ms
 #define POWER_ON_TIMEOUT_MS                         (POWER_ON_TIMEOUT_MS_DEFAULT - get_timestamp_ms(0))
 #define POWER_ONOFF_AND_STANDBY_TASK_NAME           "power_onoff_and_standby"
+#define POWER_ON_WAIT_WM_READY_RETRY_MAX            50    /// 等待 WM 就绪： 1s 内超时
+#define POWER_ON_WAIT_WM_READY_INTERVAL_MS          20
 
 
 /*
@@ -112,6 +114,26 @@ static bool is_prohibit_pm_suspend(struct power_manager_context *ctx)
     return false;
 }
 
+/** 开机任务可能早于 WM 线程就绪，切屏前先等 window_boot_completed */
+static int dispatch_window_when_wm_ready(window_manager_context_t *wm, multi_func_msg_data_t *msg)
+{
+    EXCEPTION_CHECK_INT(wm);
+    uint16_t retry = 0;
+
+    while (!wm->system_is_ready(wm)) {
+        if (retry >= POWER_ON_WAIT_WM_READY_RETRY_MAX) {
+            LOG_PM("wait wm ready timeout, drop window:%d", msg->union_body.extra.window_id);
+            return -1;
+        }
+        if ((retry % 25) == 0) {
+            LOG_PM("wait wm ready (%d), window:%d", retry, msg->union_body.extra.window_id);
+        }
+        retry++;
+        msleep(POWER_ON_WAIT_WM_READY_INTERVAL_MS);
+    }
+    return wm->dispatch_new_window_args(wm, msg);
+}
+
 static void system_power_event_cb(hdr_post_args_t *args)
 {
     int action = args->arg1;
@@ -139,7 +161,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
                     msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
                     msg.union_body.extra.arg1 = 0;
                     LOG_PM("goto power off charge screen");
-                    wm->dispatch_new_window_args(wm, &msg); 
+                    dispatch_window_when_wm_ready(wm, &msg);
                     return;
                 }
                 #endif
@@ -154,7 +176,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
                     msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
                     LOG_PM("power on detect key up, goto power on guide");
                 }
-                wm->dispatch_new_window_args(wm, &msg);
+                dispatch_window_when_wm_ready(wm, &msg);
                 #else
                 system_power_off(pm);
                 #endif
@@ -174,7 +196,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
                 msg.union_body.extra.window_id = ID_WINDOW_LOGO;
                 LOG_PM("goto logo screen");
 #endif
-                wm->dispatch_new_window_args(wm, &msg); 
+                dispatch_window_when_wm_ready(wm, &msg);
             }
             break;
         case HDR_ACTION_POWER_ON:
@@ -194,7 +216,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             msg.union_body.extra.window_id = ID_WINDOW_LOGO;
             LOG_PM("goto logo screen");
 #endif
-            wm->dispatch_new_window_args(wm, &msg); 
+            dispatch_window_when_wm_ready(wm, &msg);
             /// 记录重启原因到 RAM 并埋点 0x61（排除 OTA / 蓝牙测试 /）
             if (platform_is_startup_caused_by_reboot()) {
                 int reason = (int)platform_get_sys_reboot_reason();
@@ -217,7 +239,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
             msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
             LOG_PM("goto power off charge screen");
-            wm->dispatch_new_window_args(wm, &msg); 
+            dispatch_window_when_wm_ready(wm, &msg);
             break;
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
         case HDR_ACTION_POWER_ON_GUIDE:
@@ -232,7 +254,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
                 msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
                 LOG_PM("goto power on guide (dummy)");
             }
-            wm->dispatch_new_window_args(wm, &msg);
+            dispatch_window_when_wm_ready(wm, &msg);
             break;
 #endif
         case HDR_ACTION_POWER_ON_INVALID: 
@@ -245,7 +267,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
             msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
             msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_MANUAL;
             LOG_PM("goto power off charge screen");
-            wm->dispatch_new_window_args(wm, &msg); 
+            dispatch_window_when_wm_ready(wm, &msg);
             break;
         case HDR_ACTION_SYS_STANDBY: 
             LOG_PM("%s action:%d", args->name, action);

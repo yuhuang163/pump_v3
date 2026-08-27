@@ -476,6 +476,8 @@ static int dispatch_new_window_args(struct window_manager_context *wm, multi_fun
             MSG_QUEUE_SEND(wm->priv.window_dispatch_thd.msg_id, msg, 0);
             return 0;
         }
+        LOG_WM("dispatch-UI(bg: %d)(scr: %s/%d) thd not ready!\n", is_bg_dispatch, to_window_name(window_id), window_id);
+        return -1;
     }
     LOG_WM("dispatch-UI(bg: %d)(scr: %s/%d) NOT allow!\n", is_bg_dispatch, to_window_name(window_id), window_id);
 
