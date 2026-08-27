@@ -84,6 +84,7 @@ void bsp_charge_pd_init(void);
 void charge_pd_status_poll(bool plug_in_debounce);
 int charge_pd_current_get(void);
 int bsp_charge_pd_is_ready(void);
+int get_charge_pd_version(void);
 #ifdef __cplusplus
 }
 #endif

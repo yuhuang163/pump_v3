@@ -15,7 +15,7 @@
 */
 #define CHARGE_PD_I2C_ADDR                     0x23
 #define CHARGE_PD_RETRY_COUNT                  3
-#define CHARGE_PD_ABNORMAL_MAX_COUNT           20
+#define CHARGE_PD_ABNORMAL_MAX_COUNT           40
 #define CHARGE_PD_VERSION_1                    0    /// PD1.0
 #define CHARGE_PD_VERSION_2                    1    /// PD2.0
 #define CHARGE_PD_VERSION_3                    2    /// PD3.0
@@ -33,6 +33,7 @@ typedef enum {
 */
 static bool s_charge_pd_onoff = false;
 static bool s_charge_pd_isready = false;
+static uint16_t s_charge_pd_version = 0;
 static uint16_t s_charge_pd_abnormal_count = 0;
 
 /*
@@ -145,6 +146,7 @@ static int charge_pd_version_get(void)
         return -1;
     }
     version = (pd_header >> 6) & 0x03;
+    s_charge_pd_version = version;
     // LOG_PBUS("version: %d", version);
     return version;
 }
@@ -243,4 +245,9 @@ int charge_pd_current_get(void)
         return 0;
     }
     return current * 50; /// 50mA
+}
+
+int get_charge_pd_version(void)
+{
+    return s_charge_pd_version;
 }

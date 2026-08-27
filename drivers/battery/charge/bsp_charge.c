@@ -550,12 +550,12 @@ static void charge_device_thread(void *arg)
 #endif
         if (get_timestamp_ms(log_timer) > 2000) {
             log_timer = get_timestamp();
-            BSP_LOG("charge chip", "vbus:%dmV, ibus:%dmA, vbat:%d(%d/%d)mV, ibat:%dmA, ntc:%.2fKOhm, temp:%.1f(%.1f), status:0x%04X",
+            BSP_LOG("charge chip", "vbus:%dmV, ibus:%dmA, vbat:%d(%d/%d)mV, ibat:%dmA, ntc:%.2fKOhm, temp:%.1f(%.1f), status:0x%04X, pd:%d",
                     s_charge_status.vbus, s_charge_status.ibus, 
                     s_charge_status.vbat, s_charge_status.vbat_raw, s_charge_status.vbat_comp, 
                     s_charge_status.ibat,
                     s_charge_status.ntc_resistance, s_charge_status.temp, s_charge_status.temp_raw,
-                    s_charge_status.status);
+                    s_charge_status.status, get_charge_pd_version());
         }
 #endif
     }
@@ -687,7 +687,7 @@ void charge_event_internal_cb(charge_event_e event)
 {
 #if IS_SUPPORT_DEVICE_CHARGE  
     if (event == CHARGE_EVENT_PLUG_IN) {
-        if (s_charge_status.plug_in) {
+        if (s_charge_status.plug_in && s_charge_adapter_mismatch == false) {
             return;
         }
     #if IS_SUPPORT_PD_CHARGE
@@ -715,6 +715,7 @@ void charge_event_internal_cb(charge_event_e event)
         s_charge_status.charge_full = false;
         s_charge_full_debounce = 0;
         charge_power_control(false);
+        LOG_PBUS("charge plug out");
     } else if (event == CHARGE_EVENT_ADAPTER_MISMATCH) {
         if (s_charge_adapter_mismatch) {
             return;
@@ -724,6 +725,7 @@ void charge_event_internal_cb(charge_event_e event)
         s_charge_status.charge_full = false;
         s_charge_full_debounce = 0;
         charge_power_control(false);
+        LOG_PBUS("charge adapter mismatch");
     }
     else if (event == CHARGE_EVENT_FORCE_PLUG_IN) { //主要用于适配器不适配时，强制触发充电
     #if IS_SUPPORT_PD_CHARGE
