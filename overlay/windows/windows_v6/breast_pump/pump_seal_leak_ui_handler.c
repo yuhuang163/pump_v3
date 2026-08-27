@@ -2,7 +2,6 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
-#include "cmsis_os_api.h"
 #include "window_screen_pump.h"
 #if IS_SUPPORT_DEVICE_AIR_PRESSURE
 #include "ui_page_define.h" // IWYU pragma: keep
