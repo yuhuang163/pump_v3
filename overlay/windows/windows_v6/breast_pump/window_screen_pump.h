@@ -1,6 +1,7 @@
 #ifndef __WINDOW_SCREEN_PUMP_H__
 #define __WINDOW_SCREEN_PUMP_H__
 
+#include "stdint.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -312,6 +313,7 @@ typedef struct {
     uint8_t seal_result;
     uint32_t seal_check_time; /// 本轮检测起点，0 表示未在检测
     uint32_t seal_result_time; /// 通过文案起始时间
+    uint32_t seal_log_time; /// 结果展示日志时间点
     /// 重度漏气提醒：本次进入泵奶窗口是否已跳转过；页索引 pump_seal_leak_page_e
     uint8_t seal_leak_shown;
     uint16_t seal_leak_page_index;
