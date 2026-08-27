@@ -15,12 +15,7 @@
 #define GUIDE_LEVEL_SIDE_VALUE_Y                        (127)
 #define GUIDE_LEVEL_SIDE_VALUE_COLOR                    (0xFFFFFF)
 
-#define GUIDE_LEVEL_SIDE_DIR_Y                          (210)
 #define GUIDE_LEVEL_SIDE_DIR_COLOR                      (0x999999)
-#define GUIDE_LEVEL_SIDE_DIR_LINE_SPACE                 (8)
-#define GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT                  "Left Level"
-#define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "Right Level"
-#define GUIDE_LEVEL_SIDE_OVER_LIMIT_TEXT                "For safety,\nUp to 3 levels at a time."
 
 #define GUIDE_LEVEL_SIDE_TIP_H                          (63)
 #define GUIDE_LEVEL_SIDE_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_LEVEL_SIDE_TIP_H - 8)
@@ -133,7 +128,7 @@ static void guide_level_side_value_update(guide_base_ui_info_t *info, ui_proc_gu
     snprintf(num_buf, sizeof(num_buf), "%u", proc->level_value);
     lv_label_set_text(page->value_label, num_buf);
     lv_obj_set_style_text_color(page->value_label, lv_color_hex(GUIDE_LEVEL_SIDE_VALUE_COLOR), 0);
-    lv_obj_set_style_text_font(page->value_label, &lv_font_aeonik_soft_69_semibold, 0);
+    lv_obj_set_style_text_font(page->value_label, UI_FONT_NUM_LG, 0);
     lv_obj_set_style_text_align(page->value_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(page->value_label, LV_ALIGN_TOP_MID, 0, GUIDE_LEVEL_SIDE_VALUE_Y);
     page->shown_level = proc->level_value;
@@ -172,15 +167,15 @@ static void guide_level_side_dir_update(guide_base_ui_info_t *info, ui_proc_guid
     if (proc->level_over_limit) {
         text = GUIDE_LEVEL_SIDE_OVER_LIMIT_TEXT;
         color = accent;
-        font = &lv_font_aeonik_soft_22_medium;
+        font = UI_FONT_BODY_SM;
     } else if (proc->level_adjust_side == GUIDE_LEVEL_ADJUST_SIDE_RIGHT) {
         text = GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT;
         color = GUIDE_LEVEL_SIDE_DIR_COLOR;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     } else {
         text = GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT;
         color = GUIDE_LEVEL_SIDE_DIR_COLOR;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     }
 
     lv_label_set_text(page->dir_label, text);

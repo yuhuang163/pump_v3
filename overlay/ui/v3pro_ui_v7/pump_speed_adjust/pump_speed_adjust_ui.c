@@ -43,11 +43,7 @@
 #define PUMP_SPEED_VALUE_Y                          (127)
 #define PUMP_SPEED_VALUE_COLOR                      (0xFFFFFF)
 
-#define PUMP_SPEED_LABEL_Y                          (210)
 #define PUMP_SPEED_LABEL_COLOR                      (0x999999)
-#define PUMP_SPEED_LABEL_LINE_SPACE                 (8)
-#define PUMP_SPEED_LABEL_TEXT                       "Speed"
-#define PUMP_SPEED_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 /** 泵奶时间组件参数与 pump_level_adjust_ui 一致 */
 #define PUMP_SPEED_TIME_DIGIT_COUNT                 (2)
@@ -254,7 +250,7 @@ static void pump_speed_value_update(ui_proc_pump_t *proc)
     lv_label_set_text(speed_info->value_label, num_buf);
     lv_obj_set_style_text_color(speed_info->value_label,
         lv_color_hex(PUMP_SPEED_VALUE_COLOR), 0);
-    lv_obj_set_style_text_font(speed_info->value_label, &lv_font_aeonik_soft_69_semibold, 0);
+    lv_obj_set_style_text_font(speed_info->value_label, UI_FONT_NUM_LG, 0);
     lv_obj_set_style_text_align(speed_info->value_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(speed_info->value_label, LV_ALIGN_TOP_MID, 0, PUMP_SPEED_VALUE_Y);
     speed_info->shown_speed = proc->setting.speed;
@@ -294,11 +290,11 @@ static void pump_speed_label_update(ui_proc_pump_t *proc, uint32_t accent_color)
             home_level_adjust_mode_type_name_get(proc->sub_mode_type));
         text = switch_buf;
         color = accent_color;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     } else {
         text = PUMP_SPEED_LABEL_TEXT;
         color = PUMP_SPEED_LABEL_COLOR;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     }
 
     lv_label_set_text(speed_info->speed_label, text);
@@ -338,7 +334,7 @@ static void pump_speed_time_pair_update(lv_obj_t *labels[PUMP_SPEED_TIME_DIGIT_C
             lv_label_set_long_mode(labels[i], LV_LABEL_LONG_CLIP);
             lv_obj_set_style_text_align(labels[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_text_color(labels[i], lv_color_hex(PUMP_SPEED_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(labels[i], &lv_font_aeonik_soft_26_medium, 0);
+            lv_obj_set_style_text_font(labels[i], UI_FONT_TITLE, 0);
             lv_obj_set_style_text_letter_space(labels[i], 0, 0);
         }
         digit_text[0] = (char)('0' + (i == 0 ? value / 10 : value % 10));
@@ -384,7 +380,7 @@ static void pump_speed_time_colon_ensure(void)
             EXCEPTION_CHECK_VOID(speed_info->time_colon[i]);
             lv_obj_set_style_text_color(speed_info->time_colon[i],
                 lv_color_hex(PUMP_SPEED_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(speed_info->time_colon[i], &lv_font_aeonik_soft_26_medium, 0);
+            lv_obj_set_style_text_font(speed_info->time_colon[i], UI_FONT_TITLE, 0);
             lv_obj_set_style_text_align(speed_info->time_colon[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_label_set_text(speed_info->time_colon[i], ":");
         }

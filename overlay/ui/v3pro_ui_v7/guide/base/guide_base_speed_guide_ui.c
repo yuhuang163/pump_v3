@@ -14,14 +14,7 @@
 #define GUIDE_SPEED_GUIDE_PAGE_NUM_CURRENT                  (6) //(7)
 #define GUIDE_SPEED_GUIDE_PAGE_NUM_TOTAL                    (6) //(7)
 
-#define GUIDE_SPEED_GUIDE_PRESS_X                           (109)
-#define GUIDE_SPEED_GUIDE_PRESS_Y                           (146 + 2)
-#define GUIDE_SPEED_GUIDE_PRESS_TEXT                        "Press"
-#define GUIDE_SPEED_GUIDE_PRESS_LINE_SPACE                  (4)
 
-#define GUIDE_SPEED_GUIDE_ADJUST_Y                          (199 + 2)
-#define GUIDE_SPEED_GUIDE_ADJUST_TEXT                       "to adjust cycle speed."
-#define GUIDE_SPEED_GUIDE_ADJUST_LINE_SPACE                 (8)
 
 #define GUIDE_SPEED_GUIDE_TEXT_COLOR                        (0xFFFFFF)
 
@@ -142,7 +135,7 @@ static void guide_speed_guide_label_create(lv_obj_t **label, lv_obj_t *parent,
     }
     lv_label_set_text(*label, text);
     lv_obj_set_style_text_color(*label, lv_color_hex(GUIDE_SPEED_GUIDE_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(*label, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(*label, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(*label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_line_space(*label, line_space, 0);
     lv_obj_set_style_text_opa(*label, LV_OPA_COVER, 0);

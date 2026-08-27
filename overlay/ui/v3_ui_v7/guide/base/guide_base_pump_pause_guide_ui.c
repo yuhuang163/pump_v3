@@ -14,10 +14,7 @@
 #define GUIDE_PUMP_PAUSE_GUIDE_PAGE_NUM_CURRENT                 (2)
 #define GUIDE_PUMP_PAUSE_GUIDE_PAGE_NUM_TOTAL                   (6) //(7)
 
-#define GUIDE_PUMP_PAUSE_GUIDE_TITLE_Y                          (79)
 #define GUIDE_PUMP_PAUSE_GUIDE_TITLE_COLOR                      (0xFFFFFF)
-#define GUIDE_PUMP_PAUSE_GUIDE_TITLE_TEXT                       "Press the knob to\npause."
-#define GUIDE_PUMP_PAUSE_GUIDE_TITLE_LINE_SPACE                 (8)
 
 #define GUIDE_PUMP_PAUSE_GUIDE_ICON_Y                           (169)
 #define GUIDE_PUMP_PAUSE_GUIDE_ICON_RES_ID                      (BASE_RES_ID_GUIDE_POWER_KEY_ICON)
@@ -102,7 +99,7 @@ static void guide_pump_pause_guide_title_create(guide_base_ui_info_t *info)
     }
     lv_label_set_text(info->pump_pause_guide.title, GUIDE_PUMP_PAUSE_GUIDE_TITLE_TEXT);
     lv_obj_set_style_text_color(info->pump_pause_guide.title, lv_color_hex(GUIDE_PUMP_PAUSE_GUIDE_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->pump_pause_guide.title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(info->pump_pause_guide.title, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(info->pump_pause_guide.title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_opa(info->pump_pause_guide.title, LV_OPA_COVER, 0);
     lv_obj_align(info->pump_pause_guide.title, LV_ALIGN_TOP_MID, 0, GUIDE_PUMP_PAUSE_GUIDE_TITLE_Y);

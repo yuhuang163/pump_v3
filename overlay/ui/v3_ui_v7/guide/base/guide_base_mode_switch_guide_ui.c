@@ -16,10 +16,7 @@
 #define GUIDE_MODE_SWITCH_GUIDE_PAGE_NUM_CURRENT                (3) //(4)
 #define GUIDE_MODE_SWITCH_GUIDE_PAGE_NUM_TOTAL                  (6) //(7)
 
-#define GUIDE_MODE_SWITCH_GUIDE_TITLE_Y                         (61)
-#define GUIDE_MODE_SWITCH_GUIDE_TITLE_LINE_SPACE                (8)
 #define GUIDE_MODE_SWITCH_GUIDE_TITLE_COLOR                     (0xFFFFFF)
-#define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT                      "Turn the knob to\nexplore more options."
 
 #define GUIDE_MODE_SWITCH_GUIDE_ICON_Y                          (143)
 #define GUIDE_MODE_SWITCH_GUIDE_ICON_RES_ID                     (BASE_RES_ID_GUIDE_KNOB_KEY_ICON)
@@ -109,7 +106,7 @@ static void guide_mode_switch_guide_title_create(guide_base_ui_info_t *info)
     lv_label_set_text(info->mode_switch_guide.title, GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT);
     lv_obj_set_style_text_color(info->mode_switch_guide.title,
         lv_color_hex(GUIDE_MODE_SWITCH_GUIDE_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->mode_switch_guide.title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(info->mode_switch_guide.title, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(info->mode_switch_guide.title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_line_space(info->mode_switch_guide.title,
         GUIDE_MODE_SWITCH_GUIDE_TITLE_LINE_SPACE, 0);

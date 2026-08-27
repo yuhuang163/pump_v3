@@ -32,7 +32,6 @@
 #define GUIDE_MODE_SWITCH_DOT_COLOR_INACTIVE            (0x4D4D4D)
 
 #define GUIDE_MODE_SWITCH_ICON_Y                        (100)
-#define GUIDE_MODE_SWITCH_TITLE_Y                       (214)
 #define GUIDE_MODE_SWITCH_TITLE_COLOR                   (0xFFFFFF)
 #define GUIDE_MODE_SWITCH_DURATION_Y                    (246)
 #define GUIDE_MODE_SWITCH_DURATION_COLOR                (0x999999)
@@ -90,16 +89,16 @@ static void guide_mode_switch_title_get(uint8_t mode, char *buf, size_t buf_len)
     }
     switch (mode) {
         case BREAST_PUMP_STIMULATION_MODE:
-            snprintf(buf, buf_len, "Stimulation");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_STIMULATION);
             break;
         case BREAST_PUMP_LACTATION_MODE:
-            snprintf(buf, buf_len, "Expression");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_EXPRESSION);
             break;
         case BREAST_PUMP_MILK_BOOST_MODE:
-            snprintf(buf, buf_len, "Milk Boost");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_MILK_BOOST);
             break;
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
-            snprintf(buf, buf_len, "Power Pumping");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_POWER_PUMPING);
             break;
         default:
             buf[0] = '\0';
@@ -259,7 +258,7 @@ static void guide_mode_switch_card_content_build(guide_base_ui_info_t *info, lv_
     EXCEPTION_CHECK_VOID(card->title);
     lv_label_set_text(card->title, title);
     lv_obj_set_style_text_color(card->title, lv_color_hex(GUIDE_MODE_SWITCH_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(card->title, &lv_font_aeonik_soft_33_medium, 0);
+    lv_obj_set_style_text_font(card->title, UI_FONT_TITLE_LG, 0);
     lv_obj_set_style_text_align(card->title, LV_TEXT_ALIGN_CENTER, 0);
 
     if (guide_mode_switch_has_duration(card->mode)) {
@@ -268,7 +267,7 @@ static void guide_mode_switch_card_content_build(guide_base_ui_info_t *info, lv_
         EXCEPTION_CHECK_VOID(card->duration);
         lv_label_set_text(card->duration, duration);
         lv_obj_set_style_text_color(card->duration, lv_color_hex(GUIDE_MODE_SWITCH_DURATION_COLOR), 0);
-        lv_obj_set_style_text_font(card->duration, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(card->duration, UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(card->duration, LV_TEXT_ALIGN_CENTER, 0);
     }
 
@@ -434,7 +433,7 @@ static void guide_mode_switch_transition_apply(lv_obj_t *page, int32_t hero_scal
     guide_mode_switch_obj_scale_set(card->icon, hero_scale);
     if (card->title != NULL && lv_obj_is_valid(card->title)) {
         const lv_font_t *font = small ?
-            &lv_font_aeonik_soft_29_medium : &lv_font_aeonik_soft_33_medium;
+            UI_FONT_TITLE_MD : UI_FONT_TITLE_LG;
         guide_mode_switch_obj_scale_set(card->title, GUIDE_MODE_SWITCH_SCALE_FULL);
         lv_obj_set_style_text_font(card->title, font, 0);
     }

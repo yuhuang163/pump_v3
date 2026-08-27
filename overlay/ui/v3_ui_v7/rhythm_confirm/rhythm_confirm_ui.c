@@ -16,12 +16,8 @@
 #define IS_SUPPORT_RHYTHM_CONFIRM_COMP_BG               (0) /// 是否启用对比背景图
 
 #define RHYTHM_CONFIRM_ICON_Y                           (90)
-#define RHYTHM_CONFIRM_TITLE_Y                          (196)
-#define RHYTHM_CONFIRM_SUBTITLE_Y                       (237)
 #define RHYTHM_CONFIRM_TITLE_COLOR                      (0xFFFFFF)
 #define RHYTHM_CONFIRM_SUBTITLE_COLOR                   (0x999999)
-#define RHYTHM_CONFIRM_TITLE_TEXT                       "Switch program?"
-#define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "The timer will reset"
 
 #define RHYTHM_CONFIRM_TIP_H                            (63)
 /** 底部提示图 Y：贴底留边（与 home 模式选择页一致） */
@@ -145,7 +141,7 @@ static void rhythm_confirm_title_update(void)
     }
     lv_label_set_text(confirm_info->title, RHYTHM_CONFIRM_TITLE_TEXT);
     lv_obj_set_style_text_color(confirm_info->title, lv_color_hex(RHYTHM_CONFIRM_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(confirm_info->title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(confirm_info->title, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(confirm_info->title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(confirm_info->title, LV_ALIGN_TOP_MID, 0, RHYTHM_CONFIRM_TITLE_Y);
 }
@@ -163,7 +159,7 @@ static void rhythm_confirm_subtitle_update(void)
     lv_label_set_text(confirm_info->subtitle, RHYTHM_CONFIRM_SUBTITLE_TEXT);
     lv_obj_set_style_text_color(confirm_info->subtitle,
         lv_color_hex(RHYTHM_CONFIRM_SUBTITLE_COLOR), 0);
-    lv_obj_set_style_text_font(confirm_info->subtitle, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(confirm_info->subtitle, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(confirm_info->subtitle, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(confirm_info->subtitle, LV_ALIGN_TOP_MID, 0, RHYTHM_CONFIRM_SUBTITLE_Y);
 }

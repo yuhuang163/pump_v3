@@ -16,7 +16,6 @@
 #define HOME_SCREEN_SAVER_ICON_X                                 (0)
 #define HOME_SCREEN_SAVER_ICON_Y                                 (108 + 2)
 
-
 typedef struct {
     lv_obj_t * root;
     lv_obj_t * backgroud;

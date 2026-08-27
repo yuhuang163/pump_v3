@@ -14,9 +14,7 @@
 */
 #define POWER_OFF_CHARGE_ARC_DONE_COLOR           (0x29B572)
 #define POWER_OFF_CHARGE_ICON_Y                   (111)
-#define POWER_OFF_CHARGE_TEXT_Y                   (217)
 #define POWER_OFF_CHARGE_TEXT_COLOR               (0xFFFFFF)
-#define POWER_OFF_CHARGE_TEXT                     "Charging..."
 
 typedef struct {
     lv_obj_t *root;
@@ -110,7 +108,7 @@ static void power_off_charge_text_update(void)
     }
     lv_label_set_text(charge_info->text, POWER_OFF_CHARGE_TEXT);
     lv_obj_set_style_text_color(charge_info->text, lv_color_hex(POWER_OFF_CHARGE_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(charge_info->text, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(charge_info->text, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(charge_info->text, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(charge_info->text, LV_ALIGN_TOP_MID, 0, POWER_OFF_CHARGE_TEXT_Y);
 }

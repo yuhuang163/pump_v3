@@ -9,9 +9,7 @@
 *****************************************************************************************
 */
 #define PUMP_RUNING_30M_TIP_ICON_Y                             (113)
-#define PUMP_RUNING_30M_TIP_TITLE_Y                            (182)
 #define PUMP_RUNING_30M_TIP_TITLE_COLOR                        (0xFFFFFF)
-#define PUMP_RUNING_30M_TIP_TITLE_LINE_SPACE                   (8)
 #define PUMP_RUNING_30M_TIP_COUNTDOWN_Y                        (324)
 #define PUMP_RUNING_30M_TIP_COUNTDOWN_COLOR                    (0x999999)
 
@@ -20,8 +18,8 @@
 *****************************************************************************************
 */
 const static ui_popup_text_info_t pump_runing_30m_tip_infos[UI_POPUP_TEXT_COUNT] = {
-    { "Pumping over 30 min.\nTake a short break.", 0, PUMP_RUNING_30M_TIP_TITLE_Y,
-        &lv_font_aeonik_soft_26_medium, LV_OPA_100, PUMP_RUNING_30M_TIP_TITLE_COLOR,
+    { PUMP_RUNING_30M_TIP_TEXT, 0, PUMP_RUNING_30M_TIP_TITLE_Y,
+        UI_FONT_TITLE, LV_OPA_100, PUMP_RUNING_30M_TIP_TITLE_COLOR,
         PUMP_RUNING_30M_TIP_TITLE_LINE_SPACE},
 };
 
@@ -54,7 +52,7 @@ static void ui_popup_pump_runing_30m_tip_countdown_update(ui_manager_context_t *
     lv_label_set_text(info->countdown.label, num_buf);
     lv_obj_set_style_text_color(info->countdown.label,
         lv_color_hex(PUMP_RUNING_30M_TIP_COUNTDOWN_COLOR), 0);
-    lv_obj_set_style_text_font(info->countdown.label, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_font(info->countdown.label, UI_FONT_HINT, 0);
     lv_obj_set_style_text_align(info->countdown.label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(info->countdown.label, LV_ALIGN_TOP_MID, 0, PUMP_RUNING_30M_TIP_COUNTDOWN_Y);
     info->countdown.shown_value = show_num;

@@ -13,7 +13,6 @@
 #define HOME_MAIN_SCREEN_W                              (360)
 #define HOME_MAIN_SCALE_FULL                            (256)
 
-#define HOME_MAIN_MODE_TITLE_Y                          (64 + 4)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_MODE_TITLE_COLOR                      (0x00FF00)
 #else
@@ -45,11 +44,6 @@
 #define HOME_MAIN_TIME_COLOR                            (0xFFFFFF)
 #endif
 
-#define HOME_MAIN_HINT_Y                                (207 + 4)
-#define HOME_MAIN_HINT_TEXT                             "Press to start pumping"
-#define HOME_MAIN_HINT_TEXT_LOW_BAT                     "Low battery, please charge."
-#define HOME_MAIN_HINT_TEXT_FORBID_START                "Battery too low to pump"
-#define HOME_MAIN_HINT_TEXT_LOW_BAT_LINE_SPACE          (4)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_HINT_COLOR                            (0x00FF00)
 #else
@@ -150,19 +144,19 @@ static void home_main_mode_title_get(home_base_ui_info_t *info, uint8_t mode, ch
 {
     switch (mode) {
         case BREAST_PUMP_STIMULATION_MODE:
-            snprintf(buf, buf_len, "Stimulation");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_STIMULATION);
             break;
         case BREAST_PUMP_LACTATION_MODE:
-            snprintf(buf, buf_len, "Expression");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_EXPRESSION);
             break;
         case BREAST_PUMP_MIX_MODE:
-            snprintf(buf, buf_len, "Mixed");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_MIXED);
             break;
         case BREAST_PUMP_MILK_BOOST_MODE:
-            snprintf(buf, buf_len, "Milk Boost");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_MILK_BOOST);
             break;
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
-            snprintf(buf, buf_len, "Power Pumping");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_POWER_PUMPING);
             break;
         case BREAST_PUMP_CUSTOM_MODE:
             snprintf(buf, buf_len, "%s", info->mode.custom_id_str);
@@ -227,7 +221,7 @@ static void home_main_mode_title_update(home_base_ui_info_t *info, uint8_t mode)
         info->main.mode_title = lv_label_create(home_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->main.mode_title);
         lv_obj_set_style_text_color(info->main.mode_title, lv_color_hex(HOME_MAIN_MODE_TITLE_COLOR), 0);
-        lv_obj_set_style_text_font(info->main.mode_title, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(info->main.mode_title, UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(info->main.mode_title, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(info->main.mode_title, 0, 0); // Figma 2%: 26 * 0.02 ≈ 0.52 → 1px
     }
@@ -291,7 +285,7 @@ static void home_main_time_h_update(home_base_ui_info_t *info, uint8_t hours, ui
     }
 
     home_main_time_pair_update(info->main.time_h, home_page_parent_get(info), hours,
-        &lv_font_aeonik_soft_56_semibold, HOME_MAIN_TIME_3SEG_H_X, HOME_MAIN_TIME_3SEG_Y,
+        UI_FONT_NUM_MD, HOME_MAIN_TIME_3SEG_H_X, HOME_MAIN_TIME_3SEG_Y,
         HOME_MAIN_TIME_3SEG_WIDTH, hidden);
     info->main.shown_hours = hours;
 }
@@ -305,11 +299,11 @@ static void home_main_time_m_update(home_base_ui_info_t *info, uint8_t minutes, 
 
     if (digit_size == HOME_MAIN_TIME_2SEG) {
         home_main_time_pair_update(info->main.time_m, home_page_parent_get(info), minutes,
-            &lv_font_aeonik_soft_69_semibold, HOME_MAIN_TIME_2SEG_M_X, HOME_MAIN_TIME_2SEG_Y,
+            UI_FONT_NUM_LG, HOME_MAIN_TIME_2SEG_M_X, HOME_MAIN_TIME_2SEG_Y,
             HOME_MAIN_TIME_2SEG_WIDTH, false);
     } else {
         home_main_time_pair_update(info->main.time_m, home_page_parent_get(info), minutes,
-            &lv_font_aeonik_soft_56_semibold, HOME_MAIN_TIME_3SEG_M_X, HOME_MAIN_TIME_3SEG_Y,
+            UI_FONT_NUM_MD, HOME_MAIN_TIME_3SEG_M_X, HOME_MAIN_TIME_3SEG_Y,
             HOME_MAIN_TIME_3SEG_WIDTH, false);
     }
     info->main.shown_minutes = minutes;
@@ -324,11 +318,11 @@ static void home_main_time_s_update(home_base_ui_info_t *info, uint8_t seconds, 
 
     if (digit_size == HOME_MAIN_TIME_2SEG) {
         home_main_time_pair_update(info->main.time_s, home_page_parent_get(info), seconds,
-            &lv_font_aeonik_soft_69_semibold, HOME_MAIN_TIME_2SEG_S_X, HOME_MAIN_TIME_2SEG_Y,
+            UI_FONT_NUM_LG, HOME_MAIN_TIME_2SEG_S_X, HOME_MAIN_TIME_2SEG_Y,
             HOME_MAIN_TIME_2SEG_WIDTH, false);
     } else {
         home_main_time_pair_update(info->main.time_s, home_page_parent_get(info), seconds,
-            &lv_font_aeonik_soft_56_semibold, HOME_MAIN_TIME_3SEG_S_X, HOME_MAIN_TIME_3SEG_Y,
+            UI_FONT_NUM_MD, HOME_MAIN_TIME_3SEG_S_X, HOME_MAIN_TIME_3SEG_Y,
             HOME_MAIN_TIME_3SEG_WIDTH, false);
     }
     info->main.shown_seconds = seconds;
@@ -478,7 +472,7 @@ static void home_main_hint_text_update(home_base_ui_info_t *info, uint8_t mode,
     if (info->main.hint_text == NULL || !lv_obj_is_valid(info->main.hint_text)) {
         info->main.hint_text = lv_label_create(home_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->main.hint_text);
-        lv_obj_set_style_text_font(info->main.hint_text, &lv_font_aeonik_soft_19_medium, 0);
+        lv_obj_set_style_text_font(info->main.hint_text, UI_FONT_HINT, 0);
         lv_obj_set_style_text_align(info->main.hint_text, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(info->main.hint_text, 0, 0); // Figma 2%: 19 * 0.02 ≈ 0.38 → 1px
     }
@@ -506,7 +500,7 @@ static void home_main_hint_mask_update(home_base_ui_info_t *info)
 
     home_main_hint_style_get(&style);
     ui_shine_prepare_from_text(&info->main.hint_shine, &style,
-        text, &lv_font_aeonik_soft_19_medium, 0,
+        text, UI_FONT_HINT, 0,
         home_main_hint_line_space_get(info->main.shown_hint_low_bat));
     ui_shine_update(&info->main.hint_shine, parent, &style, info->main.hint_text, 1);
 }
@@ -551,7 +545,7 @@ static void home_main_speed_update(home_base_ui_info_t *info, uint8_t speed)
         info->main.speed_value = lv_label_create(home_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->main.speed_value);
         lv_obj_set_style_text_color(info->main.speed_value, lv_color_hex(HOME_MAIN_SPEED_COLOR), 0);
-        lv_obj_set_style_text_font(info->main.speed_value, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(info->main.speed_value, UI_FONT_TITLE, 0);
     }
 
     if (info->main.shown_speed == speed && info->force_update == false) {
@@ -588,7 +582,7 @@ static void home_main_level_label_update(lv_obj_t **label, lv_obj_t *parent, con
         lv_label_set_long_mode(*label, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(*label, width);
         lv_obj_set_style_text_color(*label, lv_color_hex(HOME_MAIN_LEVEL_COLOR), 0);
-        lv_obj_set_style_text_font(*label, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(*label, UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(*label, align, 0);
         lv_obj_set_style_text_letter_space(*label, 3, 0); // Figma 16%: 26 * 0.16 ≈ 4.16 → 4px
     }

@@ -11,8 +11,6 @@
 */
 #define GUIDE_INTRO_BG_RES_ID                       (BASE_RES_ID_SIMULATION_MODE_BG)
 #define GUIDE_INTRO_TITLE_COLOR                     (0xFFFFFF)
-#define GUIDE_INTRO_TITLE_LINE_SPACE                (8)
-#define GUIDE_INTRO_TITLE_TEXT                      "Let's get started!"
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -74,7 +72,7 @@ static void guide_intro_title_create(guide_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info->intro.title);
     lv_label_set_text(info->intro.title, GUIDE_INTRO_TITLE_TEXT);
     lv_obj_set_style_text_color(info->intro.title, lv_color_hex(GUIDE_INTRO_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->intro.title, &lv_font_aeonik_soft_29_medium, 0);
+    lv_obj_set_style_text_font(info->intro.title, UI_FONT_TITLE_MD, 0);
     lv_obj_set_style_text_line_space(info->intro.title, GUIDE_INTRO_TITLE_LINE_SPACE, 0);
     lv_obj_set_style_text_align(info->intro.title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_opa(info->intro.title, LV_OPA_COVER, 0);

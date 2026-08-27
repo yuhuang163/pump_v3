@@ -14,8 +14,6 @@
 #define IS_SUPPORT_CHARGE_ADAPTER_COMP_BG              (0)
 #define CHARGE_ADAPTER_TEXT_COUNT                      (2)
 #define CHARGE_ADAPTER_ICON_Y                          (90)
-#define CHARGE_ADAPTER_TITLE_Y                         (196)
-#define CHARGE_ADAPTER_SUBTITLE_Y                      (238)
 #define CHARGE_ADAPTER_TITLE_COLOR                     (0xFFFFFF)
 #define CHARGE_ADAPTER_SUBTITLE_COLOR                  (0x999999)
 #define CHARGE_ADAPTER_ROOT_BG_COLOR                   (0x000000)
@@ -50,10 +48,10 @@ static PSRAM_DATA_LOC uint8_t charge_adapter_bg_data[] = {
 static charge_adapter_display_info_t *adapter_info;
 
 static const charge_adapter_text_info_t charge_adapter_text_infos[CHARGE_ADAPTER_TEXT_COUNT] = {
-    { "Incompatible adapter", CHARGE_ADAPTER_TITLE_Y,
-        &lv_font_aeonik_soft_26_medium, CHARGE_ADAPTER_TITLE_COLOR, 0 },
-    { "Unable to use", CHARGE_ADAPTER_SUBTITLE_Y,
-        &lv_font_aeonik_soft_26_medium, CHARGE_ADAPTER_SUBTITLE_COLOR, 0 },
+    { CHARGE_ADAPTER_TITLE_TEXT, CHARGE_ADAPTER_TITLE_Y,
+        UI_FONT_TITLE, CHARGE_ADAPTER_TITLE_COLOR, 0 },
+    { CHARGE_ADAPTER_SUBTITLE_TEXT, CHARGE_ADAPTER_SUBTITLE_Y,
+        UI_FONT_TITLE, CHARGE_ADAPTER_SUBTITLE_COLOR, 0 },
 };
 
 /*

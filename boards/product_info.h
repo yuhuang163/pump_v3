@@ -97,11 +97,15 @@ extern "C" {
 #define PRODUCT_SUB_ID_INDEX                           48
 
 /**
- * 产品语言
+ * 产品语言（编译期 SKU）
+ * Makefile: make PRODUCT_LANGUAGE=en|zh
+ * 未从命令行传入时默认英文，保证 IDE / 单独编译与现网一致
 */
 #define PRODUCT_LANGUAGE_EN                             0x00
 #define PRODUCT_LANGUAGE_ZH                             0x01
+#ifndef PRODUCT_LANGUAGE_USED
 #define PRODUCT_LANGUAGE_USED                           PRODUCT_LANGUAGE_EN
+#endif
 
 /**
  * 产品固件编译时间戳

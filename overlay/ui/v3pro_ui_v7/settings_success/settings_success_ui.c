@@ -15,18 +15,12 @@
 
 /** 默认样式：Success */
 #define SETTINGS_SUCCESS_ICON_Y                         (107)
-#define SETTINGS_SUCCESS_TITLE_Y                        (212)
 #define SETTINGS_SUCCESS_TITLE_COLOR                    (0xFFFFFF)
-#define SETTINGS_SUCCESS_TITLE_TEXT                     "Success"
 
 /** 韵律切换成功样式：Program switched / Timer reset */
 #define SETTINGS_SUCCESS_PROGRAM_ICON_Y                 (90)
-#define SETTINGS_SUCCESS_PROGRAM_TITLE_Y                (196)
-#define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_Y             (238)
 #define SETTINGS_SUCCESS_PROGRAM_TITLE_COLOR            (0xFFFFFF)
 #define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_COLOR         (0x999999)
-#define SETTINGS_SUCCESS_PROGRAM_TITLE_TEXT             "Program switched"
-#define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_TEXT          "Timer reset"
 
 typedef struct {
     lv_obj_t *root;
@@ -142,14 +136,14 @@ static void settings_success_title_update(void)
         lv_label_set_text(success_info->title, SETTINGS_SUCCESS_PROGRAM_TITLE_TEXT);
         lv_obj_set_style_text_color(success_info->title,
             lv_color_hex(SETTINGS_SUCCESS_PROGRAM_TITLE_COLOR), 0);
-        lv_obj_set_style_text_font(success_info->title, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(success_info->title, UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(success_info->title, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(success_info->title, LV_ALIGN_TOP_MID, 0, SETTINGS_SUCCESS_PROGRAM_TITLE_Y);
     } else {
         lv_label_set_text(success_info->title, SETTINGS_SUCCESS_TITLE_TEXT);
         lv_obj_set_style_text_color(success_info->title,
             lv_color_hex(SETTINGS_SUCCESS_TITLE_COLOR), 0);
-        lv_obj_set_style_text_font(success_info->title, &lv_font_aeonik_soft_33_medium, 0);
+        lv_obj_set_style_text_font(success_info->title, UI_FONT_TITLE_LG, 0);
         lv_obj_set_style_text_align(success_info->title, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(success_info->title, LV_ALIGN_TOP_MID, 0, SETTINGS_SUCCESS_TITLE_Y);
     }
@@ -176,7 +170,7 @@ static void settings_success_subtitle_update(void)
     lv_label_set_text(success_info->subtitle, SETTINGS_SUCCESS_PROGRAM_SUBTITLE_TEXT);
     lv_obj_set_style_text_color(success_info->subtitle,
         lv_color_hex(SETTINGS_SUCCESS_PROGRAM_SUBTITLE_COLOR), 0);
-    lv_obj_set_style_text_font(success_info->subtitle, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(success_info->subtitle, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(success_info->subtitle, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(success_info->subtitle, LV_ALIGN_TOP_MID, 0, SETTINGS_SUCCESS_PROGRAM_SUBTITLE_Y);
 }

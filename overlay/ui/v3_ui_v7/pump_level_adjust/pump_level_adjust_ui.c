@@ -30,13 +30,7 @@
 #define PUMP_LEVEL_VALUE_Y                          (127)
 #define PUMP_LEVEL_VALUE_COLOR                      (0xFFFFFF)
 
-#define PUMP_LEVEL_DIR_Y                            (206)
 #define PUMP_LEVEL_DIR_COLOR                        (0x999999)
-#define PUMP_LEVEL_DIR_LINE_SPACE                   (8)
-#define PUMP_LEVEL_DIR_LEFT_TEXT                    "Left Level"
-#define PUMP_LEVEL_DIR_RIGHT_TEXT                   "Right Level"
-#define PUMP_LEVEL_OVER_LIMIT_TEXT                  "For safety,\nUp to 3 levels at a time."
-#define PUMP_LEVEL_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 /** 泵奶时间组件参数与 pump_home_base_mode_page_ui 一致 */
 #define PUMP_LEVEL_TIME_DIGIT_COUNT                 (2)
@@ -249,7 +243,7 @@ static void pump_level_value_update(ui_proc_pump_t *proc)
     lv_label_set_text(level_info->value_label, num_buf);
     lv_obj_set_style_text_color(level_info->value_label,
         lv_color_hex(PUMP_LEVEL_VALUE_COLOR), 0);
-    lv_obj_set_style_text_font(level_info->value_label, &lv_font_aeonik_soft_69_semibold, 0);
+    lv_obj_set_style_text_font(level_info->value_label, UI_FONT_NUM_LG, 0);
     lv_obj_set_style_text_align(level_info->value_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(level_info->value_label, LV_ALIGN_TOP_MID, 0, PUMP_LEVEL_VALUE_Y);
     level_info->shown_level = proc->level_value;
@@ -290,21 +284,21 @@ static void pump_level_dir_update(ui_proc_pump_t *proc, uint32_t accent_color)
     if (proc->level_over_limit) {
         text = PUMP_LEVEL_OVER_LIMIT_TEXT;
         color = accent_color;
-        font = &lv_font_aeonik_soft_22_medium;
+        font = UI_FONT_BODY_SM;
     } else if (mode_switch) {
         snprintf(switch_buf, sizeof(switch_buf), PUMP_LEVEL_MODE_SWITCH_TEXT_FMT,
             home_level_adjust_mode_type_name_get(proc->sub_mode_type));
         text = switch_buf;
         color = accent_color;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     } else if (proc->level_adjust_side == PUMP_LEVEL_ADJUST_SIDE_RIGHT) {
         text = PUMP_LEVEL_DIR_RIGHT_TEXT;
         color = PUMP_LEVEL_DIR_COLOR;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     } else {
         text = PUMP_LEVEL_DIR_LEFT_TEXT;
         color = PUMP_LEVEL_DIR_COLOR;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     }
 
     lv_label_set_text(level_info->dir_label, text);
@@ -346,7 +340,7 @@ static void pump_level_time_pair_update(lv_obj_t *labels[PUMP_LEVEL_TIME_DIGIT_C
             lv_label_set_long_mode(labels[i], LV_LABEL_LONG_CLIP);
             lv_obj_set_style_text_align(labels[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_text_color(labels[i], lv_color_hex(PUMP_LEVEL_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(labels[i], &lv_font_aeonik_soft_26_medium, 0);
+            lv_obj_set_style_text_font(labels[i], UI_FONT_TITLE, 0);
             lv_obj_set_style_text_letter_space(labels[i], 0, 0);
         }
         digit_text[0] = (char)('0' + (i == 0 ? value / 10 : value % 10));
@@ -392,7 +386,7 @@ static void pump_level_time_colon_ensure(void)
             EXCEPTION_CHECK_VOID(level_info->time_colon[i]);
             lv_obj_set_style_text_color(level_info->time_colon[i],
                 lv_color_hex(PUMP_LEVEL_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(level_info->time_colon[i], &lv_font_aeonik_soft_26_medium, 0);
+            lv_obj_set_style_text_font(level_info->time_colon[i], UI_FONT_TITLE, 0);
             lv_obj_set_style_text_align(level_info->time_colon[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_label_set_text(level_info->time_colon[i], ":");
         }

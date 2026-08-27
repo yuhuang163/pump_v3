@@ -56,20 +56,12 @@
 
 #define HOME_BOTH_LEVEL_DIR_W                       (150)
 #define HOME_BOTH_LEVEL_DIR_H                       (34)
-#define HOME_BOTH_LEVEL_DIR_Y                       (203)
 #define HOME_BOTH_LEVEL_DIR_LEFT_X                  (29)
 #define HOME_BOTH_LEVEL_DIR_RIGHT_X                 (179)
 #define HOME_BOTH_LEVEL_DIR_COLOR                   (0x999999)
-#define HOME_BOTH_LEVEL_DIR_LEFT_TEXT               "L"
-#define HOME_BOTH_LEVEL_DIR_RIGHT_TEXT              "R"
 
 #define HOME_BOTH_LEVEL_OVER_LIMIT_W                (220)
 #define HOME_BOTH_LEVEL_OVER_LIMIT_H                (50)
-#define HOME_BOTH_LEVEL_OVER_LIMIT_Y                (60)
-#define HOME_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE       (8)
-#define HOME_BOTH_LEVEL_OVER_LIMIT_TEXT \
-    "For safety,\nUp to 3 levels at a time."
-#define HOME_BOTH_LEVEL_MODE_SWITCH_TEXT_FMT        "Switch to %s"
 
 /** 底部提示图：与速度调节一致 */
 #define HOME_BOTH_LEVEL_TIP_H                       (63)
@@ -423,7 +415,7 @@ static void home_both_level_value_update(ui_proc_home_t *proc)
         lv_obj_set_style_text_color(both_info->value_label[i],
             lv_color_hex(HOME_BOTH_LEVEL_VALUE_COLOR), 0);
         lv_obj_set_style_text_font(both_info->value_label[i],
-            &lv_font_aeonik_soft_69_semibold, 0);
+            UI_FONT_NUM_LG, 0);
         lv_obj_set_style_text_align(both_info->value_label[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_center(both_info->value_label[i]);
         both_info->shown_level[i] = proc->both_level_value[i];
@@ -471,7 +463,7 @@ static void home_both_level_dir_update(ui_proc_home_t *proc, uint32_t accent_col
         lv_obj_clear_flag(both_info->dir_box[0], LV_OBJ_FLAG_HIDDEN);
         lv_label_set_text(both_info->dir_label[0], switch_buf);
         lv_obj_set_style_text_color(both_info->dir_label[0], lv_color_hex(accent_color), 0);
-        lv_obj_set_style_text_font(both_info->dir_label[0], &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(both_info->dir_label[0], UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(both_info->dir_label[0], LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_center(both_info->dir_label[0]);
         lv_obj_add_flag(both_info->dir_box[1], LV_OBJ_FLAG_HIDDEN);
@@ -485,7 +477,7 @@ static void home_both_level_dir_update(ui_proc_home_t *proc, uint32_t accent_col
             lv_obj_set_style_text_color(both_info->dir_label[i],
                 lv_color_hex(HOME_BOTH_LEVEL_DIR_COLOR), 0);
             lv_obj_set_style_text_font(both_info->dir_label[i],
-                &lv_font_aeonik_soft_26_medium, 0);
+                UI_FONT_TITLE, 0);
             lv_obj_set_style_text_align(both_info->dir_label[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_center(both_info->dir_label[i]);
         }
@@ -509,7 +501,7 @@ static void home_both_level_over_limit_update(ui_proc_home_t *proc, uint32_t col
         EXCEPTION_CHECK_VOID(both_info->over_limit_label);
         lv_label_set_text(both_info->over_limit_label, HOME_BOTH_LEVEL_OVER_LIMIT_TEXT);
         lv_obj_set_style_text_font(both_info->over_limit_label,
-            &lv_font_aeonik_soft_19_medium, 0);
+            UI_FONT_HINT, 0);
         lv_obj_set_style_text_align(both_info->over_limit_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_width(both_info->over_limit_label, HOME_BOTH_LEVEL_OVER_LIMIT_W);
         lv_obj_center(both_info->over_limit_label);

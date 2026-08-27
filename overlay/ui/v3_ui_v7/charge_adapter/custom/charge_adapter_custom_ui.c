@@ -10,7 +10,6 @@
 */
 #define IS_SUPPORT_CHARGE_ADAPTER_COMP_BG              (0)
 
-
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************

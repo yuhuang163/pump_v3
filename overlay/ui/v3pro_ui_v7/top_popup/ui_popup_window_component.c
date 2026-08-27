@@ -274,7 +274,7 @@ void popup_window_num_update(ui_manager_context_t *thiz, int16_t x_offset, int16
     snprintf(num_buf, sizeof(num_buf), "%d", show_num == 0 ? 1 : show_num);
     lv_label_set_text(info->countdown.label, num_buf);
     lv_obj_set_style_text_color(info->countdown.label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(info->countdown.label, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_font(info->countdown.label, UI_FONT_HINT, 0);
     lv_obj_set_style_text_align(info->countdown.label, LV_TEXT_ALIGN_CENTER, 0);
     if (x_offset == 0) {
         lv_obj_align(info->countdown.label, LV_ALIGN_TOP_MID, x_offset, y_offset);

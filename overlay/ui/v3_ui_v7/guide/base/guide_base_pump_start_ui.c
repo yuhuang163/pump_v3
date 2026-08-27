@@ -14,9 +14,7 @@
 #define GUIDE_PUMP_START_SCREEN_W                   (360)
 #define GUIDE_PUMP_START_BG_RES_ID                  (BASE_RES_ID_SIMULATION_MODE_BG)
 
-#define GUIDE_PUMP_START_MODE_TITLE_Y               (64 + 4)
 #define GUIDE_PUMP_START_MODE_TITLE_COLOR           (0xFFFFFF)
-#define GUIDE_PUMP_START_MODE_TITLE_TEXT            "Stimulation"
 
 #define GUIDE_PUMP_START_TIME_DIGIT_COUNT           (2)
 #define GUIDE_PUMP_START_TIME_SEG_WIDTH             (88)
@@ -110,7 +108,7 @@ static void guide_pump_start_title_create(guide_base_ui_info_t *info)
     lv_label_set_text(info->pump_start.mode_title, GUIDE_PUMP_START_MODE_TITLE_TEXT);
     lv_obj_set_style_text_color(info->pump_start.mode_title,
         lv_color_hex(GUIDE_PUMP_START_MODE_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->pump_start.mode_title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(info->pump_start.mode_title, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(info->pump_start.mode_title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(info->pump_start.mode_title, LV_ALIGN_TOP_MID, 0, GUIDE_PUMP_START_MODE_TITLE_Y);
 }
@@ -129,7 +127,7 @@ static void guide_pump_start_time_pair_update(lv_obj_t *labels[GUIDE_PUMP_START_
             lv_label_set_long_mode(labels[i], LV_LABEL_LONG_CLIP);
             lv_obj_set_style_text_align(labels[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_text_color(labels[i], lv_color_hex(GUIDE_PUMP_START_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(labels[i], &lv_font_aeonik_soft_69_semibold, 0);
+            lv_obj_set_style_text_font(labels[i], UI_FONT_NUM_LG, 0);
             lv_obj_set_style_text_letter_space(labels[i], 0, 0);
         }
         digit_text[0] = (char)('0' + (i == 0 ? value / 10 : value % 10));
@@ -273,7 +271,7 @@ static void guide_pump_start_speed_create(guide_base_ui_info_t *info)
         EXCEPTION_CHECK_VOID(info->pump_start.speed_value);
         lv_obj_set_style_text_color(info->pump_start.speed_value,
             lv_color_hex(GUIDE_PUMP_START_SPEED_COLOR), 0);
-        lv_obj_set_style_text_font(info->pump_start.speed_value, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(info->pump_start.speed_value, UI_FONT_TITLE, 0);
     }
 
     snprintf(speed_text, sizeof(speed_text), "%u", (unsigned)(GUIDE_PUMP_START_SPEED_VALUE + 1));
@@ -303,7 +301,7 @@ static void guide_pump_start_level_create(lv_obj_t **label, lv_obj_t *parent, co
         lv_label_set_long_mode(*label, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(*label, width);
         lv_obj_set_style_text_color(*label, lv_color_hex(GUIDE_PUMP_START_LEVEL_COLOR), 0);
-        lv_obj_set_style_text_font(*label, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(*label, UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(*label, align, 0);
         lv_obj_set_style_text_letter_space(*label, 3, 0);
     }
@@ -317,10 +315,10 @@ static void guide_pump_start_levels_create(guide_base_ui_info_t *info)
     lv_obj_t *parent = guide_page_parent_get(info);
 
     EXCEPTION_CHECK_VOID(parent);
-    guide_pump_start_level_create(&info->pump_start.left_level, parent, "L",
+    guide_pump_start_level_create(&info->pump_start.left_level, parent, UI_STR_SIDE_L,
         GUIDE_PUMP_START_LEFT_LEVEL, GUIDE_PUMP_START_LEFT_LEVEL_X, GUIDE_PUMP_START_LEFT_LEVEL_Y,
         GUIDE_PUMP_START_LEFT_LEVEL_W, LV_TEXT_ALIGN_RIGHT);
-    guide_pump_start_level_create(&info->pump_start.right_level, parent, "R",
+    guide_pump_start_level_create(&info->pump_start.right_level, parent, UI_STR_SIDE_R,
         GUIDE_PUMP_START_RIGHT_LEVEL, GUIDE_PUMP_START_RIGHT_LEVEL_X, GUIDE_PUMP_START_RIGHT_LEVEL_Y,
         GUIDE_PUMP_START_RIGHT_LEVEL_W, LV_TEXT_ALIGN_LEFT);
 }

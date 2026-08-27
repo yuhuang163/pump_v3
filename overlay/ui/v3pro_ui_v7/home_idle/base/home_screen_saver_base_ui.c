@@ -17,14 +17,6 @@
 
 #define HOME_SAVER_SCREEN_W                                 (360)
 
-#if 1
-#define HOME_SAVER_HINT_Y                                   (88)
-#define HOME_SAVER_HINT_TEXT                                "Press anywhere to wake up"
-#else
-#define HOME_SAVER_HINT_Y                                   (90)
-#define HOME_SAVER_HINT_TEXT                                "Press the knob to unlock"
-#endif
-
 #if IS_SUPPORT_HOME_SCREEN_SAVER_COMP_BG
 #define HOME_SAVER_HINT_COLOR                               (0x00FF00)
 #else
@@ -144,7 +136,7 @@ static void home_screen_saver_hint_text_update(void)
     if (saver_info->hint_text == NULL || !lv_obj_is_valid(saver_info->hint_text)) {
         saver_info->hint_text = lv_label_create(saver_info->root);
         EXCEPTION_CHECK_VOID(saver_info->hint_text);
-        lv_obj_set_style_text_font(saver_info->hint_text, &lv_font_aeonik_soft_19_medium, 0);
+        lv_obj_set_style_text_font(saver_info->hint_text, UI_FONT_HINT, 0);
         lv_obj_set_style_text_align(saver_info->hint_text, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(saver_info->hint_text, 0, 0);
     }
@@ -166,7 +158,7 @@ static void home_screen_saver_hint_mask_update(void)
 
     home_screen_saver_hint_style_get(&style);
     ui_shine_prepare_from_text(&saver_info->hint_shine, &style,
-        HOME_SAVER_HINT_TEXT, &lv_font_aeonik_soft_19_medium, 0, 0);
+        HOME_SAVER_HINT_TEXT, UI_FONT_HINT, 0, 0);
     ui_shine_update(&saver_info->hint_shine, saver_info->root, &style, saver_info->hint_text, 1);
 }
 

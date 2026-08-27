@@ -18,13 +18,8 @@
 #define GUIDE_FINISH_QRCODE_ALIGN_Y                     (56)
 #define GUIDE_FINISH_QRCODE_BG_COLOR                    (0xFFFFFF)
 #define GUIDE_FINISH_QRCODE_FG_COLOR                    (0x000000)
-#define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
 
-#define GUIDE_FINISH_DESC_Y                             (198)
 #define GUIDE_FINISH_DESC_COLOR                         (0xFFFFFF)
-#define GUIDE_FINISH_DESC_LINE_SPACE                    (8)
-#define GUIDE_FINISH_DESC_TEXT \
-    "Tutorial complete. Scan the\nQR code anytime to view it\nagain."
 
 #define GUIDE_FINISH_TIP_H                              (63)
 #define GUIDE_FINISH_TIP_Y                              (PANLE_DISPLAY_H - GUIDE_FINISH_TIP_H - 8)
@@ -153,7 +148,7 @@ static void guide_finish_desc_create(guide_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(page->desc);
     lv_label_set_text(page->desc, GUIDE_FINISH_DESC_TEXT);
     lv_obj_set_style_text_color(page->desc, lv_color_hex(GUIDE_FINISH_DESC_COLOR), 0);
-    lv_obj_set_style_text_font(page->desc, &lv_font_aeonik_soft_22_medium, 0);
+    lv_obj_set_style_text_font(page->desc, UI_FONT_BODY_SM, 0);
     lv_obj_set_style_text_line_space(page->desc, GUIDE_FINISH_DESC_LINE_SPACE, 0);
     lv_obj_set_style_text_align(page->desc, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_opa(page->desc, LV_OPA_COVER, 0);

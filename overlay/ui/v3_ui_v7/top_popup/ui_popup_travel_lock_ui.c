@@ -8,9 +8,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define TRAVEL_LOCK_TITLE_Y                               (148)
 #define TRAVEL_LOCK_TITLE_COLOR                           (0xFFFFFF)
-#define TRAVEL_LOCK_TITLE_LINE_SPACE                      (4)
 #define TRAVEL_LOCK_ARC_DONE_COLOR                        (0xFFFFFF)
 
 /*
@@ -18,8 +16,8 @@
 *****************************************************************************************
 */
 const static popup_window_text_info_t travel_lock_infos[POPUP_WINDOW_TEXT_COUNT] = {
-    {"Press and hold for 5s\nto lock device", 0, TRAVEL_LOCK_TITLE_Y,
-        &lv_font_aeonik_soft_26_medium, LV_OPA_100, TRAVEL_LOCK_TITLE_COLOR,
+    {TRAVEL_LOCK_TITLE_TEXT, 0, TRAVEL_LOCK_TITLE_Y,
+        UI_FONT_TITLE, LV_OPA_100, TRAVEL_LOCK_TITLE_COLOR,
         TRAVEL_LOCK_TITLE_LINE_SPACE},
 };
 

@@ -47,7 +47,7 @@ void guide_page_num_ui_build(guide_base_page_num_info_t *page_num, lv_obj_t *par
     }
     lv_label_set_text(page_num->current, cur_buf);
     lv_obj_set_style_text_color(page_num->current, lv_color_hex(GUIDE_PAGE_NUM_CURRENT_COLOR), 0);
-    lv_obj_set_style_text_font(page_num->current, &lv_font_aeonik_soft_29_medium, 0);
+    lv_obj_set_style_text_font(page_num->current, UI_FONT_TITLE_MD, 0);
     lv_obj_update_layout(page_num->current);
     current_w = lv_obj_get_width(page_num->current);
 
@@ -57,7 +57,7 @@ void guide_page_num_ui_build(guide_base_page_num_info_t *page_num, lv_obj_t *par
     }
     lv_label_set_text(page_num->total, total_buf);
     lv_obj_set_style_text_color(page_num->total, lv_color_hex(GUIDE_PAGE_NUM_TOTAL_COLOR), 0);
-    lv_obj_set_style_text_font(page_num->total, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_font(page_num->total, UI_FONT_HINT, 0);
     lv_obj_update_layout(page_num->total);
     total_w = lv_obj_get_width(page_num->total);
 
