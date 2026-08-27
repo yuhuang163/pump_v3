@@ -50,7 +50,6 @@ static void pumping_work_ui_after_policy(ui_manager_context_t *ui, int index)
     if (proc->current_ui_type == PUMP_UI_TYPE_HOME) {
         pump_mode_page_index_clamp(proc);
         pump_mode_select_idle_timeout_handler(proc);
-        pump_seal_check_tick(proc);
     }
     ui_display_pump_home_screen_process(ui);
     pump_pause_led_tick(proc);
@@ -172,8 +171,7 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
     } else {
         WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_PAUSE, 1);
         proc->pump_status = BREAST_PUMP_PAUSE;
-        proc->seal_tip = PUMP_SEAL_TIP_NONE;
-        proc->seal_check_time = 0;
+        pump_seal_check_stop(proc);
         ///状态变化 触发泵奶停止埋点事件
         {
             int control_source = 0;

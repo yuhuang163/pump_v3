@@ -19,7 +19,8 @@ extern "C" {
 #define PUMP_SPEED_ANIMATION_FREQ              (25)
 #define PUMP_LEVEL_ANIMATION_FREQ              (20)
 #define PUMP_LOW_POWER_COMPLETE_TASK_NAME      "pump_low_power_complete"
-#define PUMP_SEAL_LEAK_TASK_NAME               "pump_seal_leak" 
+#define PUMP_SEAL_LEAK_TASK_NAME               "pump_seal_leak"
+#define PUMP_SEAL_RESULT_TIP_TASK_NAME         "pump_seal_result_tip" 
 
 /// 是否支持泵奶中切换韵律
 #define IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM  (1)
@@ -45,8 +46,7 @@ extern "C" {
 /// 子模式切换提醒时长
 #define PUMP_SUB_MODE_SWITCH_TIMEOUT_MS        (3000) /// 3s
 
-/// 漏气检测：暂停续抽 / 首次进首页独立计时 10s，再按结果展示或跳转
-#define PUMP_SEAL_CHECKING_MS                  (10000) /// 10s
+/// 漏气检测：通过文案展示时长
 #define PUMP_SEAL_RESULT_TIMEOUT_MS            (3000)  /// 3s
 
 /// 模式选择页无操作静默回首页（page_index 非 0 时计时，超时仅复位预览；
@@ -171,12 +171,12 @@ typedef enum {
     PUMP_SEAL_TIP_RESULT,              /// 检查结果（仅不漏气）
 } pump_seal_tip_e;
 
-/// 漏气检测结果（10s 窗口结束时使用）
+/// 漏气检测结果（算法回调驱动）
 typedef enum {
-    PUMP_SEAL_RESULT_NONE = 0,         /// 尚未出结果
-    PUMP_SEAL_RESULT_NO_LEAK,          /// 不漏气：展示通过文案
-    PUMP_SEAL_RESULT_SLIGHT,           /// 轻微漏气：不展示结果文案
-    PUMP_SEAL_RESULT_SEVERE,           /// 重度漏气：跳转重度 UI
+    PUMP_SEAL_RESULT_NONE = 0,         /// 尚未出结果：展示检测中
+    PUMP_SEAL_RESULT_NO_LEAK,          /// 不漏气：检测中结束后展示通过文案 3s
+    PUMP_SEAL_RESULT_SLIGHT,           /// 轻微漏气：收起检测中，不展示通过
+    PUMP_SEAL_RESULT_SEVERE,           /// 重度漏气：首次变为该状态时跳转
 } pump_seal_result_e;
 
 /// 重度漏气提醒页（与 UI 四页对齐，由 ui_proc_pump_t.seal_leak_page_index 驱动）
@@ -310,7 +310,7 @@ typedef struct {
     uint8_t seal_tip;
     /// 本轮检测窗口内最新结果 pump_seal_result_e
     uint8_t seal_result;
-    uint32_t seal_check_time; /// 本轮检测起点，0 表示未在检测
+    uint32_t seal_check_time; /// 非 0 表示本轮启动已进入检测
     uint32_t seal_result_time; /// 通过文案起始时间
     uint32_t seal_log_time; /// 结果展示日志时间点
     /// 重度漏气提醒：本次进入泵奶窗口是否已跳转过；页索引 pump_seal_leak_page_e
@@ -350,10 +350,9 @@ void pump_sub_mode_switch_clear(ui_proc_pump_t *proc);
 void pump_sub_mode_switch_tick(ui_proc_pump_t *proc);
 void pump_sub_mode_state_init(ui_proc_pump_t *proc, uint8_t clamp_level);
 void pump_sub_mode_sync_tick(ui_proc_pump_t *proc, pump_sub_mode_sync_e sync);
-/// 漏气检测：暂停续抽 / 首次进首页启动 10s 窗口
+/// 漏气检测：每次启动展示检测中，由算法结果切换文案 / 跳转
 void pump_seal_check_start(ui_proc_pump_t *proc);
-/// 漏气检测文案：独立计时 10s；暂停不显示
-void pump_seal_check_tick(ui_proc_pump_t *proc);
+void pump_seal_check_stop(ui_proc_pump_t *proc);
 
 /// 电源按键事件处理
 void pump_power_key_event_handler(ui_proc_pump_t *proc);

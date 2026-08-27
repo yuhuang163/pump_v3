@@ -126,19 +126,33 @@ static bool pump_seal_leak_can_jump(ui_proc_pump_t *proc)
     if (proc->seal_leak_shown) {
         return false;
     }
-    
+
     if (proc->current_ui_type != PUMP_UI_TYPE_HOME &&
         proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
         proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST &&
         proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
         return false;
     }
-    
+
     if (!PUMP_IS_GOING(proc->pump_status)) {
         return false;
     }
-    
+
     return true;
+}
+
+static void pump_seal_leak_do_jump(ui_proc_pump_t *proc)
+{
+    if (!pump_seal_leak_can_jump(proc)) {
+        return;
+    }
+
+    LOG_WM("severe leak detected, jump to leak ui.");
+    proc->seal_tip = PUMP_SEAL_TIP_NONE;
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
+    proc->seal_leak_page_index = PUMP_SEAL_LEAK_PAGE_CHECK_FIT;
+    pump_seal_leak_pause_pump(proc);
+    show_pump_seal_leak_ui(proc);
 }
 
 static void pump_seal_leak_trigger_ui_cb(hdr_post_args_t *args)
@@ -148,26 +162,72 @@ static void pump_seal_leak_trigger_ui_cb(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(args);
     proc = (ui_proc_pump_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
-    if (!pump_seal_leak_can_jump(proc)) {
+    pump_seal_leak_do_jump(proc);
+}
+
+static void pump_seal_result_tip_hide_cb(hdr_post_args_t *args)
+{
+    ui_proc_pump_t *proc;
+
+    EXCEPTION_CHECK_VOID(args);
+    proc = (ui_proc_pump_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (proc->seal_tip == PUMP_SEAL_TIP_RESULT) {
+        proc->seal_tip = PUMP_SEAL_TIP_NONE;
+        LOG_WM("seal check passed tip hide.");
+    }
+}
+
+static void pump_seal_result_apply_cb(hdr_post_args_t *args)
+{
+    ui_proc_pump_t *proc;
+    uint8_t result;
+
+    EXCEPTION_CHECK_VOID(args);
+    proc = (ui_proc_pump_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (!PUMP_IS_GOING(proc->pump_status)) {
         return;
     }
 
-    LOG_WM("severe leak detected, jump to leak ui.");
-    proc->seal_leak_page_index = PUMP_SEAL_LEAK_PAGE_CHECK_FIT;
-    pump_seal_leak_pause_pump(proc);
-    show_pump_seal_leak_ui(proc);
+    result = proc->seal_result;
+    if (proc->seal_tip == PUMP_SEAL_TIP_CHECKING && result != PUMP_SEAL_RESULT_NONE) {
+        if (result == PUMP_SEAL_RESULT_NO_LEAK) {
+            proc->seal_tip = PUMP_SEAL_TIP_RESULT;
+            proc->seal_result_time = get_timestamp();
+            REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
+            POST_WM_TASK_HANDLER_DELAYED_ARG1(pump_seal_result_tip_hide_cb,
+                PUMP_SEAL_RESULT_TIMEOUT_MS, proc, PUMP_SEAL_RESULT_TIP_TASK_NAME);
+            LOG_WM("seal check passed, show result 3s.");
+        } else {
+            proc->seal_tip = PUMP_SEAL_TIP_NONE;
+            REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
+            LOG_WM("seal check leave checking, result:%d", result);
+        }
+    }
+
+    if (result == PUMP_SEAL_RESULT_SEVERE) {
+        pump_seal_leak_do_jump(proc);
+    }
 }
 
 static void pump_seal_leak_callback(void *user_data, algo_breast_pump_data_t *result)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
+    uint8_t new_result;
 
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
-    if (result == NULL) {
+    if (result == NULL || !PUMP_IS_GOING(proc->pump_status)) {
         return;
     }
-    /// 检测窗口内持续刷新结果，10s 到点由 pump_seal_check_tick 消费
-    proc->seal_result = pump_seal_result_from_wear(proc, result->wear_detection.result);
+
+    new_result = pump_seal_result_from_wear(proc, result->wear_detection.result);
+    if (new_result == proc->seal_result) {
+        return;
+    }
+    proc->seal_result = new_result;
+    LOG_WM("seal result: %d(%d/%d)", new_result, result->wear_detection.result[0], result->wear_detection.result[1]);
+    POST_WM_TASK_HANDLER_NO_DELAY(pump_seal_result_apply_cb, proc, PUMP_SEAL_LEAK_TASK_NAME);
 }
 
 /*
@@ -274,6 +334,7 @@ void pump_seal_leak_exit(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->algo && proc->algo->remove_algo_result_listener);
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_LEAK_TASK_NAME);
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
     proc->algo->remove_algo_result_listener(pump_seal_leak_callback);
 }
 
