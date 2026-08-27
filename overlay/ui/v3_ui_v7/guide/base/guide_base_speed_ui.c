@@ -29,9 +29,7 @@
 #define GUIDE_SPEED_VALUE_Y                             (127)
 #define GUIDE_SPEED_VALUE_COLOR                         (0xFFFFFF)
 
-#define GUIDE_SPEED_LABEL_Y                             (210)
 #define GUIDE_SPEED_LABEL_COLOR                         (0x999999)
-#define GUIDE_SPEED_LABEL_TEXT                          "Speed"
 
 #define GUIDE_SPEED_TIP_H                               (63)
 #define GUIDE_SPEED_TIP_Y                               (PANLE_DISPLAY_H - GUIDE_SPEED_TIP_H - 8)
@@ -136,7 +134,7 @@ static void guide_speed_value_update(guide_base_ui_info_t *info, ui_proc_guide_t
     snprintf(num_buf, sizeof(num_buf), "%u", display_speed);
     lv_label_set_text(page->value_label, num_buf);
     lv_obj_set_style_text_color(page->value_label, lv_color_hex(GUIDE_SPEED_VALUE_COLOR), 0);
-    lv_obj_set_style_text_font(page->value_label, &lv_font_aeonik_soft_69_semibold, 0);
+    lv_obj_set_style_text_font(page->value_label, UI_FONT_NUM_LG, 0);
     lv_obj_set_style_text_align(page->value_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(page->value_label, LV_ALIGN_TOP_MID, 0, GUIDE_SPEED_VALUE_Y);
     page->shown_speed = proc->setting.speed;
@@ -153,7 +151,7 @@ static void guide_speed_label_update(guide_base_ui_info_t *info)
         EXCEPTION_CHECK_VOID(page->speed_label);
         lv_label_set_text(page->speed_label, GUIDE_SPEED_LABEL_TEXT);
         lv_obj_set_style_text_color(page->speed_label, lv_color_hex(GUIDE_SPEED_LABEL_COLOR), 0);
-        lv_obj_set_style_text_font(page->speed_label, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(page->speed_label, UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(page->speed_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(page->speed_label, LV_ALIGN_TOP_MID, 0, GUIDE_SPEED_LABEL_Y);
     }

@@ -5,7 +5,8 @@
 #include "ui_progress_arc_component.h" // IWYU pragma: keep
 #include "root_common_api.h" // IWYU pragma: keep
 #include "lvgl.h" // IWYU pragma: keep
-#include "lv_font_aeonik_soft_19.h" // IWYU pragma: keep
+#include "lv_user_font.h" // IWYU pragma: keep
+#include "ui_lang.h" // IWYU pragma: keep
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -189,7 +190,7 @@ void ui_progress_arc_countdown_update(ui_progress_arc_info_t *info, lv_obj_t *pa
     snprintf(num_buf, sizeof(num_buf), "%u s", remain_sec);
     lv_label_set_text(info->countdown, num_buf);
     lv_obj_set_style_text_color(info->countdown, lv_color_hex(style->countdown_color), 0);
-    lv_obj_set_style_text_font(info->countdown, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_font(info->countdown, UI_FONT_HINT, 0);
     lv_obj_set_style_text_align(info->countdown, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(info->countdown, LV_ALIGN_TOP_MID, 0, style->countdown_y);
     lv_obj_clear_flag(info->countdown, LV_OBJ_FLAG_HIDDEN);

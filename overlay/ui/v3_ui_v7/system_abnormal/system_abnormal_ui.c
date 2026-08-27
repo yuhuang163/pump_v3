@@ -16,12 +16,8 @@
 
 /// 系统错误（存储故障 / 通信丢失）
 #define SYS_ABNORMAL_ICON_Y_SYS_ERROR                            (92)
-#define SYS_ABNORMAL_TITLE_Y_SYS_ERROR                           (196)
-#define SYS_ABNORMAL_CONTENT_Y_SYS_ERROR                         (236)
 /// 电池温度过高
 #define SYS_ABNORMAL_ICON_Y_TEMP_ERROR                           (77)
-#define SYS_ABNORMAL_TITLE_Y_TEMP_ERROR                          (179)
-#define SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR                        (255)
 /// 公共颜色
 #define SYS_ABNORMAL_ROOT_BG_COLOR                               (0x000000)
 #define SYS_ABNORMAL_TITLE_COLOR                                 (0xFFFFFF)
@@ -52,18 +48,18 @@ static sys_abnormal_disp_info_t *s_abnormal_info;
 
 /// 系统错误文本 — 存储故障 / 通信丢失
 const static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
-    { "System error", SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_26_medium, SYS_ABNORMAL_TITLE_COLOR, 0 },
-    { "Replug to restart", SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
-        &lv_font_aeonik_soft_26_medium, SYS_ABNORMAL_CONTENT_COLOR, 0 },
+    { SYS_ERROR_TITLE_TEXT, SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
+        UI_FONT_TITLE, SYS_ABNORMAL_TITLE_COLOR, 0 },
+    { SYS_ERROR_REPLUG_TEXT, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
+        UI_FONT_TITLE, SYS_ABNORMAL_CONTENT_COLOR, 0 },
 };
 
 /// 电池温度过高文本
 const static sys_abnormal_text_info_t temp_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
-    { "High battery\ntemperature", SYS_ABNORMAL_TITLE_Y_TEMP_ERROR,
-        &lv_font_aeonik_soft_26_medium, SYS_ABNORMAL_TITLE_COLOR, 8 },
-    { "Device suspended", SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR,
-        &lv_font_aeonik_soft_26_medium, SYS_ABNORMAL_CONTENT_COLOR, 0 },
+    { TEMP_ERROR_TITLE_MULTILINE_TEXT, SYS_ABNORMAL_TITLE_Y_TEMP_ERROR,
+        UI_FONT_TITLE, SYS_ABNORMAL_TITLE_COLOR, 8 },
+    { TEMP_ERROR_CONTENT_TEXT, SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR,
+        UI_FONT_TITLE, SYS_ABNORMAL_CONTENT_COLOR, 0 },
 };
 
 /*

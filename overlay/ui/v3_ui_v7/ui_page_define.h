@@ -9,6 +9,7 @@ extern "C" {
 * Include files
 ******************************************************************************/
 #include "root_common_base.h" // IWYU pragma: keep
+#include "ui_lang.h" // IWYU pragma: keep
 #include "ui_manager_api.h" // IWYU pragma: keepin
 #if IS_SUPPORT_LVGL
 #include "home_ui.h" // IWYU pragma: keepin

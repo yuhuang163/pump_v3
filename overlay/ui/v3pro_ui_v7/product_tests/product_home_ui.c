@@ -110,7 +110,7 @@ static void product_tests_mac_name_update(ui_manager_context_t *thiz, uint8_t *m
     snprintf(mac_name, sizeof(mac_name), "%s-%02X%02X", ROOT_DEVICE_NAME, mac_addr[0], mac_addr[1]);
     lv_label_set_text(tests_info->mac_name, mac_name);
     lv_obj_set_style_text_color(tests_info->mac_name, lv_color_hex(PRODUCT_TESTS_HOME_MAC_NAME_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->mac_name, &lv_font_aeonik_soft_19_medium, 0);  /// 设置字体
+    lv_obj_set_style_text_font(tests_info->mac_name, UI_FONT_HINT, 0);  /// 设置字体
     // lv_obj_set_style_text_line_space(tests_info->mac_name, 4, 0);  /// 设置行间距（像素）
     // lv_obj_set_style_text_align(tests_info->mac_name, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
     lv_obj_align(tests_info->mac_name, LV_ALIGN_TOP_LEFT, 
@@ -182,11 +182,11 @@ static void product_tests_aging_info_update(ui_manager_context_t *thiz, ui_proc_
     uint32_t seconds = age_time % 60U;
     char aging_info_str[64] = {0};
     snprintf(aging_info_str, sizeof(aging_info_str),
-        "aging-time-%02luh-%02lum-%02lus",
+        PRODUCT_TESTS_AGING_TIME_FMT,
         (unsigned long)hours, (unsigned long)minutes, (unsigned long)seconds);
     lv_label_set_text(tests_info->aging_info, aging_info_str);
     lv_obj_set_style_text_color(tests_info->aging_info, lv_color_hex(PRODUCT_TESTS_HOME_AGING_INFO_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->aging_info, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_font(tests_info->aging_info, UI_FONT_HINT, 0);
     lv_obj_set_style_text_align(tests_info->aging_info, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_set_style_bg_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);  /// 背景透明
     lv_obj_set_style_border_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);  /// 边框透明
@@ -204,10 +204,10 @@ static void product_tests_battery_percent_update(ui_manager_context_t *thiz, uin
         tests_info->battery_percent = lv_label_create(tests_info->root);
     }
     char battery_percent_str[16] = {0};
-    snprintf(battery_percent_str, sizeof(battery_percent_str), "battery: %d%%", battery_percent);
+    snprintf(battery_percent_str, sizeof(battery_percent_str), PRODUCT_TESTS_HOME_BATTERY_FMT, battery_percent);
     lv_label_set_text(tests_info->battery_percent, battery_percent_str);
     lv_obj_set_style_text_color(tests_info->battery_percent, lv_color_hex(PRODUCT_TESTS_HOME_BATTERY_PERCENT_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->battery_percent, &lv_font_aeonik_soft_19_medium, 0);  /// 设置字体
+    lv_obj_set_style_text_font(tests_info->battery_percent, UI_FONT_HINT, 0);  /// 设置字体
     lv_obj_align(tests_info->battery_percent, LV_ALIGN_TOP_LEFT, PRODUCT_TESTS_HOME_BATTERY_PERCENT_X, PRODUCT_TESTS_HOME_BATTERY_PERCENT_Y);
 }
 #endif

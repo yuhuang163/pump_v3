@@ -42,10 +42,7 @@
 #define HOME_SPEED_VALUE_Y                          (127)
 #define HOME_SPEED_VALUE_COLOR                      (0xFFFFFF)
 
-#define HOME_SPEED_LABEL_Y                          (210)
 #define HOME_SPEED_LABEL_COLOR                      (0x999999)
-#define HOME_SPEED_LABEL_TEXT                       "Speed"
-#define HOME_SPEED_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 /** 底部提示图：与模式选择页一致 */
 #define HOME_SPEED_TIP_H                            (63)
@@ -226,7 +223,7 @@ static void home_speed_value_update(ui_proc_home_t *proc)
     lv_label_set_text(speed_info->value_label, num_buf);
     lv_obj_set_style_text_color(speed_info->value_label,
         lv_color_hex(HOME_SPEED_VALUE_COLOR), 0);
-    lv_obj_set_style_text_font(speed_info->value_label, &lv_font_aeonik_soft_69_semibold, 0);
+    lv_obj_set_style_text_font(speed_info->value_label, UI_FONT_NUM_LG, 0);
     lv_obj_set_style_text_align(speed_info->value_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(speed_info->value_label, LV_ALIGN_TOP_MID, 0, HOME_SPEED_VALUE_Y);
     speed_info->shown_speed = proc->setting.speed;
@@ -265,7 +262,7 @@ static void home_speed_label_update(ui_proc_home_t *proc, uint32_t accent_color)
 
     lv_label_set_text(speed_info->speed_label, text);
     lv_obj_set_style_text_color(speed_info->speed_label, lv_color_hex(color), 0);
-    lv_obj_set_style_text_font(speed_info->speed_label, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(speed_info->speed_label, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(speed_info->speed_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(speed_info->speed_label, LV_ALIGN_TOP_MID, 0, HOME_SPEED_LABEL_Y);
     speed_info->shown_mode_switch = mode_switch;

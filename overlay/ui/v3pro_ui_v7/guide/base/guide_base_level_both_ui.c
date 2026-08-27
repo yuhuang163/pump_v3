@@ -33,19 +33,12 @@
 
 #define GUIDE_BOTH_LEVEL_DIR_W                          (150)
 #define GUIDE_BOTH_LEVEL_DIR_H                          (34)
-#define GUIDE_BOTH_LEVEL_DIR_Y                          (203)
 #define GUIDE_BOTH_LEVEL_DIR_LEFT_X                     (29)
 #define GUIDE_BOTH_LEVEL_DIR_RIGHT_X                    (179)
 #define GUIDE_BOTH_LEVEL_DIR_COLOR                      (0x999999)
-#define GUIDE_BOTH_LEVEL_DIR_LEFT_TEXT                  "L"
-#define GUIDE_BOTH_LEVEL_DIR_RIGHT_TEXT                 "R"
 
 #define GUIDE_BOTH_LEVEL_OVER_LIMIT_W                   (220)
 #define GUIDE_BOTH_LEVEL_OVER_LIMIT_H                   (50)
-#define GUIDE_BOTH_LEVEL_OVER_LIMIT_Y                   (60)
-#define GUIDE_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE          (8)
-#define GUIDE_BOTH_LEVEL_OVER_LIMIT_TEXT \
-    "For safety,\nUp to 3 levels at a time."
 
 #define GUIDE_BOTH_LEVEL_TIP_H                          (63)
 #define GUIDE_BOTH_LEVEL_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_BOTH_LEVEL_TIP_H - 8)
@@ -309,7 +302,7 @@ static void guide_both_level_value_update(guide_base_ui_info_t *info, ui_proc_gu
         lv_label_set_text(page->value_label[i], num_buf);
         lv_obj_set_style_text_color(page->value_label[i],
             lv_color_hex(GUIDE_BOTH_LEVEL_VALUE_COLOR), 0);
-        lv_obj_set_style_text_font(page->value_label[i], &lv_font_aeonik_soft_69_semibold, 0);
+        lv_obj_set_style_text_font(page->value_label[i], UI_FONT_NUM_LG, 0);
         lv_obj_set_style_text_align(page->value_label[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_center(page->value_label[i]);
         page->shown_level[i] = proc->both_level_value[i];
@@ -341,7 +334,7 @@ static void guide_both_level_dir_update(guide_base_ui_info_t *info)
             lv_label_set_text(page->dir_label[i], dir_text[i]);
             lv_obj_set_style_text_color(page->dir_label[i],
                 lv_color_hex(GUIDE_BOTH_LEVEL_DIR_COLOR), 0);
-            lv_obj_set_style_text_font(page->dir_label[i], &lv_font_aeonik_soft_26_medium, 0);
+            lv_obj_set_style_text_font(page->dir_label[i], UI_FONT_TITLE, 0);
             lv_obj_set_style_text_align(page->dir_label[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_center(page->dir_label[i]);
         }
@@ -368,7 +361,7 @@ static void guide_both_level_over_limit_update(guide_base_ui_info_t *info, ui_pr
         page->over_limit_label = lv_label_create(page->over_limit_box);
         EXCEPTION_CHECK_VOID(page->over_limit_label);
         lv_label_set_text(page->over_limit_label, GUIDE_BOTH_LEVEL_OVER_LIMIT_TEXT);
-        lv_obj_set_style_text_font(page->over_limit_label, &lv_font_aeonik_soft_19_medium, 0);
+        lv_obj_set_style_text_font(page->over_limit_label, UI_FONT_HINT, 0);
         lv_obj_set_style_text_align(page->over_limit_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_width(page->over_limit_label, GUIDE_BOTH_LEVEL_OVER_LIMIT_W);
         lv_obj_set_style_text_line_space(page->over_limit_label,

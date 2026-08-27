@@ -15,13 +15,9 @@
 #define PUMP_FINISH_CHARGE_ERROR_ARC_DONE_COLOR        (0xEF4C4E)
 
 #define PUMP_FINISH_CHARGE_ERROR_ICON_Y                (90)
-#define PUMP_FINISH_CHARGE_ERROR_TITLE1_Y              (197)
-#define PUMP_FINISH_CHARGE_ERROR_TITLE2_Y              (237)
 #define PUMP_FINISH_CHARGE_ERROR_TITLE1_COLOR          (0xFFFFFF)
 #define PUMP_FINISH_CHARGE_ERROR_TITLE2_COLOR          (0x999999)
 #define PUMP_FINISH_CHARGE_ERROR_COUNTDOWN_Y           (332)
-#define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT           "Incompatible adapter"
-#define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT           "Ending automatically"
 
 /** 页面展示倒计时（文案为 3s/2s/1s） */
 #define PUMP_FINISH_CHARGE_ERROR_DURATION_MS           (3000)
@@ -113,7 +109,7 @@ static void pump_finish_charge_error_title_update(void)
     lv_label_set_text(charge_error_info->title1, PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT);
     lv_obj_set_style_text_color(charge_error_info->title1,
         lv_color_hex(PUMP_FINISH_CHARGE_ERROR_TITLE1_COLOR), 0);
-    lv_obj_set_style_text_font(charge_error_info->title1, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(charge_error_info->title1, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(charge_error_info->title1, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(charge_error_info->title1, LV_ALIGN_TOP_MID, 0,
         PUMP_FINISH_CHARGE_ERROR_TITLE1_Y);
@@ -125,7 +121,7 @@ static void pump_finish_charge_error_title_update(void)
     lv_label_set_text(charge_error_info->title2, PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT);
     lv_obj_set_style_text_color(charge_error_info->title2,
         lv_color_hex(PUMP_FINISH_CHARGE_ERROR_TITLE2_COLOR), 0);
-    lv_obj_set_style_text_font(charge_error_info->title2, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(charge_error_info->title2, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(charge_error_info->title2, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(charge_error_info->title2, LV_ALIGN_TOP_MID, 0,
         PUMP_FINISH_CHARGE_ERROR_TITLE2_Y);

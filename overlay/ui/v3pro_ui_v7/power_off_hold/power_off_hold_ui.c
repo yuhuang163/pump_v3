@@ -17,10 +17,7 @@
 #define POWER_OFF_HOLD_ARC_DONE_COLOR               (0xEF4C4E)
 
 #define POWER_OFF_HOLD_ICON_Y                       (94)
-#define POWER_OFF_HOLD_TITLE_Y                      (200)
 #define POWER_OFF_HOLD_TITLE_COLOR                  (0xFFFFFF)
-#define POWER_OFF_HOLD_TITLE_LINE_SPACE             (8)
-#define POWER_OFF_HOLD_TITLE_TEXT                   "Press and hold to\npower off."
 
 /** 页面展示倒计时（LONG_2S 后再持续约 2s，文案为 3s/2s/1s） */
 #define POWER_OFF_HOLD_DURATION_MS                  (2000)
@@ -153,7 +150,7 @@ static void power_off_hold_title_update(void)
     }
     lv_label_set_text(hold_info->title, POWER_OFF_HOLD_TITLE_TEXT);
     lv_obj_set_style_text_color(hold_info->title, lv_color_hex(POWER_OFF_HOLD_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(hold_info->title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(hold_info->title, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(hold_info->title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_line_space(hold_info->title, POWER_OFF_HOLD_TITLE_LINE_SPACE, 0);
     lv_obj_align(hold_info->title, LV_ALIGN_TOP_MID, 0, POWER_OFF_HOLD_TITLE_Y);

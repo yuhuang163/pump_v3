@@ -91,10 +91,10 @@ static void aging_test_ui_battery_percent_update(ui_manager_context_t *thiz,  ui
     }
     ////
     char battery_percent_str[16] = {0};
-    snprintf(battery_percent_str, sizeof(battery_percent_str), "battery-%d%%", battery_percent);
+    snprintf(battery_percent_str, sizeof(battery_percent_str), PRODUCT_TESTS_BATTERY_FMT, battery_percent);
     lv_label_set_text(tests_info->battery_percent, battery_percent_str);
     lv_obj_set_style_text_color(tests_info->battery_percent, lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->battery_percent, &lv_font_aeonik_soft_19_medium, 0);  /// 设置字体
+    lv_obj_set_style_text_font(tests_info->battery_percent, UI_FONT_HINT, 0);  /// 设置字体
     lv_obj_align(tests_info->battery_percent, LV_ALIGN_TOP_LEFT, 
         AGING_TEST_BATTERY_PERCENT_X, AGING_TEST_BATTERY_PERCENT_Y);
 }
@@ -126,7 +126,7 @@ static void aging_test_ui_mac_name_update(ui_manager_context_t *thiz, uint8_t *m
         lv_label_set_text(tests_info->mac_name, mac_name);
     }
     lv_obj_set_style_text_color(tests_info->mac_name, lv_color_hex(is_red ? AGING_TEST_TEXT_BLUE_COLOR : AGING_TEST_TEXT_RED_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->mac_name, &lv_font_aeonik_soft_19_medium, 0);  /// 设置字体
+    lv_obj_set_style_text_font(tests_info->mac_name, UI_FONT_HINT, 0);  /// 设置字体
     // lv_obj_set_style_text_line_space(tests_info->mac_name, 4, 0);  /// 设置行间距（像素）
     // lv_obj_set_style_text_align(tests_info->mac_name, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
     lv_obj_align(tests_info->mac_name, LV_ALIGN_TOP_LEFT, 
@@ -179,12 +179,12 @@ static void aging_test_ui_aging_info_update(ui_manager_context_t *thiz, ui_proc_
     uint32_t seconds = age_time % 60U;
     char aging_info_str[64] = {0};
     snprintf(aging_info_str, sizeof(aging_info_str),
-        "aging-time-%02luh-%02lum-%02lus",
+        PRODUCT_TESTS_AGING_TIME_FMT,
         (unsigned long)hours, (unsigned long)minutes, (unsigned long)seconds);
     lv_label_set_text(tests_info->aging_info, aging_info_str);
     lv_obj_set_style_text_color(tests_info->aging_info,
         lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->aging_info, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_font(tests_info->aging_info, UI_FONT_HINT, 0);
     lv_obj_set_style_text_align(tests_info->aging_info, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_set_style_bg_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_opa(tests_info->aging_info, LV_OPA_TRANSP, 0);
@@ -192,10 +192,10 @@ static void aging_test_ui_aging_info_update(ui_manager_context_t *thiz, ui_proc_
         AGING_TEST_AGING_INFO_X, AGING_TEST_AGING_INFO_Y);
     lv_obj_clear_flag(tests_info->aging_info, LV_OBJ_FLAG_HIDDEN);
 
-    lv_label_set_text(tests_info->aging_status, aging_done ? "aging-complete" : "aging-running");
+    lv_label_set_text(tests_info->aging_status, aging_done ? PRODUCT_TESTS_AGING_COMPLETE_TEXT : PRODUCT_TESTS_AGING_RUNNING_TEXT);
     lv_obj_set_style_text_color(tests_info->aging_status,
         lv_color_hex(is_red ? AGING_TEST_TEXT_RED_COLOR : AGING_TEST_TEXT_BLUE_COLOR), 0);
-    lv_obj_set_style_text_font(tests_info->aging_status, &lv_font_aeonik_soft_33_medium, 0);
+    lv_obj_set_style_text_font(tests_info->aging_status, UI_FONT_TITLE_LG, 0);
     lv_obj_set_style_text_align(tests_info->aging_status, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_set_style_bg_opa(tests_info->aging_status, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_opa(tests_info->aging_status, LV_OPA_TRANSP, 0);

@@ -148,6 +148,17 @@ ROOT_FONT_V1 ?= 0x01
 ROOT_FONT_V2 ?= 0x02
 ROOT_FONT_V3 ?= 0x03
 
+# 产品 UI 语言（编译期 SKU，一次只打进一种语言）
+# 用法: make PRODUCT_LANGUAGE=en  或  make PRODUCT_LANGUAGE=zh
+PRODUCT_LANGUAGE ?= en
+ifeq ($(PRODUCT_LANGUAGE),en)
+PRODUCT_LANGUAGE_USED := 0x00
+else ifeq ($(PRODUCT_LANGUAGE),zh)
+PRODUCT_LANGUAGE_USED := 0x01
+else
+$(error Invalid PRODUCT_LANGUAGE=$(PRODUCT_LANGUAGE), expected en or zh)
+endif
+
 # V3 UI版本
 V3_UI_V2 ?= 0x02
 V3_UI_V3 ?= 0x03
@@ -332,8 +343,20 @@ $(warning Invalid FONT version)
 endif
 ifneq ($(FONT_OVERLAY_SUBDIR),)
 FONT_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/font/$(FONT_OVERLAY_SUBDIR)
+ifeq ($(FONT_OVERLAY_SUBDIR),font_v3)
+# font_v3：common 数字字库 + lang/$(PRODUCT_LANGUAGE) 正文/图片文字，不把其他语言编进固件
+FONT_COMMON_DIR := $(FONT_OVERLAY_DIR)/common
+FONT_LANG_DIR := $(FONT_OVERLAY_DIR)/lang/$(PRODUCT_LANGUAGE)
+ifeq ($(wildcard $(FONT_LANG_DIR)/.),)
+$(error font_v3 language pack not found: $(FONT_LANG_DIR) (PRODUCT_LANGUAGE=$(PRODUCT_LANGUAGE)))
+endif
+FONT_INC_DIRECT_FLAGS := -I$(FONT_OVERLAY_DIR)
+FONT_INC_DIRECT_FLAGS += $(patsubst %,-I%,$(shell find $(FONT_COMMON_DIR) $(FONT_LANG_DIR) -type d))
+FONT_DIRECT_SRCS := $(call rwildcard,$(FONT_COMMON_DIR)) $(call rwildcard,$(FONT_LANG_DIR))
+else
 FONT_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(shell find $(FONT_OVERLAY_DIR) -type d))
 FONT_DIRECT_SRCS := $(call rwildcard,$(FONT_OVERLAY_DIR))
+endif
 endif
 
 
@@ -948,6 +971,8 @@ CPPFLAGS += -DROOT_FONT_VERSION=$(ROOT_FONT_VERSION)
 CPPFLAGS += -DROOT_FONT_V1=$(ROOT_FONT_V1)
 CPPFLAGS += -DROOT_FONT_V2=$(ROOT_FONT_V2)
 CPPFLAGS += -DROOT_FONT_V3=$(ROOT_FONT_V3)
+
+CPPFLAGS += -DPRODUCT_LANGUAGE_USED=$(PRODUCT_LANGUAGE_USED)
 
 CPPFLAGS += -DV3_UX_VERSION=$(V3_UX_VERSION)
 CPPFLAGS += -DV3_UX_V1=$(V3_UX_V1)

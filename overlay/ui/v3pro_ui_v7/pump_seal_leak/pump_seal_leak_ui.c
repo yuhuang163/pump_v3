@@ -25,25 +25,13 @@
 #define PUMP_SEAL_LEAK_CHECK_BG_COLOR                   (0x000000)
 #define PUMP_SEAL_LEAK_TITLE_COLOR                      (0xFFFFFF)
 #define PUMP_SEAL_LEAK_DESC_COLOR                       (0x999999)
-#define PUMP_SEAL_LEAK_TITLE_Y                          (48)
-#define PUMP_SEAL_LEAK_TITLE_LINE_SPACE                 (8)
 #define PUMP_SEAL_LEAK_ICON_Y                           (86)
-#define PUMP_SEAL_LEAK_DESC_Y                           (296)
-#define PUMP_SEAL_LEAK_DESC_LINE_SPACE                  (4)
 /** 第一页（Air Seal Needs Attention）独立布局 */
-#define PUMP_SEAL_LEAK_FIRST_TITLE \
-    "Air Seal Needs\nAttention"
 #define PUMP_SEAL_LEAK_FIRST_ICON_Y                     (104)
-#define PUMP_SEAL_LEAK_FIRST_DESC_Y                     (314)
 
-#define PUMP_SEAL_LEAK_PAUSE_TITLE_Y                    (64)
 #define PUMP_SEAL_LEAK_PAUSE_WAVE_Y                     (136)
 #define PUMP_SEAL_LEAK_PAUSE_ICON_Y                     (136)
-#define PUMP_SEAL_LEAK_PAUSE_HINT_Y                     (204)
-#define PUMP_SEAL_LEAK_PAUSE_HINT_LINE_SPACE            (8)
 #define PUMP_SEAL_LEAK_PAUSE_WAVE_OPA                   (LV_OPA_60)
-#define PUMP_SEAL_LEAK_PAUSE_HINT_TEXT \
-    "Press to resume\nPress and hold to end pumping"
 #define PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_STIMULATION     (0xAD7C89)
 #define PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_LACTATION       (0xB9D9FF)
 #define PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_PROGRAM         (0xB195DF)
@@ -166,9 +154,9 @@ static const char *pump_seal_leak_check_title_get(uint8_t page_index)
         case PUMP_SEAL_LEAK_PAGE_CHECK_FIT:
             return PUMP_SEAL_LEAK_FIRST_TITLE;
         case PUMP_SEAL_LEAK_PAGE_CHECK_TUBING:
-            return "Check Fit";
+            return PUMP_SEAL_LEAK_TITLE_FIT;
         case PUMP_SEAL_LEAK_PAGE_CHECK_CUP:
-            return "Check Cup";
+            return PUMP_SEAL_LEAK_TITLE_CUP;
         default:
             return "";
     }
@@ -178,11 +166,11 @@ static const char *pump_seal_leak_check_desc_get(uint8_t page_index)
 {
     switch (page_index) {
         case PUMP_SEAL_LEAK_PAGE_CHECK_FIT:
-            return "Reinsert tubing firmly";
+            return PUMP_SEAL_LEAK_DESC_TUBING;
         case PUMP_SEAL_LEAK_PAGE_CHECK_TUBING:
-            return "Center the nipple\nSeal flange firmly";
+            return PUMP_SEAL_LEAK_DESC_FLANGE;
         case PUMP_SEAL_LEAK_PAGE_CHECK_CUP:
-            return "Snap rim shut\nSeat duckbill valve";
+            return PUMP_SEAL_LEAK_DESC_CUP;
         default:
             return "";
     }
@@ -224,16 +212,16 @@ static void pump_seal_leak_pause_title_get(pump_seal_leak_ui_info_t *info, char 
 {
     switch (info->pump_mode) {
         case BREAST_PUMP_STIMULATION_MODE:
-            snprintf(buf, buf_len, "Stimulation");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_STIMULATION);
             break;
         case BREAST_PUMP_LACTATION_MODE:
-            snprintf(buf, buf_len, "Expression");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_EXPRESSION);
             break;
         case BREAST_PUMP_MILK_BOOST_MODE:
-            snprintf(buf, buf_len, "Milk Boost");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_MILK_BOOST);
             break;
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
-            snprintf(buf, buf_len, "Power Pumping");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_POWER_PUMPING);
             break;
         case BREAST_PUMP_CUSTOM_MODE:
             snprintf(buf, buf_len, "%s", info->custom_id_str);
@@ -316,7 +304,9 @@ static void pump_seal_leak_page_ctx_release(pump_seal_leak_page_ctx_t *ctx)
             ui_img_png_release_decoded_buf(ctx->bg);
         }
     }
-    if (ctx->icon != NULL && lv_obj_is_valid(ctx->icon)) {
+    if (ctx->shown_icon_id == BASE_RES_ID_CHECK_TUBING_ICON && ctx->icon_buf == NULL) {
+        ui_img_png_release_decoded_buf(ctx->icon);
+    } else if (ctx->icon != NULL && lv_obj_is_valid(ctx->icon)) {
         lv_image_set_src(ctx->icon, NULL);
     }
     if (ctx->play_icon != NULL && lv_obj_is_valid(ctx->play_icon)) {
@@ -328,7 +318,7 @@ static void pump_seal_leak_page_ctx_release(pump_seal_leak_page_ctx_t *ctx)
     if (ctx->icon_buf != NULL) {
         lv_draw_buf_destroy(ctx->icon_buf);
         ctx->icon_buf = NULL;
-    } else {
+    } else if (ctx->shown_icon_id != BASE_RES_ID_CHECK_TUBING_ICON) {
         ui_img_baj_release_decoded_buf(ctx->icon);
         ui_img_baj_release_decoded_buf(ctx->play_icon);
     }
@@ -391,25 +381,36 @@ static void pump_seal_leak_check_page_build(pump_seal_leak_ui_info_t *info, lv_o
     lv_obj_set_style_bg_color(page, lv_color_hex(PUMP_SEAL_LEAK_CHECK_BG_COLOR), 0);
     lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
 
-    ctx->title = pump_seal_leak_label_create(page, &lv_font_aeonik_soft_26_medium,
-        PUMP_SEAL_LEAK_TITLE_COLOR, title_y, title_line_space);
-    EXCEPTION_CHECK_VOID(ctx->title);
-    lv_label_set_text(ctx->title, pump_seal_leak_check_title_get(page_index));
-
     ctx->icon = lv_image_create(page);
     EXCEPTION_CHECK_VOID(ctx->icon);
-    ctx->icon_buf = ui_img_baj_theme_decode_draw_buf(info->ui, icon_id, RES_THEME_TYPE_BASE,
-        UI_IMG_BAJ_DECODE_RGBA8888);
-    if (ctx->icon_buf != NULL) {
-        lv_image_set_src(ctx->icon, ctx->icon_buf);
+    if (icon_id == BASE_RES_ID_CHECK_TUBING_ICON) {
+        ctx->icon_buf = ui_img_png_theme_decode_draw_buf(info->ui, icon_id, RES_THEME_TYPE_BASE,
+            UI_IMG_PNG_DECODE_RGBA8888);
+        if (ctx->icon_buf != NULL) {
+            lv_image_set_src(ctx->icon, ctx->icon_buf);
+        } else {
+            ui_img_png_theme_set_src(info->ui, ctx->icon, icon_id, RES_THEME_TYPE_BASE,
+                UI_IMG_PNG_DECODE_RGBA8888);
+        }
     } else {
-        ui_img_baj_theme_set_src(info->ui, ctx->icon, icon_id, RES_THEME_TYPE_BASE,
+        ctx->icon_buf = ui_img_baj_theme_decode_draw_buf(info->ui, icon_id, RES_THEME_TYPE_BASE,
             UI_IMG_BAJ_DECODE_RGBA8888);
+        if (ctx->icon_buf != NULL) {
+            lv_image_set_src(ctx->icon, ctx->icon_buf);
+        } else {
+            ui_img_baj_theme_set_src(info->ui, ctx->icon, icon_id, RES_THEME_TYPE_BASE,
+                UI_IMG_BAJ_DECODE_RGBA8888);
+        }
     }
     lv_obj_align(ctx->icon, LV_ALIGN_TOP_MID, 0, icon_y);
     ctx->shown_icon_id = icon_id;
 
-    ctx->desc = pump_seal_leak_label_create(page, &lv_font_aeonik_soft_19_medium,
+    ctx->title = pump_seal_leak_label_create(page, UI_FONT_TITLE,
+        PUMP_SEAL_LEAK_TITLE_COLOR, title_y, title_line_space);
+    EXCEPTION_CHECK_VOID(ctx->title);
+    lv_label_set_text(ctx->title, pump_seal_leak_check_title_get(page_index));
+
+    ctx->desc = pump_seal_leak_label_create(page, UI_FONT_HINT,
         PUMP_SEAL_LEAK_DESC_COLOR, desc_y, PUMP_SEAL_LEAK_DESC_LINE_SPACE);
     EXCEPTION_CHECK_VOID(ctx->desc);
     lv_label_set_text(ctx->desc, pump_seal_leak_check_desc_get(page_index));
@@ -457,7 +458,7 @@ static void pump_seal_leak_pause_page_build(pump_seal_leak_ui_info_t *info, lv_o
     ctx->shown_bg_id = bg_id;
 
     pump_seal_leak_pause_title_get(info, title, sizeof(title));
-    ctx->title = pump_seal_leak_label_create(page, &lv_font_aeonik_soft_26_medium,
+    ctx->title = pump_seal_leak_label_create(page, UI_FONT_TITLE,
         PUMP_SEAL_LEAK_TITLE_COLOR, PUMP_SEAL_LEAK_PAUSE_TITLE_Y, 0);
     EXCEPTION_CHECK_VOID(ctx->title);
     lv_label_set_text(ctx->title, title);
@@ -489,7 +490,7 @@ static void pump_seal_leak_pause_page_build(pump_seal_leak_ui_info_t *info, lv_o
     lv_obj_align(ctx->play_icon, LV_ALIGN_TOP_MID, 0, PUMP_SEAL_LEAK_PAUSE_ICON_Y);
     ctx->shown_icon_id = BASE_RES_ID_PLAY_ICON;
 
-    ctx->hint_text = pump_seal_leak_label_create(page, &lv_font_aeonik_soft_19_medium,
+    ctx->hint_text = pump_seal_leak_label_create(page, UI_FONT_HINT,
         hint_color, PUMP_SEAL_LEAK_PAUSE_HINT_Y, PUMP_SEAL_LEAK_PAUSE_HINT_LINE_SPACE);
     EXCEPTION_CHECK_VOID(ctx->hint_text);
     lv_label_set_text(ctx->hint_text, PUMP_SEAL_LEAK_PAUSE_HINT_TEXT);
@@ -498,7 +499,7 @@ static void pump_seal_leak_pause_page_build(pump_seal_leak_ui_info_t *info, lv_o
     ctx->hint_shine.mask_x = (int16_t)(-(int16_t)style.mask_w);
     ctx->hint_shine.mask_tick_ms = get_timestamp();
     ui_shine_prepare_from_text(&ctx->hint_shine, &style, PUMP_SEAL_LEAK_PAUSE_HINT_TEXT,
-        &lv_font_aeonik_soft_19_medium, 0, PUMP_SEAL_LEAK_PAUSE_HINT_LINE_SPACE);
+        UI_FONT_HINT, 0, PUMP_SEAL_LEAK_PAUSE_HINT_LINE_SPACE);
     ui_shine_update(&ctx->hint_shine, page, &style, ctx->hint_text, 1);
     ui_shine_show(&ctx->hint_shine);
 
@@ -509,7 +510,7 @@ static void pump_seal_leak_pause_page_build(pump_seal_leak_ui_info_t *info, lv_o
     ctx->speed_value = lv_label_create(page);
     EXCEPTION_CHECK_VOID(ctx->speed_value);
     lv_obj_set_style_text_color(ctx->speed_value, lv_color_hex(PUMP_SEAL_LEAK_PAUSE_SPEED_COLOR), 0);
-    lv_obj_set_style_text_font(ctx->speed_value, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(ctx->speed_value, UI_FONT_TITLE, 0);
     snprintf(speed_text, sizeof(speed_text), "%u", (unsigned)(info->speed + 1));
     lv_label_set_text(ctx->speed_value, speed_text);
     lv_obj_update_layout(ctx->speed_icon);
@@ -531,7 +532,7 @@ static void pump_seal_leak_pause_page_build(pump_seal_leak_ui_info_t *info, lv_o
     lv_label_set_long_mode(ctx->left_level, LV_LABEL_LONG_CLIP);
     lv_obj_set_width(ctx->left_level, PUMP_SEAL_LEAK_PAUSE_LEFT_LEVEL_W);
     lv_obj_set_style_text_color(ctx->left_level, lv_color_hex(PUMP_SEAL_LEAK_PAUSE_LEVEL_COLOR), 0);
-    lv_obj_set_style_text_font(ctx->left_level, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(ctx->left_level, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(ctx->left_level, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_set_style_text_letter_space(ctx->left_level, 3, 0);
     snprintf(level_text, sizeof(level_text), "L%u", (unsigned)info->left_level);
@@ -544,7 +545,7 @@ static void pump_seal_leak_pause_page_build(pump_seal_leak_ui_info_t *info, lv_o
     lv_label_set_long_mode(ctx->right_level, LV_LABEL_LONG_CLIP);
     lv_obj_set_width(ctx->right_level, PUMP_SEAL_LEAK_PAUSE_RIGHT_LEVEL_W);
     lv_obj_set_style_text_color(ctx->right_level, lv_color_hex(PUMP_SEAL_LEAK_PAUSE_LEVEL_COLOR), 0);
-    lv_obj_set_style_text_font(ctx->right_level, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(ctx->right_level, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(ctx->right_level, LV_TEXT_ALIGN_LEFT, 0);
     lv_obj_set_style_text_letter_space(ctx->right_level, 3, 0);
     snprintf(level_text, sizeof(level_text), "R%u", (unsigned)info->right_level);

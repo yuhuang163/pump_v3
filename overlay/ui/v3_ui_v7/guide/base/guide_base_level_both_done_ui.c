@@ -12,7 +12,6 @@
 /** 与第九页同布局；背景/标题随第十二页模式；力度继承第十七页；速度 ICON/值 1Hz 闪烁 */
 #define GUIDE_LEVEL_BOTH_DONE_SCREEN_W                  (360)
 
-#define GUIDE_LEVEL_BOTH_DONE_MODE_TITLE_Y              (64 + 4)
 #define GUIDE_LEVEL_BOTH_DONE_MODE_TITLE_COLOR          (0xFFFFFF)
 
 #define GUIDE_LEVEL_BOTH_DONE_TIME_DIGIT_COUNT          (2)
@@ -63,17 +62,17 @@ static void guide_level_both_done_title_get(uint8_t mode, char *buf, size_t buf_
     }
     switch (mode) {
         case BREAST_PUMP_LACTATION_MODE:
-            snprintf(buf, buf_len, "Expression");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_EXPRESSION);
             break;
         case BREAST_PUMP_MILK_BOOST_MODE:
-            snprintf(buf, buf_len, "Milk Boost");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_MILK_BOOST);
             break;
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
-            snprintf(buf, buf_len, "Power Pumping");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_POWER_PUMPING);
             break;
         case BREAST_PUMP_STIMULATION_MODE:
         default:
-            snprintf(buf, buf_len, "Stimulation");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_STIMULATION);
             break;
     }
 }
@@ -163,7 +162,7 @@ static void guide_level_both_done_title_create(guide_base_ui_info_t *info, uint8
         lv_obj_set_style_text_color(info->level_both_done.mode_title,
             lv_color_hex(GUIDE_LEVEL_BOTH_DONE_MODE_TITLE_COLOR), 0);
         lv_obj_set_style_text_font(info->level_both_done.mode_title,
-            &lv_font_aeonik_soft_26_medium, 0);
+            UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(info->level_both_done.mode_title, LV_TEXT_ALIGN_CENTER, 0);
     }
     lv_label_set_text(info->level_both_done.mode_title, title);
@@ -188,7 +187,7 @@ static void guide_level_both_done_time_pair_create(
             lv_obj_set_style_text_align(labels[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_text_color(labels[i],
                 lv_color_hex(GUIDE_LEVEL_BOTH_DONE_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(labels[i], &lv_font_aeonik_soft_69_semibold, 0);
+            lv_obj_set_style_text_font(labels[i], UI_FONT_NUM_LG, 0);
             lv_obj_set_style_text_letter_space(labels[i], 0, 0);
         }
         digit_text[0] = (char)('0' + (i == 0 ? value / 10 : value % 10));
@@ -245,7 +244,7 @@ static void guide_level_both_done_speed_create(guide_base_ui_info_t *info)
         lv_obj_set_style_text_color(info->level_both_done.speed_value,
             lv_color_hex(GUIDE_LEVEL_BOTH_DONE_SPEED_COLOR), 0);
         lv_obj_set_style_text_font(info->level_both_done.speed_value,
-            &lv_font_aeonik_soft_26_medium, 0);
+            UI_FONT_TITLE, 0);
     }
 
     snprintf(speed_text, sizeof(speed_text), "%u",
@@ -279,7 +278,7 @@ static void guide_level_both_done_level_create(lv_obj_t **label, lv_obj_t *paren
         lv_label_set_long_mode(*label, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(*label, width);
         lv_obj_set_style_text_color(*label, lv_color_hex(GUIDE_LEVEL_BOTH_DONE_LEVEL_COLOR), 0);
-        lv_obj_set_style_text_font(*label, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(*label, UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(*label, align, 0);
         lv_obj_set_style_text_letter_space(*label, 3, 0);
     }
@@ -294,10 +293,10 @@ static void guide_level_both_done_levels_create(guide_base_ui_info_t *info,
     lv_obj_t *parent = guide_page_parent_get(info);
 
     EXCEPTION_CHECK_VOID(parent);
-    guide_level_both_done_level_create(&info->level_both_done.left_level, parent, "L",
+    guide_level_both_done_level_create(&info->level_both_done.left_level, parent, UI_STR_SIDE_L,
         left_level, GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_X, GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_Y,
         GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_W, LV_TEXT_ALIGN_RIGHT);
-    guide_level_both_done_level_create(&info->level_both_done.right_level, parent, "R",
+    guide_level_both_done_level_create(&info->level_both_done.right_level, parent, UI_STR_SIDE_R,
         right_level, GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_X, GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_Y,
         GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_W, LV_TEXT_ALIGN_LEFT);
 }

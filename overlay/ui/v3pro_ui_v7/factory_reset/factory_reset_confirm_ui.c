@@ -15,12 +15,8 @@
 #define FACTORY_RESET_CONFIRM_ARC_DONE_COLOR          (0xF3F4FF)
 
 #define FACTORY_RESET_CONFIRM_ICON_Y                  (73)
-#define FACTORY_RESET_CONFIRM_TITLE_Y                 (179)
-#define FACTORY_RESET_CONFIRM_HINT_Y                  (221)
 #define FACTORY_RESET_CONFIRM_TITLE_COLOR             (0xFFFFFF)
 #define FACTORY_RESET_CONFIRM_HINT_COLOR              (0x999999)
-#define FACTORY_RESET_CONFIRM_TITLE_TEXT              "Reset settings"
-#define FACTORY_RESET_CONFIRM_HINT_TEXT               "Press and hold knob\nfor 3s"
 
 /** 长按倒计时（文案为 3s/2s/1s） */
 #define FACTORY_RESET_CONFIRM_DURATION_MS             (2000)
@@ -118,7 +114,7 @@ static void ui_factory_reset_confirm_text_update(void)
     lv_label_set_text(ui_info->title, FACTORY_RESET_CONFIRM_TITLE_TEXT);
     lv_obj_set_style_text_color(ui_info->title,
         lv_color_hex(FACTORY_RESET_CONFIRM_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(ui_info->title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(ui_info->title, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(ui_info->title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(ui_info->title, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_CONFIRM_TITLE_Y);
 
@@ -129,7 +125,7 @@ static void ui_factory_reset_confirm_text_update(void)
     lv_label_set_text(ui_info->hint, FACTORY_RESET_CONFIRM_HINT_TEXT);
     lv_obj_set_style_text_color(ui_info->hint,
         lv_color_hex(FACTORY_RESET_CONFIRM_HINT_COLOR), 0);
-    lv_obj_set_style_text_font(ui_info->hint, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(ui_info->hint, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(ui_info->hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_line_space(ui_info->hint, 4, 0);
     lv_obj_align(ui_info->hint, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_CONFIRM_HINT_Y);

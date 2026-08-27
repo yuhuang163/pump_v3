@@ -15,11 +15,7 @@
 #define PUMP_PAUSE_TIMEOUT_ARC_DONE_COLOR             (0xEF4C4E)
 
 #define PUMP_PAUSE_TIMEOUT_ICON_Y                     (77)
-#define PUMP_PAUSE_TIMEOUT_TITLE1_Y                   (183 + 2)
-#define PUMP_PAUSE_TIMEOUT_TITLE_GAP                  (10 + 2)
 #define PUMP_PAUSE_TIMEOUT_TITLE_COLOR                (0xFFFFFF)
-#define PUMP_PAUSE_TIMEOUT_TITLE1_TEXT                "Pumping Ended"
-#define PUMP_PAUSE_TIMEOUT_TITLE2_TEXT                "Automatically\nending..."
 
 /** 页面展示倒计时（与 finish_timeout 一致，文案为 3s/2s/1s） */
 #define PUMP_PAUSE_TIMEOUT_DURATION_MS                (2000)
@@ -109,7 +105,7 @@ static void pump_pause_timeout_title_update(void)
     }
     lv_label_set_text(pause_info->title1, PUMP_PAUSE_TIMEOUT_TITLE1_TEXT);
     lv_obj_set_style_text_color(pause_info->title1, lv_color_hex(PUMP_PAUSE_TIMEOUT_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(pause_info->title1, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(pause_info->title1, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(pause_info->title1, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(pause_info->title1, LV_ALIGN_TOP_MID, 0, PUMP_PAUSE_TIMEOUT_TITLE1_Y);
     lv_obj_set_style_text_line_space(pause_info->title1, 8, 0);
@@ -120,7 +116,7 @@ static void pump_pause_timeout_title_update(void)
     }
     lv_label_set_text(pause_info->title2, PUMP_PAUSE_TIMEOUT_TITLE2_TEXT);
     lv_obj_set_style_text_color(pause_info->title2, lv_color_hex(PUMP_PAUSE_TIMEOUT_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(pause_info->title2, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(pause_info->title2, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(pause_info->title2, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align_to(pause_info->title2, pause_info->title1, LV_ALIGN_OUT_BOTTOM_MID,
         0, PUMP_PAUSE_TIMEOUT_TITLE_GAP);

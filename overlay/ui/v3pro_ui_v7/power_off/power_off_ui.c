@@ -18,13 +18,8 @@
 #define PROGRESS_ARC_LOOP_MS_PER_DEG            (3)    /* ms per degree，越小转得越快（原15约5.4s/圈，现约2.2s/圈） */
 #define PROGRESS_ARC_ANGLE_SPAN                 (90)   /* 25% of 360 */
 #define PROGRESS_ARC_TEXT_COLOR                 (0xFFFFFF)    /* 圆弧颜色：粉色 */
-#define PROGRESS_ARC_TEXT_LINE_SPACE            (8)           /* 多行文案行间距 */
 
-#define POWER_OFF_TEXT_POWERING_OFF_STR         "Powering off..."
-#define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR        "Auto Powering Off..."
-#define POWER_OFF_TEXT_LOW_POWER_STR            "Battery to low to\npower off..."
 #define PROGRESS_ARC_Y                          (121)
-#define POWER_OFF_TEXT_LOW_POWER_SHIFT_Y        (19)    /* 低电双行文案时整体上移 */
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -148,7 +143,7 @@ static void ui_power_off_update(ui_manager_context_t *thiz, power_off_text_type_
     }
 
     lv_label_set_text(ui_info->label_text, ui_power_off_text_get(text_type));
-    lv_obj_set_style_text_font(ui_info->label_text, &lv_font_aeonik_soft_29_medium, 0);
+    lv_obj_set_style_text_font(ui_info->label_text, UI_FONT_TITLE_MD, 0);
     lv_obj_set_style_text_color(ui_info->label_text, lv_color_hex(PROGRESS_ARC_TEXT_COLOR), 0);
     lv_obj_set_style_text_align(ui_info->label_text, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_line_space(ui_info->label_text, PROGRESS_ARC_TEXT_LINE_SPACE, 0);

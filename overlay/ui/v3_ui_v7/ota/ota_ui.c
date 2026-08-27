@@ -30,17 +30,12 @@
 #define OTA_PROGRESS_ARC_ELAPSED_CLAMP_MS           (40)
 
 #define OTA_DOWNLOAD_ICON_Y                         (90)
-#define OTA_DOWNLOAD_TITLE_Y                        (196)
 #define OTA_DOWNLOAD_PERCENT_Y                      (238)
 #define OTA_DOWNLOAD_SIZE_Y                         (300)
 
 #define OTA_SUCCESS_ICON_Y                          (106)
-#define OTA_SUCCESS_TITLE_Y                         (212)
-#define OTA_SUCCESS_LINE_SPACE                      (8)
 
 #define OTA_ERROR_ICON_Y                            (106)
-#define OTA_ERROR_TITLE_Y                           (212)
-#define OTA_ERROR_LINE_SPACE                        (8)
 
 typedef struct {
     lv_obj_t * root;
@@ -94,38 +89,38 @@ static PSRAM_DATA_LOC uint8_t factory_reset_confirm_bg_data[] = {
 #endif
 
 const static ota_text_info_t ota_res_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Resource upgrading",
-        &lv_font_aeonik_soft_26_medium, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
+    {OTA_RES_UPGRADING_TEXT,
+        UI_FONT_TITLE, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
     {"",
-        &lv_font_aeonik_soft_26_medium, 0, 0, 0}
+        UI_FONT_TITLE, 0, 0, 0}
 };
 
 const static ota_text_info_t ota_app_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Firmware upgrading",
-        &lv_font_aeonik_soft_26_medium, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
+    {OTA_FW_UPGRADING_TEXT,
+        UI_FONT_TITLE, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
     {"",
-        &lv_font_aeonik_soft_26_medium, 0, 0, 0}
+        UI_FONT_TITLE, 0, 0, 0}
 };
 
 const static ota_text_info_t ota_hw_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Hardware upgrading",
-        &lv_font_aeonik_soft_26_medium, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
+    {OTA_HW_UPGRADING_TEXT,
+        UI_FONT_TITLE, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
     {"",
-        &lv_font_aeonik_soft_26_medium, 0, 0, 0}
+        UI_FONT_TITLE, 0, 0, 0}
 };
 
 const static ota_text_info_t ota_error_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Upgrade failed",
-        &lv_font_aeonik_soft_33_medium, OTA_TITLE_TEXT_COLOR, OTA_ERROR_TITLE_Y, OTA_ERROR_LINE_SPACE},
+    {OTA_UPGRADE_FAILED_TEXT,
+        UI_FONT_TITLE_LG, OTA_TITLE_TEXT_COLOR, OTA_ERROR_TITLE_Y, OTA_ERROR_LINE_SPACE},
     {"",
-        &lv_font_aeonik_soft_33_medium, 0, 0, 0}
+        UI_FONT_TITLE_LG, 0, 0, 0}
 };
 
 const static ota_text_info_t ota_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
-    {"Upgrade completed",
-        &lv_font_aeonik_soft_33_medium, OTA_TITLE_TEXT_COLOR, OTA_SUCCESS_TITLE_Y, OTA_SUCCESS_LINE_SPACE},
+    {OTA_UPGRADE_COMPLETED_TEXT,
+        UI_FONT_TITLE_LG, OTA_TITLE_TEXT_COLOR, OTA_SUCCESS_TITLE_Y, OTA_SUCCESS_LINE_SPACE},
     {"",
-        &lv_font_aeonik_soft_33_medium, 0, 0, 0}
+        UI_FONT_TITLE_LG, 0, 0, 0}
 };
 
 /*
@@ -253,7 +248,7 @@ static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t progr
         ota_info->ota_percent = lv_label_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->ota_percent);
     }
-    lv_obj_set_style_text_font(ota_info->ota_percent, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(ota_info->ota_percent, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_color(ota_info->ota_percent, lv_color_hex(OTA_PERCENT_TEXT_COLOR), 0);
     lv_obj_set_style_text_align(ota_info->ota_percent, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_clear_flag(ota_info->ota_percent, LV_OBJ_FLAG_HIDDEN);
@@ -353,7 +348,7 @@ static void ui_ota_size_update(ui_manager_context_t *thiz, uint32_t total_size, 
         ota_info->ota_size = lv_label_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->ota_size);
     }
-    lv_obj_set_style_text_font(ota_info->ota_size, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_font(ota_info->ota_size, UI_FONT_HINT, 0);
     lv_obj_set_style_text_color(ota_info->ota_size, lv_color_hex(OTA_SIZE_TEXT_COLOR), 0);
     lv_obj_set_style_text_align(ota_info->ota_size, LV_TEXT_ALIGN_CENTER, 0);
 

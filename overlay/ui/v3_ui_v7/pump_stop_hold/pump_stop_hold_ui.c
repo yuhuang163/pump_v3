@@ -17,9 +17,7 @@
 #define PUMP_STOP_HOLD_ARC_DONE_COLOR               (0xEF4C4E)
 
 #define PUMP_STOP_HOLD_ICON_Y                       (94)
-#define PUMP_STOP_HOLD_TITLE_Y                      (200)
 #define PUMP_STOP_HOLD_TITLE_COLOR                  (0xFFFFFF)
-#define PUMP_STOP_HOLD_TITLE_TEXT                   "Press and hold to\nend pumping."
 
 /** 页面展示倒计时（LONG_2S 后再持续约 2s，文案为 3s/2s/1s） */
 #define PUMP_STOP_HOLD_DURATION_MS                  (2000)
@@ -152,7 +150,7 @@ static void pump_stop_hold_title_update(void)
     }
     lv_label_set_text(hold_info->title, PUMP_STOP_HOLD_TITLE_TEXT);
     lv_obj_set_style_text_color(hold_info->title, lv_color_hex(PUMP_STOP_HOLD_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(hold_info->title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(hold_info->title, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(hold_info->title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_line_space(hold_info->title, 8, 0);
     lv_obj_align(hold_info->title, LV_ALIGN_TOP_MID, 0, PUMP_STOP_HOLD_TITLE_Y);

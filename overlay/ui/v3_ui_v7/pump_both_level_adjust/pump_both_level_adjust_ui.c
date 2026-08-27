@@ -60,23 +60,14 @@
 
 #define PUMP_BOTH_LEVEL_DIR_W                       (150)
 #define PUMP_BOTH_LEVEL_DIR_H                       (34)
-#define PUMP_BOTH_LEVEL_DIR_Y                       (203)
 #define PUMP_BOTH_LEVEL_DIR_LEFT_X                  (29)
 #define PUMP_BOTH_LEVEL_DIR_RIGHT_X                 (179)
 #define PUMP_BOTH_LEVEL_DIR_COLOR                   (0x999999)
-#define PUMP_BOTH_LEVEL_DIR_LEFT_TEXT               "L"
-#define PUMP_BOTH_LEVEL_DIR_RIGHT_TEXT              "R"
 
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_W                (220)
 #define PUMP_BOTH_LEVEL_OVER_LIMIT_H                (50)
-#define PUMP_BOTH_LEVEL_OVER_LIMIT_Y                (60)
-#define PUMP_BOTH_LEVEL_OVER_LIMIT_LINE_SPACE       (8)
-#define PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT \
-    "For safety,\nUp to 3 levels at a time."
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_W              (PANLE_DISPLAY_W)
 #define PUMP_BOTH_LEVEL_MODE_SWITCH_H              (34)
-#define PUMP_BOTH_LEVEL_MODE_SWITCH_Y              (78)
-#define PUMP_BOTH_LEVEL_MODE_SWITCH_TEXT_FMT        "Switch to %s"
 
 /** 泵奶时间组件参数与 pump_speed_adjust_ui 一致 */
 #define PUMP_BOTH_LEVEL_TIME_DIGIT_COUNT                 (2)
@@ -459,7 +450,7 @@ static void pump_both_level_value_update(ui_proc_pump_t *proc)
         lv_obj_set_style_text_color(pump_both_info->value_label[i],
             lv_color_hex(PUMP_BOTH_LEVEL_VALUE_COLOR), 0);
         lv_obj_set_style_text_font(pump_both_info->value_label[i],
-            &lv_font_aeonik_soft_69_semibold, 0);
+            UI_FONT_NUM_LG, 0);
         lv_obj_set_style_text_align(pump_both_info->value_label[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_center(pump_both_info->value_label[i]);
         pump_both_info->shown_level[i] = proc->both_level_value[i];
@@ -505,7 +496,7 @@ static void pump_both_level_dir_update(void)
         lv_obj_set_style_text_color(pump_both_info->dir_label[i],
             lv_color_hex(PUMP_BOTH_LEVEL_DIR_COLOR), 0);
         lv_obj_set_style_text_font(pump_both_info->dir_label[i],
-            &lv_font_aeonik_soft_26_medium, 0);
+            UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(pump_both_info->dir_label[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_center(pump_both_info->dir_label[i]);
     }
@@ -530,7 +521,7 @@ static void pump_both_level_mode_switch_update(ui_proc_pump_t *proc, uint32_t ac
         pump_both_info->mode_switch_label = lv_label_create(pump_both_info->mode_switch_box);
         EXCEPTION_CHECK_VOID(pump_both_info->mode_switch_label);
         lv_obj_set_style_text_font(pump_both_info->mode_switch_label,
-            &lv_font_aeonik_soft_26_medium, 0);
+            UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(pump_both_info->mode_switch_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_width(pump_both_info->mode_switch_label, PUMP_BOTH_LEVEL_MODE_SWITCH_W);
         lv_obj_center(pump_both_info->mode_switch_label);
@@ -572,7 +563,7 @@ static void pump_both_level_over_limit_update(ui_proc_pump_t *proc, uint32_t col
         pump_both_info->over_limit_label = lv_label_create(pump_both_info->over_limit_box);
         EXCEPTION_CHECK_VOID(pump_both_info->over_limit_label);
         lv_obj_set_style_text_font(pump_both_info->over_limit_label,
-            &lv_font_aeonik_soft_19_medium, 0);
+            UI_FONT_HINT, 0);
         lv_obj_set_style_text_align(pump_both_info->over_limit_label, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_width(pump_both_info->over_limit_label, PUMP_BOTH_LEVEL_OVER_LIMIT_W);
         lv_obj_center(pump_both_info->over_limit_label);
@@ -622,7 +613,7 @@ static void pump_both_level_time_pair_update(lv_obj_t *labels[PUMP_BOTH_LEVEL_TI
             lv_label_set_long_mode(labels[i], LV_LABEL_LONG_CLIP);
             lv_obj_set_style_text_align(labels[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_text_color(labels[i], lv_color_hex(PUMP_BOTH_LEVEL_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(labels[i], &lv_font_aeonik_soft_26_medium, 0);
+            lv_obj_set_style_text_font(labels[i], UI_FONT_TITLE, 0);
             lv_obj_set_style_text_letter_space(labels[i], 0, 0);
         }
         digit_text[0] = (char)('0' + (i == 0 ? value / 10 : value % 10));
@@ -670,7 +661,7 @@ static void pump_both_level_time_colon_ensure(void)
             lv_obj_set_style_text_color(pump_both_info->time_colon[i],
                 lv_color_hex(PUMP_BOTH_LEVEL_TIME_COLOR), 0);
             lv_obj_set_style_text_font(pump_both_info->time_colon[i],
-                &lv_font_aeonik_soft_26_medium, 0);
+                UI_FONT_TITLE, 0);
             lv_obj_set_style_text_align(pump_both_info->time_colon[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_label_set_text(pump_both_info->time_colon[i], ":");
         }

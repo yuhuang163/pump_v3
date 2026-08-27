@@ -27,13 +27,7 @@
 #define HOME_LEVEL_VALUE_Y                          (127)
 #define HOME_LEVEL_VALUE_COLOR                      (0xFFFFFF)
 
-#define HOME_LEVEL_DIR_Y                            (210)
 #define HOME_LEVEL_DIR_COLOR                        (0x999999)
-#define HOME_LEVEL_DIR_LINE_SPACE                   (8)
-#define HOME_LEVEL_DIR_LEFT_TEXT                    "Left Level"
-#define HOME_LEVEL_DIR_RIGHT_TEXT                   "Right Level"
-#define HOME_LEVEL_OVER_LIMIT_TEXT                  "For safety,\nUp to 3 levels at a time."
-#define HOME_LEVEL_MODE_SWITCH_TEXT_FMT             "Switch to %s"
 
 #define HOME_LEVEL_TIP_H                            (63)
 /** 底部提示图 Y：贴底留边（与 home 模式选择页一致） */
@@ -218,7 +212,7 @@ static void home_level_value_update(ui_proc_home_t *proc)
     lv_label_set_text(level_info->value_label, num_buf);
     lv_obj_set_style_text_color(level_info->value_label,
         lv_color_hex(HOME_LEVEL_VALUE_COLOR), 0);
-    lv_obj_set_style_text_font(level_info->value_label, &lv_font_aeonik_soft_69_semibold, 0);
+    lv_obj_set_style_text_font(level_info->value_label, UI_FONT_NUM_LG, 0);
     lv_obj_set_style_text_align(level_info->value_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(level_info->value_label, LV_ALIGN_TOP_MID, 0, HOME_LEVEL_VALUE_Y);
     level_info->shown_level = proc->level_value;
@@ -259,21 +253,21 @@ static void home_level_dir_update(ui_proc_home_t *proc, uint32_t accent_color)
     if (proc->level_over_limit) {
         text = HOME_LEVEL_OVER_LIMIT_TEXT;
         color = accent_color;
-        font = &lv_font_aeonik_soft_22_medium;
+        font = UI_FONT_BODY_SM;
     } else if (mode_switch) {
         snprintf(switch_buf, sizeof(switch_buf), HOME_LEVEL_MODE_SWITCH_TEXT_FMT,
             home_level_adjust_mode_type_name_get(proc->sub_mode_type));
         text = switch_buf;
         color = accent_color;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     } else if (proc->level_adjust_side == HOME_LEVEL_ADJUST_SIDE_RIGHT) {
         text = HOME_LEVEL_DIR_RIGHT_TEXT;
         color = HOME_LEVEL_DIR_COLOR;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     } else {
         text = HOME_LEVEL_DIR_LEFT_TEXT;
         color = HOME_LEVEL_DIR_COLOR;
-        font = &lv_font_aeonik_soft_26_medium;
+        font = UI_FONT_TITLE;
     }
 
     lv_label_set_text(level_info->dir_label, text);
@@ -383,15 +377,15 @@ const char *home_level_adjust_mode_type_name_get(uint8_t mode_type)
 {
     switch (mode_type) {
         case PUMP_MODE_STIMULATION:
-            return "Stimulation";
+            return UI_STR_MODE_STIMULATION;
         case PUMP_MODE_LACTATION:
-            return "Expression";
+            return UI_STR_MODE_EXPRESSION;
         case PUMP_MODE_MIX:
-            return "Mixed";
+            return UI_STR_MODE_MIXED;
         case PUMP_MODE_IDLE:
-            return "Relax";
+            return UI_STR_MODE_RELAX;
         default:
-            return "Expression";
+            return UI_STR_MODE_EXPRESSION;
     }
 }
 

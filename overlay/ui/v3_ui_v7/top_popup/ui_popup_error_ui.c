@@ -8,10 +8,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define SYS_ERROR_TITLE_Y                                 (192)
-#define SYS_ERROR_TEXT_Y                                  (232)
-#define TEMP_ERROR_TITLE_Y                                (192)
-#define TEMP_ERROR_TEXT_Y                                 (232)
 #define POPUP_WINDOW_ERROR_ICON_Y                         (110)
 
 #define POPUP_WINDOW_ERROR_TITLE_COLOR                    (0xFFFFFF)
@@ -22,17 +18,17 @@
 *****************************************************************************************
 */
 const static popup_window_text_info_t sys_error_infos[POPUP_WINDOW_TEXT_COUNT] = {
-    { "System error", 0, SYS_ERROR_TITLE_Y,
-        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_ERROR_TITLE_COLOR, 0},
-    { "Press and hold knob 10s\nto restart", 0, SYS_ERROR_TEXT_Y,
-        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_ERROR_TEXT_COLOR, 4},
+    { SYS_ERROR_TITLE_TEXT, 0, SYS_ERROR_TITLE_Y,
+        UI_FONT_HINT, LV_OPA_100, POPUP_WINDOW_ERROR_TITLE_COLOR, 0},
+    { SYS_ERROR_CONTENT_TEXT, 0, SYS_ERROR_TEXT_Y,
+        UI_FONT_HINT, LV_OPA_100, POPUP_WINDOW_ERROR_TEXT_COLOR, 4},
 };
 
 const static popup_window_text_info_t temp_error_infos[POPUP_WINDOW_TEXT_COUNT] = {
-    { "High battery temperature", 0, TEMP_ERROR_TITLE_Y,
-        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_ERROR_TITLE_COLOR, 0},
-    { "Device suspended", 0, TEMP_ERROR_TEXT_Y,
-        &lv_font_aeonik_soft_19_medium, LV_OPA_100, POPUP_WINDOW_ERROR_TEXT_COLOR, 0},
+    { TEMP_ERROR_TITLE_TEXT, 0, TEMP_ERROR_TITLE_Y,
+        UI_FONT_HINT, LV_OPA_100, POPUP_WINDOW_ERROR_TITLE_COLOR, 0},
+    { TEMP_ERROR_CONTENT_TEXT, 0, TEMP_ERROR_TEXT_Y,
+        UI_FONT_HINT, LV_OPA_100, POPUP_WINDOW_ERROR_TEXT_COLOR, 0},
 };
 
 /*

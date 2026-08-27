@@ -24,25 +24,20 @@
 
 /** 刺激：ICON / 文案 / 时间 */
 #define HOME_MODE_PAGE_STIM_ICON_Y                  (87)
-#define HOME_MODE_PAGE_STIM_TITLE_Y                 (195)
 #define HOME_MODE_PAGE_STIM_DURATION_Y              (242)
 /** 吸乳：ICON / 文案 / 时间 */
 #define HOME_MODE_PAGE_EXPR_ICON_Y                  (89)
-#define HOME_MODE_PAGE_EXPR_TITLE_Y                 (195)
 #define HOME_MODE_PAGE_EXPR_DURATION_Y              (242)
 /** 韵律单行：ICON / 文案 / 时间 */
 #define HOME_MODE_PAGE_RHYTHM_1L_ICON_Y             (88)
-#define HOME_MODE_PAGE_RHYTHM_1L_TITLE_Y            (195)
 #define HOME_MODE_PAGE_RHYTHM_1L_DURATION_Y         (242)
 /** 韵律两行：ICON / 文案 / 时间 */
 #define HOME_MODE_PAGE_RHYTHM_2L_ICON_Y             (67)
-#define HOME_MODE_PAGE_RHYTHM_2L_TITLE_Y            (168)
 #define HOME_MODE_PAGE_RHYTHM_2L_DURATION_Y         (262)
 
 #define HOME_MODE_PAGE_TITLE_COLOR                  (0xFFFFFF)
 #define HOME_MODE_PAGE_DURATION_COLOR               (0x999999)
 /** 模式标题单行超宽则换行；换行后按单/双行固定坐标排 ICON / 时间文案 */
-#define HOME_MODE_PAGE_TITLE_MAX_W                  (300)
 /** 标题最长 32 字符；超出则裁进 shown 并启用 "..." */
 #define HOME_MODE_PAGE_TITLE_MAX_CHARS              (32 - 6)
 #define HOME_MODE_PAGE_TITLE_BUF_LEN                (HOME_MODE_PAGE_TITLE_MAX_CHARS + 1)
@@ -144,17 +139,17 @@ static void home_mode_page_title_get(home_base_ui_info_t *info, uint8_t mode, ch
 
     switch (mode) {
         case BREAST_PUMP_STIMULATION_MODE:
-            snprintf(buf, buf_len, "Stimulation");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_STIMULATION);
             break;
         case BREAST_PUMP_LACTATION_MODE:
-            snprintf(buf, buf_len, "Expression");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_EXPRESSION);
             break;
         case BREAST_PUMP_MILK_BOOST_MODE:
-            snprintf(buf, buf_len, "Milk Boost");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_MILK_BOOST);
             break;
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
             // snprintf(buf, buf_len, "Power Pumping Power Pumping Expression Milk Boost");
-            snprintf(buf, buf_len, "Power Pumping");
+            snprintf(buf, buf_len, "%s", UI_STR_MODE_POWER_PUMPING);
             break;
         case BREAST_PUMP_CUSTOM_MODE:
             snprintf(buf, buf_len, "%s", info->mode.custom_id_str);
@@ -724,7 +719,7 @@ static void home_mode_page_title_build(home_base_ui_info_t *info, home_base_mode
         ctx->title = lv_label_create(parent);
         EXCEPTION_CHECK_VOID(ctx->title);
         lv_obj_set_style_text_color(ctx->title, lv_color_hex(HOME_MODE_PAGE_TITLE_COLOR), 0);
-        lv_obj_set_style_text_font(ctx->title, &lv_font_aeonik_soft_33_medium, 0);
+        lv_obj_set_style_text_font(ctx->title, UI_FONT_TITLE_LG, 0);
         lv_obj_set_style_text_align(ctx->title, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(ctx->title, 0, 0);
     }
@@ -790,7 +785,7 @@ static void home_mode_page_duration_build(home_base_ui_info_t *info, home_base_m
         ctx->duration = lv_label_create(parent);
         EXCEPTION_CHECK_VOID(ctx->duration);
         lv_obj_set_style_text_color(ctx->duration, lv_color_hex(HOME_MODE_PAGE_DURATION_COLOR), 0);
-        lv_obj_set_style_text_font(ctx->duration, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(ctx->duration, UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(ctx->duration, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(ctx->duration, 0, 0);
     }
@@ -1007,7 +1002,7 @@ void home_mode_page_transition_apply(lv_obj_t *page, int32_t hero_scale, bool tr
     home_mode_page_obj_scale_set(ctx->icon, hero_scale);
     if (ctx->title != NULL && lv_obj_is_valid(ctx->title)) {
         const lv_font_t *font = small ?
-            &lv_font_aeonik_soft_29_medium : &lv_font_aeonik_soft_33_medium;
+            UI_FONT_TITLE_MD : UI_FONT_TITLE_LG;
 
         home_mode_page_obj_scale_set(ctx->title, HOME_MODE_PAGE_SCALE_FULL);
         lv_obj_set_style_text_font(ctx->title, font, 0);

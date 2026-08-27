@@ -20,11 +20,7 @@
 #define POWER_ON_HOLD_ARC_DONE_COLOR              (0xF3F4FF)
 
 #define POWER_ON_HOLD_ICON_Y                      (56)
-#define POWER_ON_HOLD_LINE1_Y                     (238)
-#define POWER_ON_HOLD_LINE_GAP                    (8)
 #define POWER_ON_HOLD_TEXT_COLOR                  (0xFFFFFF)
-#define POWER_ON_HOLD_LINE1_TEXT                  "Press and hold for"
-#define POWER_ON_HOLD_LINE2_TEXT                  "#E2637E 2s# to power on"
 
 /** 长按倒计时（文案为 2s/1s） */
 #define POWER_ON_HOLD_DURATION_MS                 (2000)
@@ -121,7 +117,7 @@ static void ui_power_on_hold_text_update(void)
     }
     lv_label_set_text(ui_info->line1, POWER_ON_HOLD_LINE1_TEXT);
     lv_obj_set_style_text_color(ui_info->line1, lv_color_hex(POWER_ON_HOLD_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(ui_info->line1, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(ui_info->line1, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(ui_info->line1, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(ui_info->line1, LV_ALIGN_TOP_MID, 0, POWER_ON_HOLD_LINE1_Y);
 
@@ -132,7 +128,7 @@ static void ui_power_on_hold_text_update(void)
     lv_label_set_recolor(ui_info->line2, true);
     lv_label_set_text(ui_info->line2, POWER_ON_HOLD_LINE2_TEXT);
     lv_obj_set_style_text_color(ui_info->line2, lv_color_hex(POWER_ON_HOLD_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(ui_info->line2, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(ui_info->line2, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(ui_info->line2, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align_to(ui_info->line2, ui_info->line1, LV_ALIGN_OUT_BOTTOM_MID, 0,
         POWER_ON_HOLD_LINE_GAP);

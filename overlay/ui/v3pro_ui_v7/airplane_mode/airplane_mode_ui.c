@@ -15,16 +15,11 @@
 #define AIRPLANE_MODE_ARC_DONE_COLOR                      (0xF3F4FF)
 
 #define AIRPLANE_MODE_LOCK_ICON_Y                         (33)
-#define AIRPLANE_MODE_TITLE_Y                             (139)
-#define AIRPLANE_MODE_HINT_Y                              (181)
 #define AIRPLANE_MODE_TITLE_COLOR                         (0xFFFFFF)
 #define AIRPLANE_MODE_HINT_COLOR                          (0x999999)
-#define AIRPLANE_MODE_HINT_LINE_SPACE                     (8)
 /** 进度显示时，文案与其它 ICON 上移偏移 */
 #define AIRPLANE_MODE_HOLDING_CONTENT_SHIFT_Y             (52)
 
-#define AIRPLANE_MODE_TITLE_TEXT                          "Device locked"
-#define AIRPLANE_MODE_HINT_TEXT                           "Press and hold for 5\nseconds to unlock"
 
 #define AIRPLANE_MODE_STIM_KEY_ICON_X                     (99)
 #define AIRPLANE_MODE_STIM_KEY_ICON_Y                     (267)
@@ -214,7 +209,7 @@ static void airplane_mode_texts_update(void)
     lv_label_set_text(airplane_info->title, AIRPLANE_MODE_TITLE_TEXT);
     lv_obj_set_style_text_color(airplane_info->title,
         lv_color_hex(AIRPLANE_MODE_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(airplane_info->title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(airplane_info->title, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(airplane_info->title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(airplane_info->title, LV_ALIGN_TOP_MID, 0,
         airplane_mode_content_y(AIRPLANE_MODE_TITLE_Y));
@@ -226,7 +221,7 @@ static void airplane_mode_texts_update(void)
     lv_label_set_text(airplane_info->hint, AIRPLANE_MODE_HINT_TEXT);
     lv_obj_set_style_text_color(airplane_info->hint,
         lv_color_hex(AIRPLANE_MODE_HINT_COLOR), 0);
-    lv_obj_set_style_text_font(airplane_info->hint, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(airplane_info->hint, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(airplane_info->hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_line_space(airplane_info->hint, AIRPLANE_MODE_HINT_LINE_SPACE, 0);
     lv_obj_align(airplane_info->hint, LV_ALIGN_TOP_MID, 0,

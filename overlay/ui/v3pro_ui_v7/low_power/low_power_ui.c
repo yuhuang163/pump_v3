@@ -13,7 +13,6 @@
 */
 #define IS_SUPPORT_LOW_POWER_COMP_BG                          (0)
 #define LOW_POWER_ICON_Y                                      (94)
-#define LOW_POWER_TEXT_Y                                      (200)
 #define LOW_POWER_TEXT_COLOR                                  (0xFFFFFF)
 #define LOW_POWER_COUNTDOWN_Y                                 (331)
 #define LOW_POWER_COUNTDOWN_COLOR                             (0x999999)
@@ -44,7 +43,7 @@ static PSRAM_DATA_LOC uint8_t low_power_bg_data[] = {
 
 static low_power_display_info_t *low_power_info;
 
-static const char *low_power_text = "Battery too low\nConnect to a charger";
+static const char *low_power_text = LOW_POWER_PAGE_TEXT;
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -132,7 +131,7 @@ static void low_power_text_update(void)
     }
     lv_label_set_text(low_power_info->text, low_power_text);
     lv_obj_set_style_text_color(low_power_info->text, lv_color_hex(LOW_POWER_TEXT_COLOR), 0);
-    lv_obj_set_style_text_font(low_power_info->text, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(low_power_info->text, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_line_space(low_power_info->text, 8, 0);
     lv_obj_set_style_text_align(low_power_info->text, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(low_power_info->text, LV_ALIGN_TOP_MID, 0, LOW_POWER_TEXT_Y);
@@ -166,7 +165,7 @@ static void low_power_countdown_update(void)
     snprintf(num_buf, sizeof(num_buf), "%u s", (unsigned)(show_num == 0 ? 1 : show_num));
     lv_label_set_text(low_power_info->countdown, num_buf);
     lv_obj_set_style_text_color(low_power_info->countdown, lv_color_hex(LOW_POWER_COUNTDOWN_COLOR), 0);
-    lv_obj_set_style_text_font(low_power_info->countdown, &lv_font_aeonik_soft_19_medium, 0);
+    lv_obj_set_style_text_font(low_power_info->countdown, UI_FONT_HINT, 0);
     lv_obj_set_style_text_align(low_power_info->countdown, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(low_power_info->countdown, LV_ALIGN_TOP_MID, 0, LOW_POWER_COUNTDOWN_Y);
     low_power_info->shown_value = show_num;

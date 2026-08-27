@@ -13,9 +13,7 @@
 #define GUIDE_PUMP_HOME_SCREEN_W                    (360)
 #define GUIDE_PUMP_HOME_BG_RES_ID                   (BASE_RES_ID_SIMULATION_MODE_BG)
 
-#define GUIDE_PUMP_HOME_MODE_TITLE_Y                (64 + 4)
 #define GUIDE_PUMP_HOME_MODE_TITLE_COLOR            (0xFFFFFF)
-#define GUIDE_PUMP_HOME_MODE_TITLE_TEXT             "Stimulation"
 
 #define GUIDE_PUMP_HOME_TIME_DIGIT_COUNT            (2)
 #define GUIDE_PUMP_HOME_TIME_SEG_WIDTH              (88)
@@ -101,7 +99,7 @@ static void guide_pump_home_title_create(guide_base_ui_info_t *info)
     lv_label_set_text(info->pump_home.mode_title, GUIDE_PUMP_HOME_MODE_TITLE_TEXT);
     lv_obj_set_style_text_color(info->pump_home.mode_title,
         lv_color_hex(GUIDE_PUMP_HOME_MODE_TITLE_COLOR), 0);
-    lv_obj_set_style_text_font(info->pump_home.mode_title, &lv_font_aeonik_soft_26_medium, 0);
+    lv_obj_set_style_text_font(info->pump_home.mode_title, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_align(info->pump_home.mode_title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(info->pump_home.mode_title, LV_ALIGN_TOP_MID, 0, GUIDE_PUMP_HOME_MODE_TITLE_Y);
 }
@@ -120,7 +118,7 @@ static void guide_pump_home_time_pair_create(lv_obj_t *labels[GUIDE_PUMP_HOME_TI
             lv_label_set_long_mode(labels[i], LV_LABEL_LONG_CLIP);
             lv_obj_set_style_text_align(labels[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_text_color(labels[i], lv_color_hex(GUIDE_PUMP_HOME_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(labels[i], &lv_font_aeonik_soft_69_semibold, 0);
+            lv_obj_set_style_text_font(labels[i], UI_FONT_NUM_LG, 0);
             lv_obj_set_style_text_letter_space(labels[i], 0, 0);
         }
         digit_text[0] = (char)('0' + (i == 0 ? value / 10 : value % 10));
@@ -169,7 +167,7 @@ static void guide_pump_home_speed_create(guide_base_ui_info_t *info)
         EXCEPTION_CHECK_VOID(info->pump_home.speed_value);
         lv_obj_set_style_text_color(info->pump_home.speed_value,
             lv_color_hex(GUIDE_PUMP_HOME_SPEED_COLOR), 0);
-        lv_obj_set_style_text_font(info->pump_home.speed_value, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(info->pump_home.speed_value, UI_FONT_TITLE, 0);
     }
 
     snprintf(speed_text, sizeof(speed_text), "%u", (unsigned)(GUIDE_PUMP_HOME_SPEED_VALUE + 1));
@@ -199,7 +197,7 @@ static void guide_pump_home_level_create(lv_obj_t **label, lv_obj_t *parent, con
         lv_label_set_long_mode(*label, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(*label, width);
         lv_obj_set_style_text_color(*label, lv_color_hex(GUIDE_PUMP_HOME_LEVEL_COLOR), 0);
-        lv_obj_set_style_text_font(*label, &lv_font_aeonik_soft_26_medium, 0);
+        lv_obj_set_style_text_font(*label, UI_FONT_TITLE, 0);
         lv_obj_set_style_text_align(*label, align, 0);
         lv_obj_set_style_text_letter_space(*label, 3, 0);
     }
