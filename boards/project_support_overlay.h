@@ -169,7 +169,7 @@ extern "C" {
 
 /// V3Pro 关闭：插电/短按未满足开机时长不进 dummy 长按开机引导
 #ifndef IS_SUPPORT_POWER_ON_GUIDE_UI
-#define IS_SUPPORT_POWER_ON_GUIDE_UI                     (0)
+#define IS_SUPPORT_POWER_ON_GUIDE_UI                     (1)
 #endif
 
 #else
