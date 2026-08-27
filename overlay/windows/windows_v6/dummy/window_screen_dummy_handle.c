@@ -14,11 +14,13 @@
 #define PAGE_STATIC_NAME                        dummy
 #define PAGE_NAME_STR                           "dummy"
 #define DUMMY_BROADCAST_TASK_NAME               "dummy_broadcast_task"
+#define DUMMY_POWER_OFF_TASK_NAME               "dummy_power_off_task"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(DUMMY_BROADCAST_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(DUMMY_POWER_OFF_TASK_NAME); \
     IF_SUPPORT_POWER_ON_GUIDE_UI_HDR_REMOVE(); \
 } while (0)
 
@@ -159,6 +161,39 @@ static void on_dummy_window_battery_state_cb(void *user_data, battery_state_info
     msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
+#else
+static void dummy_power_off_task_handler(void *user_data)
+{
+    ui_proc_dummy_t *proc = (ui_proc_dummy_t *)user_data;
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_DUMMY);
+    LOGW("==========POWER_OFF==========");
+    uint16_t sleep_time = 50;  
+    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
+    rt_device_node_t *power_dev = pbus->find_device(ID_DEVICE_POWER);
+    if (power_dev == NULL) {
+        LOGE("power dev not found, reboot");
+        msleep(50);
+        platform_system_reboot();
+    }
+    rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
+    if (led_dev) {
+        led_status_msg_t msg = {
+            .led_index = PUMP_LED_ALL_ID,
+            .led_status = {
+                .mode = LED_MODE_ONOFF,
+                .un.onoff = {
+                    .status = LED_STATUS_OFF,
+                },
+            },
+        };
+        led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+        LOG_WM("set led off");
+        sleep_time = 100;
+    } 
+    msleep(sleep_time); /// 数据同步延时
+    int arg1[] = {0};
+    power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)arg1);
+}
 #endif
 
 static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
@@ -217,6 +252,8 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             return 0;
         }
         show_dummy_power_on_hold_ui(proc);
+#else
+        POST_WM_TASK_HANDLER_NO_DELAY(dummy_power_off_task_handler, proc, DUMMY_POWER_OFF_TASK_NAME);
 #endif
     }
     return 0;
