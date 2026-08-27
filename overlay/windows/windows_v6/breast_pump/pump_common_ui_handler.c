@@ -513,65 +513,29 @@ void pump_sub_mode_state_init(ui_proc_pump_t *proc, uint8_t clamp_level)
 void pump_seal_check_start(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
+#if IS_SUPPORT_DEVICE_AIR_PRESSURE
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
     proc->seal_check_time = get_timestamp();
     proc->seal_result_time = 0;
     proc->seal_tip = PUMP_SEAL_TIP_CHECKING;
     proc->seal_result = PUMP_SEAL_RESULT_NONE;
     LOG_WM("seal check start.");
+#else
+    proc->seal_check_time = 0;
+    proc->seal_result_time = 0;
+    proc->seal_tip = PUMP_SEAL_TIP_NONE;
+    proc->seal_result = PUMP_SEAL_RESULT_NONE;
+#endif
 }
 
-void pump_seal_check_tick(ui_proc_pump_t *proc)
+void pump_seal_check_stop(ui_proc_pump_t *proc)
 {
-    uint32_t elapsed_ms = 0;
-
-    EXCEPTION_CHECK_VOID(proc && proc->pump);
-    if (!PUMP_IS_GOING(proc->pump_status) || proc->seal_check_time == 0) {
-        proc->seal_tip = PUMP_SEAL_TIP_NONE;
-        proc->seal_check_time = 0;
-        return;
-    }
-
-    elapsed_ms = get_timestamp_ms(proc->seal_check_time);
-    if (elapsed_ms < PUMP_SEAL_CHECKING_MS) {
-        proc->seal_tip = PUMP_SEAL_TIP_CHECKING;
-        return;
-    }
-
-    if (proc->seal_tip == PUMP_SEAL_TIP_CHECKING) {
-        uint8_t result = proc->seal_result;
-
-        if (result == PUMP_SEAL_RESULT_NONE) {
-            result = PUMP_SEAL_RESULT_NO_LEAK;
-        }
-        if (result == PUMP_SEAL_RESULT_SEVERE) {
-            proc->seal_tip = PUMP_SEAL_TIP_NONE;
-            proc->seal_check_time = 0;
-            LOG_WM("seal check severe leak, jump leak ui.");
-            pump_seal_leak_jump_severe(proc);
-            return;
-        }
-        if (result == PUMP_SEAL_RESULT_SLIGHT) {
-            proc->seal_tip = PUMP_SEAL_TIP_NONE;
-            proc->seal_check_time = 0;
-            LOG_WM("seal check slight leak, hide result.");
-            return;
-        }
-        proc->seal_tip = PUMP_SEAL_TIP_RESULT;
-        proc->seal_result_time = get_timestamp();
-        LOG_WM("seal check passed, show result.");
-        return;
-    }
-
-    if (proc->seal_tip == PUMP_SEAL_TIP_RESULT) {
-        if (get_timestamp_ms(proc->seal_result_time) >= PUMP_SEAL_RESULT_TIMEOUT_MS) {
-            proc->seal_tip = PUMP_SEAL_TIP_NONE;
-            proc->seal_check_time = 0;
-        }
-        return;
-    }
-
+    EXCEPTION_CHECK_VOID(proc);
     proc->seal_tip = PUMP_SEAL_TIP_NONE;
     proc->seal_check_time = 0;
+#if IS_SUPPORT_DEVICE_AIR_PRESSURE
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
+#endif
 }
 
 void pump_sub_mode_sync_tick(ui_proc_pump_t *proc, pump_sub_mode_sync_e sync)
