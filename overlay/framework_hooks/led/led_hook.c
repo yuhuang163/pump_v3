@@ -85,9 +85,10 @@ static void set_global_adaptive_dimming_switch(led_manager_context_t *thiz, uint
     EXCEPTION_CHECK_VOID(thiz);
     if (onoff != thiz->priv.global_adaptive_dimming_switch) {
         /// 关总开关前先记下当前屏亮度，避免随后钉全局时把 ALS 现场盖掉
-        if (!onoff) {
-            led_capture_ui_to_global_backlight(thiz);
-        }
+        /// 暂注释：capture 会把 ALS 临时亮度写进 global，关自适应后屏/键被钉到该值，用户手动档被改掉
+        // if (!onoff) {
+        //     led_capture_ui_to_global_backlight(thiz);
+        // }
         thiz->priv.global_adaptive_dimming_switch = onoff;
         LOG_MISC("global_adaptive_dimming_switch (ram): %d", thiz->priv.global_adaptive_dimming_switch);
         storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
