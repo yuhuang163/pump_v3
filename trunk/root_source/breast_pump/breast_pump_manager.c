@@ -71,23 +71,6 @@ static void notify_breast_pump_completed(void)
         SEND_BROADCAST_ARGS4_EXTRA(ID_BROADCAST_PERSIST_INFO_UPDATE, 1, pdata, sizeof(pdata));
         LOG_PMP("save success, work total time: %lu", pumping_info->work_valid_time);
     }
-    /// 重置常规模式
-    breast_pump_info_t *m_info = &breast_pump_obj->priv.m_info;
-    if (PUMP_IS_COMMON_MODE(m_info->mode)) {
-        m_info->mode = BREAST_PUMP_STIMULATION_MODE;
-        motor_manager_context_t *motor_ctx = breast_pump_obj->priv.motor;
-        if (motor_ctx) {
-            motor_ctx->change_motor_mode(m_info->mode, false);
-        }
-        struct storage_manager_context *st = breast_pump_obj->priv.st;
-        for (uint8_t i = 0; i < ROOT_BREAST_PUMP_STEP_MAX; i++) {
-            if (st) {
-                st->get_store_ram_val(STORE_ID_PUMP_SETTING_INFO, m_info->mode, i, 
-                    &breast_pump_obj->priv.setting[i]);
-            }
-        }
-    }
-    m_info->common_mode = BREAST_PUMP_STIMULATION_MODE;
 }
 static int get_breast_pump_status_async(void)
 {
