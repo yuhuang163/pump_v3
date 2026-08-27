@@ -102,7 +102,7 @@ extern "C" {
  * Charge / OTA / factory
  ******************************************************************************/
 #define CHARGE_ADAPTER_TITLE_TEXT                       "充电器不兼容"
-#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "无法使用"
+#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "无法充电"
 #define OTA_RES_UPGRADING_TEXT                          "资源升级中"
 #define OTA_FW_UPGRADING_TEXT                           "固件升级中"
 #define OTA_HW_UPGRADING_TEXT                           "硬件升级中"
@@ -117,7 +117,7 @@ extern "C" {
  ******************************************************************************/
 #define SYS_ERROR_TITLE_TEXT                            "系统异常"
 #define SYS_ERROR_CONTENT_TEXT                          "长按旋钮10秒重启"
-#define SYS_ERROR_REPLUG_TEXT                           "请重新插电重启"
+#define SYS_ERROR_REPLUG_TEXT                           SYS_ERROR_CONTENT_TEXT
 #define TEMP_ERROR_TITLE_TEXT                           "电池温度过高"
 #define TEMP_ERROR_TITLE_MULTILINE_TEXT                 "电池温度过高"
 #define TEMP_ERROR_CONTENT_TEXT                         "设备已暂停"

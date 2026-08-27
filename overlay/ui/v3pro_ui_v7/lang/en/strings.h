@@ -102,7 +102,7 @@ extern "C" {
  * Charge / OTA / factory
  ******************************************************************************/
 #define CHARGE_ADAPTER_TITLE_TEXT                       "Incompatible adapter"
-#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "Unable to use"
+#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "Unable to charge"
 #define OTA_RES_UPGRADING_TEXT                          "Resource upgrading"
 #define OTA_FW_UPGRADING_TEXT                           "Firmware upgrading"
 #define OTA_HW_UPGRADING_TEXT                           "Hardware upgrading"
@@ -117,7 +117,7 @@ extern "C" {
  ******************************************************************************/
 #define SYS_ERROR_TITLE_TEXT                            "System error"
 #define SYS_ERROR_CONTENT_TEXT                          "Press and hold knob 10s\nto restart"
-#define SYS_ERROR_REPLUG_TEXT                           "Replug to restart"
+#define SYS_ERROR_REPLUG_TEXT                           "Press and hold knob 10s\nto restart"
 #define TEMP_ERROR_TITLE_TEXT                           "High battery temperature"
 #define TEMP_ERROR_TITLE_MULTILINE_TEXT                 "High battery\ntemperature"
 #define TEMP_ERROR_CONTENT_TEXT                         "Device suspended"
