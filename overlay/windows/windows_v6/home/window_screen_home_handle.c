@@ -712,6 +712,11 @@ static int entry_event_cb(window_lift_cycle_e new_state,
 
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_PUMP_RESULT) {
             show_home_pump_result_ui(proc);
+            int pump_mode = 0;
+            READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+            if (pump_mode == BREAST_PUMP_LACTATION_MODE || pump_mode == BREAST_PUMP_MIX_MODE) {
+                WRITE_PUMP_WORK_MODE(proc->pump, BREAST_PUMP_STIMULATION_MODE, 0, 0);
+            }
             return 0;
         }
         if (proc->extra.arg1 == HOME_SUB_UI_TYPE_LEVEL_ADJUST) {
