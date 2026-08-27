@@ -180,6 +180,16 @@ static void set_night_light_gear(led_manager_context_t *thiz, uint8_t gear)
     /// 用户明确选档：关夜灯 ALS。档位未变也要关，否则环境亮时 PWM 仍停在 0
     set_night_light_adaptive_dimming_switch(thiz, 0);
 #endif
+    /* 协议/UI 选 L0：灭灯。勿走 apply_manual（那里会把 L0 抬成默认 L2） */
+    if (gear == NIGHT_LIGHT_GEAR_L0) {
+        if (thiz->priv.night_light_onoff) {
+            night_light_turn_off(thiz);
+        } else {
+            set_night_light_level_internal(thiz, NIGHT_LIGHT_LEVEL_OFF);
+        }
+        led_hook_notify_state(thiz, LED_BROADCAST_NIGHT_LIGHT_LEVEL);
+        return;
+    }
     if (thiz->priv.night_light_onoff) {
         night_light_apply_manual_brightness(thiz);
     }
