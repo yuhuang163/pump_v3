@@ -1,7 +1,6 @@
 #ifndef __WINDOW_SCREEN_PUMP_H__
 #define __WINDOW_SCREEN_PUMP_H__
 
-#include "stdint.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
