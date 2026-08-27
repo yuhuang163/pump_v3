@@ -2,6 +2,7 @@
 * INCLUDE FILES
 *****************************************************************************************
 */
+#include "cmsis_os_api.h"
 #include "window_screen_pump.h"
 #if IS_SUPPORT_DEVICE_AIR_PRESSURE
 #include "ui_page_define.h" // IWYU pragma: keep
@@ -84,30 +85,37 @@ static void pump_seal_leak_ui_display_remove(void *user_data)
     ui_display_pump_seal_leak_remove(ui);
 }
 
-static uint8_t pump_seal_result_from_wear(const uint8_t *wear)
+static uint8_t pump_seal_result_from_wear(ui_proc_pump_t *proc, const uint8_t *wear)
 {
-    uint8_t leak_n = 0;
+    uint8_t worst = ALGO_WEAR_DETECTION_RESULT_INVALID;
     uint8_t i;
 
     if (wear == NULL) {
         return PUMP_SEAL_RESULT_NONE;
     }
-    
+
+    /// wear_status: 0 无效, 1 无漏气, 2 微小漏气, 3 强漏气；两侧取更差一侧
     for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-        if (wear[i] == 0) {
-            leak_n++;
+        if (wear[i] > worst && wear[i] <= ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK) {
+            worst = wear[i];
         }
     }
 
-    if (leak_n == 0) {
-        return PUMP_SEAL_RESULT_NO_LEAK;
+    if (get_timestamp_ms(proc->seal_log_time) > 1000) {
+        proc->seal_log_time = get_timestamp();
+        LOG_WM("wear result: %d(%d/%d)", worst, wear[0], wear[1]);
     }
 
-    if (leak_n >= AIR_PRESSURE_NUM) {
-        return PUMP_SEAL_RESULT_SEVERE;
+    switch (worst) {
+        case ALGO_WEAR_DETECTION_RESULT_NORMAL:
+            return PUMP_SEAL_RESULT_NO_LEAK;
+        case ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK:
+            return PUMP_SEAL_RESULT_SLIGHT;
+        case ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK:
+            return PUMP_SEAL_RESULT_SEVERE;
+        default:
+            return PUMP_SEAL_RESULT_NONE;
     }
-    
-    return PUMP_SEAL_RESULT_SLIGHT;
 }
 
 static bool pump_seal_leak_can_jump(ui_proc_pump_t *proc)
@@ -160,7 +168,7 @@ static void pump_seal_leak_callback(void *user_data, algo_breast_pump_data_t *re
         return;
     }
     /// 检测窗口内持续刷新结果，10s 到点由 pump_seal_check_tick 消费
-    proc->seal_result = pump_seal_result_from_wear(result->wear_detection.result);
+    proc->seal_result = pump_seal_result_from_wear(proc, result->wear_detection.result);
 }
 
 /*
