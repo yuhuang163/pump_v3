@@ -18,6 +18,8 @@ extern "C" {
 #define UI_STR_SIDE_R                                   "R"
 #define UI_STR_SPEED                                    "Speed"
 #define UI_STR_SWITCH_TO_FMT                            "Switch to %s"
+#define UI_STR_DURATION_APPROX_MIN_FMT                  "≈ %dmin"
+#define UI_STR_COUNTDOWN_SEC_FMT                        "%u s"
 #define UI_STR_LEVEL_OVER_LIMIT \
     "For safety,\nUp to 3 levels at a time."
 
@@ -89,6 +91,7 @@ extern "C" {
 #define POWER_OFF_TEXT_POWERING_OFF_STR                 "Powering off..."
 #define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "Auto Powering Off..."
 #define POWER_OFF_TEXT_LOW_POWER_STR                    "Battery to low to\npower off..."
+#define RESTARTING_TEXT                                 "Restarting..."
 #define POWER_OFF_CHARGE_TEXT                           "Charging..."
 #define LOW_POWER_PAGE_TEXT                             "Battery too low\nConnect to a charger"
 #define POWER_ON_HOLD_LINE1_TEXT                        "Press and hold for"
@@ -116,10 +119,8 @@ extern "C" {
  * System / BLE popup
  ******************************************************************************/
 #define SYS_ERROR_TITLE_TEXT                            "System error"
-#define SYS_ERROR_CONTENT_TEXT                          "Press and hold knob 10s\nto restart"
-#define SYS_ERROR_REPLUG_TEXT                           "Press and hold knob 10s\nto restart"
-#define TEMP_ERROR_TITLE_TEXT                           "High battery temperature"
-#define TEMP_ERROR_TITLE_MULTILINE_TEXT                 "High battery\ntemperature"
+#define SYS_ERROR_REPLUG_TEXT                           "Press and hold knob\n10s to restart"
+#define TEMP_ERROR_TITLE_TEXT                           "High battery\ntemperature"
 #define TEMP_ERROR_CONTENT_TEXT                         "Device suspended"
 #define BLE_CONNECT_TEXT                                "Device Connected"
 #define BLE_DISCONNECT_TEXT                             "Device disconnected"

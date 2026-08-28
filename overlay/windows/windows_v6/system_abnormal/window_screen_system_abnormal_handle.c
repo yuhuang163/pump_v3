@@ -12,14 +12,32 @@
 #define PAGE_NAME_STR                           "system_abnormal"
 #define SYSTEM_ABNORMAL_TASK_NAME               "sys_abnormal_task"
 #define SYSTEM_ABNORMAL_UI_KEY_CODE             (KEY_CODE_POWER | KEY_CODE_START)
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+#define SYSTEM_ABNORMAL_UI_KEY_TYPE             (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | \
+                                                 KEY_EVENT_LONG_2S | KEY_EVENT_LONG_10S)
+#define SYSTEM_ABNORMAL_RESTART_HOLD_COMPLETE_TASK_NAME "sys_abnormal_restart_hold_complete"
+#define SYSTEM_ABNORMAL_RESTART_REBOOT_TASK_NAME        "sys_abnormal_restart_reboot"
+#else
 #define SYSTEM_ABNORMAL_UI_KEY_TYPE             (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S | KEY_EVENT_LONG_10S)
+#endif
 #define SYSTEM_ABNORMAL_POWER_OFF_HOLD_COMPLETE_TASK_NAME "sys_abnormal_power_off_hold_complete"
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+#define REMOVE_ALL_HANDER_TASK() \
+do { \
+    LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
+    REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_RESTART_HOLD_COMPLETE_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_RESTART_REBOOT_TASK_NAME); \
+} while (0)
+#else
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
 } while (0)
+#endif
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -136,6 +154,12 @@ static void system_abnormal_ui_common_cb(hdr_post_args_t *args)
     int action = args->arg1;
     switch (action) {
         case SYSTEM_ABNORMAL_HDR_ACTION_EXIT:
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+            if (proc->current_ui_type == SYSTEM_ABNORMAL_UI_TYPE_RESTARTING) {
+                LOG_WM("restarting, ignore exit.");
+                return;
+            }
+#endif
             LOG_WM("system abnormal exit.");
             system_abnormal_exit_cb(proc);
             break;
@@ -153,6 +177,12 @@ static void on_system_abnormal_state_change_cb(void *user_data, sys_abnormal_sta
         LOG_WM("wm not running, ignore.");
         return;
     }
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+    if (proc->current_ui_type == SYSTEM_ABNORMAL_UI_TYPE_RESTARTING) {
+        LOG_WM("restarting, ignore abnormal state change.");
+        return;
+    }
+#endif
 
     if (info == NULL) {
         return;
@@ -197,6 +227,35 @@ static int on_system_abnormal_keyevent_hdr(void *user_data, uint16_t keycode, ui
         return 0;
     }
 
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+    if (proc->current_ui_type == SYSTEM_ABNORMAL_UI_TYPE_RESTARTING) {
+        return 0;
+    }
+    if (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START) {
+        if (keytype == KEY_EVENT_DOWN) {
+            if (!proc->restart_hold_holding) {
+                LOG_WM("power key down, start system abnormal restart hold.");
+                REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_RESTART_HOLD_COMPLETE_TASK_NAME);
+                proc->restart_hold_holding = 1;
+            }
+            return 0;
+        }
+        if (keytype == KEY_EVENT_UP) {
+            if (proc->restart_hold_holding) {
+                LOG_WM("power key up before restart hold complete, dismiss.");
+                proc->restart_hold_holding = 0;
+                REMOVE_TASK_HANDLER_DIRECTLY(SYSTEM_ABNORMAL_RESTART_HOLD_COMPLETE_TASK_NAME);
+            }
+            return 0;
+        }
+        if (keytype == KEY_EVENT_LONG_10S) {
+            LOG_WM("system abnormal long 10s, goto restart page.");
+            show_system_abnormal_restart_ui(proc);
+            return 0;
+        }
+    }
+    return 0;
+#else
     if (keytype == KEY_EVENT_LONG_2S &&
         (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
         system_abnormal_power_off_hold_key_long_2s_handler(proc);
@@ -223,6 +282,7 @@ static int on_system_abnormal_keyevent_hdr(void *user_data, uint16_t keycode, ui
       ///看是否需要重启动作
     }
     return 0;
+#endif
 }
 
 static int entry_event_cb(window_lift_cycle_e new_state, const struct window_context *thiz,
@@ -282,6 +342,10 @@ static int exit_event_cb(window_lift_cycle_e new_state, const struct window_cont
         case ID_SCR_STATE_ON_PAUSE:
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+            proc->restart_hold_holding = 0;
+            system_abnormal_restart_ui_exit(proc);
+#endif
             system_abnormal_power_off_hold_ui_exit(proc);
             stop_system_abnormal_ui(proc);
             break;
@@ -317,6 +381,9 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     SET_WINDOW_CONTEXT(proc);
     proc->margic = UI_WINDOW_MARGIC_CODE;
     proc->current_ui_type = SYSTEM_ABNORMAL_UI_TYPE_NONE;
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+    proc->restart_hold_holding = 0;
+#endif
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     proc->abnormal = (abnormal_manager_context_t *)find_module(ID_MODULE_SYS_ABNORMAL);

@@ -9,6 +9,9 @@
 * DEFINES
 *****************************************************************************************
 */
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+#define SYSTEM_ABNORMAL_RESTART_HOLD_COMPLETE_TASK_NAME "sys_abnormal_restart_hold_complete"
+#endif
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -24,6 +27,21 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+static void system_abnormal_restart_hold_complete_cb(hdr_post_args_t *args)
+{
+    ui_proc_system_abnormal_t *proc = (ui_proc_system_abnormal_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_SYSTEM_ABNORMAL);
+    if (!proc->restart_hold_holding) {
+        LOG_WM("system abnormal restart hold ui, ignore complete.");
+        return;
+    }
+    LOG_WM("system abnormal restart hold complete, goto restart page.");
+    proc->restart_hold_holding = 0;
+    show_system_abnormal_restart_ui(proc);
+}
+#endif
+
 static void system_abnormal_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_system_abnormal_t *proc = (ui_proc_system_abnormal_t *)ui->priv.play_info.user_data;
@@ -49,6 +67,12 @@ static void system_abnormal_animation_progress_cb(void *user_data, int index, ui
         case ANI_TIMER_DRAW_AFTER:
             system_abnormal_ui_after_policy(ui, index);
             break;
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+        case ANI_POPUP_DISPLAY_FINISH:
+            POST_WM_TASK_HANDLER_NO_DELAY(system_abnormal_restart_hold_complete_cb,
+                ui->priv.play_info.user_data, SYSTEM_ABNORMAL_RESTART_HOLD_COMPLETE_TASK_NAME);
+            break;
+#endif
         default:
             break;
     }

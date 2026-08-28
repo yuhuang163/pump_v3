@@ -34,6 +34,7 @@ extern "C" {
 #include "ota_ui.h" // IWYU pragma: keepin
 #include "product_tests_ui.h" // IWYU pragma: keepin
 #include "power_off_ui.h" // IWYU pragma: keepin
+#include "restart_ui.h" // IWYU pragma: keepin
 #include "power_off_hold_ui.h" // IWYU pragma: keepin
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
 #include "power_on_hold_ui.h" // IWYU pragma: keepin

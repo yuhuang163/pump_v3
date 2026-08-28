@@ -22,8 +22,6 @@ static bool popup_window_is_supported(popup_ui_id_e popup_type)
         case ID_POPUP_UI_BT_CONNECTING:
         case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
         case ID_POPUP_UI_LOW_POWER:
-        case ID_POPUP_UI_SYS_ERROR:
-        case ID_POPUP_UI_TEMP_ERROR:
             return true;
         default:
             return false;
@@ -53,10 +51,6 @@ static void popup_window_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
             break;
         case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
             popup_window_travel_lock_ui_update(thiz, popup_type);
-            break;
-        case ID_POPUP_UI_SYS_ERROR:
-        case ID_POPUP_UI_TEMP_ERROR:
-            popup_window_error_ui_update(thiz, popup_type);
             break;
         default:
             break;

@@ -18,6 +18,8 @@ extern "C" {
 #define UI_STR_SIDE_R                                   "右"
 #define UI_STR_SPEED                                    "速度"
 #define UI_STR_SWITCH_TO_FMT                            "切换至%s"
+#define UI_STR_DURATION_APPROX_MIN_FMT                  "约%d分钟"
+#define UI_STR_COUNTDOWN_SEC_FMT                        "%u秒"
 #define UI_STR_LEVEL_OVER_LIMIT \
     "为安全起见，\n每次最多调3档。"
 
@@ -89,6 +91,7 @@ extern "C" {
 #define POWER_OFF_TEXT_POWERING_OFF_STR                 "正在关机..."
 #define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "即将自动关机..."
 #define POWER_OFF_TEXT_LOW_POWER_STR                    "电量过低\n无法关机..."
+#define RESTARTING_TEXT                                 "正在重启..."
 #define POWER_OFF_CHARGE_TEXT                           "充电中..."
 #define LOW_POWER_PAGE_TEXT                             "电量过低\n请连接充电器"
 #define POWER_ON_HOLD_LINE1_TEXT                        "长按"
@@ -116,10 +119,8 @@ extern "C" {
  * System / BLE popup
  ******************************************************************************/
 #define SYS_ERROR_TITLE_TEXT                            "系统异常"
-#define SYS_ERROR_CONTENT_TEXT                          "长按旋钮10秒重启"
-#define SYS_ERROR_REPLUG_TEXT                           SYS_ERROR_CONTENT_TEXT
+#define SYS_ERROR_REPLUG_TEXT                           "长按旋钮10秒重启"
 #define TEMP_ERROR_TITLE_TEXT                           "电池温度过高"
-#define TEMP_ERROR_TITLE_MULTILINE_TEXT                 "电池温度过高"
 #define TEMP_ERROR_CONTENT_TEXT                         "设备已暂停"
 #define BLE_CONNECT_TEXT                                "设备已连接"
 #define BLE_DISCONNECT_TEXT                             "设备已断开"
@@ -137,8 +138,8 @@ extern "C" {
 /*******************************************************************************
  * Guide
  ******************************************************************************/
-#define GUIDE_INTRO_TITLE_TEXT                          "开始使用吧！"
-#define GUIDE_QRCODE_DESC_TEXT                          "扫描二维码\n下载 App 并连接吸乳器"
+#define GUIDE_INTRO_TITLE_TEXT                          "准备好了吗?\n开始你的吸乳之旅吧!"
+#define GUIDE_QRCODE_DESC_TEXT                          "扫码下载 Momcozy App\n连接设备, 开启贴心吸乳体验"
 #define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
 #define GUIDE_FINISH_DESC_TEXT \
     "教程已完成。随时扫描\n二维码可再次查看。"

@@ -48,7 +48,8 @@ static void ui_popup_pump_rest_mode_adjust_tip_countdown_update(ui_manager_conte
         return;
     }
 
-    snprintf(num_buf, sizeof(num_buf), "%u s", (unsigned)(show_num == 0 ? 1 : show_num));
+    snprintf(num_buf, sizeof(num_buf), UI_STR_COUNTDOWN_SEC_FMT,
+        (unsigned)(show_num == 0 ? 1 : show_num));
     lv_label_set_text(info->countdown.label, num_buf);
     lv_obj_set_style_text_color(info->countdown.label,
         lv_color_hex(PUMP_REST_MODE_ADJUST_TIP_COUNTDOWN_COLOR), 0);

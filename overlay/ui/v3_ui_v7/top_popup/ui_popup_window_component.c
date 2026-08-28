@@ -367,8 +367,6 @@ const static popup_window_name_info_t popup_window_name_infos[] = {
     { ID_POPUP_UI_DEVICE_UNBIND, "device unbind" },
     { ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN, "travel lock countdown" },
     { ID_POPUP_UI_LOW_POWER, "low power" },
-    { ID_POPUP_UI_SYS_ERROR, "system error" },
-    { ID_POPUP_UI_TEMP_ERROR, "temperature error" },
 };
 
 const char *popup_window_name_get(ui_manager_context_t *thiz, uint16_t popup_type)

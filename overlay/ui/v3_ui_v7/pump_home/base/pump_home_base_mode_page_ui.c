@@ -1005,14 +1005,14 @@ static void pump_mode_page_duration_text_get(pump_home_base_ui_info_t *info, uin
     }
 #if IS_SUPPORT_PUMP_MODE_PAGE_COMMON_DURATION
     if (mode == BREAST_PUMP_STIMULATION_MODE || mode == BREAST_PUMP_LACTATION_MODE) {
-        snprintf(buf, buf_len, "≈ %dmin", PUMP_MODE_PAGE_COMMON_DURATION_MIN);
+        snprintf(buf, buf_len, UI_STR_DURATION_APPROX_MIN_FMT, PUMP_MODE_PAGE_COMMON_DURATION_MIN);
         return;
     }
 #endif
     if (info != NULL && info->st != NULL) {
         info->st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, mode, 0, &pump_time);
     }
-    snprintf(buf, buf_len, "≈ %dmin", pump_time / 60);
+    snprintf(buf, buf_len, UI_STR_DURATION_APPROX_MIN_FMT, pump_time / 60);
 }
 
 static void pump_mode_page_duration_build(pump_home_base_ui_info_t *info,
