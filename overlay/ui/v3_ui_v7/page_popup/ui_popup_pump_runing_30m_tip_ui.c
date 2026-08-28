@@ -48,7 +48,8 @@ static void ui_popup_pump_runing_30m_tip_countdown_update(ui_manager_context_t *
         return;
     }
 
-    snprintf(num_buf, sizeof(num_buf), "%u s", (unsigned)(show_num == 0 ? 1 : show_num));
+    snprintf(num_buf, sizeof(num_buf), UI_STR_COUNTDOWN_SEC_FMT,
+        (unsigned)(show_num == 0 ? 1 : show_num));
     lv_label_set_text(info->countdown.label, num_buf);
     lv_obj_set_style_text_color(info->countdown.label,
         lv_color_hex(PUMP_RUNING_30M_TIP_COUNTDOWN_COLOR), 0);

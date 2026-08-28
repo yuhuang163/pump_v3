@@ -37,6 +37,9 @@ typedef enum {
     SYSTEM_ABNORMAL_UI_TYPE_STORAGE_FAILURE,          /// 存储芯片故障
     SYSTEM_ABNORMAL_UI_TYPE_COMMUNICATION_ERROR,      /// 外设通信丢失
     SYSTEM_ABNORMAL_UI_TYPE_POWER_OFF_HOLD,           /// 长按 power/start 关机确认
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+    SYSTEM_ABNORMAL_UI_TYPE_RESTARTING,               /// 重启中
+#endif
     SYSTEM_ABNORMAL_UI_TYPE_MAX
 } system_abnormal_ui_type_e;
 
@@ -61,6 +64,9 @@ typedef struct {
     uint16_t power_off_hold_restore_ui_type; /// 关机确认页退出后恢复的异常 UI
     uint8_t window_run_state; /// WM是否运行
     uint8_t power_off_hold_holding; /// 关机确认页是否处于按住倒计时
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+    uint8_t restart_hold_holding; /// 长按 power/start 10s 重启倒计时
+#endif
 } ui_proc_system_abnormal_t;
 
 /*
@@ -76,6 +82,11 @@ void system_abnormal_power_off_hold_ui_exit(ui_proc_system_abnormal_t *proc);
 void system_abnormal_power_off_hold_dismiss(ui_proc_system_abnormal_t *proc);
 void system_abnormal_power_off_hold_key_long_2s_handler(ui_proc_system_abnormal_t *proc);
 void system_abnormal_power_off_hold_key_up_handler(ui_proc_system_abnormal_t *proc);
+
+#if IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+void show_system_abnormal_restart_ui(ui_proc_system_abnormal_t *proc);
+void system_abnormal_restart_ui_exit(ui_proc_system_abnormal_t *proc);
+#endif
 
 #ifdef __cplusplus
 }

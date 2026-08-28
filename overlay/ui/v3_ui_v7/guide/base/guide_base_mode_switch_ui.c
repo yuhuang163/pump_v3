@@ -127,7 +127,7 @@ static void guide_mode_switch_duration_text_get(uint8_t mode, char *buf, size_t 
     if (st != NULL && st->get_store_ram_val != NULL) {
         st->get_store_ram_val(STORE_ID_BREAST_PUMP_TIME, mode, 0, &pump_time);
     }
-    snprintf(buf, buf_len, "≈ %dmin", pump_time / 60);
+    snprintf(buf, buf_len, UI_STR_DURATION_APPROX_MIN_FMT, pump_time / 60);
 }
 
 static void guide_mode_switch_obj_scale_set(lv_obj_t *obj, int32_t scale)

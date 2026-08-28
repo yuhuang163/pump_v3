@@ -162,7 +162,8 @@ static void low_power_countdown_update(void)
         return;
     }
 
-    snprintf(num_buf, sizeof(num_buf), "%u s", (unsigned)(show_num == 0 ? 1 : show_num));
+    snprintf(num_buf, sizeof(num_buf), UI_STR_COUNTDOWN_SEC_FMT,
+        (unsigned)(show_num == 0 ? 1 : show_num));
     lv_label_set_text(low_power_info->countdown, num_buf);
     lv_obj_set_style_text_color(low_power_info->countdown, lv_color_hex(LOW_POWER_COUNTDOWN_COLOR), 0);
     lv_obj_set_style_text_font(low_power_info->countdown, UI_FONT_HINT, 0);

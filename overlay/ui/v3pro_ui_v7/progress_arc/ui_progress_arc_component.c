@@ -187,7 +187,7 @@ void ui_progress_arc_countdown_update(ui_progress_arc_info_t *info, lv_obj_t *pa
         return;
     }
 
-    snprintf(num_buf, sizeof(num_buf), "%u s", remain_sec);
+    snprintf(num_buf, sizeof(num_buf), UI_STR_COUNTDOWN_SEC_FMT, remain_sec);
     lv_label_set_text(info->countdown, num_buf);
     lv_obj_set_style_text_color(info->countdown, lv_color_hex(style->countdown_color), 0);
     lv_obj_set_style_text_font(info->countdown, UI_FONT_HINT, 0);

@@ -8,23 +8,24 @@ extern "C" {
 /*******************************************************************************
  * Shared
  ******************************************************************************/
-#define UI_STR_MODE_STIMULATION                         "刺激"
-#define UI_STR_MODE_EXPRESSION                          "吸乳"
-#define UI_STR_MODE_MIXED                               "混合"
+#define UI_STR_MODE_STIMULATION                         "刺激模式"
+#define UI_STR_MODE_EXPRESSION                          "吸乳模式"
+#define UI_STR_MODE_MIXED                               "混合模式"
 #define UI_STR_MODE_MILK_BOOST                          "奶量提升"
-#define UI_STR_MODE_POWER_PUMPING                       "高效吸乳"
+#define UI_STR_MODE_POWER_PUMPING                       "追奶模式"
 #define UI_STR_MODE_RELAX                               "放松"
-#define UI_STR_SIDE_L                                   "左"
-#define UI_STR_SIDE_R                                   "右"
-#define UI_STR_SPEED                                    "速度"
+#define UI_STR_SIDE_L                                   "L"
+#define UI_STR_SIDE_R                                   "R"
+#define UI_STR_SPEED                                    "吸奶频率"
 #define UI_STR_SWITCH_TO_FMT                            "切换至%s"
-#define UI_STR_LEVEL_OVER_LIMIT \
-    "为安全起见，\n每次最多调3档。"
+#define UI_STR_DURATION_APPROX_MIN_FMT                  "约%d分钟"
+#define UI_STR_COUNTDOWN_SEC_FMT                        "%u秒"
+#define UI_STR_LEVEL_OVER_LIMIT                         "为了安心使用\n每次最多调节3档"
 
 /*******************************************************************************
  * Home
  ******************************************************************************/
-#define HOME_MAIN_HINT_TEXT                             "按下开始吸乳"
+#define HOME_MAIN_HINT_TEXT                             "按下旋钮启动本次吸乳"
 #define HOME_SAVER_HINT_WAKE_TEXT                       "点击任意处唤醒"
 #define HOME_SAVER_HINT_UNLOCK_TEXT                     "按下旋钮解锁"
 #define HOME_SAVER_HINT_TEXT                            HOME_SAVER_HINT_WAKE_TEXT
@@ -84,6 +85,7 @@ extern "C" {
 #define POWER_OFF_HOLD_TITLE_TEXT                       "长按关机"
 #define POWER_OFF_TEXT_POWERING_OFF_STR                 "正在关机..."
 #define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "即将自动关机..."
+#define RESTARTING_TEXT                                 "正在重启..."
 #define POWER_ON_HOLD_LINE1_TEXT                        "长按"
 #define POWER_ON_HOLD_LINE2_TEXT                        "#E2637E 2秒# 开机"
 #define AIRPLANE_MODE_TITLE_TEXT                        "设备已锁定"
@@ -95,28 +97,26 @@ extern "C" {
  * Charge / OTA / factory
  ******************************************************************************/
 #define CHARGE_ADAPTER_TITLE_TEXT                       "充电器不兼容"
-#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "无法使用"
-#define OTA_RES_UPGRADING_TEXT                          "资源升级中"
-#define OTA_FW_UPGRADING_TEXT                           "固件升级中"
-#define OTA_HW_UPGRADING_TEXT                           "硬件升级中"
+#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "请拔下电源"
+#define OTA_RES_UPGRADING_TEXT                          "资源升级中..."
+#define OTA_FW_UPGRADING_TEXT                           "固件升级中..."
+#define OTA_HW_UPGRADING_TEXT                           "硬件升级中..."
 #define OTA_UPGRADE_FAILED_TEXT                         "升级失败"
 #define OTA_UPGRADE_COMPLETED_TEXT                      "升级完成"
-#define FACTORY_RESET_CONFIRM_TITLE_TEXT                "恢复出厂设置"
+#define FACTORY_RESET_CONFIRM_TITLE_TEXT                "重置设置"
 #define FACTORY_RESET_CONFIRM_HINT_TEXT                 "长按旋钮3秒"
-#define FACTORY_RESET_PROGRESS_TEXT                     "正在重置..."
+#define FACTORY_RESET_PROGRESS_TEXT                     "正在重置设置…"
 
 /*******************************************************************************
  * System / BLE popup
  ******************************************************************************/
 #define SYS_ERROR_TITLE_TEXT                            "系统异常"
-#define SYS_ERROR_CONTENT_TEXT                          "长按旋钮10秒重启"
-#define SYS_ERROR_REPLUG_TEXT                           "请重新插电重启"
+#define SYS_ERROR_REPLUG_TEXT                           "重新插拔电源后重启"
 #define TEMP_ERROR_TITLE_TEXT                           "电池温度过高"
-#define TEMP_ERROR_TITLE_MULTILINE_TEXT                 "电池温度过高"
 #define TEMP_ERROR_CONTENT_TEXT                         "设备已暂停"
 #define BLE_CONNECT_TEXT                                "设备已连接"
 #define BLE_DISCONNECT_TEXT                             "设备已断开"
-#define BLE_CONNECTING_TEXT                             "设备连接中"
+#define BLE_CONNECTING_TEXT                             "正在连接设备…"
 
 /*******************************************************************************
  * Theme guide
@@ -130,13 +130,12 @@ extern "C" {
 /*******************************************************************************
  * Guide
  ******************************************************************************/
-#define GUIDE_INTRO_TITLE_TEXT                          "开始使用吧！"
-#define GUIDE_QRCODE_DESC_TEXT                          "扫描二维码\n下载 App 并连接吸乳器"
+#define GUIDE_INTRO_TITLE_TEXT                          "准备好了吗?\n开始你的吸乳之旅吧!"
+#define GUIDE_QRCODE_DESC_TEXT                          "扫码下载 Momcozy App\n连接设备, 开启贴心吸乳体验"
 #define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
-#define GUIDE_FINISH_DESC_TEXT \
-    "教程已完成。随时扫描\n二维码可再次查看。"
-#define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT              "旋转旋钮查看更多选项"
-#define GUIDE_PUMP_START_GUIDE_TITLE_TEXT               "按下旋钮开始"
+#define GUIDE_FINISH_DESC_TEXT                          "新手引导已完成\n可扫码查看更详细的操作视频"
+#define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT              "转动旋钮\n查看更多选择"
+#define GUIDE_PUMP_START_GUIDE_TITLE_TEXT               "按下旋钮启动"
 #define GUIDE_PUMP_PAUSE_GUIDE_TITLE_TEXT               "按下旋钮暂停"
 #define GUIDE_PUMP_FINISH_GUIDE_TITLE_TEXT              "长按旋钮结束吸乳"
 #define GUIDE_PUMP_HOME_MODE_TITLE_TEXT                 UI_STR_MODE_STIMULATION
@@ -144,15 +143,15 @@ extern "C" {
 #define GUIDE_PUMP_PAUSE_MODE_TITLE_TEXT                UI_STR_MODE_STIMULATION
 #define GUIDE_SPEED_LABEL_TEXT                          UI_STR_SPEED
 #define GUIDE_SPEED_GUIDE_PRESS_TEXT                    "按下"
-#define GUIDE_SPEED_GUIDE_ADJUST_TEXT                   "调节吸乳速度"
+#define GUIDE_SPEED_GUIDE_ADJUST_TEXT                   "找到适合你的吸乳节奏"
 #define GUIDE_LEVEL_SIDE_GUIDE_PRESS_TEXT               "按下"
 #define GUIDE_LEVEL_SIDE_GUIDE_OR_TEXT                  "或"
-#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_TEXT              "调节左/右侧吸力"
-#define GUIDE_LEVEL_BOTH_GUIDE_PRESS_TEXT               "按下"
+#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_TEXT              "进入对应侧吸力调节"
+#define GUIDE_LEVEL_BOTH_GUIDE_PRESS_TEXT               "同时按下"
 #define GUIDE_LEVEL_BOTH_GUIDE_AND_TEXT                 "和"
-#define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_TEXT              "同时调节双侧吸力"
-#define GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT                  "左侧力度"
-#define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "右侧力度"
+#define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_TEXT              "一起调节两侧吸力"
+#define GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT                  "左侧吸力档位"
+#define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "右侧吸力档位"
 #define GUIDE_LEVEL_SIDE_OVER_LIMIT_TEXT                UI_STR_LEVEL_OVER_LIMIT
 #define GUIDE_BOTH_LEVEL_DIR_LEFT_TEXT                  UI_STR_SIDE_L
 #define GUIDE_BOTH_LEVEL_DIR_RIGHT_TEXT                 UI_STR_SIDE_R

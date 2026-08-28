@@ -171,6 +171,10 @@ extern "C" {
 #ifndef IS_SUPPORT_POWER_ON_GUIDE_UI
 #define IS_SUPPORT_POWER_ON_GUIDE_UI                     (1)
 #endif
+/// 系统异常页长按 power/旋钮 10s 重启（关闭则走原先长按关机）
+#ifndef IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+#define IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD             (1)
+#endif
 
 #else
 /// 支持漏气提醒
@@ -190,6 +194,10 @@ extern "C" {
 /// V3 开启：插电/短按未满足开机时长时进入 dummy 长按开机引导（关闭则保持原关机逻辑）
 #ifndef IS_SUPPORT_POWER_ON_GUIDE_UI
 #define IS_SUPPORT_POWER_ON_GUIDE_UI                     (1)
+#endif
+/// V3 不支持系统异常页长按重启，保持原先长按关机
+#ifndef IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
+#define IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD             (0)
 #endif
 #endif
 
