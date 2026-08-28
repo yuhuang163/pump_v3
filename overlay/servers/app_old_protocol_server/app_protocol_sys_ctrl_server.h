@@ -34,8 +34,20 @@ typedef enum {
 } app_old_comm_bind_status_e;
 
 #define APP_OLD_COMM_LIGHT_LEVEL_MAX  100  /// 协议亮度档位上限（0~100，与驱动百分比一致）
+#define APP_OLD_COMM_LIGHT_BACKLIGHT_MIN  20  /// 屏/键背光下限
 
-/// 灯光状态（0xC2 / 0xBE / 0xDE，CAL=5）
+/// 0xC2 写路径：CAL=2，payload=[subcmd][value]，一次只改一类（控制语义对齐原灯光逻辑）
+typedef enum {
+    APP_OLD_COMM_LIGHT_SUBCMD_ADAPTIVE = 0x01,      /// value: 0/1
+    APP_OLD_COMM_LIGHT_SUBCMD_NIGHT_ONOFF = 0x02,   /// value: 0/1
+    APP_OLD_COMM_LIGHT_SUBCMD_NIGHT_LEVEL = 0x03,   /// value: 档位 0–4
+    APP_OLD_COMM_LIGHT_SUBCMD_BACKLIGHT = 0x04,     /// value: 20–100
+    APP_OLD_COMM_LIGHT_SUBCMD_STARTUP = 0x05,       /// value: 0/1
+} app_old_comm_light_subcmd_e;
+
+#define APP_OLD_COMM_LIGHT_SUBCMD_CAL  2
+
+/// 灯光状态快照（0xBE 查询 / 0xDE 上报，CAL=5）
 typedef struct __attribute__((packed)) {
     uint8_t night_light_switch;          /// 夜灯功能开关
     uint8_t night_light_gear;            /// 夜灯档位/亮度

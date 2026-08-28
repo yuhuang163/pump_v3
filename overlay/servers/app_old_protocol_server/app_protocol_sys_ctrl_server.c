@@ -21,68 +21,23 @@
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-/// 协议亮度 0-100 与驱动亮度 0-100 一一对应
-static uint8_t app_old_comm_proto_level_to_percent(uint8_t proto_level)
+static void app_old_comm_apply_screen_key_backlight(led_manager_context_t *led, uint8_t level)
 {
-    if (proto_level > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
-        proto_level = APP_OLD_COMM_LIGHT_LEVEL_MAX;
+    if (!led->hook->set_global_backlight_level) {
+        return;
     }
-    return (proto_level > LED_LEVEL_MAX) ? LED_LEVEL_MAX : proto_level;
-}
-
-static uint8_t app_old_comm_percent_to_proto_level(uint8_t percent)
-{
-    if (percent > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
-        percent = APP_OLD_COMM_LIGHT_LEVEL_MAX;
+    if (level < APP_OLD_COMM_LIGHT_BACKLIGHT_MIN) {
+        level = APP_OLD_COMM_LIGHT_BACKLIGHT_MIN;
+    } else if (level > LED_LEVEL_MAX) {
+        level = LED_LEVEL_MAX;
     }
-    return percent;
-}
-
-static void app_old_comm_light_status_from_cab(const uint8_t *cab, app_old_comm_light_status_t *status)
-{
-    memcpy(status, cab, sizeof(app_old_comm_light_status_t));
-}
-
-static uint8_t app_old_comm_light_status_validate_set_req(const app_old_comm_light_status_t *status)
-{
-    if (status->night_light_switch > 1 || status->adaptive_switch > 1 ||
-        status->night_light_startup_switch > 1) {
-        return 0;
-    }
-    if (status->night_light_gear > 4 ||
-        status->screen_key_level > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
-        return 0;
-    }
-    return 1;
+    led->hook->set_global_backlight_level(led, level);
 }
 
 #if IS_SUPPORT_NIGHT_LIGHT
-static uint8_t app_old_comm_light_gear_changed(led_manager_context_t *led,
-                                               const app_old_comm_light_status_t *status)
+/// 落夜灯开关/档位（对齐原控制逻辑：开灯+L0→抬 L2；有效档变更强制开；gear=0 灭灯）
+static void app_old_comm_apply_night_light_fields(led_manager_context_t *led, uint8_t nl_on, uint8_t gear)
 {
-    if (!led->hook->get_night_light_gear) {
-        return 0;
-    }
-    return (uint8_t)led->hook->get_night_light_gear(led) != status->night_light_gear ? 1 : 0;
-}
-#endif
-
-static uint8_t app_old_comm_light_backlight_changed(led_manager_context_t *led,
-                                                   const app_old_comm_light_status_t *status)
-{
-    if (!led->hook->get_global_backlight_level) {
-        return 0;
-    }
-    return status->screen_key_level != (uint8_t)led->hook->get_global_backlight_level(led) ? 1 : 0;
-}
-
-#if IS_SUPPORT_NIGHT_LIGHT
-/// 落夜灯开关/档位（含 App 快照 L0 开灯与拖档强制开等冲突处理）
-static void app_old_comm_apply_night_light_fields(led_manager_context_t *led,
-                                                 const app_old_comm_light_status_t *status)
-{
-    uint8_t nl_on = status->night_light_switch > 0 ? 1 : 0;
-    uint8_t gear = status->night_light_gear;
     uint8_t cur_on = 0;
     uint8_t cur_gear = 0;
 
@@ -93,15 +48,8 @@ static void app_old_comm_apply_night_light_fields(led_manager_context_t *led,
         cur_gear = (uint8_t)led->hook->get_night_light_gear(led);
     }
 
-    /*
-     * App 全量快照易冲突：
-     * - 关灯后 gear 常残留 L0，再开灯发 switch=1+gear=0 → 不能当「调到 0 灭灯」
-     * - 开灯失败后拖档可能仍带 switch=0 → 有效档变更应强制开
-     * - 已亮时 gear=0 → 仍按 L0=关灭灯
-     */
     if (gear == 0) {
         if (nl_on && !cur_on) {
-            /* 开灯意图 + 快照 L0：抬默认档 L2（与 night_light_policy_default_gear 一致） */
             gear = 2;
         } else {
             nl_on = 0;
@@ -119,17 +67,120 @@ static void app_old_comm_apply_night_light_fields(led_manager_context_t *led,
 }
 #endif
 
-static void app_old_comm_apply_screen_key_backlight(led_manager_context_t *led, uint8_t level)
+/*
+ * 0xC2 CAL=2：subcmd + value，一次只改一类。
+ * 控制语义对齐原灯光控制逻辑（自适应只切总开关；开自适应下开夜灯抬 L2；
+ * 调档暂停夜灯 ALS；调背光暂停屏/键 ALS 等）。
+ */
+static uint8_t app_old_comm_apply_light_subcmd(uint8_t subcmd, uint8_t value)
 {
-    if (!led->hook->set_global_backlight_level) {
-        return;
+    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
+    uint8_t cur_adaptive = 0;
+#if IS_SUPPORT_NIGHT_LIGHT
+    uint8_t cur_gear = 0;
+#endif
+
+    if (led == NULL || led->hook == NULL) {
+        LOG_SRV("led is null or hook is null");
+        return 0;
     }
-    if (level < 20) {
-        level = 20;
-    } else if (level > LED_LEVEL_MAX) {
-        level = LED_LEVEL_MAX;
+    if (led->hook->get_global_adaptive_dimming_switch) {
+        cur_adaptive = led->hook->get_global_adaptive_dimming_switch(led) > 0 ? 1 : 0;
     }
-    led->hook->set_global_backlight_level(led, level);
+
+    switch (subcmd) {
+        case APP_OLD_COMM_LIGHT_SUBCMD_ADAPTIVE:
+            if (value > 1) {
+                return 0;
+            }
+            LOG_SRV("light subcmd: adaptive=%u", value);
+            if (led->hook->set_global_adaptive_dimming_switch) {
+                led->hook->set_global_adaptive_dimming_switch(led, value);
+            }
+            return 1;
+
+#if IS_SUPPORT_NIGHT_LIGHT
+        case APP_OLD_COMM_LIGHT_SUBCMD_NIGHT_ONOFF:
+            if (value > 1) {
+                return 0;
+            }
+            LOG_SRV("light subcmd: night_onoff=%u adaptive=%u", value, cur_adaptive);
+            if (cur_adaptive && value) {
+                /* 自适应开：开灯抬 L2 并点亮，不立刻再开夜灯 ALS */
+                if (led->hook->set_night_light_gear) {
+                    led->hook->set_night_light_gear(led, 2);
+                }
+                if (led->hook->set_night_light_onoff) {
+                    led->hook->set_night_light_onoff(led, 1);
+                }
+                return 1;
+            }
+            if (cur_adaptive && !value) {
+                if (led->hook->set_night_light_onoff) {
+                    led->hook->set_night_light_onoff(led, 0);
+                }
+                return 1;
+            }
+            if (led->hook->get_night_light_gear) {
+                cur_gear = (uint8_t)led->hook->get_night_light_gear(led);
+            }
+            if (value) {
+                app_old_comm_apply_night_light_fields(led, 1, cur_gear == 0 ? 2 : cur_gear);
+            } else {
+                app_old_comm_apply_night_light_fields(led, 0, 0);
+            }
+            return 1;
+
+        case APP_OLD_COMM_LIGHT_SUBCMD_NIGHT_LEVEL:
+            if (value > 4) {
+                return 0;
+            }
+            LOG_SRV("light subcmd: night_level=%u adaptive=%u", value, cur_adaptive);
+            if (cur_adaptive) {
+                if (led->hook->set_night_light_adaptive_dimming_switch) {
+                    led->hook->set_night_light_adaptive_dimming_switch(led, 0);
+                }
+            }
+            app_old_comm_apply_night_light_fields(led, value > 0 ? 1 : 0, value);
+            return 1;
+
+        case APP_OLD_COMM_LIGHT_SUBCMD_STARTUP:
+            if (value > 1) {
+                return 0;
+            }
+            LOG_SRV("light subcmd: startup=%u", value);
+            if (led->hook->set_night_light_startup_switch) {
+                led->hook->set_night_light_startup_switch(led, value);
+            }
+            return 1;
+#else
+        case APP_OLD_COMM_LIGHT_SUBCMD_NIGHT_ONOFF:
+        case APP_OLD_COMM_LIGHT_SUBCMD_NIGHT_LEVEL:
+        case APP_OLD_COMM_LIGHT_SUBCMD_STARTUP:
+            LOG_SRV("light subcmd: night light not supported");
+            return 0;
+#endif
+
+        case APP_OLD_COMM_LIGHT_SUBCMD_BACKLIGHT:
+            if (value > APP_OLD_COMM_LIGHT_LEVEL_MAX) {
+                return 0;
+            }
+            LOG_SRV("light subcmd: backlight=%u adaptive=%u", value, cur_adaptive);
+            if (cur_adaptive) {
+                if (led->hook->set_key_backlight_adaptive_dimming_switch) {
+                    led->hook->set_key_backlight_adaptive_dimming_switch(led, 0);
+                }
+                if (led->hook->set_ui_backlight_adaptive_dimming_switch) {
+                    led->hook->set_ui_backlight_adaptive_dimming_switch(led, 0);
+                }
+            }
+            app_old_comm_apply_screen_key_backlight(led, value);
+            return 1;
+
+        default:
+            LOG_SRV("light subcmd: unknown 0x%02X", subcmd);
+            return 0;
+    }
 }
 
 static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
@@ -159,127 +210,6 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
             status->screen_key_level = (uint8_t)led->hook->get_global_backlight_level(led);
         }
     }
-}
-
-/*
- * 0xC2 灯光控制落盘（App 全量快照）：
- *
- * 意图拆分（同包只认一种主意图）：
- *   A) adaptive 相对当前有变 → 只调总开关，立刻返回（不落夜灯/屏键）
- *   B) adaptive 未变且为开：夜灯档/开关优先，否则才落屏键（同包互斥）
- *   C) adaptive 未变且为关：同上，夜灯有变不落屏键（App 快照 screen_key 常是旧值）
- *
- * 开机夜灯默认与自适应无关，始终先落地。
- */
-static uint8_t app_old_comm_apply_light_control(const app_old_comm_light_status_t *status)
-{
-    led_manager_context_t *led = (led_manager_context_t *)find_module(ID_MODULE_LED);
-    uint8_t want_adaptive;
-    uint8_t cur_adaptive = 0;
-#if IS_SUPPORT_NIGHT_LIGHT
-    uint8_t gear_changed = 0;
-    uint8_t nl_sw_changed = 0;
-    uint8_t cur_nl_on = 0;
-#endif
-    uint8_t bl_changed = 0;
-
-    if (led == NULL || led->hook == NULL) {
-        LOG_SRV("led is null or hook is null");
-        return 0;
-    }
-    if (!app_old_comm_light_status_validate_set_req(status)) {
-        LOG_SRV("invalid light status");
-        return 0;
-    }
-
-    want_adaptive = status->adaptive_switch > 0 ? 1 : 0;
-    if (led->hook->get_global_adaptive_dimming_switch) {
-        cur_adaptive = led->hook->get_global_adaptive_dimming_switch(led) > 0 ? 1 : 0;
-    }
-#if IS_SUPPORT_NIGHT_LIGHT
-    gear_changed = app_old_comm_light_gear_changed(led, status);
-    if (led->hook->get_night_light_onoff) {
-        cur_nl_on = led->hook->get_night_light_onoff(led) > 0 ? 1 : 0;
-    }
-    nl_sw_changed = (status->night_light_switch > 0 ? 1 : 0) != cur_nl_on ? 1 : 0;
-#endif
-    bl_changed = app_old_comm_light_backlight_changed(led, status);
-
-#if IS_SUPPORT_NIGHT_LIGHT
-    /* 开机夜灯默认：与自适应无关 */
-    if (led->hook->set_night_light_startup_switch) {
-        led->hook->set_night_light_startup_switch(led, status->night_light_startup_switch > 0 ? 1 : 0);
-    }
-#endif
-
-    /* A) 自适应总开关有变：只切总开关，不碰夜灯/背光（App 同包 screen_key 常是旧值） */
-    if (want_adaptive != cur_adaptive) {
-        LOG_SRV("light ctrl: adaptive %u->%u only", cur_adaptive, want_adaptive);
-        if (led->hook->set_global_adaptive_dimming_switch) {
-            led->hook->set_global_adaptive_dimming_switch(led, want_adaptive);
-        }
-        return 1;
-    }
-
-    if (want_adaptive) {
-        /* B) 总开关已开：按夜灯/背光字段变化落盘 */
-#if IS_SUPPORT_NIGHT_LIGHT
-        if (gear_changed) {
-            LOG_SRV("light ctrl: adaptive=1 gear changed, pause night-light ALS");
-            if (led->hook->set_night_light_adaptive_dimming_switch) {
-                led->hook->set_night_light_adaptive_dimming_switch(led, 0);
-            }
-            app_old_comm_apply_night_light_fields(led, status);
-            return 1;
-        } else if (nl_sw_changed) {
-            uint8_t nl_on = status->night_light_switch > 0 ? 1 : 0;
-
-            LOG_SRV("light ctrl: adaptive=1 night-light switch=%u", nl_on);
-            if (nl_on) {
-                /*
-                 * 开灯：抬 L2 并点亮。set_gear 会关夜灯 ALS 并落手动亮度。
-                 * 勿立刻再开 ALS——环境亮时会马上把 L2(75) 压到 duty≈2，看起来像没亮。
-                 * 与「调档暂停 ALS」一致，保持 L2 直到用户再调档/关自适应。
-                 */
-                if (led->hook->set_night_light_gear) {
-                    led->hook->set_night_light_gear(led, 2);
-                }
-                if (led->hook->set_night_light_onoff) {
-                    led->hook->set_night_light_onoff(led, 1);
-                }
-            } else if (led->hook->set_night_light_onoff) {
-                led->hook->set_night_light_onoff(led, 0);
-            }
-            return 1;
-        }
-#endif
-
-        if (bl_changed) {
-            LOG_SRV("light ctrl: adaptive=1 backlight changed, pause key/ui ALS");
-            if (led->hook->set_key_backlight_adaptive_dimming_switch) {
-                led->hook->set_key_backlight_adaptive_dimming_switch(led, 0);
-            }
-            if (led->hook->set_ui_backlight_adaptive_dimming_switch) {
-                led->hook->set_ui_backlight_adaptive_dimming_switch(led, 0);
-            }
-            app_old_comm_apply_screen_key_backlight(led, status->screen_key_level);
-        }
-        return 1;
-    }
-
-    /* C) 总开关已关：夜灯优先，同包不兼落屏键 */
-#if IS_SUPPORT_NIGHT_LIGHT
-    if (gear_changed || nl_sw_changed) {
-        LOG_SRV("light ctrl: adaptive=0 night-light only (gear/sw changed)");
-        app_old_comm_apply_night_light_fields(led, status);
-        return 1;
-    }
-#endif
-    if (bl_changed) {
-        app_old_comm_apply_screen_key_backlight(led, status->screen_key_level);
-    }
-
-    return 1;
 }
 
 static void app_old_comm_set_device_bind_status(uint8_t device_bind_status)
@@ -529,23 +459,10 @@ void app_old_comm_handle_ctrl_dev_sys_status_req(uint8_t cal, uint8_t *cab)
 void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab)
 {
     uint8_t result = 0x00;
-    app_old_comm_light_status_t light_status = {0};
 
     LOG_SRV(" Handling light control request (CAL=%d)", cal);
     EXCEPTION_CHECK_VOID(cab);
-    if (cal != APP_OLD_COMM_LIGHT_STATUS_CAL) {
-        LOGE(" Invalid CAL for light control (expected %d, got %d)",
-             APP_OLD_COMM_LIGHT_STATUS_CAL, cal);
-        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL,
-                                                   1, &result);
-        return;
-    }
 
-    app_old_comm_light_status_from_cab(cab, &light_status);
-    LOG_SRV(" light ctrl: switch=%d level=%d adaptive=%d screen_key=%d startup=%d",
-            light_status.night_light_switch, light_status.night_light_gear,
-            light_status.adaptive_switch, light_status.screen_key_level,
-            light_status.night_light_startup_switch);
     /// 触发灯光状态设置埋点 (EVT_008: 灯光状态设置)
     {
         data_bury_trigger_user_evt_t bury_evt = {
@@ -554,7 +471,17 @@ void app_old_comm_handle_pump_ble_rgb_set_ctrl_req(uint8_t cal, uint8_t *cab)
         };
         DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT, 0, 0, &bury_evt);
     }
-    result = app_old_comm_apply_light_control(&light_status) ? 0x01 : 0x00;
+
+    if (cal != APP_OLD_COMM_LIGHT_SUBCMD_CAL) {
+        LOGE(" Invalid CAL for light control (expected %d, got %d)",
+             APP_OLD_COMM_LIGHT_SUBCMD_CAL, cal);
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL,
+                                                   1, &result);
+        return;
+    }
+
+    LOG_SRV(" light ctrl subcmd=0x%02X value=%u", cab[0], cab[1]);
+    result = app_old_comm_apply_light_subcmd(cab[0], cab[1]) ? 0x01 : 0x00;
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_PUMP_BLE_RGB_SET_CTRL,
                                                1, &result);
 }
