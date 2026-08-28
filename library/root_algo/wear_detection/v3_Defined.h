@@ -1,14 +1,14 @@
 #ifndef __V3_DEFINED_H__
 #define __V3_DEFINED_H__
-#include "include/algo_fusion_lib.h"
+#include "algo_fusion_lib.h"
 
 #ifndef abs
 #define abs(x)			((x) < 0 ? -(x) : (x))
-#endif // !abs
+#endif /* !abs */
 
 #ifndef fabs
 #define fabs(x)			((x) < 0.0f ? -(x) : (x))
-#endif // !abs
+#endif /* !abs */
 
 #ifndef CLAMP
 #define CLAMP(x, lo, hi) ((x) < (lo) ? (lo) : ((x) > (hi) ? (hi) : (x)))
@@ -17,19 +17,19 @@
 /* define pressure algorithm version */
 #define V3_PRESSURE_ALGO_VERSION_STR    "2.0.0.0"
 
-// hardware parameters
+/* hardware parameters */
 #define SAMPLE_RATE			(50)
-#define WIN_SIZE			(50*3)  //(1 second)
-#define CHANNEL_NUM			(2)		// 2 channels - left and right
-#define CHANNEL_0			(0)		// 0: left
-#define CHANNEL_1			(1)		// 1: right
+#define WIN_SIZE			(50*3)  /* (1 second) */
+#define CHANNEL_NUM			(2)		/* 2 channels - left and right */
+#define CHANNEL_0			(0)		/* 0: left */
+#define CHANNEL_1			(1)		/* 1: right */
 
-// define modes
+/* define modes */
 #define MODE_STIMULATION	(0)
 #define MODE_EXPRESSION		(1)
 #define MODE_MIXED			(2)
 
-//define levels
+/* define levels */
 #define LEVEL_1				(1)
 #define LEVEL_2				(2)
 #define LEVEL_3				(3)
@@ -46,11 +46,11 @@
 #define LEVEL_14			(14)
 #define LEVEL_15			(15)
 
-#define INVALID_TARGET_PRESSURE_REF	(-255.0f) /* 无效的目标压力参考值 */
-#define RAW_PUMP_POST_TAIL_POINTS	3 /* 每段结束后多采的原始压力点数（含 active->inactive 当前点） */
-#define RAW_PUMP_ACTIVE_CAP			128 /* 原始泵压力段最大缓存长度 */
-#define RAW_PUMP_SEG_MAX			(RAW_PUMP_ACTIVE_CAP + RAW_PUMP_POST_TAIL_POINTS)
-#define LONGYI_OR_SHIGUANG  		2 	/* 2: 龙一-spectra; 1: 龙一, 0: 时光 */
+#define INVALID_TARGET_PRESSURE_REF    (-255.0f) /* 无效的目标压力参考值 */
+#define RAW_PUMP_POST_TAIL_POINTS 3 /* 每段结束后多采的原始压力点数（含 active->inactive 当前点） */
+#define RAW_PUMP_ACTIVE_CAP       128
+#define RAW_PUMP_SEG_MAX          (RAW_PUMP_ACTIVE_CAP + RAW_PUMP_POST_TAIL_POINTS)
+#define LONGYI_OR_SHIGUANG  2 //2: 龙一-spectra; 1: 龙一, 0: 时光
 
 /* target pressure for each level - v2.13 */
 /* TODO SPECTRA -- 20260801 - LONGYI*/
@@ -102,11 +102,33 @@ typedef enum {
 	SUCTION_STATUS_SLEEP,       /// 休眠
 } suction_status_e;
 
-///////////////////////////////////////////////////////
+//typedef struct _PUMP_STATE
+//{
+//	unsigned char		level;       /* 0-15 */
+//	unsigned char		mode;        /* 0:刺激模式 1:吸乳模式 2:混合模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式 */
+//	unsigned char		state;       /* 吸力状态 suction_status_e */
+//	unsigned char		pump_duty;        /* 泵奶力度 */
+//	unsigned char		valve_duty;       /* 吸乳器电磁阀门力度 */
+//	unsigned char		target_pressure;  /* 目标压力 */
+//	unsigned short 		target_pump_time; /// 泵工作目标时间，单位ms
+//	unsigned short		run_time;         /* 运行时间，单位ms */
+//}algo_pump_state_t;
 
 
-/////////////////////////////////////////////////////// for algorithm
-// pump_pressure_compensation
+
+/* 气压数据 */
+//typedef struct _AIR_PRESSURE
+//{
+//	unsigned char		do_work;     /* 是否正在泵奶 */
+//	unsigned int		timestamp;
+//	float				air_pressure[CHANNEL_NUM];
+//	algo_pump_state_t	pump_state[CHANNEL_NUM];
+//}algo_air_pressure_data_t;
+/* ---------------------------------------------------------------- */
+
+
+/* for algorithm */
+/* pump_pressure_compensation */
 
 
 /* 漏气分级 */
@@ -122,10 +144,11 @@ typedef enum {
 
 typedef struct _GLOBAL_INFO
 {
-	unsigned char	do_work;			// 是否正在泵奶
-	unsigned int	currtimestamp;		// 当前时间戳
-	unsigned int	prevtimestamp;		// 上一时间戳
+	unsigned char	do_work;			/* 是否正在泵奶 */
+	unsigned int	currtimestamp;		/* 当前时间戳 */
+	unsigned int	prevtimestamp;		/* 泵初始时间戳 */
 }SGLOBAL_INFO;
+
 
 typedef struct _DEVICE_INFO
 {
@@ -135,6 +158,24 @@ typedef struct _DEVICE_INFO
 	unsigned char	uTargetPressure;	// 正值
 	unsigned short  uTargetPumpTime;	/* 吸力保持时间，单位ms */
 }SDEVICE_INFO;
+
+
+typedef struct _DATA_BUFF_
+{
+	float			fDataBuff[WIN_SIZE];
+	unsigned int	uCurrPos;		/* current pos */
+}SDATA_BUFF;
+
+typedef struct _PUMP_FEATURE_INFO
+{
+	unsigned char	uState;				/* 吸力状态 */
+	unsigned short	pumping_time;		/* 泵开始工作后，开始计时 */
+	unsigned short	remain_time;		/* 距离结束泵奶时间 */
+	unsigned char	uCompsStatus;		/* 输出的补偿结果 */
+	float			fSlope;
+	float			fIntercept;
+	int				iDelta_pwm;			/* 返回delta_pwm -10000~10000 */
+}SPUMPFEATURE_INFO;
 
 /* 目标压力曲线项 */
 typedef struct _TARGET_CURVE_ITEM
@@ -147,53 +188,7 @@ typedef struct _TARGET_CURVE_ITEM
     const float *p1_curve;
 } STARGET_CURVE_ITEM;
 
-typedef struct _DATA_BUFF_
-{
-	float			fDataBuff[WIN_SIZE];
-	unsigned int	uCurrPos;		// current pos
-}SDATA_BUFF;
-
-/* pid control info */
-typedef struct _PID_CTRL_INFO
-{
-    unsigned char uPrevPumpState;   /* 上一次泵状态 */
-    unsigned char uCurveValid;      /* 当前是否找到目标曲线 */
-	unsigned char uCycleSynced;   /* 是否已经同步到完整周期边界 */
-
-    float fTargetPressureRef;       /* 当前时刻目标压力 */
-    float fCurrError;               /* 当前误差 */
-    float fPrevError;               /* 上一次误差 */
-    float fIntegral;                /* 积分项 */
-    float fPidOutput;               /* PID原始输出 */
-} SPID_CTRL_INFO;
-
-/* pid debug info */
-typedef struct _PID_DEBUG_INFO
-{
-    unsigned short pumping_time;
-    unsigned char curve_valid;
-    float target_ref;
-    float error;
-    float integral;
-    float pid_output;
-    int delta_pwm;
-    unsigned char comps_status;
-} SPID_DEBUG_INFO;
-
-typedef struct _PUMP_FEATURE_INFO
-{
-	unsigned char	uState;				// 吸力状态
-	unsigned short	pumping_time;		// 泵开始工作后，开始计时
-	unsigned short	remain_time;		// 距离结束泵奶时间
-	unsigned char	uCompsStatus;		// 输出的补偿结果
-	float			fSlope;
-	float			fIntercept;
-	int				iDelta_pwm;			// 返回delta_pwm	-10000~10000
-	SPID_CTRL_INFO tPidCtrl;			/* pid控制信息 */
-}SPUMPFEATURE_INFO;
-
-
-// tightness_detection
+/* tightness_detection */
 typedef struct _PV_INFO
 {
 	unsigned short	uType[100];
@@ -225,16 +220,16 @@ typedef struct _FEATURE_INFO_
 	float			fLoadedThresholdBuff[6];
 	float			fMinDataBuffMin;
 	unsigned int	uNoiseLevel;
-	unsigned int	uDataIdx;		// data index
+	unsigned int	uDataIdx;		/* data index */
 	unsigned short	uUpdateFlag;
 	float			fThreshold;
 	float			fLoadedThreshold;
-	unsigned char	uPumpFlag;
+	unsigned char	uWearStatus;	/* result */
+	unsigned short	uPump_flag;
 	unsigned char	pumping_time;
 	unsigned char	uPumpState;
-	unsigned char	uWearStatus;	// result
 	unsigned char	uCompsStatus;
-	int 			iDelta_pwm;			// 返回delta_pwm	-10000~10000
+	int				iDelta_pwm;
 	int 			iPwmOffset;   	/* 累计补偿量 */
 	float 			fCompErrSum;      /* PI积分项 */
 	float 			fCompPrevErr;     /* 上一周期误差，后续需要D时可直接用 */
@@ -254,7 +249,9 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uRawTailRemain; /* 新段时置 POST_TAIL；段末起每写入一个尾随点减 1，到 0 表示本段采集结束 */
 	unsigned short	uRawSegLen;
 	unsigned char	uWearDetSegMinCommitted;    /* RawSegCommitMinIfAny 提交段 min 后置 1，PressureDataFeature 后消费 */
-	// float			fRawPumpSeg[RAW_PUMP_SEG_MAX];
+	float			fLeakValleyBuff[6];         /* 泵周期 raw 段最小，左移 6 槽，不复用 fMinDataBuff */
+	unsigned char	uLeakValleyCount;           /* 0~6 */
+	unsigned char	uLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_
@@ -263,7 +260,7 @@ typedef struct _DATA_BUFFER_
 	float fLoadedThresholdData[WIN_SIZE];
 	float			fDataMax;
 	float			fDataMin;
-	unsigned int	uCurrPos;		// current pos
+	unsigned int	uCurrPos;		/* current pos */
 	unsigned short  uFirstTime;
 }SDATA_BUFFER;
 
@@ -278,6 +275,7 @@ typedef struct _FILTER_INFO_
 	unsigned short	uInitState;
 }SFILTER_INFO;
 
+/*
 
-/////////////////////////////////////////////////////////////////////
+*/
 #endif
