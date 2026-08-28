@@ -206,7 +206,7 @@ static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *resu
     }
     
     if (proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
-        if (result->working_mode != proc->will_finish_mode) {
+        if (result->working_mode != proc->will_finish_mode || result->work_valid_time == 0) {
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(pump_ui_common_cb, proc, PUMP_HDR_ACTION_PUMP_WILL_FINISH_EXIT,
                 PUMP_COMPLETE_TASK_NAME);
         }
