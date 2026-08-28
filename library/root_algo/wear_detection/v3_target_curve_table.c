@@ -1170,6 +1170,8 @@ const STARGET_CURVE_ITEM g_target_curve_table[] =
     },
     { 0u, 0u, 0.0f, 0.0f, 0u, 0 }
 };
+
+
 #endif
 
 const unsigned int g_target_curve_table_count =
@@ -1262,7 +1264,7 @@ const STARGET_CURVE_ITEM* GetCurrentTargetCurveItem(
     {
         return 0;
     }
-
+    
     for (i = 0; g_target_curve_table[i].target_pump_time != 0u; i++)
     {
         if ((g_target_curve_table[i].target_pressure == ptDeviceInfo->uTargetPressure) &&
