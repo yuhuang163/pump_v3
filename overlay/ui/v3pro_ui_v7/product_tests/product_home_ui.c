@@ -83,7 +83,7 @@ static void product_tests_ui_root_init(void)
     }
     lv_obj_set_size(tests_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
     #if IS_SUPPORT_BATTERY_PERCENT
-    lv_obj_set_style_bg_color(tests_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
+    lv_obj_set_style_bg_color(tests_info->root, lv_color_white(), 0);     /// 设置背景颜色为黑色
     #else
     lv_obj_set_style_bg_color(tests_info->root, lv_color_white(), 0);     /// 设置背景颜色为白色
     #endif
