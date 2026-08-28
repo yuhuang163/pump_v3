@@ -117,7 +117,7 @@ int tests_tlvs_factory_test_mode(comm_protocol_builder_t *builder, comm_protocol
 
     uint8_t mode = (data && data_len >= 1) ? data[0] : 0;
 
-    LOG_SRV("tests_tlvs_factory_test_mode: %s", mode ? "ENTER" : "EXIT");
+    LOG_SRV("%s", mode ? "ENTER" : "EXIT");
     tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     EXCEPTION_CHECK_INT(tests_ctx);
     // TODO: 实现产测模式进入/退出逻辑
@@ -209,7 +209,7 @@ int tests_tlvs_aging_test_mode(comm_protocol_builder_t *builder, comm_protocol_s
         uint32_t target_duration = (uint32_t)data[1] | ((uint32_t)data[2] << 8) | 
                                    ((uint32_t)data[3] << 16) | ((uint32_t)data[4] << 24); // 小端序
 
-        LOG_SRV("tests_tlvs_aging_test_mode: ENTER, mode_type=0x%02X, duration=%d s", aging_mode_type, target_duration);
+        LOG_SRV("ENTER, mode_type=0x%02X, duration=%d s", aging_mode_type, target_duration);
 
         tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
         EXCEPTION_CHECK_INT(tests_ctx);
@@ -253,7 +253,7 @@ int tests_tlvs_aging_test_mode(comm_protocol_builder_t *builder, comm_protocol_s
         POST_TASK_HANDLER_DELAYED_ARG4(test_factory_aging_test_enter_post_task_handler, 1000, aging_mode_type, target_duration, "aging_test_cb");
         result = 0x01; // 成功
     } else {
-        LOG_SRV("tests_tlvs_aging_test_mode: invalid data_len=%d, expected 5", data_len);
+        LOG_SRV("invalid data_len=%d, expected 5", data_len);
     }
 
     // 应答格式: Length=1, Value=0x00失败/0x01成功
@@ -272,7 +272,7 @@ int tests_tlvs_aging_test_mode_exit(comm_protocol_builder_t *builder, comm_proto
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_aging_test_mode_exit: EXIT");
+    LOG_SRV("EXIT");
 
     tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     EXCEPTION_CHECK_INT(tests_ctx);
@@ -314,7 +314,7 @@ int tests_tlvs_suction_test_mode(comm_protocol_builder_t *builder, comm_protocol
 
     uint8_t mode = (data && data_len >= 1) ? data[0] : 0;
 
-    LOG_SRV("tests_tlvs_suction_test_mode: %s", mode ? "ENTER" : "EXIT");
+    LOG_SRV("%s", mode ? "ENTER" : "EXIT");
 
     tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     EXCEPTION_CHECK_INT(tests_ctx);
@@ -377,9 +377,9 @@ int tests_tlvs_aging_status_query(comm_protocol_builder_t *builder, comm_protoco
     uint8_t aging_mode_type = 0;
     if (data && data_len >= 1) {
         aging_mode_type = data[0];
-        LOG_SRV("tests_tlvs_aging_status_query, mode_type=0x%02X", aging_mode_type);
+        LOG_SRV("mode_type=0x%02X", aging_mode_type);
     } else {
-        LOG_SRV("tests_tlvs_aging_status_query, invalid data_len=%d, expected 1", data_len);
+        LOG_SRV("invalid data_len=%d, expected 1", data_len);
     }
 
     // 协议格式: RESPONSE Length=7
@@ -618,8 +618,7 @@ int tests_tlvs_read_triple_data(comm_protocol_builder_t *builder, comm_protocol_
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_read_triple_data");
-
+    LOG_SRV("data_len: %d", data_len);
     // 应答格式: byte0-5=产品ID(6字节), byte6-21=设备ID(16字节), byte22-37=密钥(16字节)
     // 使用最大长度作为缓冲区大小，但使用实际存储的长度进行复制
     uint8_t response[DEVICE_PRODUCT_ID_LEN + DEVICE_DEVICE_ID_LEN + DEVICE_ENCTYPTION_KEY_LEN] = {0};
@@ -662,8 +661,7 @@ int tests_tlvs_read_sn(comm_protocol_builder_t *builder, comm_protocol_service_t
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_read_sn");
-
+    LOG_SRV("data_len: %d", data_len);
     // 使用最大长度作为缓冲区大小，但使用实际存储的长度进行复制
     uint8_t response[DEVICE_UNIQUE_SN_LEN] = {0};
     uint16_t response_len = 0;
@@ -697,8 +695,7 @@ int tests_tlvs_device_error_status(comm_protocol_builder_t *builder, comm_protoc
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_device_error_status");
-
+    LOG_SRV("data_len: %d", data_len);
     // TODO: 获取设备异常状态
     uint8_t error_status = TESTS_DEVICE_ERROR_NONE;
 
@@ -719,7 +716,7 @@ int tests_tlvs_suction_compensation(comm_protocol_builder_t *builder, comm_proto
 
     uint8_t onoff = (data && data_len >= 1) ? data[0] : 0;
 
-    LOG_SRV("tests_tlvs_suction_compensation: %s", onoff ? "ON" : "OFF");
+    LOG_SRV("%s", onoff ? "ON" : "OFF");
 
     motor_manager_context_t *motor_obj = (motor_manager_context_t *)find_module(ID_MODULE_MOTOR);
     EXCEPTION_CHECK_INT(motor_obj);
@@ -749,7 +746,7 @@ int tests_tlvs_write_factory_complete_flag(comm_protocol_builder_t *builder, com
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_write_factory_complete_flag, data_len: %d", data_len);
+    LOG_SRV("data_len: %d", data_len);
 
     uint8_t result = 0x00; // 默认失败
 
@@ -770,7 +767,7 @@ int tests_tlvs_write_factory_complete_flag(comm_protocol_builder_t *builder, com
             #endif
             if (st->put_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info) == 0) {
                 result = 0x01; // 成功
-                LOG_SRV("tests_tlvs_write_factory_complete_flag: %s", complete_flag ? "COMPLETE" : "NOT_COMPLETE");
+                LOG_SRV("%s", complete_flag ? "COMPLETE" : "NOT_COMPLETE");
             }
         }
     }
@@ -790,7 +787,7 @@ int tests_tlvs_read_factory_complete_flag(comm_protocol_builder_t *builder, comm
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_read_factory_complete_flag, data_len: %d", data_len);
+    LOG_SRV("data_len: %d", data_len);
 
     uint8_t complete_flag = 0x00; // 默认产测未完成
 
@@ -800,7 +797,7 @@ int tests_tlvs_read_factory_complete_flag(comm_protocol_builder_t *builder, comm
         if (st->get_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info) == 0) {
             // 读取 deploy_flag 字段作为产测完成标识
             complete_flag = flag_info.deploy_flag;
-            LOG_SRV("tests_tlvs_read_factory_complete_flag: %s", complete_flag ? "COMPLETE" : "NOT_COMPLETE");
+            LOG_SRV("%s", complete_flag ? "COMPLETE" : "NOT_COMPLETE");
         }
     }
 
@@ -823,14 +820,14 @@ int tests_tlvs_bt_signaling_test(comm_protocol_builder_t *builder, comm_protocol
 
     uint8_t mode = (data && data_len >= 1) ? data[0] : 0;
 
-    LOG_SRV("tests_tlvs_bt_signaling_test: %s", mode ? "ENTER" : "EXIT");
+    LOG_SRV("%s", mode ? "ENTER" : "EXIT");
 
     uint8_t result = 0x00; // 默认失败
 
     if (mode == 1) {
         /* 进入蓝牙信令测试模式 */
         peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        rt_device_node_t *ble_dev = (pbus && pbus->find_device) ? pbus->find_device(ID_DEVICE_BLE) : NULL;
         DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_ENTER_SIGNALINGTEST_MODE, NULL);
         
         result = 0x01; // 成功（实际会在重启后生效）
@@ -858,14 +855,14 @@ int tests_tlvs_bt_nosignaling_test(comm_protocol_builder_t *builder, comm_protoc
 
     uint8_t mode = (data && data_len >= 1) ? data[0] : 0;
 
-    LOG_SRV("tests_tlvs_bt_nosignaling_test: %s", mode ? "ENTER" : "EXIT");
+    LOG_SRV("%s", mode ? "ENTER" : "EXIT");
 
     uint8_t result = 0x00; // 默认失败
 
     if (mode == 1) {
         /* 进入蓝牙非信令测试模式 */
         peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        rt_device_node_t *ble_dev = (pbus && pbus->find_device) ? pbus->find_device(ID_DEVICE_BLE) : NULL;
         DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_ENTER_NOSIGNALINGTEST_MODE, NULL);
 
         result = 0x01; // 成功（实际会在重启后生效）
@@ -893,7 +890,7 @@ int tests_tlvs_bt_xtal_calib_test(comm_protocol_builder_t *builder, comm_protoco
 
     uint8_t mode = (data && data_len >= 1) ? data[0] : 0;
 
-    LOG_SRV("tests_tlvs_bt_xtal_calib_test: %s", mode ? "ENTER" : "EXIT");
+    LOG_SRV("%s", mode ? "ENTER" : "EXIT");
 
     uint8_t result = 0x00; // 默认失败
 
@@ -901,7 +898,7 @@ int tests_tlvs_bt_xtal_calib_test(comm_protocol_builder_t *builder, comm_protoco
         /* 进入蓝牙校频测试模式 */
         // 调用校频测试函数
         peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        rt_device_node_t *ble_dev = (pbus && pbus->find_device) ? pbus->find_device(ID_DEVICE_BLE) : NULL;
         DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_XTAL_CALIB_PROC_START, NULL);
         result = 0x01; // 成功
         
@@ -909,7 +906,7 @@ int tests_tlvs_bt_xtal_calib_test(comm_protocol_builder_t *builder, comm_protoco
         /* 退出蓝牙校频测试模式 */
         // TODO: 实现退出逻辑
         peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        rt_device_node_t *ble_dev = (pbus && pbus->find_device) ? pbus->find_device(ID_DEVICE_BLE) : NULL;
         DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_XTAL_CALIB_END, NULL);
 
         result = 0x01; // 默认成功
@@ -943,14 +940,14 @@ int tests_tlvs_set_trim_value(comm_protocol_builder_t *builder, comm_protocol_se
         uint32_t trim_value = (uint32_t)data[0] | ((uint32_t)data[1] << 8) | 
                               ((uint32_t)data[2] << 16) | ((uint32_t)data[3] << 24);
         
-        LOG_SRV("tests_tlvs_set_trim_value: trim_value=0x%08X (%u)", trim_value, trim_value);
+        LOG_SRV("trim_value=0x%08X (%u)", trim_value, trim_value);
         
         peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+        rt_device_node_t *ble_dev = (pbus && pbus->find_device) ? pbus->find_device(ID_DEVICE_BLE) : NULL;
         DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_XTAL_CALIB_SET, &trim_value);
         result = 0x01; // 成功
     } else {
-        LOGE("tests_tlvs_set_trim_value: invalid data_len=%d, expected=%d", data_len, TESTS_TRIM_VALUE_LENGTH);
+        LOGE("invalid data_len=%d, expected=%d", data_len, TESTS_TRIM_VALUE_LENGTH);
     }
 
     // 应答格式: Length=1, Value=0x00失败/0x01成功
@@ -968,15 +965,14 @@ int tests_tlvs_get_trim_value(comm_protocol_builder_t *builder, comm_protocol_se
     EXCEPTION_CHECK_INT(builder && service);
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
-
-    LOG_SRV("tests_tlvs_get_trim_value");
+    LOG_SRV("data_len: %d", data_len);
 
     // 应答格式: Length=4, byte0-3=trim值(小端序)
     uint8_t response[TESTS_TRIM_VALUE_LENGTH] = {0};
     /// Trim值存储
     uint32_t trim_value = 0;
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
+    rt_device_node_t *ble_dev = (pbus && pbus->find_device) ? pbus->find_device(ID_DEVICE_BLE) : NULL;
     DEVICE_IOCTL_ARGS_NO_RET(ble_dev, OP_CODE_BLE_TEST_XTAL_CALIB_GET, &trim_value);
     // 将trim值转换为小端序字节数组
     response[0] = (uint8_t)(trim_value & 0xFF);
@@ -1007,7 +1003,7 @@ int tests_tlvs_standby_mode(comm_protocol_builder_t *builder, comm_protocol_serv
     uint8_t mode = (data && data_len >= 1) ? data[0] : 0;
     uint8_t result = 0x00; // 默认失败
 
-    LOG_SRV("tests_tlvs_standby_mode: %s", mode ? "ENTER" : "EXIT");
+    LOG_SRV("%s", mode ? "ENTER" : "EXIT");
 
     if (mode == 1) {
         /* 进入待机模式 */
@@ -1037,8 +1033,7 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
     EXCEPTION_CHECK_INT(builder && service);
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
-
-    LOG_SRV("tests_tlvs_query_sensor_status");
+    LOG_SRV("data_len: %d", data_len);
 
     // 查询各个传感器的通信状态
     // 应答格式: Length=N+1, byte0-N=各设备状态(0x00=通信失败, 0x01=通信成功)
@@ -1053,7 +1048,8 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
     #if IS_SUPPORT_DEVICE_AIR_PRESSURE
     {
         uint8_t pressure_is_ready_status[AIR_PRESSURE_NUM] = {0};
-        rt_device_node_t *air_pressure_dev = pbus->find_device(ID_DEVICE_AIR_PRESSURE);
+        rt_device_node_t *air_pressure_dev = (pbus && pbus->find_device) ?
+            pbus->find_device(ID_DEVICE_AIR_PRESSURE) : NULL;
         if (air_pressure_dev) {
             DEVICE_IOCTL_ARGS_NO_RET(air_pressure_dev, OP_CODE_AIR_PRESSURE_IS_READY, pressure_is_ready_status);
             for (uint8_t i = 0; i < AIR_PRESSURE_NUM; i++) {
@@ -1070,7 +1066,8 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
     // 查询电池状态
     #if IS_SUPPORT_DEVICE_BATTERY
     {
-        rt_device_node_t *battery_dev = pbus->find_device(ID_DEVICE_BATTERY);
+        rt_device_node_t *battery_dev = (pbus && pbus->find_device) ?
+            pbus->find_device(ID_DEVICE_BATTERY) : NULL;
         if (battery_dev) {
             DEVICE_IOCTL_HAS_RET(battery_dev, OP_CODE_BAT_IS_READY, ret);
             response[sensor_count] = ret > 0 ? 1 : 0;
@@ -1085,7 +1082,8 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
     #if IS_SUPPORT_DEVICE_TOUCH_KEY
     {
         uint8_t touch_is_ready_status = 0;
-        rt_device_node_t *input_key_dev = pbus->find_device(ID_DEVICE_INPUT_KEY);
+        rt_device_node_t *input_key_dev = (pbus && pbus->find_device) ?
+            pbus->find_device(ID_DEVICE_INPUT_KEY) : NULL;
         if (input_key_dev) {
             DEVICE_IOCTL_ARGS_NO_RET(input_key_dev, OP_CODE_INPUT_TOUCH_IS_READY, &touch_is_ready_status);
             response[sensor_count] = touch_is_ready_status;
@@ -1101,7 +1099,8 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
     #if IS_SUPPORT_DEVICE_LED
     {
         uint8_t led_is_ready_status = 0;
-        rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
+        rt_device_node_t *led_dev = (pbus && pbus->find_device) ?
+            pbus->find_device(ID_DEVICE_LED) : NULL;
         if (led_dev) {
             DEVICE_IOCTL_ARGS_NO_RET(led_dev, OP_CODE_LED_IS_READY, &led_is_ready_status);
             response[sensor_count] = led_is_ready_status;
@@ -1115,7 +1114,8 @@ int tests_tlvs_query_sensor_status(comm_protocol_builder_t *builder, comm_protoc
     // 查询PD充电状态
     #if IS_SUPPORT_PD_CHARGE
     {
-        rt_device_node_t *battery_dev = pbus->find_device(ID_DEVICE_BATTERY);
+        rt_device_node_t *battery_dev = (pbus && pbus->find_device) ?
+            pbus->find_device(ID_DEVICE_BATTERY) : NULL;
         if (battery_dev) {
             DEVICE_IOCTL_HAS_RET(battery_dev, OP_CODE_BAT_PD_IS_READY, pdret);
             response[sensor_count] = pdret > 0 ? 1 : 0;
@@ -1146,14 +1146,14 @@ int tests_tlvs_get_rssi(comm_protocol_builder_t *builder, comm_protocol_service_
     protocol_manager_context_t *protocol_ctx = get_protocol_ctx();
     EXCEPTION_CHECK_INT(protocol_ctx);
 
-    LOG_SRV("tests_tlvs_get_rssi, data_len: %d", data_len);
+    LOG_SRV("data_len: %d", data_len);
 
     // 协议格式: REQUEST Length=1, byte0: 0x00获取BLE RSSI, 0x01获取BT RSSI
     uint8_t rssi_type = 0;
     if (data && data_len >= 1) {
         rssi_type = data[0];
     } else {
-        LOG_SRV("tests_tlvs_get_rssi: invalid data_len=%d, expected 1", data_len);
+        LOG_SRV("invalid data_len=%d, expected 1", data_len);
     }
 
     // 应答格式: RESPONSE Length=4, byte0-3: RSSI值(小端序，int32_t)
@@ -1162,20 +1162,20 @@ int tests_tlvs_get_rssi(comm_protocol_builder_t *builder, comm_protocol_service_
     if (rssi_type == 0x00) {
         // 获取BLE RSSI
         peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-        rt_device_node_t *ble_dev = pbus->find_device(ID_DEVICE_BLE);
-        uint8_t ret = DEVICE_IOCTL_ARGS(ble_dev, OP_CODE_BLE_TEST_GET_RSSI_VALUE, &rssi_value);
-        if (ret == 0) {
-            LOG_SRV("tests_tlvs_get_rssi: BLE RSSI=%d", rssi_value);
+        rt_device_node_t *ble_dev = (pbus && pbus->find_device) ? pbus->find_device(ID_DEVICE_BLE) : NULL;
+        DEVICE_IOCTL_ARGS_HAS_RET(ble_dev, OP_CODE_BLE_TEST_GET_RSSI_VALUE, &rssi_value, ioctl_ret);
+        if (ioctl_ret == 0) {
+            LOG_SRV("BLE RSSI=%d", rssi_value);
         } else {
-            LOG_SRV("tests_tlvs_get_rssi: BLE RSSI获取失败");
+            LOG_SRV("BLE RSSI获取失败");
             rssi_value = 0; // 失败时返回0
         }
     } else if (rssi_type == 0x01) {
         // 获取BT RSSI - 暂未实现
-        LOG_SRV("tests_tlvs_get_rssi: BT RSSI获取功能暂未实现");
+        LOG_SRV("BT RSSI获取功能暂未实现");
         rssi_value = 0; // 暂未实现，返回0
     } else {
-        LOG_SRV("tests_tlvs_get_rssi: invalid rssi_type=0x%02X, expected 0x00(BLE) or 0x01(BT)", rssi_type);
+        LOG_SRV("invalid rssi_type=0x%02X, expected 0x00(BLE) or 0x01(BT)", rssi_type);
         rssi_value = 0; // 无效类型时返回0
     }
     uint8_t response[4] = {0};
@@ -1203,7 +1203,7 @@ int tests_tlvs_read_battery_level(comm_protocol_builder_t *builder, comm_protoco
     EXCEPTION_CHECK_INT(protocol_ctx);
 
     if (data_len != 0) {
-        LOG_SRV("tests_tlvs_read_battery_level: invalid data_len=%d, expected 0", data_len);
+        LOG_SRV("invalid data_len=%d, expected 0", data_len);
     }
 
     uint8_t battery_level = 0;
@@ -1211,9 +1211,9 @@ int tests_tlvs_read_battery_level(comm_protocol_builder_t *builder, comm_protoco
     if (battery_ctx && battery_ctx->get_battery_percent) {
         battery_level = battery_ctx->get_battery_percent();
     } else {
-        LOGW("tests_tlvs_read_battery_level: battery context invalid, return 0");
+        LOGW("battery context invalid, return 0");
     }
-    LOG_SRV("tests_tlvs_read_battery_level: battery_level=%u", battery_level);
+    LOG_SRV("battery_level=%u", battery_level);
 
     comm_protocol_tlv_node_t tlv_node = {
         .type = TESTS_TLV_READ_BATTERY_LEVEL,
@@ -1231,7 +1231,7 @@ int tests_tlvs_read_key_cap_signal(comm_protocol_builder_t *builder, comm_protoc
     EXCEPTION_CHECK_INT(protocol_ctx);
 
     if (data_len != 1 || data == NULL) {
-        LOGE("tests_tlvs_read_key_cap_signal: invalid request len=%u (need 1)", (unsigned)data_len);
+        LOGE("invalid request len=%u (need 1)", (unsigned)data_len);
         return -1;
     }
 
@@ -1252,10 +1252,10 @@ int tests_tlvs_read_key_cap_signal(comm_protocol_builder_t *builder, comm_protoc
                     signal_u32 = (uint32_t)sig_buff[ch * 2U] | ((uint32_t)sig_buff[ch * 2U + 1U] << 8);
                 }
             } else {
-                LOGW("tests_tlvs_read_key_cap_signal: touch signal read failed, key_id=%u ret=%d", key_id, ioctl_ret);
+                LOGW("touch signal read failed, key_id=%u ret=%d", key_id, ioctl_ret);
             }
         } else {
-            LOGW("tests_tlvs_read_key_cap_signal: input key device missing");
+            LOGW("input key device missing");
         }
     }
 #else
@@ -1268,7 +1268,7 @@ int tests_tlvs_read_key_cap_signal(comm_protocol_builder_t *builder, comm_protoc
         (uint8_t)((signal_u32 >> 16) & 0xFFU),
         (uint8_t)((signal_u32 >> 24) & 0xFFU),
     };
-    LOG_SRV("tests_tlvs_read_key_cap_signal: key_id=%u signal=%lu", key_id, (unsigned long)signal_u32);
+    LOG_SRV("key_id=%u signal=%lu", key_id, (unsigned long)signal_u32);
 
     comm_protocol_tlv_node_t tlv_node = {
         .type = TESTS_TLV_READ_KEY_CAP_SIGNAL,
@@ -1287,7 +1287,7 @@ int tests_tlvs_read_battery_charge_current(comm_protocol_builder_t *builder, com
 
     (void)data;
     if (data_len != 0) {
-        LOGW("tests_tlvs_read_battery_charge_current: ignore extra request bytes, len=%u", (unsigned)data_len);
+        LOGW("ignore extra request bytes, len=%u", (unsigned)data_len);
     }
 
     uint32_t current_ma = 0;
@@ -1300,13 +1300,13 @@ int tests_tlvs_read_battery_charge_current(comm_protocol_builder_t *builder, com
             if (ioctl_ret == 0) {
                 current_ma = ibat_ma;
             } else {
-                LOGW("tests_tlvs_read_battery_charge_current: ioctl failed ret=%d", ioctl_ret);
+                LOGW("ioctl failed ret=%d", ioctl_ret);
             }
         } else {
-            LOGW("tests_tlvs_read_battery_charge_current: battery device missing");
+            LOGW("battery device missing");
         }
     } else {
-        LOGW("tests_tlvs_read_battery_charge_current: device bus missing");
+        LOGW("device bus missing");
     }
 
     uint8_t response[4] = {
@@ -1315,7 +1315,7 @@ int tests_tlvs_read_battery_charge_current(comm_protocol_builder_t *builder, com
         (uint8_t)((current_ma >> 16) & 0xFFU),
         (uint8_t)((current_ma >> 24) & 0xFFU),
     };
-    LOG_SRV("tests_tlvs_read_battery_charge_current: %lu mA", (unsigned long)current_ma);
+    LOG_SRV("%lu mA", (unsigned long)current_ma);
 
     comm_protocol_tlv_node_t tlv_node = {
         .type = TESTS_TLV_READ_BATTERY_CHARGE_CURRENT,
@@ -1343,18 +1343,18 @@ int tests_tlvs_set_battery_charge_current(comm_protocol_builder_t *builder, comm
                 DEVICE_IOCTL_ARGS_HAS_RET(battery_dev, OP_CODE_BAT_CHARGE_FORCE_OPEN, ioctl_arg, ioctl_ret);
                 if (ioctl_ret == 0) {
                     result = 0x01;
-                    LOG_SRV("tests_tlvs_set_battery_charge_current: %u mA ok", (unsigned)target_ma);
+                    LOG_SRV("%u mA ok", (unsigned)target_ma);
                 } else {
-                    LOGW("tests_tlvs_set_battery_charge_current: %u mA failed ret=%d", (unsigned)target_ma, ioctl_ret);
+                    LOGW("%u mA failed ret=%d", (unsigned)target_ma, ioctl_ret);
                 }
             } else {
-                LOGW("tests_tlvs_set_battery_charge_current: battery device missing");
+                LOGW("battery device missing");
             }
         } else {
-            LOGW("tests_tlvs_set_battery_charge_current: device bus missing");
+            LOGW("device bus missing");
         }
     } else {
-        LOGE("tests_tlvs_set_battery_charge_current: invalid data_len=%u, expected 2", (unsigned)data_len);
+        LOGE("invalid data_len=%u, expected 2", (unsigned)data_len);
     }
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1385,12 +1385,12 @@ int tests_tlvs_lcd_backlight_control(comm_protocol_builder_t *builder, comm_prot
             }
             led->hook->set_ui_backlight_level(led, data[0] ? LCD_BACKLIGHT_LEVEL_MAX : 0);
             result = 0x01;
-            LOG_SRV("tests_tlvs_lcd_backlight_control: %s", data[0] ? "ON" : "OFF");
+            LOG_SRV("%s", data[0] ? "ON" : "OFF");
         } else {
-            LOGW("tests_tlvs_lcd_backlight_control: led manager or hook unavailable");
+            LOGW("led manager or hook unavailable");
         }
     } else {
-        LOGE("tests_tlvs_lcd_backlight_control: invalid data_len=%u, expected 1", (unsigned)data_len);
+        LOGE("invalid data_len=%u, expected 1", (unsigned)data_len);
     }
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1414,14 +1414,14 @@ int tests_tlvs_light_sensor_report_ctrl(comm_protocol_builder_t *builder, comm_p
             light_sensor_sampling_start();
             /// 未初始化 adaptive_dimming 时 start 会直接返回，避免仍应答成功导致「开了但不报」
             result = light_sensor_sampling_is_sampling() ? 0x01 : 0x00;
-            LOG_SRV("tests_tlvs_light_sensor_report_ctrl: START, ok=%u", (unsigned)result);
+            LOG_SRV("START, ok=%u", (unsigned)result);
         } else {
             light_sensor_sampling_stop();
             result = 0x01;
-            LOG_SRV("tests_tlvs_light_sensor_report_ctrl: STOP");
+            LOG_SRV("STOP");
         }
     } else {
-        LOGE("tests_tlvs_light_sensor_report_ctrl: invalid data_len=%u, expected 1", (unsigned)data_len);
+        LOGE("invalid data_len=%u, expected 1", (unsigned)data_len);
     }
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1456,25 +1456,25 @@ int tests_tlvs_light_sensor_calib_data_set(comm_protocol_builder_t *builder, com
                 
                 if (st->put_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info) != 0) {
                     result = 0x00; // 失败
-                    LOG_SRV("tests_tlvs_light_sensor_calib_data_set: point=%u calib=%ld, failed", point, (long)calib);
+                    LOG_SRV("point=%u calib=%ld, failed", point, (long)calib);
                 } else {
                     result = 0x01; // 成功
-                    LOG_SRV("tests_tlvs_light_sensor_calib_data_set: point=%u calib=%ld, success", point, (long)calib);
+                    LOG_SRV("point=%u calib=%ld, success", point, (long)calib);
                     /// S2：仅写完最后一个分段阈值点(point==3)后 reload，避免逐点写入过程中曲线抖动
                     if (point == ADAP_DIM_LUX_CALIB_THR_RELOAD_POINT) {
                         if (adaptive_dimming_lux_thr_reload_from_factory() != 0) {
-                            LOGW("tests_tlvs_light_sensor_calib_data_set: lux thr reload failed after point=%u",
+                            LOGW("lux thr reload failed after point=%u",
                                  point);
                         }
                     }
                 }
             }
         } else {
-            LOGE("tests_tlvs_light_sensor_calib_data_set: invalid point=%u (max %u)", point,
+            LOGE("invalid point=%u (max %u)", point,
                  (unsigned)(LIGHT_SENSOR_CALIB_POINT_NUM - 1U));
         }
     } else {
-        LOGE("tests_tlvs_light_sensor_calib_data_set: invalid data_len=%u, expected 5", (unsigned)data_len);
+        LOGE("invalid data_len=%u, expected 5", (unsigned)data_len);
     }
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1495,18 +1495,20 @@ int tests_tlvs_light_sensor_calib_data_read(comm_protocol_builder_t *builder, co
     EXCEPTION_CHECK_INT(protocol_ctx);
 
     int32_t calib = 0;
+    uint8_t point = 0;
     if (data_len >= 1 && data != NULL && data[0] < LIGHT_SENSOR_CALIB_POINT_NUM) {
+        point = data[0];
         storage_manager_context_t *st = get_storage_ctx();
         if (st) {
             factory_dev_info_t dev_info = {0};
             st->get_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info);
-            calib = dev_info.light_sensor_calib_tbl[data[0]];
+            calib = dev_info.light_sensor_calib_tbl[point];
         }
     } else {
-        LOGW("tests_tlvs_light_sensor_calib_data_read: invalid request len=%u or point", (unsigned)data_len);
+        LOGW("invalid request len=%u or point", (unsigned)data_len);
         calib = 0;
     }
-    LOG_SRV("tests_tlvs_light_sensor_calib_data_read: point=%u calib=%ld", data[0], (long)calib);
+    LOG_SRV("point=%u calib=%ld", point, (long)calib);
 
     comm_protocol_tlv_node_t tlv_node = {
         .type = TESTS_TLV_LIGHT_SENSOR_CALIB_DATA_READ,
@@ -1536,14 +1538,14 @@ int tests_tlvs_write_motor_type(comm_protocol_builder_t *builder, comm_protocol_
                 dev_info.motor_type = motor_type;
                 if (st->put_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info) == 0) {
                     result = 0x01;
-                    LOG_SRV("tests_tlvs_write_motor_type: motor_type=%u ok", motor_type);
+                    LOG_SRV("motor_type=%u ok", motor_type);
                 }
             }
         } else {
-            LOGE("tests_tlvs_write_motor_type: invalid motor_type=%u", motor_type);
+            LOGE("invalid motor_type=%u", motor_type);
         }
     } else {
-        LOGE("tests_tlvs_write_motor_type: invalid data_len=%u", (unsigned)data_len);
+        LOGE("invalid data_len=%u", (unsigned)data_len);
     }
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1573,7 +1575,7 @@ int tests_tlvs_read_motor_type(comm_protocol_builder_t *builder, comm_protocol_s
             motor_type = dev_info.motor_type;
         }
     }
-    LOG_SRV("tests_tlvs_read_motor_type: motor_type=%u", motor_type);
+    LOG_SRV("motor_type=%u", motor_type);
 
     comm_protocol_tlv_node_t tlv_node = {
         .type = TESTS_TLV_READ_MOTOR_TYPE,
@@ -1603,14 +1605,14 @@ int tests_tlvs_write_battery_vendor_type(comm_protocol_builder_t *builder, comm_
                 dev_info.battery_type = battery_type;
                 if (st->put_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info) == 0) {
                     result = 0x01;
-                    LOG_SRV("tests_tlvs_write_battery_vendor_type: battery_type=%u ok", battery_type);
+                    LOG_SRV("battery_type=%u ok", battery_type);
                 }
             }
         } else {
-            LOGE("tests_tlvs_write_battery_vendor_type: invalid battery_type=%u", battery_type);
+            LOGE("invalid battery_type=%u", battery_type);
         }
     } else {
-        LOGE("tests_tlvs_write_battery_vendor_type: invalid data_len=%u", (unsigned)data_len);
+        LOGE("invalid data_len=%u", (unsigned)data_len);
     }
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1640,7 +1642,7 @@ int tests_tlvs_read_battery_vendor_type(comm_protocol_builder_t *builder, comm_p
             battery_type = dev_info.battery_type;
         }
     }
-    LOG_SRV("tests_tlvs_read_battery_vendor_type: battery_type=%u", battery_type);
+    LOG_SRV("battery_type=%u", battery_type);
 
     comm_protocol_tlv_node_t tlv_node = {
         .type = TESTS_TLV_READ_BATTERY_VENDOR_TYPE,
@@ -1662,14 +1664,14 @@ int tests_tlvs_read_ui_res_version(comm_protocol_builder_t *builder, comm_protoc
 
     (void)data;
     if (data_len != 0) {
-        LOGW("tests_tlvs_read_ui_res_version: ignore extra request bytes, len=%u", (unsigned)data_len);
+        LOGW("ignore extra request bytes, len=%u", (unsigned)data_len);
     }
 
     /// 产测上报设备已加载的基础 UI 资源包版本（与 img_res_init 校验的 BASE 分区一致）
     uint16_t img_res_version = (uint16_t)res->get_img_res_version(RES_THEME_TYPE_BASE);
     if (img_res_version == 0) {
         img_res_version = (uint16_t)ROOT_RES_VERSION;
-        LOGW("tests_tlvs_read_ui_res_version: base res version not ready, fallback ROOT_RES_VERSION=%u",
+        LOGW("base res version not ready, fallback ROOT_RES_VERSION=%u",
              (unsigned)img_res_version);
     }
 
@@ -1683,7 +1685,7 @@ int tests_tlvs_read_ui_res_version(comm_protocol_builder_t *builder, comm_protoc
     }
     uint8_t version[2] = { major, minor };
 
-    LOG_SRV("tests_tlvs_read_ui_res_version: %u.%02u (img_res_version=%u)",
+    LOG_SRV("%u.%02u (img_res_version=%u)",
             (unsigned)version[0], (unsigned)version[1], (unsigned)img_res_version);
 
     comm_protocol_tlv_node_t tlv_node = {
@@ -1707,7 +1709,7 @@ int tests_key_status_publish(servers_publish_data_args_t *args)
 
     uint8_t key_status = (uint8_t)args->arg1; // 0x01=短按, 0x02=长按
     uint8_t key_id = (uint8_t)args->arg2;     // 按键编号 0-255
-    LOG_SRV("tests_key_status_publish: %s, key_id=%u",
+    LOG_SRV("%s, key_id=%u",
         key_status == TESTS_KEY_STATUS_SHORT_PRESS ? "SHORT" : "LONG", key_id);
 
     comm_protocol_builder_t builder = {0};
@@ -1767,7 +1769,7 @@ int tests_encoder_status_publish(servers_publish_data_args_t *args)
 
     uint8_t encoder_status = (uint8_t)args->arg1; // 0x01=左旋, 0x02=右旋
     uint8_t key_id = (uint8_t)args->arg2;        // 编码器按键编号 0-255
-    LOG_SRV("tests_encoder_status_publish: %s, key_id=%u",
+    LOG_SRV("%s, key_id=%u",
         encoder_status == TESTS_ENCODER_STATUS_LEFT ? "LEFT" : "RIGHT", key_id);
 
     comm_protocol_builder_t builder = {0};
@@ -1872,7 +1874,7 @@ int tests_tlvs_set_lcd_color(comm_protocol_builder_t *builder,
         tests_manager_context_t *tests_ctx = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
         EXCEPTION_CHECK_INT(tests_ctx);
         if (tests_ctx->tests_manager_get_current_mode() != TST_LCD_COLOR_TYPE) {
-            LOGW("tests_tlvs_set_lcd_color: not in lcd color test mode");
+            LOGW("not in lcd color test mode");
         } else if (color_id >= TESTS_LCD_COLOR_RED && color_id <= TESTS_LCD_COLOR_GRAY) {
             tests_ctx->priv.lcd_set_color = color_id;
             LOG_SRV("set lcd color: 0x%02x", color_id);
@@ -1882,10 +1884,10 @@ int tests_tlvs_set_lcd_color(comm_protocol_builder_t *builder,
             }
             result = 0x01;
         } else {
-            LOGW("tests_tlvs_set_lcd_color: invalid color 0x%02x", color_id);
+            LOGW("invalid color 0x%02x", color_id);
         }
     } else {
-        LOGE("tests_tlvs_set_lcd_color: invalid data_len=%u, expected 1", (unsigned)data_len);
+        LOGE("invalid data_len=%u, expected 1", (unsigned)data_len);
     }
 
     comm_protocol_tlv_node_t tlv_node = {
