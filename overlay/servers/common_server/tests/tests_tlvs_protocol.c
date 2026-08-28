@@ -762,6 +762,12 @@ int tests_tlvs_write_factory_complete_flag(comm_protocol_builder_t *builder, com
             st->get_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info);
             // 使用 deploy_flag 字段存储产测完成标识
             flag_info.deploy_flag = complete_flag;
+            #if IS_SUPPORT_EXIT_TEST_MODE_CLEAR_USER_DATA
+            storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+            if (st && complete_flag == 1) {
+                st->user_database_reset(); /// 重置数据
+            }
+            #endif
             if (st->put_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info) == 0) {
                 result = 0x01; // 成功
                 LOG_SRV("tests_tlvs_write_factory_complete_flag: %s", complete_flag ? "COMPLETE" : "NOT_COMPLETE");
