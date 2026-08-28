@@ -235,6 +235,9 @@ extern "C" {
 /// 泵同步方式：同档同步 / 同频同步（二者互斥，优先同频）
 #define PUMP_LEVEL_SYNC_ENABLE                           (0)
 #define PUMP_FREQ_SYNC_ENABLE                            (1)
+
+/// 支持退出产测模式清除用户数据
+#define IS_SUPPORT_EXIT_TEST_MODE_CLEAR_USER_DATA        (1)
 #ifdef __cplusplus
 }
 #endif
