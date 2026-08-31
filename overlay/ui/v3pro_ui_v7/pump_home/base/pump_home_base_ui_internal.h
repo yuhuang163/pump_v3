@@ -171,6 +171,11 @@ typedef struct {
     uint32_t mode_switch_time;          /// 子模式切换提醒起始时间
     char shown_title[PUMP_HOME_BASE_CUSTOM_MODE_NAME_LEN];
     char shown_seal_text[PUMP_HOME_MAIN_SEAL_TIP_TEXT_LEN]; /// 当前漏气文案
+#if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+    lv_obj_t *wear_result_text;             /// 漏气检测结果调试文案
+    uint8_t wear_result[AIR_PRESSURE_NUM];  /// 缓存佩戴检测结果
+    uint8_t seal_result;                    /// 缓存漏气结果 pump_seal_result_e
+#endif
 } pump_home_base_main_page_info_t;
 
 /// 模式选择页固定层（挂 root，不参与切页位移动画；无文案提示/扫光）

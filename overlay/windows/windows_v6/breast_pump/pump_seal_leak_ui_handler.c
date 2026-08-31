@@ -99,7 +99,11 @@ static uint8_t pump_seal_result_from_wear(ui_proc_pump_t *proc, const uint8_t *w
             worst = wear[i];
         }
     }
-
+    
+    #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+    memcpy(proc->wear_result, wear, sizeof(proc->wear_result));
+    #endif
+    
     if (get_timestamp_ms(proc->seal_log_time) > 1000) {
         proc->seal_log_time = get_timestamp();
         LOG_WM("wear result: %d(%d/%d)", worst, wear[0], wear[1]);

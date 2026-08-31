@@ -310,6 +310,9 @@ typedef struct {
     uint8_t seal_tip;
     /// 本轮检测窗口内最新结果 pump_seal_result_e
     uint8_t seal_result;
+    #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+    uint8_t wear_result[AIR_PRESSURE_NUM]; /// 漏气检测结果
+    #endif
     uint32_t seal_check_time; /// 非 0 表示本轮启动已进入检测
     uint32_t seal_result_time; /// 通过文案起始时间
     uint32_t seal_log_time; /// 结果展示日志时间点
