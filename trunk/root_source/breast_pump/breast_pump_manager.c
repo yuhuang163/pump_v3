@@ -33,6 +33,7 @@ static void set_breast_pump_status(int status, int is_report);
 static int get_breast_pump_status(void);
 static pump_result_info_t * get_breast_pump_result(breast_pump_result_id_e result_id);
 static const char *get_breast_pump_mode_name(uint8_t mode);
+static const char *get_breast_pump_status_name(uint8_t status);
 
 static void on_motor_error_check_callback(uint8_t pump_id, motor_dev_status_e status)
 {
@@ -278,7 +279,8 @@ static void set_breast_pump_status(int status, int is_report)
     if (status >= BREAST_PUMP_IDLE && status <= BREAST_PUMP_RESET) {
         if (m_info->status != status) {
             m_info->status = status;
-            LOG_PMP("status: %d, do_work: %d, mode: %d", status, m_info->do_work, m_info->mode);
+            const char *status_name = get_breast_pump_status_name(status);
+            LOG_PMP("status:%s(%d), do_work: %d, mode: %d", status_name, status, m_info->do_work, m_info->mode);
             switch (status) {
                 case BREAST_PUMP_IDLE:
                     if (m_info->do_work) {

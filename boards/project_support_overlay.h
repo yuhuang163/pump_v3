@@ -246,6 +246,9 @@ extern "C" {
 
 /// 支持退出产测模式清除用户数据
 #define IS_SUPPORT_EXIT_TEST_MODE_CLEAR_USER_DATA        (1)
+
+/// 支持漏气调试结果展示
+#define IS_SUPPORT_PUMP_SEAL_RESULT_TIP                  (0)
 #ifdef __cplusplus
 }
 #endif

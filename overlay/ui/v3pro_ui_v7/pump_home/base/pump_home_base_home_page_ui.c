@@ -846,6 +846,36 @@ static void pump_home_main_level_label_update(lv_obj_t **label, lv_obj_t *parent
     *shown_level = level;
 }
 
+#if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+static void pump_home_main_wear_result_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc)
+{
+    pump_home_base_main_page_info_t *main = &info->main;
+    char wear_result_text[32];
+
+    EXCEPTION_CHECK_VOID(info && proc);
+    if (proc->wear_result[0] == main->wear_result[0] &&
+        proc->wear_result[1] == main->wear_result[1] &&
+        proc->seal_result    == main->seal_result) {
+        return;
+    }
+
+    if (main->wear_result_text == NULL || !lv_obj_is_valid(main->wear_result_text)) {
+        main->wear_result_text = lv_label_create(pump_home_page_parent_get(info));
+        EXCEPTION_CHECK_VOID(main->wear_result_text);
+        lv_obj_set_style_text_color(main->wear_result_text, lv_color_white(), 0);
+        lv_obj_set_style_text_font(main->wear_result_text, UI_FONT_TITLE, 0);  /// 设置字体
+        lv_obj_set_style_text_line_space(main->wear_result_text, 2, 0);  /// 设置行间距（像素）
+        lv_obj_set_style_text_align(main->wear_result_text, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
+        lv_obj_align(main->wear_result_text, LV_ALIGN_TOP_MID, 0, 325);
+    }
+    snprintf(wear_result_text, sizeof(wear_result_text), "%d-%d-%d",
+        proc->seal_result, proc->wear_result[0], proc->wear_result[1]);
+    lv_label_set_text(main->wear_result_text, wear_result_text);
+    memcpy(main->wear_result, proc->wear_result, sizeof(main->wear_result));
+    main->seal_result = proc->seal_result;
+}
+#endif
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -878,6 +908,11 @@ void pump_home_main_page_ui_build(pump_home_base_ui_info_t *info)
     info->animation.paused_by_transition = 0;
     info->animation.hidden_by_mode_switch = 0;
     info->animation.hidden_by_seal_check = 0;
+    #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+    info->main.wear_result[0] = 0xFF;
+    info->main.wear_result[1] = 0xFF;
+    info->main.seal_result = 0xFF;
+    #endif
 }
 
 void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_t *proc)
@@ -945,6 +980,9 @@ void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
         right_level, PUMP_HOME_MAIN_RIGHT_LEVEL_X, PUMP_HOME_MAIN_RIGHT_LEVEL_Y,
         PUMP_HOME_MAIN_RIGHT_LEVEL_W, LV_TEXT_ALIGN_LEFT, &info->main.shown_right_level,
         info->force_update != 0);
+#if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+    pump_home_main_wear_result_update(info, proc);
+#endif
     info->main.shown_paused = paused ? 1 : 0;
     /* 缩放复位只在切页过渡里 apply；稳态每帧设 FULL 会反复 update_layout */
 }

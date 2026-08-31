@@ -107,6 +107,11 @@ typedef struct {
     char custom_id_str[PUMP_SEAL_LEAK_CUSTOM_NAME_LEN];
     storage_manager_context_t *st;
     ui_manager_context_t *ui;
+#if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+    lv_obj_t *wear_result_text;
+    uint8_t wear_result[AIR_PRESSURE_NUM];
+    uint8_t seal_result;
+#endif
 } pump_seal_leak_ui_info_t;
 
 /*
@@ -781,6 +786,32 @@ static void pump_seal_leak_runtime_sync(pump_seal_leak_ui_info_t *info, ui_proc_
     }
 }
 
+#if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+static void pump_seal_leak_wear_result_update(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->wear_result[0] == s_leak_info->wear_result[0] && 
+        proc->wear_result[1] == s_leak_info->wear_result[1] &&
+        proc->seal_result    == s_leak_info->seal_result) {
+        return;
+    }
+    
+    if (s_leak_info->wear_result_text == NULL || !lv_obj_is_valid(s_leak_info->wear_result_text)) {
+        s_leak_info->wear_result_text = lv_label_create(s_leak_info->root);
+        lv_obj_set_style_text_color(s_leak_info->wear_result_text, lv_color_white(), 0);
+        lv_obj_set_style_text_font(s_leak_info->wear_result_text, UI_FONT_TITLE, 0);  /// 设置字体
+        lv_obj_set_style_text_line_space(s_leak_info->wear_result_text, 2, 0);  /// 设置行间距（像素）
+        lv_obj_set_style_text_align(s_leak_info->wear_result_text, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
+        lv_obj_align(s_leak_info->wear_result_text, LV_ALIGN_TOP_MID, 0, 325);
+    }
+    char wear_result_text[32];
+    sprintf(wear_result_text, "%d-%d-%d", proc->seal_result, proc->wear_result[0], proc->wear_result[1]);
+    lv_label_set_text(s_leak_info->wear_result_text, wear_result_text);
+    memcpy(s_leak_info->wear_result, proc->wear_result, sizeof(s_leak_info->wear_result));
+    s_leak_info->seal_result = proc->seal_result;
+}
+#endif
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -805,6 +836,11 @@ void ui_display_pump_seal_leak_prepare(ui_manager_context_t *thiz)
     proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
     pump_seal_leak_runtime_sync(s_leak_info, proc);
+    #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+    s_leak_info->wear_result[0] = 0xFF;
+    s_leak_info->wear_result[1] = 0xFF;
+    s_leak_info->seal_result = 0xFF;
+    #endif
 }
 
 void ui_display_pump_seal_leak_remove(ui_manager_context_t *thiz)
@@ -858,6 +894,9 @@ int ui_display_pump_seal_leak_process(ui_manager_context_t *thiz)
     pump_seal_leak_pause_shine_anim_update(s_leak_info->page);
     pump_seal_leak_pause_shine_anim_update(s_leak_info->peer_page);
     pump_seal_leak_dots_update(s_leak_info, s_leak_info->page_index);
+    #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
+    pump_seal_leak_wear_result_update(proc);
+    #endif
     s_leak_info->force_update = false;
 
     thiz->priv.fps_count++;
