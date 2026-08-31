@@ -14,6 +14,7 @@
 ******************************************************************************************************************/
 //#if defined(ALGO_TYPE_V3_WEAR_DETECTION)
 #include "v3_wear_detection.h"
+#include "v3_leak_detect.h"
 #define DEBUG		0
 
 // global data
@@ -113,6 +114,10 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 		tFeatureInfo[j].uRawTailRemain = 0;
 		tFeatureInfo[j].uRawSegLen = 0;
 		tFeatureInfo[j].uWearDetSegMinCommitted = 0;
+		tFeatureInfo[j].uLeakDetectTime = 0;
+		tFeatureInfo[j].uWearDetectTime = 0;
+		
+		LeakDetectReset(&tFeatureInfo[j]);
 
 		for (int i = 0; i < 6; i++)
 		{
@@ -221,7 +226,9 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 	tFeatureInfo[uChannelIdx].uRawTailRemain = 0;
 	tFeatureInfo[uChannelIdx].uRawSegLen = 0;
 	tFeatureInfo[uChannelIdx].uWearDetSegMinCommitted = 0;
-
+	tFeatureInfo[uChannelIdx].uLeakDetectTime = 0;
+	tFeatureInfo[uChannelIdx].uWearDetectTime = 0
+	LeakDetectReset(&tFeatureInfo[uChannelIdx]);
 	for (int i = 0; i < 6; i++)
 	{
 		tFeatureInfo[uChannelIdx].fMinDataBuff[i] = 0;
@@ -900,6 +907,27 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	unsigned int uMode = tDeviceInfoTemp->uMode;
 	unsigned int uLevel = tDeviceInfoTemp->uLevel;
 
+	// 漏气状态
+	if (tFeatureInfoTemp->uWearDetSegMinCommitted)
+	{
+		tFeatureInfoTemp->uPrevLeakStatus = tFeatureInfoTemp->uLeakStatus;
+		LeakDetectUpdate(tFeatureInfoTemp, tDeviceInfoTemp);
+	}
+
+	/* 初始 -> 佩戴检测(包括漏气) 时间 */
+	if (tFeatureInfoTemp->uLeakStatus != 0 && tFeatureInfoTemp->uPrevLeakStatus == 0)
+	{
+		tFeatureInfoTemp->uWearDetectTime ++;
+		tFeatureInfoTemp->uLeakDetectTime = 0;
+	}
+
+	/* 佩戴(包括漏气) -> 非密封检测时间 */
+	if (tFeatureInfoTemp->uLeakStatus == 0 && tFeatureInfoTemp->uPrevLeakStatus != 0)
+	{
+		tFeatureInfoTemp->uLeakDetectTime ++;
+		tFeatureInfoTemp->uWearDetectTime = 0;
+	}
+
 	/* =========================================================
 	 * 1. 当前处于“未佩戴”状态时，判断是否进入“已佩戴”状态
 	 * ========================================================= */
@@ -1226,7 +1254,6 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			tFeatureInfoTemp->fCompPrevErr = 0.0f;
 		}
 	}
-
 }
 
 #elif LONGYI_OR_SHIGUANG == 1
@@ -2049,6 +2076,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 	/* reset if do_work is 0 */
 	if(sPressureData.do_work == 0)
 	{
+		V3WearDetectionModeReset(uLevelLeft, uModeLeft, CHANNEL_0);
 		V3WearDetectionModeReset(uLevelRight, uModeRight, CHANNEL_1);
 	}
 
@@ -2165,8 +2193,10 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 */
 void GetWearDetectionResult(unsigned char* uWearStatus)
 {
-	uWearStatus[0] = tFeatureInfo[0].uWearStatus;
-	uWearStatus[1] = tFeatureInfo[1].uWearStatus;
+	// uWearStatus[0] = tFeatureInfo[0].uWearStatus;
+	// uWearStatus[1] = tFeatureInfo[1].uWearStatus;
+	uWearStatus[0] = tFeatureInfo[0].uLeakStatus;
+	uWearStatus[1] = tFeatureInfo[1].uLeakStatus;
 }
 
 
