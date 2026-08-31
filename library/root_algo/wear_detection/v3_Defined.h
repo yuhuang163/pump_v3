@@ -252,6 +252,9 @@ typedef struct _FEATURE_INFO_
 	float			fLeakValleyBuff[6];         /* 泵周期 raw 段最小，左移 6 槽，不复用 fMinDataBuff */
 	unsigned char	uLeakValleyCount;           /* 0~6 */
 	unsigned char	uLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
+	unsigned char	uPrevLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
+	unsigned short  uWearDetectTime;			/* 检测佩戴状态的时长 */
+	unsigned short  uLeakDetectTime;			/* 检测完全漏气状态的时长 */
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_

@@ -112,6 +112,8 @@ void LeakDetectReset(SFEATURE_INFO* tFeatureInfoTemp)
 	}
 	tFeatureInfoTemp->uLeakValleyCount = 0;
 	tFeatureInfoTemp->uLeakStatus = 0;
+	tFeatureInfoTemp->uPrevLeakStatus = 0;
+	
 }
 
 /* 与 Python 相同：整体左移，新谷写 [5]；n 从 0 增到 6。n=3 时 last3 即 buff[3..5] */
