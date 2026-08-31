@@ -96,10 +96,11 @@ static float expression_intercep[] = { 0.8553, -4.6521, -4.7871, -5.0214, -17.60
 
 typedef enum {
 	SUCTION_STATUS_IDLE = 0,
-	SUCTION_STATUS_GENERATE,    /// 生成	泵开始工作
-	SUCTION_STATUS_HOLD,        /// 保持	泵保持工作
-	SUCTION_STATUS_RELEASE,     /// 解除	泵结束工作
+	SUCTION_STATUS_GENERATE,    /// 生成
+	SUCTION_STATUS_HOLD,        /// 保持
+	SUCTION_STATUS_RELEASE,     /// 解除
 	SUCTION_STATUS_SLEEP,       /// 休眠
+	SUCTION_STATUS_UPDATE_POLICY,      /// 更新策略
 } suction_status_e;
 
 //typedef struct _PUMP_STATE
@@ -255,6 +256,7 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uPrevLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
 	unsigned short  uWearDetectTime;			/* 检测佩戴状态的时长 */
 	unsigned short  uLeakDetectTime;			/* 检测完全漏气状态的时长 */
+	float			fDataBaselineCnt;			/* 休眠状态下 基线平台>100Pa 计数 */
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_

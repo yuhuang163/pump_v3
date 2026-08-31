@@ -113,7 +113,10 @@ void LeakDetectReset(SFEATURE_INFO* tFeatureInfoTemp)
 	tFeatureInfoTemp->uLeakValleyCount = 0;
 	tFeatureInfoTemp->uLeakStatus = 0;
 	tFeatureInfoTemp->uPrevLeakStatus = 0;
-	
+	for (unsigned i = 0; i < 10; i++)
+	{
+		tFeatureInfoTemp->fDataBaselineCnt = 0;
+	}
 }
 
 /* 与 Python 相同：整体左移，新谷写 [5]；n 从 0 增到 6。n=3 时 last3 即 buff[3..5] */
@@ -373,7 +376,7 @@ void LeakDetectUpdate(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfo
 	LeakPushValley(tFeatureInfoTemp, tFeatureInfoTemp->fRawSegMinPressure);
 
 	/* 2. 未佩戴：对外 0，缓冲保留 */
-	if (tFeatureInfoTemp->uWearStatus == 0)
+	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uPrevLeakStatus != 3)
 	{
 		tFeatureInfoTemp->uLeakStatus = 0;
 		return;

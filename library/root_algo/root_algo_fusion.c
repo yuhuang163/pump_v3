@@ -64,10 +64,13 @@ static void wear_detection_process_data(void)
         float fMinData[2] = { 0.0f };
         float fThreshold[2] = { 0.0f };
         float fFilteredData[2] = { 0.0f };
-
+        unsigned short uWearDetectTime[2] = { 0 };
+        unsigned short uLeakDetectTime[2] = { 0 };
         float fFilteredSegMinPressure[2] = { 0.0f };
         unsigned char uWearDetSegMinCommitted[2] = { 0 };
-        GetWearDetectionDebugInfoAlg(uWaveSpikes, fMinData, uNormalWaveform, uNoiseLevel, fThreshold, fFilteredData, raw_pressure_max, threshold_at_min_pressure, fFilteredSegMinPressure, uWearDetSegMinCommitted);
+        GetWearDetectionDebugInfoAlg(uWaveSpikes, fMinData, uNormalWaveform, uNoiseLevel, 
+            fThreshold, fFilteredData, raw_pressure_max, threshold_at_min_pressure, 
+            fFilteredSegMinPressure, uWearDetSegMinCommitted, uWearDetectTime, uLeakDetectTime);
 
         ALGO_LOG_INFO("time_stamp: %d, air pressure: p1: %f, p2: %f", s_air_pressure_data.timestamp, s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
         ALGO_LOG_INFO("pump state: %d, %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state);
