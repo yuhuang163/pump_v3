@@ -302,7 +302,14 @@ void led_night_light_als_rebuild_knots(void)
 
 void led_night_light_als_on_lux(uint16_t lux)
 {
-    s_nl_duty_target = night_light_als_duty_from_lux(lux);
+    int duty = night_light_als_duty_from_lux(lux);
+    if (s_nl_duty_target != duty) {
+        adaptive_dimming_lux_thr_t thr = {0};
+        adaptive_dimming_get_lux_thr(&thr);
+        LOG_MISC("led_night_light_als_on_lux: %d -> %d, lux: %d vdark: %d dark: %d medium: %d bright: %d", 
+            s_nl_duty_target, duty, lux, thr.vdark, thr.dark, thr.medium, thr.bright);
+        s_nl_duty_target = duty;
+    }
 }
 
 void led_night_light_als_apply(led_manager_context_t *led)
@@ -317,6 +324,7 @@ void led_night_light_als_apply(led_manager_context_t *led)
     if (s_nl_duty_target == s_nl_duty_pushed) {
         return;
     }
+    LOG_MISC("led_night_light_als_apply: %d", s_nl_duty_target);
     set_night_light_level_internal(led, s_nl_duty_target);
     s_nl_duty_pushed = s_nl_duty_target;
 }
