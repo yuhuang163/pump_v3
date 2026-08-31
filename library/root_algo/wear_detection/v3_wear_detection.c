@@ -227,7 +227,7 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 	tFeatureInfo[uChannelIdx].uRawSegLen = 0;
 	tFeatureInfo[uChannelIdx].uWearDetSegMinCommitted = 0;
 	tFeatureInfo[uChannelIdx].uLeakDetectTime = 0;
-	tFeatureInfo[uChannelIdx].uWearDetectTime = 0
+	tFeatureInfo[uChannelIdx].uWearDetectTime = 0;
 	LeakDetectReset(&tFeatureInfo[uChannelIdx]);
 	for (int i = 0; i < 6; i++)
 	{
