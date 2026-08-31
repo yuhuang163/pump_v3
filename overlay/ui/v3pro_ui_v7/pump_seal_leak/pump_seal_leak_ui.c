@@ -388,7 +388,8 @@ static void pump_seal_leak_check_page_build(pump_seal_leak_ui_info_t *info, lv_o
 
     ctx->icon = lv_image_create(page);
     EXCEPTION_CHECK_VOID(ctx->icon);
-    if (icon_id == BASE_RES_ID_CHECK_TUBING_ICON) {
+    // if (icon_id == BASE_RES_ID_CHECK_TUBING_ICON) {
+    if (0) {
         ctx->icon_buf = ui_img_png_theme_decode_draw_buf(info->ui, icon_id, RES_THEME_TYPE_BASE,
             UI_IMG_PNG_DECODE_RGBA8888);
         if (ctx->icon_buf != NULL) {
