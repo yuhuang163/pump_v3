@@ -115,7 +115,8 @@ void LeakDetectReset(SFEATURE_INFO* tFeatureInfoTemp)
 	tFeatureInfoTemp->uPrevLeakStatus = 0;
 	for (unsigned i = 0; i < 10; i++)
 	{
-		tFeatureInfoTemp->fDataBaselineCnt = 0;
+		tFeatureInfoTemp->uDataBaselineCnt[0] = 0;
+		tFeatureInfoTemp->uDataBaselineCnt[1] = 0;
 	}
 }
 
@@ -376,7 +377,7 @@ void LeakDetectUpdate(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfo
 	LeakPushValley(tFeatureInfoTemp, tFeatureInfoTemp->fRawSegMinPressure);
 
 	/* 2. 未佩戴：对外 0，缓冲保留 */
-	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uPrevLeakStatus != 3)
+	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uPrevLeakStatus != 2)
 	{
 		tFeatureInfoTemp->uLeakStatus = 0;
 		return;

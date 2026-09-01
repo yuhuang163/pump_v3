@@ -910,19 +910,29 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	// 漏气状态
 	if (tFeatureInfoTemp->uWearDetSegMinCommitted)
 	{
-		tFeatureInfoTemp->uPrevLeakStatus = tFeatureInfoTemp->uLeakStatus;
+		/* 平台期 负压回不到0基线 ( < -1kPa ) 则认为是大漏 */
+		if (tFeatureInfoTemp->uDataBaselineCnt[0] > 10)
+		{
+			tFeatureInfoTemp->uLeakStatus = 2;
+			tFeatureInfoTemp->uDataBaselineCnt[1] = 0;
+		}
+		else if (tFeatureInfoTemp->uDataBaselineCnt[1] > 10)
+		{
+			tFeatureInfoTemp->uLeakStatus = 0;
+			tFeatureInfoTemp->uDataBaselineCnt[0] = 0;
+		}
 		LeakDetectUpdate(tFeatureInfoTemp, tDeviceInfoTemp);
 	}
 
 	/* 初始 -> 佩戴检测(包括漏气) 时间 */
-	if (tFeatureInfoTemp->uLeakStatus != 0)
+	if (tFeatureInfoTemp->uLeakStatus == 0)
 	{
 		tFeatureInfoTemp->uWearDetectTime ++;
 		tFeatureInfoTemp->uLeakDetectTime = 0;
 	}
 
 	/* 佩戴(包括漏气) -> 非密封检测时间 */
-	if (tFeatureInfoTemp->uLeakStatus == 0)
+	if (tFeatureInfoTemp->uLeakStatus != 0)
 	{
 		tFeatureInfoTemp->uLeakDetectTime ++;
 		tFeatureInfoTemp->uWearDetectTime = 0;
@@ -938,6 +948,12 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		 * ------------------------- */
 		if (uMode == MODE_EXPRESSION)
 		{
+			if (tFeatureInfo->uDataBaselineCnt[1] > 10 && tFeatureInfoTemp->fRawSegMinPressure < -10)
+			{
+				tFeatureInfo->uLeakStatus = 0;
+				uCandidateWearStatus = 1;
+			}
+
 			/* L1 ~ L15 的基础进入条件 */
 			if (uLevel >= 5 && (tFeatureInfoTemp->fThreshold - 0.25) < tFeatureInfoTemp->fRawSegMinPressure && tFeatureInfoTemp->uWaveSpikes <= 2)
 			{
@@ -2125,7 +2141,8 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 #else
 	for (unsigned int i = 0; i < CHANNEL_NUM; i++)
 	{
-		if(tFeatureInfo[i].uWearDetSegMinCommitted == 1)
+		tFeatureInfo[i].uPrevLeakStatus = tFeatureInfo[i].uLeakStatus;
+		if (tFeatureInfo[i].uWearDetSegMinCommitted == 1)
 		{
 			tFeatureInfo[i].uWearDetSegMinCommitted = 0;
 		}
@@ -2171,11 +2188,14 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			(fabs(sPressureData.air_pressure[i] - tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]) < .1 && sPressureData.pump_state[i].level > 1))
 		{
 			if (sPressureData.air_pressure[i] < -1)
-				tFeatureInfo[i].fDataBaselineCnt++;
+			{
+				tFeatureInfo[i].uDataBaselineCnt[0]++;
+				//printf("1. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+			}
 		}
-		else
+		if (SUCTION_STATUS_SLEEP == sPressureData.pump_state[i].state && sPressureData.air_pressure[i] > -.6)
 		{
-			tFeatureInfo[i].fDataBaselineCnt = 0;
+			tFeatureInfo[i].uDataBaselineCnt[1]++;
 		}
 
 		PressureDataFeature(&tPVInfo[i],
@@ -2186,12 +2206,10 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		if (tFeatureInfo[i].uWearDetSegMinCommitted)
 		{
 			WearDetectionDetermination(&tFeatureInfo[i], &tDeviceInfo[i]);
+			tFeatureInfo[i].uDataBaselineCnt[1] = 0;
 		}
-		/* 平台期 负压回不到0基线 ( < -1kPa ) 则认为是大漏 */
-		if (tFeatureInfo[i].fDataBaselineCnt > 10)
-		{
-			tFeatureInfo[i].uLeakStatus = 3;
-		}
+
+
 	}
 #endif /* DEBUG */
 }
