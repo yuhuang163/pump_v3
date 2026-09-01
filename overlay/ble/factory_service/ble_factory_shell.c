@@ -39,6 +39,7 @@
 #define BLE_CUSTOM_MODE_UPDATE_CMD             "#customUpdate"
 #define BLE_CUSTOM_MODE_CLEAR_CMD              "#customClear"
 #define BLE_TRIPLE_WRITE_SHELL_CMD             "#tripleWrite"
+#define BLE_TRIPLE_WRITE_PROD_SHELL_CMD        "#tripleWriteProd"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -71,6 +72,7 @@ static void ble_shell_utc_time(const uint8_t *param, uint16_t len);
 static void ble_shell_custom_mode_step_info_update(const uint8_t *param, uint16_t len);
 static void ble_shell_custom_mode_step_info_clear(const uint8_t *param, uint16_t len);
 static void ble_shell_triple_write(const uint8_t *param, uint16_t len);
+static void ble_shell_triple_write_prod(const uint8_t *param, uint16_t len);
 static void ble_shell_triple_set_field(uint8_t *dst, uint8_t *dst_len, uint16_t max_len, const char *src);
 static const ble_factory_shell_t shell_list[] = {
     /// 较长命令放前面，避免前缀误匹配（匹配逻辑也会校验命令边界）
@@ -100,7 +102,8 @@ static const ble_factory_shell_t shell_list[] = {
     {BLE_UTC_TIME_CMD, ble_shell_utc_time},
     {BLE_CUSTOM_MODE_UPDATE_CMD, ble_shell_custom_mode_step_info_update},
     {BLE_CUSTOM_MODE_CLEAR_CMD, ble_shell_custom_mode_step_info_clear},
-    {BLE_TRIPLE_WRITE_SHELL_CMD, ble_shell_triple_write},
+    {BLE_TRIPLE_WRITE_PROD_SHELL_CMD, ble_shell_triple_write_prod},///量产版三元组
+    {BLE_TRIPLE_WRITE_SHELL_CMD, ble_shell_triple_write},///测试版三元组
 };
 
 /// 工厂三元组预设（productKey / deviceName / deviceSecret / sn，mac 仅作日志参考）
@@ -135,6 +138,28 @@ static const ble_factory_triple_preset_t triple_preset_list[] = {
         "V300BBBB123DFF1000030F00E662FN10003",
     },
 };
+
+/// 正式量产三元组预设（productKey / deviceName / deviceSecret / sn，mac 仅作日志参考）
+typedef struct {
+    const char *mac;
+    const char *product_key;
+    const char *device_name;
+    const char *device_secret;
+    const char *sn;
+} ble_factory_triple_prod_preset_t;
+
+/// V3 与 V3Pro 按 ROOT_PRODUCT_ID 编译期区分，同一指令写对应产品的三元组与 SN
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+static const ble_factory_triple_prod_preset_t triple_prod_list[] = {
+    { "DFF110001202", "0DY2Jp", "f42b9fc91e4847b7", "4e58743fe87b4e64", "V3P0BBBB3PUDFF1100012020E65NFN10001" },
+    { "DFF110001203", "0DY2Jp", "2d936e76e21e4a42", "46b68267e83b48a5", "V3P0BBBB3PUDFF1100012030E65NFN10001" },
+};
+#else
+static const ble_factory_triple_prod_preset_t triple_prod_list[] = {
+    { "DFF100000C7C", "ARQBqo", "e1cf02ca67a9434a", "bf395d8b9aad4fe7", "V300BBBB123DFF100000C7C0E61DF110001" },
+    { "DFF100000C7D", "ARQBqo", "9b3c2d3527754052", "4c91bc0054714eaf", "V300BBBB123DFF100000C7D0E61DF110001" },
+};
+#endif
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -675,6 +700,40 @@ static void ble_shell_triple_write(const uint8_t *param, uint16_t len)
     int ret = storage->put_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info);
     LOG_BLE("shell triple write idx=%d mac=%s ret=%d", index, preset->mac, ret);
     LOG_BLE("shell triple pk=%s dn=%s ds=%s sn=%s",
+            preset->product_key, preset->device_name, preset->device_secret, preset->sn);
+}
+
+static void ble_shell_triple_write_prod(const uint8_t *param, uint16_t len)
+{
+    int index = 0;
+    if (len > 0) {
+        sscanf((const char *)param, "%d", &index);
+    }
+    if (index < 0 || (uint32_t)index >= LENGTH_OF_ARRAY(triple_prod_list)) {
+        LOGE("shell triple prod write invalid index %d, max %u", index,
+             (unsigned)(LENGTH_OF_ARRAY(triple_prod_list) - 1));
+        return;
+    }
+
+    const ble_factory_triple_prod_preset_t *preset = &triple_prod_list[index];
+    storage_manager_context_t *storage = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(storage);
+
+    factory_dev_info_t dev_info = {0};
+    storage->get_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info);
+    /// 写三元组 + 量产 SN
+    ble_shell_triple_set_field(dev_info.product_id, &dev_info.product_id_len,
+                               DEVICE_PRODUCT_ID_LEN, preset->product_key);
+    ble_shell_triple_set_field(dev_info.device_id, &dev_info.device_id_len,
+                               DEVICE_DEVICE_ID_LEN, preset->device_name);
+    ble_shell_triple_set_field(dev_info.enctyption_key, &dev_info.enctyption_key_len,
+                               DEVICE_ENCTYPTION_KEY_LEN, preset->device_secret);
+    ble_shell_triple_set_field(dev_info.sn, &dev_info.sn_len,
+                               DEVICE_UNIQUE_SN_LEN, preset->sn);
+
+    int ret = storage->put_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &dev_info);
+    LOG_BLE("shell triple prod write idx=%d mac=%s ret=%d", index, preset->mac, ret);
+    LOG_BLE("shell triple prod pk=%s dn=%s ds=%s sn=%s",
             preset->product_key, preset->device_name, preset->device_secret, preset->sn);
 }
 
