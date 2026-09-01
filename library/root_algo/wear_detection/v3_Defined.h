@@ -256,7 +256,8 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uPrevLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
 	unsigned short  uWearDetectTime;			/* 检测佩戴状态的时长 */
 	unsigned short  uLeakDetectTime;			/* 检测完全漏气状态的时长 */
-	float			fDataBaselineCnt;			/* 休眠状态下 基线平台>100Pa 计数 */
+	unsigned short	uDataBaselineCnt[2];		/* 休眠状态下 基线平台>100Pa 和 <100Pa 计数 */
+
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_
