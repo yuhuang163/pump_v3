@@ -181,6 +181,18 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
         return 0;
     }
 
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+    if (keytype == KEY_EVENT_CLICK &&
+        (proc->current_ui_type == POWER_OFF_UI_TYPE_CHARGING ||
+         proc->current_ui_type == POWER_OFF_UI_TYPE_CHARGE_ERROR)) {
+        multi_func_msg_data_t msg = {0};
+        msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
+        LOG_WM("short press, goto power on guide");
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return 0;
+    }
+#endif
+
     if (proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGING) {
         return 0;
     }
@@ -260,7 +272,12 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     ui_manager_context_t *ui = proc->ui;
     if (new_state == ID_SCR_STATE_ON_RESUME) {
 #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
-        ADD_KEYEVENT_CB(proc->key, "power_off_wm", proc, KEY_CODE_POWER, KEY_EVENT_LONG_3S | KEY_EVENT_LONG_10S,
+        ADD_KEYEVENT_CB(proc->key, "power_off_wm", proc, KEY_CODE_POWER,
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+            KEY_EVENT_CLICK | KEY_EVENT_LONG_3S | KEY_EVENT_LONG_10S,
+#else
+            KEY_EVENT_LONG_3S | KEY_EVENT_LONG_10S,
+#endif
             on_power_off_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_power_off_window_battery_state_cb);
 #endif

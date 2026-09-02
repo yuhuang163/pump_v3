@@ -87,7 +87,9 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 
 ### 3.1 Dummy（开机落地）
 - 广播 `ID_BROADCAST_PM_STATE_CHANGE`：`SYS_RESUME` 时按 `wakeup_reason` 分流（tests 模式非 NONE → PRODUCT_TEST，否则 HOME）。
-- `IS_SUPPORT_POWER_ON_GUIDE_UI`（V3）：适配器不匹配 → CHARGE；否则长按开机引导页（POWER DOWN/UP 控制进度，满 → LOGO）；未按超时 → 关机。
+- `IS_SUPPORT_POWER_ON_GUIDE_UI`：适配器不匹配 → CHARGE；否则长按开机引导页（POWER DOWN/UP 控制进度）。
+  - 引导结束（长按完成 / 静默超时）：V3Pro 充电中 → `POWER_OFF(CHARGE)`；适配器不匹配 → CHARGE；未充电长按完成 → LOGO，静默超时 → 关机。
+  - V3：长按完成 → LOGO；静默超时 → 关机（适配器不匹配仍进 CHARGE）。
 - POWER LONG_10S → `platform_system_reboot()`。
 
 ### 3.2 Logo（开机 LOGO）
@@ -126,12 +128,14 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 ### 3.9 Charge（充电）
 - 永久 Wakelock；正常 → 充电显示完自动退出；适配器不匹配 → 充电异常页 + 1s 后停/断 BLE。
 - LONG3S → 退出充电策略；LONG10S → reboot。
+- V3Pro 适配器不匹配：POWER 单击 → DUMMY 开机引导。
 
 ### 3.10 OTA（升级）
 - 广播 `ID_BROADCAST_OTA_STATE_CHANGE`：START→下载中 / SUCCESS→完成 / FAIL→错误。POWER/START 单击（非下载中）→ HOME。
 
 ### 3.11 Power Off（关机）
 - 永久 Wakelock、关背光/夜灯、断/停 BLE、按 `extra.arg1` 埋点（MANUAL/LOW_POWER/AUTO/ABNORMAL）。充电态 LONG3S → 退出充电、LONG10S → reboot。
+- V3Pro 关机充电 / 适配器不匹配：POWER 单击 → DUMMY 开机引导。
 
 ### 3.12 System Abnormal（系统异常）
 - `ADD_ABNORMAL_STATE_CB` 订阅；`map_abnormal_type_to_ui_type` 映射 BATTERY_TEMP_HIGH/STORAGE_FAILURE/COMMUNICATION_ERROR；异常清除 → 退出。
