@@ -245,8 +245,14 @@ static int entry_event_cb(window_lift_cycle_e new_state, const struct window_con
             }
 
 #if IS_SUPPORT_NIGHT_LIGHT
-            if (proc->led->hook->set_night_light_level) {   
-                proc->led->hook->set_night_light_level(proc->led, 0);
+            if (proc->led && proc->led->hook) {
+                if (proc->led->hook->set_night_light_adaptive_dimming_switch) {
+                    proc->led->hook->set_night_light_adaptive_dimming_switch(proc->led, 0);
+                }
+                
+                if (proc->led->hook->set_night_light_onoff) {
+                    proc->led->hook->set_night_light_onoff(proc->led, false);
+                }
             }
 #endif
         }

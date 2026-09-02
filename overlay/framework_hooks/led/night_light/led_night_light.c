@@ -324,7 +324,8 @@ void led_night_light_als_apply(led_manager_context_t *led)
     if (s_nl_duty_target == s_nl_duty_pushed) {
         return;
     }
-    LOG_MISC("led_night_light_als_apply: %d", s_nl_duty_target);
+    
+    LOG_MISC("target: %d", s_nl_duty_target);
     set_night_light_level_internal(led, s_nl_duty_target);
     s_nl_duty_pushed = s_nl_duty_target;
 }
