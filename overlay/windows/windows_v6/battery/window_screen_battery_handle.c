@@ -11,7 +11,7 @@
 #define PAGE_STATIC_NAME                        battery
 #define PAGE_NAME_STR                           "battery"
 #define BATTERY_UI_KEY_CODE                     (KEY_CODE_POWER | KEY_CODE_START)
-#define BATTERY_UI_KEY_TYPE                     (KEY_EVENT_CLICK | KEY_EVENT_UP | KEY_EVENT_LONG_2S)
+#define BATTERY_UI_KEY_TYPE                     (KEY_EVENT_UP | KEY_EVENT_LONG_2S)
 #define BATTERY_POWER_OFF_HOLD_COMPLETE_TASK_NAME "battery_power_off_hold_complete"
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
@@ -201,18 +201,6 @@ static int on_battery_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_
     if (keytype == KEY_EVENT_UP &&
         (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
         battery_power_off_hold_key_up_handler(proc);
-        return 0;
-    }
-    if (keytype == KEY_EVENT_CLICK &&
-        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
-        if (proc->current_ui_type == BATTERY_UI_TYPE_POWER_OFF_HOLD) {
-            return 0;
-        }
-        LOG_WM("click power/start, goto manual power off.");
-        multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
-        msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_MANUAL;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return 0;
     }
     return 0;
