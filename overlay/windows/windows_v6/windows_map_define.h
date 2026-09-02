@@ -99,6 +99,10 @@ bool is_need_show_guide_window(window_manager_context_t *wm);
 /// 确保蓝牙广播已开启（未连接且广播关闭时开启；logo/充电异常/关机充电等场景除外由各页自行处理）.
 void wm_ensure_ble_adv_started(void);
 
+/// 应用层开机标志（logo 播完置位，进入关机窗口清零；区别于 PM 的 is_system_power_on）.
+void set_app_power_on_flag(bool on);
+bool is_app_power_on_flag(void);
+
 #ifdef __cplusplus
 }
 #endif

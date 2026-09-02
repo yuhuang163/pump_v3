@@ -20,6 +20,7 @@ static void logo_display_completed_cb(hdr_post_args_t *args)
     ui_proc_logo_t *proc = (ui_proc_logo_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_LOGO);
     LOG_UI("logo play finished");
+    set_app_power_on_flag(true);
     multi_func_msg_data_t msg = {0};
     if (proc->wm->is_window_factory_test_deployed() == 0) {
         LOG_WM("goto factory test screen");

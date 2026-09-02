@@ -164,6 +164,8 @@ extern "C" {
 #define IS_SUPPORT_NIGHT_LIGHT                           (1)
 /// 支持关机充电
 #define IS_SUPPORT_POWER_OFF_WHEN_CHARGING               (1)
+/// 开机状态下长按关机：先展示关机页再进入关机充电页
+#define IS_SUPPORT_POWER_OFF_UI_BEFORE_CHARGE            (1)
 /// 支持低电量自动结束泵奶
 #define IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP              (1)
 
@@ -189,6 +191,8 @@ extern "C" {
 #define IS_SUPPORT_NIGHT_LIGHT                           (0)
 /// 支持关机充电
 #define IS_SUPPORT_POWER_OFF_WHEN_CHARGING               (0)
+/// 开机状态下长按关机：先展示关机页再进入关机充电页
+#define IS_SUPPORT_POWER_OFF_UI_BEFORE_CHARGE            (0)
 /// 支持低电量自动结束泵奶
 #define IS_SUPPORT_LOW_POWER_AUTO_STOP_PUMP              (0)
 /// V3 开启：插电/短按未满足开机时长时进入 dummy 长按开机引导（关闭则保持原关机逻辑）

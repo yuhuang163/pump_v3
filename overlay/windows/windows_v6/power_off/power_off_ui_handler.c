@@ -100,9 +100,15 @@ static void power_off_cb(hdr_post_args_t *args)
     if (proc->battery) {
         int chage_state = proc->battery->get_charge_status();
         if (BATTERY_IS_CHARGING(chage_state)) {
+            LOG_WM("goto charging ui");
             show_power_off_charging_ui(proc);
             return;
-        } 
+        }
+        if (chage_state == CHARGE_STATE_ERROR) {
+            LOG_WM("goto charge error ui");
+            show_power_off_charge_error_ui(proc);
+            return;
+        }
     }
 #endif
     power_off_handle(proc);

@@ -78,6 +78,7 @@ static const window_context_handle_t g_process_handle_list[] = {
     {ID_WINDOW_THEME_GUIDE, WINDOW_PRIO_THEME_GUIDE, PAGE_HANDLE_NAME(theme_guide), REFS_T(m_window_theme_guide)},
 };
 
+static bool app_power_on_flag = false;
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -162,3 +163,13 @@ void wm_ensure_ble_adv_started(void)
         ble->bt_adv_start_by_user();
     }
 }
+
+void set_app_power_on_flag(bool on)
+{
+    app_power_on_flag = on;
+}
+
+bool is_app_power_on_flag(void)
+{
+    return app_power_on_flag;
+} 

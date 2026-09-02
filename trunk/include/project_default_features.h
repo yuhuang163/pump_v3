@@ -184,6 +184,13 @@ extern "C" {
 #define IS_SUPPORT_POWER_OFF_WHEN_CHARGING                            (0)
 #endif
 
+/**
+ * 开机状态下长按关机：先展示关机页再进入关机充电页
+*/
+#ifndef IS_SUPPORT_POWER_OFF_UI_BEFORE_CHARGE
+#define IS_SUPPORT_POWER_OFF_UI_BEFORE_CHARGE                         (0)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
