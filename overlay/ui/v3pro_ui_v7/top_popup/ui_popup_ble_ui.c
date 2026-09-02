@@ -9,9 +9,6 @@
 *****************************************************************************************
 */
 #define POPUP_WINDOW_BLE_TEXT_COLOR                             (0xFFFFFF)
-#define POPUP_WINDOW_BLE_CONNECT_ICON_Y                         (109)
-#define POPUP_WINDOW_BLE_DISCONNECT_ICON_Y                      (109)
-#define POPUP_WINDOW_BLE_CONNECTING_ICON_Y                      (109)
 
 /*
 * LOCAL FUNCTION DEFINITIONS

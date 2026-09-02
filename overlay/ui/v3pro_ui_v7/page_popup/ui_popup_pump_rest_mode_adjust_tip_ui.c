@@ -8,7 +8,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_REST_MODE_ADJUST_TIP_ICON_Y                       (112)
 #define PUMP_REST_MODE_ADJUST_TIP_TITLE_COLOR                  (0xFFFFFF)
 #define PUMP_REST_MODE_ADJUST_TIP_COUNTDOWN_Y                  (324)
 #define PUMP_REST_MODE_ADJUST_TIP_COUNTDOWN_COLOR              (0x999999)

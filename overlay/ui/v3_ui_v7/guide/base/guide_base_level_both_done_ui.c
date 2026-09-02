@@ -244,7 +244,7 @@ static void guide_level_both_done_speed_create(guide_base_ui_info_t *info)
         lv_obj_set_style_text_color(info->level_both_done.speed_value,
             lv_color_hex(GUIDE_LEVEL_BOTH_DONE_SPEED_COLOR), 0);
         lv_obj_set_style_text_font(info->level_both_done.speed_value,
-            UI_FONT_TITLE, 0);
+            UI_FONT_AEONIK, 0);
     }
 
     snprintf(speed_text, sizeof(speed_text), "%u",
@@ -278,7 +278,7 @@ static void guide_level_both_done_level_create(lv_obj_t **label, lv_obj_t *paren
         lv_label_set_long_mode(*label, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(*label, width);
         lv_obj_set_style_text_color(*label, lv_color_hex(GUIDE_LEVEL_BOTH_DONE_LEVEL_COLOR), 0);
-        lv_obj_set_style_text_font(*label, UI_FONT_TITLE, 0);
+        lv_obj_set_style_text_font(*label, UI_FONT_AEONIK, 0);
         lv_obj_set_style_text_align(*label, align, 0);
         lv_obj_set_style_text_letter_space(*label, 3, 0);
     }

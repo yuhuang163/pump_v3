@@ -506,7 +506,7 @@ static void home_main_speed_update(home_base_ui_info_t *info, uint8_t speed)
         info->main.speed_value = lv_label_create(home_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->main.speed_value);
         lv_obj_set_style_text_color(info->main.speed_value, lv_color_hex(HOME_MAIN_SPEED_COLOR), 0);
-        lv_obj_set_style_text_font(info->main.speed_value, UI_FONT_TITLE, 0);
+        lv_obj_set_style_text_font(info->main.speed_value, UI_FONT_AEONIK, 0);
     }
 
     if (info->main.shown_speed == speed && info->force_update == false) {
@@ -543,7 +543,7 @@ static void home_main_level_label_update(lv_obj_t **label, lv_obj_t *parent, con
         lv_label_set_long_mode(*label, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(*label, width);
         lv_obj_set_style_text_color(*label, lv_color_hex(HOME_MAIN_LEVEL_COLOR), 0);
-        lv_obj_set_style_text_font(*label, UI_FONT_TITLE, 0);
+        lv_obj_set_style_text_font(*label, UI_FONT_AEONIK, 0);
         lv_obj_set_style_text_align(*label, align, 0);
         lv_obj_set_style_text_letter_space(*label, 3, 0); // Figma 16%: 26 * 0.16 ≈ 4.16 → 4px
     }

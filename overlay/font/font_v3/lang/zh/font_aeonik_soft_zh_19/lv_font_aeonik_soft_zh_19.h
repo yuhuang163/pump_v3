@@ -8,7 +8,7 @@ extern "C" {
 #include "stdint.h" // IWYU pragma: keep
 #include "lvgl.h"  // IWYU pragma: keep
 
-/// LVGL 字体声明 - Aeonik soft zh 19px
+/// 中文固件子集（Aeonik 19 Medium）：空格、/、.、0-9、K、M、B
 extern const lv_font_t lv_font_aeonik_soft_zh_19_medium;
 
 #ifdef __cplusplus

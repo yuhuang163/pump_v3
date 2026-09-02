@@ -13,7 +13,6 @@
 */
 #define IS_SUPPORT_CHARGE_ADAPTER_COMP_BG              (0)
 #define CHARGE_ADAPTER_TEXT_COUNT                      (2)
-#define CHARGE_ADAPTER_ICON_Y                          (90)
 #define CHARGE_ADAPTER_TITLE_COLOR                     (0xFFFFFF)
 #define CHARGE_ADAPTER_SUBTITLE_COLOR                  (0x999999)
 #define CHARGE_ADAPTER_ROOT_BG_COLOR                   (0x000000)

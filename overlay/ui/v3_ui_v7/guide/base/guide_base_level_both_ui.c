@@ -333,7 +333,7 @@ static void guide_both_level_dir_update(guide_base_ui_info_t *info)
             lv_label_set_text(page->dir_label[i], dir_text[i]);
             lv_obj_set_style_text_color(page->dir_label[i],
                 lv_color_hex(GUIDE_BOTH_LEVEL_DIR_COLOR), 0);
-            lv_obj_set_style_text_font(page->dir_label[i], UI_FONT_TITLE, 0);
+            lv_obj_set_style_text_font(page->dir_label[i], UI_FONT_AEONIK, 0);
             lv_obj_set_style_text_align(page->dir_label[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_center(page->dir_label[i]);
         }

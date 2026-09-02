@@ -14,10 +14,6 @@
 #define SYS_ABNORMAL_TIP_TEXT_COUNT                              (2)
 #define IS_SUPPORT_SYS_ABNORMAL_COMP_BG                          (0) /// 是否启用对比背景图
 
-/// 系统错误（存储故障 / 通信丢失）
-#define SYS_ABNORMAL_ICON_Y_SYS_ERROR                            (92)
-/// 电池温度过高
-#define SYS_ABNORMAL_ICON_Y_TEMP_ERROR                           (77)
 /// 公共颜色
 #define SYS_ABNORMAL_ROOT_BG_COLOR                               (0x000000)
 #define SYS_ABNORMAL_TITLE_COLOR                                 (0xFFFFFF)

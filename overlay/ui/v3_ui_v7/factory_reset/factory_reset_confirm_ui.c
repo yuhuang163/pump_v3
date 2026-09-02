@@ -14,7 +14,6 @@
 */
 #define FACTORY_RESET_CONFIRM_ARC_DONE_COLOR          (0xF3F4FF)
 
-#define FACTORY_RESET_CONFIRM_ICON_Y                  (73)
 #define FACTORY_RESET_CONFIRM_TITLE_COLOR             (0xFFFFFF)
 #define FACTORY_RESET_CONFIRM_HINT_COLOR              (0x999999)
 

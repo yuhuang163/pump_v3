@@ -166,7 +166,7 @@ static void guide_pump_pause_speed_create(guide_base_ui_info_t *info)
         EXCEPTION_CHECK_VOID(info->pump_pause.speed_value);
         lv_obj_set_style_text_color(info->pump_pause.speed_value,
             lv_color_hex(GUIDE_PUMP_PAUSE_SPEED_COLOR), 0);
-        lv_obj_set_style_text_font(info->pump_pause.speed_value, UI_FONT_TITLE, 0);
+        lv_obj_set_style_text_font(info->pump_pause.speed_value, UI_FONT_AEONIK, 0);
     }
 
     snprintf(speed_text, sizeof(speed_text), "%u", (unsigned)(GUIDE_PUMP_PAUSE_SPEED_VALUE + 1));
@@ -196,7 +196,7 @@ static void guide_pump_pause_level_create(lv_obj_t **label, lv_obj_t *parent, co
         lv_label_set_long_mode(*label, LV_LABEL_LONG_CLIP);
         lv_obj_set_width(*label, width);
         lv_obj_set_style_text_color(*label, lv_color_hex(GUIDE_PUMP_PAUSE_LEVEL_COLOR), 0);
-        lv_obj_set_style_text_font(*label, UI_FONT_TITLE, 0);
+        lv_obj_set_style_text_font(*label, UI_FONT_AEONIK, 0);
         lv_obj_set_style_text_align(*label, align, 0);
         lv_obj_set_style_text_letter_space(*label, 3, 0);
     }

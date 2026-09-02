@@ -19,7 +19,6 @@
 */
 #define POWER_ON_HOLD_ARC_DONE_COLOR              (0xF3F4FF)
 
-#define POWER_ON_HOLD_ICON_Y                      (56)
 #define POWER_ON_HOLD_TEXT_COLOR                  (0xFFFFFF)
 
 /** 长按倒计时（文案为 2s/1s） */

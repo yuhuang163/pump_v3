@@ -13,7 +13,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_WILL_FINISH_ICON_Y                       (56)
 #define PUMP_WILL_FINISH_TITLE_COLOR                  (0xFFFFFF)
 #define PUMP_WILL_FINISH_TITLE2_COLOR                 (0x999999)
 

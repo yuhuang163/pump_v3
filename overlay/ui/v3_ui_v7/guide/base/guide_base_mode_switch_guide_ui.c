@@ -18,7 +18,6 @@
 
 #define GUIDE_MODE_SWITCH_GUIDE_TITLE_COLOR                     (0xFFFFFF)
 
-#define GUIDE_MODE_SWITCH_GUIDE_ICON_Y                          (143)
 #define GUIDE_MODE_SWITCH_GUIDE_ICON_RES_ID                     (BASE_RES_ID_GUIDE_KNOB_KEY_ICON)
 
 #define GUIDE_MODE_SWITCH_GUIDE_TIP_H                           (63)

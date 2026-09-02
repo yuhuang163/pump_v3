@@ -16,7 +16,6 @@
 
 #define POWER_OFF_HOLD_ARC_DONE_COLOR               (0xEF4C4E)
 
-#define POWER_OFF_HOLD_ICON_Y                       (94)
 #define POWER_OFF_HOLD_TITLE_COLOR                  (0xFFFFFF)
 
 /** 页面展示倒计时（LONG_2S 后再持续约 2s，文案为 3s/2s/1s） */

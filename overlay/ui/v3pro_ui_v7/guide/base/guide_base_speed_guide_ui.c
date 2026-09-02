@@ -18,8 +18,6 @@
 
 #define GUIDE_SPEED_GUIDE_TEXT_COLOR                        (0xFFFFFF)
 
-#define GUIDE_SPEED_GUIDE_ICON_X                            (187)
-#define GUIDE_SPEED_GUIDE_ICON_Y                            (129)
 #define GUIDE_SPEED_GUIDE_ICON_RES_ID                       (BASE_RES_ID_GUIDE_SPEED_KEY_ICON)
 
 #define GUIDE_SPEED_GUIDE_TIP_H                             (63)

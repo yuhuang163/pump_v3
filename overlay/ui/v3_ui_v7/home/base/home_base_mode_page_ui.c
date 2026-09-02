@@ -22,19 +22,6 @@
 /** 刺激/吸乳时长文案固定分钟数 */
 #define HOME_MODE_PAGE_COMMON_DURATION_MIN          (30)
 
-/** 刺激：ICON / 文案 / 时间 */
-#define HOME_MODE_PAGE_STIM_ICON_Y                  (87)
-#define HOME_MODE_PAGE_STIM_DURATION_Y              (242)
-/** 吸乳：ICON / 文案 / 时间 */
-#define HOME_MODE_PAGE_EXPR_ICON_Y                  (89)
-#define HOME_MODE_PAGE_EXPR_DURATION_Y              (242)
-/** 韵律单行：ICON / 文案 / 时间 */
-#define HOME_MODE_PAGE_RHYTHM_1L_ICON_Y             (88)
-#define HOME_MODE_PAGE_RHYTHM_1L_DURATION_Y         (242)
-/** 韵律两行：ICON / 文案 / 时间 */
-#define HOME_MODE_PAGE_RHYTHM_2L_ICON_Y             (67)
-#define HOME_MODE_PAGE_RHYTHM_2L_DURATION_Y         (262)
-
 #define HOME_MODE_PAGE_TITLE_COLOR                  (0xFFFFFF)
 #define HOME_MODE_PAGE_DURATION_COLOR               (0x999999)
 /** 模式标题单行超宽则换行；换行后按单/双行固定坐标排 ICON / 时间文案 */

@@ -496,7 +496,7 @@ static void pump_both_level_dir_update(void)
         lv_obj_set_style_text_color(pump_both_info->dir_label[i],
             lv_color_hex(PUMP_BOTH_LEVEL_DIR_COLOR), 0);
         lv_obj_set_style_text_font(pump_both_info->dir_label[i],
-            UI_FONT_TITLE, 0);
+            UI_FONT_AEONIK, 0);
         lv_obj_set_style_text_align(pump_both_info->dir_label[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_center(pump_both_info->dir_label[i]);
     }

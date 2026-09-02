@@ -14,11 +14,9 @@
 #define IS_SUPPORT_SETTINGS_SUCCESS_COMP_BG             (0) /// 是否启用对比背景图
 
 /** 默认样式：Success */
-#define SETTINGS_SUCCESS_ICON_Y                         (107)
 #define SETTINGS_SUCCESS_TITLE_COLOR                    (0xFFFFFF)
 
 /** 韵律切换成功样式：Program switched / Timer reset */
-#define SETTINGS_SUCCESS_PROGRAM_ICON_Y                 (90)
 #define SETTINGS_SUCCESS_PROGRAM_TITLE_COLOR            (0xFFFFFF)
 #define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_COLOR         (0x999999)
 
