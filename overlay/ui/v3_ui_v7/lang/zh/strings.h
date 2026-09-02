@@ -56,10 +56,10 @@ extern "C" {
 #define PUMP_SPEED_LABEL_TEXT                           UI_STR_SPEED
 #define PUMP_SPEED_MODE_SWITCH_TEXT_FMT                 UI_STR_SWITCH_TO_FMT
 #define PUMP_STOP_HOLD_TITLE_TEXT                       "按住\n结束本次吸乳"
-#define PUMP_PAUSE_TIMEOUT_TITLE1_TEXT                  "已超过安全吸乳时长"
-#define PUMP_PAUSE_TIMEOUT_TITLE2_TEXT                  "自动结束"
-#define PUMP_FINISH_TIMEOUT_TITLE1_TEXT                 "已超过安全吸乳时长"
-#define PUMP_FINISH_TIMEOUT_TITLE2_TEXT                 "自动结束"
+#define PUMP_PAUSE_TIMEOUT_TITLE1_TEXT                  "结束吸乳"
+#define PUMP_PAUSE_TIMEOUT_TITLE2_TEXT                  "自动结束中..."
+#define PUMP_FINISH_TIMEOUT_TITLE1_TEXT                 "结束吸乳"
+#define PUMP_FINISH_TIMEOUT_TITLE2_TEXT                 "自动结束中..."
 #define PUMP_WILL_FINISH_TITLE1_TEXT                    "吸乳即将结束"
 #define PUMP_WILL_FINISH_TITLE2_TEXT                    "按下旋钮继续吸乳"
 #define PUMP_FINISH_TITLE_TEXT                          "吸乳已完成"
