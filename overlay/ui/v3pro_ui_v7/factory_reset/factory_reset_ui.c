@@ -81,7 +81,7 @@ static void ui_factory_reset_update(ui_manager_context_t *thiz)
     lv_obj_set_style_arc_color(ui_info->progress_arc, lv_color_hex(PROGRESS_ARC_COLOR), LV_PART_INDICATOR);
     lv_obj_set_style_arc_width(ui_info->progress_arc, PROGRESS_ARC_WIDTH, LV_PART_INDICATOR);
     lv_obj_set_style_arc_opa(ui_info->progress_arc, LV_OPA_COVER, LV_PART_INDICATOR);
-    lv_obj_align(ui_info->progress_arc, LV_ALIGN_TOP_MID, 0, 121);
+    lv_obj_align(ui_info->progress_arc, LV_ALIGN_TOP_MID, 0, FACTORY_RESET_PROGRESS_ARC_Y);
     lv_obj_remove_style(ui_info->progress_arc, NULL, LV_PART_KNOB);
     if (ui_info->start_time == 0) {
         ui_info->start_time = get_timestamp();
@@ -97,7 +97,8 @@ static void ui_factory_reset_update(ui_manager_context_t *thiz)
     lv_obj_set_style_text_color(ui_info->label_text, lv_color_hex(PROGRESS_ARC_TEXT_COLOR), 0);
     lv_obj_set_style_text_align(ui_info->label_text, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_line_space(ui_info->label_text, PROGRESS_ARC_TEXT_LINE_SPACE, 0);
-    lv_obj_align_to(ui_info->label_text, ui_info->progress_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 24);
+    lv_obj_align_to(ui_info->label_text, ui_info->progress_arc, LV_ALIGN_OUT_BOTTOM_MID, 0,
+        FACTORY_RESET_PROGRESS_TEXT_GAP);
     uint32_t elapsed = get_timestamp() - ui_info->start_time;
     uint16_t start_angle = (uint16_t)((elapsed / PROGRESS_ARC_LOOP_MS_PER_DEG) % 360);
     uint16_t end_angle = start_angle + PROGRESS_ARC_ANGLE_SPAN;

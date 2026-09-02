@@ -14,7 +14,6 @@
 #define IS_SUPPORT_PUMP_FINISH_COMP_BG                         (0)
 #define COMPLETE_TIP_TEXT_COUNT                                (2)
 
-#define PUMP_FINISH_ICON_Y                                     (73)
 #define FINISH_TIP_TITLE_COLOR                                 (0xFFFFFF)
 #define FINISH_TIP_CONTENT_COLOR                               (0x999999)
 

@@ -15,7 +15,6 @@
 */
 #define IS_SUPPORT_RHYTHM_CONFIRM_COMP_BG               (0) /// 是否启用对比背景图
 
-#define RHYTHM_CONFIRM_ICON_Y                           (90)
 #define RHYTHM_CONFIRM_TITLE_COLOR                      (0xFFFFFF)
 #define RHYTHM_CONFIRM_SUBTITLE_COLOR                   (0x999999)
 

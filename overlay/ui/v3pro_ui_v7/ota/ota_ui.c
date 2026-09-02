@@ -29,14 +29,6 @@
 #define OTA_PROGRESS_ARC_SPEED_DEG_PER_SEC          (90)
 #define OTA_PROGRESS_ARC_ELAPSED_CLAMP_MS           (40)
 
-#define OTA_DOWNLOAD_ICON_Y                         (90)
-#define OTA_DOWNLOAD_PERCENT_Y                      (238)
-#define OTA_DOWNLOAD_SIZE_Y                         (300)
-
-#define OTA_SUCCESS_ICON_Y                          (106)
-
-#define OTA_ERROR_ICON_Y                            (106)
-
 typedef struct {
     lv_obj_t * root;
 #if IS_SUPPORT_OTA_COMP_BG
@@ -248,7 +240,7 @@ static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t progr
         ota_info->ota_percent = lv_label_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->ota_percent);
     }
-    lv_obj_set_style_text_font(ota_info->ota_percent, UI_FONT_TITLE, 0);
+    lv_obj_set_style_text_font(ota_info->ota_percent, UI_FONT_AEONIK, 0);
     lv_obj_set_style_text_color(ota_info->ota_percent, lv_color_hex(OTA_PERCENT_TEXT_COLOR), 0);
     lv_obj_set_style_text_align(ota_info->ota_percent, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_clear_flag(ota_info->ota_percent, LV_OBJ_FLAG_HIDDEN);
@@ -348,7 +340,7 @@ static void ui_ota_size_update(ui_manager_context_t *thiz, uint32_t total_size, 
         ota_info->ota_size = lv_label_create(ota_info->root);
         EXCEPTION_CHECK_VOID(ota_info->ota_size);
     }
-    lv_obj_set_style_text_font(ota_info->ota_size, UI_FONT_HINT, 0);
+    lv_obj_set_style_text_font(ota_info->ota_size, UI_FONT_AEONIK_19, 0);
     lv_obj_set_style_text_color(ota_info->ota_size, lv_color_hex(OTA_SIZE_TEXT_COLOR), 0);
     lv_obj_set_style_text_align(ota_info->ota_size, LV_TEXT_ALIGN_CENTER, 0);
 

@@ -9,7 +9,7 @@ extern "C" {
  * font_v3 目录：
  *   common/              语言无关数字字库（56 / 69）
  *   lang/en/             英文本体 + font_img
- *   lang/zh/             中文本体（aeonik_soft_zh_*）+ font_img
+ *   lang/zh/             中文本体（noto_sans_zh_*）+ Aeonik 子集 + font_img
  * Makefile 只把 common + lang/$(PRODUCT_LANGUAGE) 加入编译和 include。
  * 页面通过 UI_FONT_* 角色宏引用。
  */

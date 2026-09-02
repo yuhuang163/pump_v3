@@ -31,9 +31,7 @@
 #define GUIDE_MODE_SWITCH_DOT_COLOR_ACTIVE              (0xFFFFFF)
 #define GUIDE_MODE_SWITCH_DOT_COLOR_INACTIVE            (0x4D4D4D)
 
-#define GUIDE_MODE_SWITCH_ICON_Y                        (100)
 #define GUIDE_MODE_SWITCH_TITLE_COLOR                   (0xFFFFFF)
-#define GUIDE_MODE_SWITCH_DURATION_Y                    (246)
 #define GUIDE_MODE_SWITCH_DURATION_COLOR                (0x999999)
 
 #define GUIDE_MODE_SWITCH_TIP_H                         (63)

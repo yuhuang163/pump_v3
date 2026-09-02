@@ -18,10 +18,7 @@
 
 #define GUIDE_LEVEL_BOTH_GUIDE_ICON_TEXT_GAP                (12)
 
-#define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y                  (121)
 #define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_RES_ID             (BASE_RES_ID_GUIDE_LEFT_KEY_MIN_ICON)
-
-#define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y                 (121)
 #define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_RES_ID            (BASE_RES_ID_GUIDE_RIGHT_KEY_MIN_ICON)
 
 #define GUIDE_LEVEL_BOTH_GUIDE_TIP_H                        (63)
@@ -276,13 +273,13 @@ void guide_level_both_guide_ui_build(guide_base_ui_info_t *info)
     guide_page_num_ui_build(&info->page_num, guide_page_parent_get(info),
         GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_CURRENT, GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_TOTAL);
     guide_level_both_guide_texts_create(info);
-    guide_level_both_guide_icon_create(info, &info->level_both_guide.right_icon,
-        &info->level_both_guide.right_icon_buf, GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_RES_ID,
-        guide_level_both_guide_right_icon_x_get(info), GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y);
     guide_level_both_guide_icon_create(info, &info->level_both_guide.left_icon,
         &info->level_both_guide.left_icon_buf, GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_RES_ID,
+        guide_level_both_guide_right_icon_x_get(info), GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y);
+    guide_level_both_guide_icon_create(info, &info->level_both_guide.right_icon,
+        &info->level_both_guide.right_icon_buf, GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_RES_ID,
         guide_level_both_guide_icon_x_from_label(info->level_both_guide.and_text,
-            GUIDE_LEVEL_BOTH_GUIDE_AND_X), GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y);
+            GUIDE_LEVEL_BOTH_GUIDE_AND_X), GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y);
     guide_level_both_guide_tip_rebuild(info);
 }
 

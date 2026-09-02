@@ -16,7 +16,6 @@
 
 #define GUIDE_PUMP_START_GUIDE_TITLE_COLOR                      (0xFFFFFF)
 
-#define GUIDE_PUMP_START_GUIDE_ICON_Y                           (169)
 #define GUIDE_PUMP_START_GUIDE_ICON_RES_ID                      (BASE_RES_ID_GUIDE_POWER_KEY_ICON)
 
 /*

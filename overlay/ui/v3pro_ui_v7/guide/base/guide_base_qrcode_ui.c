@@ -14,7 +14,6 @@
 #define GUIDE_QRCODE_PAD                            (4)     /// 二维码四周留白
 #define GUIDE_QRCODE_INNER_SIZE                     (GUIDE_QRCODE_SIZE - GUIDE_QRCODE_PAD * 2)
 #define GUIDE_QRCODE_RADIUS                         (12)
-#define GUIDE_QRCODE_ALIGN_Y                        (41)
 #define GUIDE_QRCODE_BG_COLOR                       (0xFFFFFF)
 #define GUIDE_QRCODE_FG_COLOR                       (0x000000)
 

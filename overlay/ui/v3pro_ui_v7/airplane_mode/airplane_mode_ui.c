@@ -14,19 +14,8 @@
 */
 #define AIRPLANE_MODE_ARC_DONE_COLOR                      (0xF3F4FF)
 
-#define AIRPLANE_MODE_LOCK_ICON_Y                         (33)
 #define AIRPLANE_MODE_TITLE_COLOR                         (0xFFFFFF)
 #define AIRPLANE_MODE_HINT_COLOR                          (0x999999)
-/** 进度显示时，文案与其它 ICON 上移偏移 */
-#define AIRPLANE_MODE_HOLDING_CONTENT_SHIFT_Y             (52)
-
-
-#define AIRPLANE_MODE_STIM_KEY_ICON_X                     (99)
-#define AIRPLANE_MODE_STIM_KEY_ICON_Y                     (267)
-#define AIRPLANE_MODE_ADD_ICON_X                          (171)
-#define AIRPLANE_MODE_ADD_ICON_Y                          (288)
-#define AIRPLANE_MODE_EXPR_KEY_ICON_X                     (201)
-#define AIRPLANE_MODE_EXPR_KEY_ICON_Y                     (267)
 
 /** 长按解锁倒计时（LONG_2S 后进入，进度条预跑 1s，再持续约 4s，文案为 5s/4s/3s/2s/1s） */
 #define AIRPLANE_MODE_UNLOCK_DURATION_MS                  (5000)

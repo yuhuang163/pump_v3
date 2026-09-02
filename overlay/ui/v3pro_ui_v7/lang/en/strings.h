@@ -20,8 +20,7 @@ extern "C" {
 #define UI_STR_SWITCH_TO_FMT                            "Switch to %s"
 #define UI_STR_DURATION_APPROX_MIN_FMT                  "≈ %dmin"
 #define UI_STR_COUNTDOWN_SEC_FMT                        "%u s"
-#define UI_STR_LEVEL_OVER_LIMIT \
-    "For safety,\nUp to 3 levels at a time."
+#define UI_STR_LEVEL_OVER_LIMIT                         "For safety,\nUp to 3 levels at a time."
 
 /*******************************************************************************
  * Home
@@ -29,9 +28,7 @@ extern "C" {
 #define HOME_MAIN_HINT_TEXT                             "Press to start pumping"
 #define HOME_MAIN_HINT_TEXT_LOW_BAT                     "Low battery, please charge."
 #define HOME_MAIN_HINT_TEXT_FORBID_START                "Battery too low to pump"
-#define HOME_SAVER_HINT_WAKE_TEXT                       "Press anywhere to wake up"
-#define HOME_SAVER_HINT_UNLOCK_TEXT                     "Press the knob to unlock"
-#define HOME_SAVER_HINT_TEXT                            HOME_SAVER_HINT_WAKE_TEXT
+#define HOME_SAVER_HINT_TEXT                            "Press anywhere to wake up"
 #define HOME_LEVEL_DIR_LEFT_TEXT                        "Left Level"
 #define HOME_LEVEL_DIR_RIGHT_TEXT                       "Right Level"
 #define HOME_LEVEL_OVER_LIMIT_TEXT                      UI_STR_LEVEL_OVER_LIMIT
@@ -49,8 +46,7 @@ extern "C" {
 #define PUMP_HOME_MAIN_HINT_TEXT                        "Press to resume"
 #define PUMP_HOME_MAIN_SEAL_CHECKING_TEXT               "Checking seal..."
 #define PUMP_HOME_MAIN_SEAL_RESULT_TEXT                 "Seal check passed"
-#define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT \
-    "Switched to %s.\nLevel and speed may changed."
+#define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT             "Switched to %s.\nLevel and speed may changed."
 #define PUMP_LEVEL_DIR_LEFT_TEXT                        "Left Level"
 #define PUMP_LEVEL_DIR_RIGHT_TEXT                       "Right Level"
 #define PUMP_LEVEL_OVER_LIMIT_TEXT                      UI_STR_LEVEL_OVER_LIMIT

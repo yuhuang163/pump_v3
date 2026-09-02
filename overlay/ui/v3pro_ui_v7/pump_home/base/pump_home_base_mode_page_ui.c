@@ -20,19 +20,6 @@
 /** 刺激/吸乳时长文案固定分钟数 */
 #define PUMP_MODE_PAGE_COMMON_DURATION_MIN          (30)
 
-/** 刺激：ICON / 文案 / 时间 */
-#define PUMP_MODE_PAGE_STIM_ICON_Y                  (87)
-#define PUMP_MODE_PAGE_STIM_DURATION_Y              (242)
-/** 吸乳：ICON / 文案 / 时间 */
-#define PUMP_MODE_PAGE_EXPR_ICON_Y                  (89)
-#define PUMP_MODE_PAGE_EXPR_DURATION_Y              (242)
-/** 韵律单行：ICON / 文案 / 时间 */
-#define PUMP_MODE_PAGE_RHYTHM_1L_ICON_Y             (88)
-#define PUMP_MODE_PAGE_RHYTHM_1L_DURATION_Y         (242)
-/** 韵律两行：ICON / 文案 / 时间 */
-#define PUMP_MODE_PAGE_RHYTHM_2L_ICON_Y             (67)
-#define PUMP_MODE_PAGE_RHYTHM_2L_DURATION_Y         (262)
-
 #define PUMP_MODE_PAGE_TITLE_COLOR                  (0xFFFFFF)
 #define PUMP_MODE_PAGE_DURATION_COLOR               (0x999999)
 /** 模式标题单行超宽则换行；换行后按单/双行固定坐标排 ICON / 时间文案 */
@@ -459,7 +446,7 @@ static void pump_mode_chrome_time_pair_update(lv_obj_t *labels[PUMP_HOME_BASE_MO
             lv_label_set_long_mode(labels[i], LV_LABEL_LONG_CLIP);
             lv_obj_set_style_text_align(labels[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_text_color(labels[i], lv_color_hex(PUMP_MODE_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(labels[i], UI_FONT_TITLE, 0);
+            lv_obj_set_style_text_font(labels[i], UI_FONT_AEONIK, 0);
             lv_obj_set_style_text_letter_space(labels[i], 0, 0);
         }
         digit_text[0] = (char)('0' + (i == 0 ? value / 10 : value % 10));
@@ -505,7 +492,7 @@ static void pump_mode_chrome_time_colon_ensure(pump_home_base_mode_chrome_info_t
             chrome->time_colon[i] = lv_label_create(root);
             EXCEPTION_CHECK_VOID(chrome->time_colon[i]);
             lv_obj_set_style_text_color(chrome->time_colon[i], lv_color_hex(PUMP_MODE_TIME_COLOR), 0);
-            lv_obj_set_style_text_font(chrome->time_colon[i], UI_FONT_TITLE, 0);
+            lv_obj_set_style_text_font(chrome->time_colon[i], UI_FONT_AEONIK, 0);
             lv_obj_set_style_text_align(chrome->time_colon[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_label_set_text(chrome->time_colon[i], ":");
         }

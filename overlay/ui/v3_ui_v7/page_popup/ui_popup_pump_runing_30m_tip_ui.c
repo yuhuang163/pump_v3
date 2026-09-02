@@ -8,7 +8,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_RUNING_30M_TIP_ICON_Y                             (113)
 #define PUMP_RUNING_30M_TIP_TITLE_COLOR                        (0xFFFFFF)
 #define PUMP_RUNING_30M_TIP_COUNTDOWN_Y                        (324)
 #define PUMP_RUNING_30M_TIP_COUNTDOWN_COLOR                    (0x999999)

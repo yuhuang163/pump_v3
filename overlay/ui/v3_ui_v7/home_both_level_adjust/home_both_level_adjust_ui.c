@@ -477,7 +477,7 @@ static void home_both_level_dir_update(ui_proc_home_t *proc, uint32_t accent_col
             lv_obj_set_style_text_color(both_info->dir_label[i],
                 lv_color_hex(HOME_BOTH_LEVEL_DIR_COLOR), 0);
             lv_obj_set_style_text_font(both_info->dir_label[i],
-                UI_FONT_TITLE, 0);
+                UI_FONT_AEONIK, 0);
             lv_obj_set_style_text_align(both_info->dir_label[i], LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_center(both_info->dir_label[i]);
         }
