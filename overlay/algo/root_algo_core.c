@@ -62,14 +62,15 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
         algo_manager_dispatch_to_clients(ctx);
         return;
     }
-    if (algo_result->wear_status[0] != old_wear[0] ||
-        algo_result->wear_status[1] != old_wear[1]) {
-        data_bury_trigger_wear_detection_t bury_wear = {
-            .detection_type = DATA_BURY_WEAR_DETECTION_TYPE_PRESSURE,
-            .detection_data = DATA_BURY_PACK_WEAR_DETECTION_DATA(algo_result->wear_status[0],
-                                                                  algo_result->wear_status[1]),
-        };
-        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_WEAR_DETECTION, 0, 0, &bury_wear);
+    /// 仅当任一侧处于微小漏气(2)/强漏气(3)时才上报异常，且状态发生变化才触发
+    if ((algo_result->wear_status[0] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK ||
+         algo_result->wear_status[1] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK) &&
+        (algo_result->wear_status[0] != old_wear[0] ||
+         algo_result->wear_status[1] != old_wear[1])) {
+        /// 漏气异常上报 EVT_011：error_code=AIR_LEAKAGE(0x24)，error_data 低8位左/次8位右
+        DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_AIR_LEAKAGE,
+            DATA_BURY_PACK_WEAR_DETECTION_DATA(algo_result->wear_status[0],
+                                               algo_result->wear_status[1]));
     }
     ctx->priv.algo_data.wear_detection.result[0] = algo_result->wear_status[0];
     ctx->priv.algo_data.wear_detection.result[1] = algo_result->wear_status[1];
