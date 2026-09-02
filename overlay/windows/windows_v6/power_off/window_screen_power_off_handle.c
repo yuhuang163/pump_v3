@@ -202,7 +202,55 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
     } 
     return 0;
 }
+
+static void power_off_show_ui_by_charge_state(ui_proc_power_off_t *proc)
+{
+    int chage_state = CHARGE_STATE_UNCHARGE;
+
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->battery) {
+        chage_state = proc->battery->get_charge_status();
+    }
+    LOG_WM("select power off ui by charge state: %d", chage_state);
+    if (BATTERY_IS_CHARGING(chage_state)) {
+        show_power_off_charging_ui(proc);
+    } else if (chage_state == CHARGE_STATE_ERROR) {
+        show_power_off_charge_error_ui(proc);
+    } else {
+        if (is_app_power_on_flag()) {
+            start_power_off_ui_animation(proc);
+        } else {
+            power_off_handle(proc);
+        }
+    }
+}
 #endif
+
+static void power_off_select_entry_ui(ui_proc_power_off_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    LOG_WM("power off type: %d", proc->extra.arg1);
+    switch (proc->extra.arg1) {
+        case PM_POWER_OFF_TYPE_FORCE:
+            LOG_WM("force power off, skip animation");
+            power_off_handle(proc);
+            break;
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+        case PM_POWER_OFF_TYPE_CHARGE:
+            power_off_show_ui_by_charge_state(proc);
+            break;
+#endif
+        default:
+#if IS_SUPPORT_POWER_OFF_UI_BEFORE_CHARGE
+            start_power_off_ui_animation(proc);
+#elif IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+            power_off_show_ui_by_charge_state(proc);
+#else
+            start_power_off_ui_animation(proc);
+#endif
+            break;
+    }
+}
 
 static int entry_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *old_scr)
@@ -241,23 +289,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_AUTO_SLEEP, 0); /// 自动休眠关机
         } else {
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_ABNORMAL, 0); /// 异常关机
-        } 
-#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
-        int chage_state = CHARGE_STATE_UNCHARGE;        
-        if (proc->battery) {
-            chage_state = proc->battery->get_charge_status();
         }
-
-        if (BATTERY_IS_CHARGING(chage_state)) {
-            show_power_off_charging_ui(proc);
-        } else if (chage_state == CHARGE_STATE_ERROR) {
-            show_power_off_charge_error_ui(proc);
-        } else {
-            start_power_off_ui_animation(proc);
-        }
-#else
-        start_power_off_ui_animation(proc);
-#endif
+        power_off_select_entry_ui(proc);
+        set_app_power_on_flag(false);
     }
     return 0;
 }
