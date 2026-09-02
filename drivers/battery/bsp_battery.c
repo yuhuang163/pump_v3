@@ -782,22 +782,24 @@ static int battery_dev_read(struct rt_device_node *dev, void *buf, uint32_t n_by
 {
 #if IS_SUPPORT_BATTERY_POLL
     int val = battery_pencent_get();
-    // static uint8_t last_val = 0;
-    // static uint32_t last_time = 0;
+    #if 0
+    static uint8_t last_val = 0;
+    static uint32_t last_time = 0;
     
-    // if (get_timestamp_ms(last_time) > ((last_val > 80) ? 2000 : 50) &&
-    //     last_val < 100) {
-    //     last_time = get_timestamp();
-    //     last_val++;
-    // }
+    if (get_timestamp_ms(last_time) > ((last_val > 80) ? 2000 : 50) &&
+        last_val < 100) {
+        last_time = get_timestamp();
+        last_val++;
+    }
     
-    // uint8_t end_val = 0;
-    // if (val > (last_val + end_val)) {
-    //     val = val - last_val;
-    // } else {
-    //     val = end_val;
-    // }
+    uint8_t end_val = 6;
+    if (val > (last_val + end_val)) {
+        val = val - last_val;
+    } else {
+        val = end_val;
+    }
     // val = 4;
+    #endif
 #else
     int val = 100;
 #endif

@@ -36,6 +36,7 @@ do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_BROADCAST_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(POWER_OFF_HOLD_COMPLETE_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(HOME_LOW_POWER_COMPLETE_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(HOME_BLE_ADV_RECOVER_TASK_NAME); \
 } while (0)
 
@@ -220,6 +221,7 @@ static bool home_mode_key_start_pump_allowed(const ui_proc_home_t *proc)
         case HOME_UI_TYPE_PUMP_RESULT:
         case HOME_UI_TYPE_NIGHT_LIGHT_ADJUST:
         case HOME_UI_TYPE_POWER_OFF_HOLD:
+        case HOME_UI_TYPE_LOW_POWER:
             return false;
         default:
             return true;
@@ -464,6 +466,49 @@ static int on_home_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         LOG_WM("system idle, ignore key event.");
         return 0;
 #endif
+    }
+
+    if (proc->current_ui_type == HOME_UI_TYPE_LOW_POWER) {
+        /// 弹出本次按键的 UP 忽略，避免刚弹出就被抬起刷新倒计时
+        if (keytype == KEY_EVENT_UP &&
+            (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+            return 0;
+        }
+        if (keytype == KEY_EVENT_CLICK &&
+            (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+            home_low_power_ui_touch(proc);
+            return 0;
+        }
+        if (keytype == KEY_EVENT_CLICK) {
+            LOG_WM("home low power ui, goto function. code:%d", keycode);
+            if (keycode == KEY_CODE_KNOB_LEFT || keycode == KEY_CODE_KNOB_RIGHT) {
+                home_low_power_ui_exit(proc);
+                start_home_ui_animation(proc);
+            } else if (keycode == KEY_CODE_STIMULATION_MODE ||
+                       keycode == KEY_CODE_LACTATION_MODE) {
+                /// 保持 LOW_POWER，模式键只切模式、不启动泵奶（避免再次弹低电页）
+                home_low_power_ui_exit(proc);
+            } else if (keycode == KEY_CODE_FREQUENCY ||
+                       keycode == KEY_CODE_LEFT_CONTROL ||
+                       keycode == KEY_CODE_RIGHT_CONTROL ||
+                       keycode == KEY_CODE_BOTH_CONTROL) {
+                home_low_power_ui_prepare_action(proc);
+            } else {
+                home_low_power_ui_dismiss(proc);
+                return 0;
+            }
+        } else if ((keytype == KEY_EVENT_LONG_2S &&
+                    (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) ||
+                   (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_TRAVEL_LOCK) ||
+                   (HOME_BOTH_CONTROL_LONG_PRESS(keytype) &&
+                    keycode == KEY_CODE_BOTH_CONTROL)) {
+            home_low_power_ui_prepare_action(proc);
+        } else if (!((keytype == KEY_EVENT_DOWN || keytype == KEY_EVENT_UP) &&
+                     keycode == KEY_CODE_BOTH_CONTROL)) {
+            LOG_WM("home low power ui, ignore key event. type:%d code:%d",
+                keytype, keycode);
+            return 0;
+        }
     }
 
     if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_LONG_2S) { 

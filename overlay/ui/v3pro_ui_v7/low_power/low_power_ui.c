@@ -43,7 +43,7 @@ static PSRAM_DATA_LOC uint8_t low_power_bg_data[] = {
 
 static low_power_display_info_t *low_power_info;
 
-static const char *low_power_text = LOW_POWER_PAGE_TEXT;
+static const char *low_power_text;
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -129,7 +129,7 @@ static void low_power_text_update(void)
         low_power_info->text = lv_label_create(low_power_info->root);
         EXCEPTION_CHECK_VOID(low_power_info->text);
     }
-    lv_label_set_text(low_power_info->text, low_power_text);
+    lv_label_set_text(low_power_info->text, low_power_text ? low_power_text : "");
     lv_obj_set_style_text_color(low_power_info->text, lv_color_hex(LOW_POWER_TEXT_COLOR), 0);
     lv_obj_set_style_text_font(low_power_info->text, UI_FONT_TITLE, 0);
     lv_obj_set_style_text_line_space(low_power_info->text, 8, 0);
@@ -177,13 +177,15 @@ static void low_power_countdown_update(void)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz, uint8_t show_countdown)
+void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz, uint8_t show_countdown,
+    const char *text)
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (low_power_info == NULL) {
         low_power_info = (low_power_display_info_t *)u_malloz(sizeof(low_power_display_info_t));
         EXCEPTION_CHECK_VOID(low_power_info);
     }
+    low_power_text = (text != NULL) ? text : LOW_POWER_PAGE_TEXT;
     low_power_info->force_update = true;
     low_power_info->show_countdown = show_countdown;
     low_power_info->shown_value = 0xFF;
@@ -191,6 +193,15 @@ void ui_display_battery_low_power_prepare(ui_manager_context_t *thiz, uint8_t sh
     low_power_root_init();
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
+}
+
+void ui_display_battery_low_power_restart_countdown(void)
+{
+    if (low_power_info == NULL) {
+        return;
+    }
+    low_power_info->start_time = get_timestamp();
+    low_power_info->shown_value = 0xFF;
 }
 
 void ui_display_battery_low_power_remove(ui_manager_context_t *thiz)

@@ -39,6 +39,7 @@ extern "C" {
 #define HOME_BOTH_LEVEL_MODE_SWITCH_TEXT_FMT            UI_STR_SWITCH_TO_FMT
 #define HOME_SPEED_LABEL_TEXT                           UI_STR_SPEED
 #define HOME_SPEED_MODE_SWITCH_TEXT_FMT                 UI_STR_SWITCH_TO_FMT
+#define HOME_LOW_POWER_PAGE_TEXT                        "电量过低\n无法启动吸乳"
 
 /*******************************************************************************
  * Pump home / adjust
