@@ -89,7 +89,7 @@ extern "C" {
 #define POWER_OFF_HOLD_TITLE_TEXT                       "按住旋钮3秒\n设备即将关机"
 #define POWER_OFF_TEXT_POWERING_OFF_STR                 "设备正在关机"
 #define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "长时间没有操作\n设备即将自动关机"
-#define POWER_OFF_TEXT_LOW_POWER_STR                    "电量过低\n无法关机..."
+#define POWER_OFF_TEXT_LOW_POWER_STR                    "电量过低\n正在关机..."
 #define RESTARTING_TEXT                                 "正在重新启动\n请稍候..."
 #define POWER_OFF_CHARGE_TEXT                           "充电中..."
 #define LOW_POWER_PAGE_TEXT                             "电量过低\n请连接充电器"
