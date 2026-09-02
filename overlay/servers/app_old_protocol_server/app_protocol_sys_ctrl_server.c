@@ -592,9 +592,9 @@ void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab)
         DEVICE_READ_ARGS(battery, &percent, sizeof(percent));
     }
 
-    report.cannot_start = app_old_comm_abnormal_flag(percent <= FORBID_START_BAT_PERCENTAGE);
-    report.low_battery = app_old_comm_abnormal_flag(percent <= LOW_POWER_RUN_PERCENTAGE);
-    report.shutdown_soon = app_old_comm_abnormal_flag(percent <= LOW_BAT_PERCENTAGE);
+    report.cannot_start = app_old_comm_abnormal_flag(percent < FORBID_START_BAT_PERCENTAGE);
+    report.low_battery = app_old_comm_abnormal_flag(percent < LOW_POWER_RUN_PERCENTAGE);
+    report.shutdown_soon = app_old_comm_abnormal_flag(percent < LOW_BAT_PERCENTAGE);
     report.micro_air_leak = app_old_comm_algo_has_wear_result(ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK);
     report.travel_lock = app_old_comm_abnormal_flag(air_ctx->is_on_airplane_mode());
     report.adapter_error = app_old_comm_abnormal_flag(batt_ctx->get_charge_status() == CHARGE_STATE_ERROR);
