@@ -101,7 +101,7 @@ extern "C" {
  * Charge / OTA / factory
  ******************************************************************************/
 #define CHARGE_ADAPTER_TITLE_TEXT                       "Incompatible adapter"
-#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "Unable to charge"
+#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "Unable to charge."
 #define OTA_RES_UPGRADING_TEXT                          "Resource upgrading"
 #define OTA_FW_UPGRADING_TEXT                           "Firmware upgrading"
 #define OTA_HW_UPGRADING_TEXT                           "Hardware upgrading"
