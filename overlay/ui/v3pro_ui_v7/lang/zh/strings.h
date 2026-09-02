@@ -8,9 +8,9 @@ extern "C" {
 /*******************************************************************************
  * Shared
  ******************************************************************************/
-#define UI_STR_MODE_STIMULATION                         "刺激"
-#define UI_STR_MODE_EXPRESSION                          "吸乳"
-#define UI_STR_MODE_MIXED                               "混合"
+#define UI_STR_MODE_STIMULATION                         "刺激模式"
+#define UI_STR_MODE_EXPRESSION                          "吸乳模式"
+#define UI_STR_MODE_MIXED                               "混合模式"
 #define UI_STR_MODE_MILK_BOOST                          "循环深吸"
 #define UI_STR_MODE_POWER_PUMPING                       "PP追奶"
 #define UI_STR_MODE_CUSTOM                              "自定义模式"
