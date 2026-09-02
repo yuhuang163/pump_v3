@@ -139,6 +139,7 @@ static void dummy_power_on_hold_key_event_handler(ui_proc_dummy_t *proc, uint16_
     }
 }
 
+#if (ROOT_PRODUCT_ID != ROOT_PRODUCT_V3PRO_ID)
 static void on_dummy_window_battery_state_cb(void *user_data, battery_state_info_t *info)
 {
     ui_proc_dummy_t *proc = (ui_proc_dummy_t *)user_data;
@@ -161,6 +162,7 @@ static void on_dummy_window_battery_state_cb(void *user_data, battery_state_info
     msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
+#endif
 #else
 static void dummy_power_off_task_handler(void *user_data)
 {
@@ -232,7 +234,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
         ADD_KEYEVENT_CB(proc->key, "dummy_wm", proc, DUMMY_POWER_ON_HOLD_KEY_CODE,
             DUMMY_POWER_ON_HOLD_KEY_TYPE | KEY_EVENT_LONG_10S, on_dummy_keyevent_hdr);
+#if (ROOT_PRODUCT_ID != ROOT_PRODUCT_V3PRO_ID)
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_dummy_window_battery_state_cb);
+#endif
 #else
         ADD_KEYEVENT_CB(proc->key, "dummy_wm", proc, (KEY_CODE_POWER), KEY_EVENT_LONG_10S,
             on_dummy_keyevent_hdr);
@@ -242,6 +246,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
+#if (ROOT_PRODUCT_ID != ROOT_PRODUCT_V3PRO_ID)
         /// 进引导前若已识别为适配器不匹配，直接进不匹配页
         if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
             proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
@@ -251,6 +256,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
             return 0;
         }
+#endif
         show_dummy_power_on_hold_ui(proc);
 #else
         POST_WM_TASK_HANDLER_NO_DELAY(dummy_power_off_task_handler, proc, DUMMY_POWER_OFF_TASK_NAME);
@@ -281,7 +287,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             unregister_broadcast_receiver(&proc->receiver);
             REMOVE_KEYEVENT_CB(proc->key, on_dummy_keyevent_hdr);
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
+#if IS_SUPPORT_POWER_ON_GUIDE_UI && (ROOT_PRODUCT_ID != ROOT_PRODUCT_V3PRO_ID)
             REMOVE_BATTERY_STATE_CB(proc->battery, on_dummy_window_battery_state_cb);
 #endif
             u_free(proc);

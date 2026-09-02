@@ -50,6 +50,39 @@ static void power_on_hold_goto_charge_screen(ui_proc_dummy_t *proc)
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+static bool dummy_power_on_hold_is_charging(ui_proc_dummy_t *proc)
+{
+    return proc->battery && BATTERY_IS_CHARGING(proc->battery->get_charge_status());
+}
+
+static void power_on_hold_goto_power_off_charge_screen(ui_proc_dummy_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc && proc->wm);
+    multi_func_msg_data_t msg = {0};
+    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
+    LOG_WM("charging, goto power off charge screen");
+    proc->wm->dispatch_new_window_args(proc->wm, &msg);
+}
+#endif
+
+static int power_on_hold_exit_by_charge_state(ui_proc_dummy_t *proc)
+{
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+    if (dummy_power_on_hold_is_charging(proc)) {
+        power_on_hold_goto_power_off_charge_screen(proc);
+        return 1;
+    }
+#endif
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
+        power_on_hold_goto_charge_screen(proc);
+        return 1;
+    }
+    return 0;
+}
+
 static void power_on_hold_complete_cb(hdr_post_args_t *args)
 {
     ui_proc_dummy_t *proc = (ui_proc_dummy_t *)args->user_data;
@@ -59,9 +92,7 @@ static void power_on_hold_complete_cb(hdr_post_args_t *args)
         return;
     }
     proc->power_on_hold_holding = 0;
-    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
-        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
-        power_on_hold_goto_charge_screen(proc);
+    if (power_on_hold_exit_by_charge_state(proc)) {
         return;
     }
     LOG_WM("power on hold complete, goto logo.");
@@ -85,10 +116,7 @@ static void power_on_hold_idle_power_off_cb(hdr_post_args_t *args)
         LOG_WM("holding power on, ignore idle power off.");
         return;
     }
-    /// 适配器不匹配：跳转不匹配页，不自动关机
-    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
-        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
-        power_on_hold_goto_charge_screen(proc);
+    if (power_on_hold_exit_by_charge_state(proc)) {
         return;
     }
     LOG_WM("power on hold idle timeout, direct power off.");
