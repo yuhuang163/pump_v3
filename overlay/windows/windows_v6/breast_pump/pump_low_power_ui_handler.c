@@ -67,7 +67,7 @@ static void pump_low_power_ui_display_prepare(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
     EXCEPTION_CHECK_VOID(ui);
-    ui_display_battery_low_power_prepare(ui, 1);
+    ui_display_battery_low_power_prepare(ui, 1, NULL);
 }
 
 static void pump_low_power_ui_display_remove(void *user_data)

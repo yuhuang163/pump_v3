@@ -15,6 +15,7 @@ extern "C" {
 #include "input_key_code.h" // IWYU pragma: keep
 
 #define HOME_ANIMATION_FREQ                    (25)
+#define HOME_LOW_POWER_COMPLETE_TASK_NAME      "home_low_power_complete"
 
 /// 主界面绑定二维码展示时长
 #define HOME_BIND_QRCODE_DISPLAY_TIMEOUT       (3000) /// 3s
@@ -113,6 +114,7 @@ typedef enum {
     HOME_UI_TYPE_SETTINGS_SUCCESS, /// 模式切换成功
     HOME_UI_TYPE_NIGHT_LIGHT_ADJUST, /// 夜灯调节
     HOME_UI_TYPE_POWER_OFF_HOLD, /// 长按 power 关机确认
+    HOME_UI_TYPE_LOW_POWER, /// 低电无法启动提示（3s 倒计时，可按键退出）
     HOME_UI_TYPE_LEVEL_ADJUST, /// 单边力度调节
     HOME_UI_TYPE_BOTH_LEVEL_ADJUST, /// 双边力度调节
     HOME_UI_TYPE_SPEED_ADJUST, /// 速度调节
@@ -304,6 +306,13 @@ void home_power_off_hold_ui_exit(ui_proc_home_t *proc);
 void home_power_off_hold_dismiss(ui_proc_home_t *proc);
 void home_power_off_hold_key_long_2s_handler(ui_proc_home_t *proc);
 void home_power_off_hold_key_up_handler(ui_proc_home_t *proc);
+
+/// 低电无法启动提示（短按 start/power 弹出并刷新倒计时；其它键进对应功能页）
+void show_home_low_power_ui(ui_proc_home_t *proc);
+void home_low_power_ui_exit(ui_proc_home_t *proc);
+void home_low_power_ui_touch(ui_proc_home_t *proc);
+void home_low_power_ui_prepare_action(ui_proc_home_t *proc);
+void home_low_power_ui_dismiss(ui_proc_home_t *proc);
 
 #ifdef __cplusplus
 }

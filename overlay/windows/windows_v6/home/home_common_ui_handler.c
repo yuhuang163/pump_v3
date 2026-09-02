@@ -156,6 +156,7 @@ void stop_home_common_ui(ui_proc_home_t *proc)
     home_pump_result_ui_exit(proc);
     home_settings_success_ui_exit(proc);
     home_power_off_hold_ui_exit(proc);
+    home_low_power_ui_exit(proc);
     home_level_adjust_ui_exit(proc);
     home_both_level_adjust_ui_exit(proc);
     home_speed_adjust_ui_exit(proc);
@@ -187,6 +188,9 @@ void home_ui_change_hdr_remove(ui_proc_home_t *proc)
             break;
         case HOME_UI_TYPE_POWER_OFF_HOLD:
             home_power_off_hold_ui_exit(proc);
+            break;
+        case HOME_UI_TYPE_LOW_POWER:
+            home_low_power_ui_exit(proc);
             break;
         case HOME_UI_TYPE_LEVEL_ADJUST:
             home_level_adjust_ui_exit(proc);
@@ -342,10 +346,15 @@ int home_start_pump_with_sub_ui(ui_proc_home_t *proc, pump_sub_ui_type_e sub_ui)
         battery_state = proc->battery->get_battery_state();
     }
 
-    if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-        battery_state == BATTERY_STATE_EMPTY ||
+    if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN) {
+        LOG_WM("battery state is low shutdown, ignore key event.");
+        return -1;
+    }
+
+    if (battery_state == BATTERY_STATE_EMPTY ||
         battery_state == BATTERY_STATE_FORBID_START) {
-        LOG_WM("battery state is low, ignore key event.");
+        LOG_WM("battery state is low, show low power ui.");
+        show_home_low_power_ui(proc);
         return -1;
     }
 
