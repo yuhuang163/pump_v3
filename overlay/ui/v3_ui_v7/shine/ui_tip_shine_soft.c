@@ -252,6 +252,48 @@ void ui_tip_shine_buf_destroy(lv_draw_buf_t *shine)
     lv_draw_buf_destroy(shine);
 }
 
+/** 从 UTF-8 取下一个 Unicode 码点，并推进 *i。无效字节跳过 1 并返回 0。 */
+static uint32_t ui_tip_shine_utf8_next(const char *txt, uint32_t *i)
+{
+    const uint8_t *s;
+    uint32_t idx;
+    uint32_t result;
+    uint8_t c;
+
+    if (txt == NULL) {
+        return 0;
+    }
+    idx = (i == NULL) ? 0U : *i;
+    s = (const uint8_t *)txt + idx;
+    c = s[0];
+    if (c == 0U) {
+        return 0;
+    }
+    if (c < 0x80U) {
+        result = c;
+        idx += 1U;
+    } else if ((c & 0xE0U) == 0xC0U && (s[1] & 0xC0U) == 0x80U) {
+        result = ((uint32_t)(c & 0x1FU) << 6) | (uint32_t)(s[1] & 0x3FU);
+        idx += 2U;
+    } else if ((c & 0xF0U) == 0xE0U && (s[1] & 0xC0U) == 0x80U && (s[2] & 0xC0U) == 0x80U) {
+        result = ((uint32_t)(c & 0x0FU) << 12) | ((uint32_t)(s[1] & 0x3FU) << 6) |
+            (uint32_t)(s[2] & 0x3FU);
+        idx += 3U;
+    } else if ((c & 0xF8U) == 0xF0U && (s[1] & 0xC0U) == 0x80U &&
+        (s[2] & 0xC0U) == 0x80U && (s[3] & 0xC0U) == 0x80U) {
+        result = ((uint32_t)(c & 0x07U) << 18) | ((uint32_t)(s[1] & 0x3FU) << 12) |
+            ((uint32_t)(s[2] & 0x3FU) << 6) | (uint32_t)(s[3] & 0x3FU);
+        idx += 4U;
+    } else {
+        result = 0U;
+        idx += 1U;
+    }
+    if (i != NULL) {
+        *i = idx;
+    }
+    return result;
+}
+
 lv_draw_buf_t *ui_tip_shine_text_buf_create(const char *text, const lv_font_t *font,
     int32_t letter_space)
 {
@@ -293,17 +335,22 @@ lv_draw_buf_t *ui_tip_shine_text_buf_create(const char *text, const lv_font_t *f
     pos_x = 0;
     i = 0;
     while (text[i] != '\0') {
-        uint32_t letter = (uint8_t)text[i];
-        uint32_t letter_next = (uint8_t)text[i + 1];
+        uint32_t letter;
+        uint32_t letter_next = 0U;
+        uint32_t peek_i;
         lv_font_glyph_dsc_t g;
         int32_t dx;
         int32_t dy;
         int32_t gy;
         int32_t gx;
 
-        i++;
+        letter = ui_tip_shine_utf8_next(text, &i);
         if (letter == 0U) {
-            break;
+            continue;
+        }
+        peek_i = i;
+        if (text[peek_i] != '\0') {
+            letter_next = ui_tip_shine_utf8_next(text, &peek_i);
         }
         if (!lv_font_get_glyph_dsc(font, &g, letter, letter_next)) {
             continue;
