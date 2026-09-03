@@ -127,7 +127,9 @@ static uint8_t app_old_comm_apply_light_subcmd(uint8_t subcmd, uint8_t value)
             if (value) {
                 app_old_comm_apply_night_light_fields(led, 1, cur_gear == 0 ? 2 : cur_gear);
             } else {
-                app_old_comm_apply_night_light_fields(led, 0, 0);
+                if (led->hook->set_night_light_onoff) {
+                    led->hook->set_night_light_onoff(led, 0);
+                }
             }
             return 1;
 
