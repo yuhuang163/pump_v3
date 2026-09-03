@@ -50,7 +50,7 @@ static void popup_window_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
             popup_window_power_ui_update(thiz, popup_type);
             break;
         case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
-            popup_window_travel_lock_ui_update(thiz, popup_type);
+            popup_window_travel_lock_ui_update(thiz, popup_type, info->runtime.target_time);
             break;
         default:
             break;
