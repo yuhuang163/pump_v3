@@ -120,7 +120,7 @@ void popup_window_ble_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_
 void popup_window_device_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void popup_window_power_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void popup_window_pump_stop_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
-void popup_window_travel_lock_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+void popup_window_travel_lock_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type, uint32_t target_time);
 
 #ifdef __cplusplus
 }

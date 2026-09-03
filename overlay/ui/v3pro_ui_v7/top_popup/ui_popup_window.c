@@ -50,7 +50,7 @@ static void popup_window_ui_update(ui_manager_context_t *thiz, popup_ui_id_e pop
             popup_window_power_ui_update(thiz, popup_type);
             break;
         case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
-            popup_window_travel_lock_ui_update(thiz, popup_type);
+            popup_window_travel_lock_ui_update(thiz, popup_type, info->runtime.target_time);
             break;
         default:
             break;
@@ -82,10 +82,6 @@ void popup_window_ui_prepare(ui_manager_context_t *thiz, popup_ui_id_e type, uin
     ui_progress_arc_reset(&popup_info->progress_arc);
     popup_info->runtime.force_update = true;
     popup_info->runtime.start_time = get_timestamp();
-    if (type == ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN) {
-        /// 进入弹窗时进度条预跑 1s（总 5s，剩余实按约 4s）
-        popup_info->runtime.start_time -= POPUP_TRAVEL_LOCK_COUNTDOWN_PRE_ELAPSED_MS;
-    }
     LOG_UI("popup: %s, time:%d", popup_window_name_get(thiz, type), time);
 }
 

@@ -23,8 +23,6 @@ extern "C" {
 #define POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME                      (100)
 /// 圆环进度提前结束的步数（每步 POPUP_WINDOW_STATUS_DISPLAY_STEP_TIME ms）
 #define POPUP_WINDOW_STATUS_ARC_RING_PROGRESS_LEAD_STEPS           (4)
-/// 旅行锁倒计时弹窗进入时进度条预跑时长（与 LONG_2S 触发后剩余约 4s 对齐）
-#define POPUP_TRAVEL_LOCK_COUNTDOWN_PRE_ELAPSED_MS                 (1000)
 
 /// 支持窗口背景图片
 #define IS_SUPPORT_POPUP_WINDOW_COMP_BG                            (0)
@@ -120,7 +118,7 @@ void popup_window_ble_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_
 void popup_window_device_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void popup_window_power_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
 void popup_window_pump_stop_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
-void popup_window_travel_lock_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type);
+void popup_window_travel_lock_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type, uint32_t target_time);
 
 #ifdef __cplusplus
 }

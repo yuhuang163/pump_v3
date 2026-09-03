@@ -17,10 +17,9 @@
 #define AIRPLANE_MODE_TITLE_COLOR                         (0xFFFFFF)
 #define AIRPLANE_MODE_HINT_COLOR                          (0x999999)
 
-/** 长按解锁倒计时（LONG_2S 后进入，进度条预跑 1s，再持续约 4s，文案为 5s/4s/3s/2s/1s） */
-#define AIRPLANE_MODE_UNLOCK_DURATION_MS                  (5000)
+/** 长按解锁：圆弧从 0 起、4s 跑满；数字仍按 5s 倒计时 */
+#define AIRPLANE_MODE_UNLOCK_DURATION_MS                  (4000)
 #define AIRPLANE_MODE_UNLOCK_COUNTDOWN_MAX                (5)
-#define AIRPLANE_MODE_UNLOCK_PRE_ELAPSED_MS               (1000)
 
 typedef struct {
     lv_obj_t *root;
@@ -105,7 +104,7 @@ static void airplane_mode_holding_sync(ui_proc_airplane_mode_t *proc)
     uint8_t holding = (proc->popup_ui_type == ID_POPUP_UI_AIRPLANE_MODE_PROMPT) ? 1 : 0;
 
     if (holding && airplane_info->holding == false) {
-        airplane_info->start_time = get_timestamp() - AIRPLANE_MODE_UNLOCK_PRE_ELAPSED_MS;
+        airplane_info->start_time = get_timestamp();
         airplane_info->completed = false;
         airplane_info->force_update = true;
         ui_progress_arc_reset(&airplane_info->arc);

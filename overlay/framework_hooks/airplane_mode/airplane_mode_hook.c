@@ -103,7 +103,7 @@ static void travel_lock_key_event_handler(struct airplane_mode_context *ctx, voi
         msg.union_body.extra.window_id = ID_WINDOW_POPUP_WINDOW;
         msg.union_body.extra.is_bg_dispatch = 0x01;
         msg.union_body.extra.arg1 = ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN;
-        msg.union_body.extra.popup_exit_time = 5000;
+        msg.union_body.extra.popup_exit_time = 4000;
         msg.union_body.extra.forbid_short_press_exit_popup = true;
         msg.union_body.extra.user_data = ctx;
         msg.union_body.extra.popup_exit_cb = on_count_down_popup_window_exit_cb;
