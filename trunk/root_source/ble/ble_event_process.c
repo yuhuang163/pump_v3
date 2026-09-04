@@ -193,6 +193,10 @@ static void ble_event_periph_connect_suc(void *context, void *data, int data_len
     pble->priv.connect_idx = conn_id;
     pble->priv.ble_connect_state = 1;
     pble->set_adv_state(0);
+    /// 连接建立后显式关闭广播，兜底SDK根据连接个数停广播，防止连接态残留广播
+    if (pble->priv.ble_dev && pble->priv.ble_dev->ioctl) {
+        DEVICE_IOCTL(pble->priv.ble_dev, OP_CODE_BLE_ADV_CLOSE);
+    }
 
     {
         uint16_t setup_ms = ble_connect_setup_ms_get(pble->priv.connect_timestamp_use);
