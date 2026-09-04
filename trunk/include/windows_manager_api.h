@@ -42,6 +42,7 @@ typedef enum {
     ID_WINDOW_POWER_OFF,           /// 关机界面
     ID_WINDOW_SYSTEM_ABNORMAL,     /// 系统异常
     ID_WINDOW_THEME_GUIDE,         /// 主题选择引导
+    ID_WINDOW_POWER_ON_GUIDE,      /// 开机引导
     ID_WINDOW_MAX
 } window_id_e;
 

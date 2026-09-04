@@ -25,6 +25,7 @@
 #define WINDOW_PRIO_FACTORY_RESET     WINDOW_PRIO_TOP
 #define WINDOW_PRIO_SYSTEM_ABNORMAL   WINDOW_PRIO_TOP
 #define WINDOW_PRIO_POWER_OFF         WINDOW_PRIO_TOP
+#define WINDOW_PRIO_POWER_ON_GUIDE    WINDOW_PRIO_DUMMY
 
 DECLARE_WM_HANDLE_OBJ(m_window_dummy);
 DECLARE_WM_HANDLE_OBJ(m_window_setting);
@@ -41,6 +42,7 @@ DECLARE_WM_HANDLE_OBJ(m_window_product_test);
 DECLARE_WM_HANDLE_OBJ(m_window_factory_reset);
 DECLARE_WM_HANDLE_OBJ(m_window_power_off);
 DECLARE_WM_HANDLE_OBJ(m_window_system_abnormal);
+DECLARE_WM_HANDLE_OBJ(m_window_power_on_guide);
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -72,6 +74,7 @@ static const window_context_handle_t g_process_handle_list[] = {
     {ID_WINDOW_FACTORY_RESET, WINDOW_PRIO_FACTORY_RESET, PAGE_HANDLE_NAME(factory_reset), REFS_T(m_window_factory_reset)},
     {ID_WINDOW_POWER_OFF, WINDOW_PRIO_POWER_OFF, PAGE_HANDLE_NAME(power_off), REFS_T(m_window_power_off)},
     {ID_WINDOW_SYSTEM_ABNORMAL, WINDOW_PRIO_SYSTEM_ABNORMAL, PAGE_HANDLE_NAME(system_abnormal), REFS_T(m_window_system_abnormal)},
+    {ID_WINDOW_POWER_ON_GUIDE, WINDOW_PRIO_POWER_ON_GUIDE, PAGE_HANDLE_NAME(power_on_guide), REFS_T(m_window_power_on_guide)},
 };
 
 /*
@@ -111,6 +114,8 @@ const char *to_window_name(uint8_t window_id)
             return "power_off";
         case ID_WINDOW_SYSTEM_ABNORMAL:
             return "system_abnormal";
+        case ID_WINDOW_POWER_ON_GUIDE:
+            return "power_on_guide";
         default:
             return "unknow";
     }

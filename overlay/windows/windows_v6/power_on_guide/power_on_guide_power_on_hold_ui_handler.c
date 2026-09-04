@@ -3,7 +3,7 @@
 *****************************************************************************************
 */
 #include "ui_page_define.h" // IWYU pragma: keep
-#include "window_screen_dummy.h" // IWYU pragma: keep
+#include "window_screen_power_on_guide.h" // IWYU pragma: keep
 
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
 
@@ -11,14 +11,14 @@
 * DEFINES
 *****************************************************************************************
 */
-#define POWER_ON_HOLD_COMPLETE_TASK_NAME            "dummy_power_on_hold_complete"
-#define POWER_ON_HOLD_IDLE_TASK_NAME                "dummy_power_on_hold_idle"
+#define POWER_ON_HOLD_COMPLETE_TASK_NAME            "power_on_guide_hold_complete"
+#define POWER_ON_HOLD_IDLE_TASK_NAME                "power_on_guide_hold_idle"
 
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static void dummy_power_on_hold_direct_power_off(void)
+static void power_on_guide_hold_direct_power_off(void)
 {
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     rt_device_node_t *power_dev;
@@ -41,7 +41,7 @@ static void dummy_power_on_hold_direct_power_off(void)
     platform_system_reboot();
 }
 
-static void power_on_hold_goto_charge_screen(ui_proc_dummy_t *proc)
+static void power_on_hold_goto_charge_screen(ui_proc_power_on_guide_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->wm);
     multi_func_msg_data_t msg = {0};
@@ -51,12 +51,12 @@ static void power_on_hold_goto_charge_screen(ui_proc_dummy_t *proc)
 }
 
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-static bool dummy_power_on_hold_is_charging(ui_proc_dummy_t *proc)
+static bool power_on_guide_hold_is_charging(ui_proc_power_on_guide_t *proc)
 {
     return proc->battery && BATTERY_IS_CHARGING(proc->battery->get_charge_status());
 }
 
-static void power_on_hold_goto_power_off_charge_screen(ui_proc_dummy_t *proc)
+static void power_on_hold_goto_power_off_charge_screen(ui_proc_power_on_guide_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->wm);
     multi_func_msg_data_t msg = {0};
@@ -67,10 +67,10 @@ static void power_on_hold_goto_power_off_charge_screen(ui_proc_dummy_t *proc)
 }
 #endif
 
-static int power_on_hold_exit_by_charge_state(ui_proc_dummy_t *proc)
+static int power_on_hold_exit_by_charge_state(ui_proc_power_on_guide_t *proc)
 {
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-    if (dummy_power_on_hold_is_charging(proc)) {
+    if (power_on_guide_hold_is_charging(proc)) {
         power_on_hold_goto_power_off_charge_screen(proc);
         return 1;
     }
@@ -85,9 +85,9 @@ static int power_on_hold_exit_by_charge_state(ui_proc_dummy_t *proc)
 
 static void power_on_hold_complete_cb(hdr_post_args_t *args)
 {
-    ui_proc_dummy_t *proc = (ui_proc_dummy_t *)args->user_data;
-    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_DUMMY);
-    if (proc->current_ui_type != DUMMY_UI_TYPE_POWER_ON_HOLD) {
+    ui_proc_power_on_guide_t *proc = (ui_proc_power_on_guide_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POWER_ON_GUIDE);
+    if (proc->current_ui_type != POWER_ON_GUIDE_UI_TYPE_POWER_ON_HOLD) {
         LOG_UI("power on hold ui, ignore complete.");
         return;
     }
@@ -103,13 +103,13 @@ static void power_on_hold_complete_cb(hdr_post_args_t *args)
 
 static void power_on_hold_idle_power_off_cb(hdr_post_args_t *args)
 {
-    ui_proc_dummy_t *proc = (ui_proc_dummy_t *)args->user_data;
-    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_DUMMY);
+    ui_proc_power_on_guide_t *proc = (ui_proc_power_on_guide_t *)args->user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POWER_ON_GUIDE);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore idle power off.");
         return;
     }
-    if (proc->current_ui_type != DUMMY_UI_TYPE_POWER_ON_HOLD) {
+    if (proc->current_ui_type != POWER_ON_GUIDE_UI_TYPE_POWER_ON_HOLD) {
         return;
     }
     if (proc->power_on_hold_holding) {
@@ -120,17 +120,17 @@ static void power_on_hold_idle_power_off_cb(hdr_post_args_t *args)
         return;
     }
     LOG_WM("power on hold idle timeout, direct power off.");
-    dummy_power_on_hold_direct_power_off();
+    power_on_guide_hold_direct_power_off();
 }
 
-static void power_on_hold_idle_timeout_check(ui_proc_dummy_t *proc)
+static void power_on_hold_idle_timeout_check(ui_proc_power_on_guide_t *proc)
 {
     if (proc->power_on_hold_holding) {
         // LOG_WM("power on hold holding, ignore idle timeout check.");
         return;
     }
     uint32_t time_diff = get_timestamp_ms(proc->last_progress_ani_time);
-    if (time_diff < DUMMY_POWER_ON_HOLD_IDLE_TIMEOUT_MS) {
+    if (time_diff < POWER_ON_GUIDE_HOLD_IDLE_TIMEOUT_MS) {
         // LOG_WM("time diff: %dms, ignore.", time_diff);
         return;
     }
@@ -142,8 +142,8 @@ static void power_on_hold_idle_timeout_check(ui_proc_dummy_t *proc)
 static void power_on_hold_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     (void)index;
-    ui_proc_dummy_t *proc = (ui_proc_dummy_t *)ui->priv.play_info.user_data;
-    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_DUMMY);
+    ui_proc_power_on_guide_t *proc = (ui_proc_power_on_guide_t *)ui->priv.play_info.user_data;
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POWER_ON_GUIDE);
     ui_display_power_on_hold_process(ui);
     power_on_hold_idle_timeout_check(proc);
 }
@@ -188,34 +188,34 @@ static void power_on_hold_ui_display_remove(void *user_data)
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-void show_dummy_power_on_hold_ui(ui_proc_dummy_t *proc)
+void show_power_on_guide_power_on_hold_ui(ui_proc_power_on_guide_t *proc)
 {
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui && ui->hook && ui->hook->ui_animation_play_init);
     proc->last_progress_ani_time = get_timestamp();
-    if (proc->current_ui_type == DUMMY_UI_TYPE_POWER_ON_HOLD) {
+    if (proc->current_ui_type == POWER_ON_GUIDE_UI_TYPE_POWER_ON_HOLD) {
         return;
     }
 
     ui_play_info_t play_info = {
         .tag = "power_on_hold_screen",
-        .fps = DUMMY_ANIMATION_FREQ,
+        .fps = POWER_ON_GUIDE_ANIMATION_FREQ,
         .progress_cb = power_on_hold_animation_progress_cb,
         .display_prepare_cb = power_on_hold_ui_display_prepare,
         .display_remove_cb = power_on_hold_ui_display_remove,
         .user_data = proc,
     };
     ui->hook->ui_animation_play_init(ui, play_info);
-    proc->current_ui_type = DUMMY_UI_TYPE_POWER_ON_HOLD;
+    proc->current_ui_type = POWER_ON_GUIDE_UI_TYPE_POWER_ON_HOLD;
     proc->power_on_hold_holding = 0;
     if (proc->led && proc->led->hook && proc->led->hook->set_ui_backlight_level_rate) {
         proc->led->hook->set_ui_backlight_level_rate(proc->led, IDLE_BRIGHTNESS_MAX_VALUE);
     }
 }
 
-void stop_dummy_ui_animation(ui_proc_dummy_t *proc)
+void stop_power_on_guide_ui_animation(ui_proc_power_on_guide_t *proc)
 {
-    dummy_power_on_hold_ui_hdr_remove();
+    power_on_guide_power_on_hold_ui_hdr_remove();
     EXCEPTION_CHECK_VOID(proc);
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui && ui->hook && ui->hook->ui_animation_play_deinit);
@@ -226,7 +226,7 @@ void stop_dummy_ui_animation(ui_proc_dummy_t *proc)
     proc->last_progress_ani_time = get_timestamp();
 }
 
-void dummy_power_on_hold_ui_hdr_remove(void)
+void power_on_guide_power_on_hold_ui_hdr_remove(void)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(POWER_ON_HOLD_COMPLETE_TASK_NAME);
     REMOVE_TASK_HANDLER_DIRECTLY(POWER_ON_HOLD_IDLE_TASK_NAME);

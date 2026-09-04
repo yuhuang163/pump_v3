@@ -70,6 +70,7 @@ window_enter_result_e enter_new_window_factory_reset_screen(window_manager_conte
 window_enter_result_e enter_new_window_power_off_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_system_abnormal_screen(window_manager_context_t *wm, uint8_t window_id);
 window_enter_result_e enter_new_window_theme_guide_screen(window_manager_context_t *wm, uint8_t window_id);
+window_enter_result_e enter_new_window_power_on_guide_screen(window_manager_context_t *wm, uint8_t window_id);
 
 /// lvgl 相关.
 #if LV_USE_DEMO_BENCHMARK

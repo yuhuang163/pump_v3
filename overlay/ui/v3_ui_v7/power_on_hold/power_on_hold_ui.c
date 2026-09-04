@@ -9,7 +9,7 @@
 #include "ui_img_define.h"   // IWYU pragma: keep
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
-#include "window_screen_dummy.h" // IWYU pragma: keep
+#include "window_screen_power_on_guide.h" // IWYU pragma: keep
 #include "ui_progress_arc_component.h" // IWYU pragma: keep
 #include "power_on_hold_ui.h" // IWYU pragma: keep
 
@@ -133,7 +133,7 @@ static void ui_power_on_hold_text_update(void)
         POWER_ON_HOLD_LINE_GAP);
 }
 
-static void ui_power_on_hold_holding_sync(ui_proc_dummy_t *proc)
+static void ui_power_on_hold_holding_sync(ui_proc_power_on_guide_t *proc)
 {
     uint8_t holding = proc->power_on_hold_holding ? 1 : 0;
 
@@ -188,10 +188,10 @@ void ui_display_power_on_hold_remove(ui_manager_context_t *thiz)
 
 int ui_display_power_on_hold_process(ui_manager_context_t *thiz)
 {
-    ui_proc_dummy_t *proc;
+    ui_proc_power_on_guide_t *proc;
 
     EXCEPTION_CHECK_INT(thiz && ui_info && ui_info->root);
-    proc = (ui_proc_dummy_t *)thiz->priv.play_info.user_data;
+    proc = (ui_proc_power_on_guide_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc);
 
     ui_power_on_hold_holding_sync(proc);
