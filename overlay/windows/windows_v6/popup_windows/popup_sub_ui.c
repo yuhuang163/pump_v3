@@ -30,6 +30,39 @@
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+int popup_overlay_priority_get(uint16_t popup_type)
+{
+    switch (popup_type) {
+        case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
+            return POPUP_OVERLAY_PRIO_TRAVEL_LOCK;
+        case ID_POPUP_UI_LOW_POWER:
+        case ID_POPUP_UI_WILL_POWER_OFF:
+            return POPUP_OVERLAY_PRIO_LOW_POWER;
+        case ID_POPUP_UI_BT_CONNECT:
+        case ID_POPUP_UI_BT_DISCONNECT:
+        case ID_POPUP_UI_BT_CONNECTING:
+        case ID_POPUP_UI_DEVICE_BIND:
+        case ID_POPUP_UI_DEVICE_UNBIND:
+            return POPUP_OVERLAY_PRIO_BLE;
+        default:
+            return POPUP_OVERLAY_PRIO_NONE;
+    }
+}
+
+bool popup_overlay_can_preempt(uint16_t current_type, uint16_t new_type)
+{
+    int current_prio = popup_overlay_priority_get(current_type);
+    int new_prio = popup_overlay_priority_get(new_type);
+
+    if (new_prio > current_prio) {
+        return true;
+    }
+    if ((new_prio == current_prio) && (new_type != current_type) && (new_prio > POPUP_OVERLAY_PRIO_NONE)) {
+        return true;
+    }
+    return false;
+}
+
 void start_popup_ui_animation(ui_proc_popup_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc->ui);

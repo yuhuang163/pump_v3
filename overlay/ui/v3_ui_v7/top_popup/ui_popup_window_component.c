@@ -349,6 +349,9 @@ void popup_window_display_complete(ui_manager_context_t *thiz, uint16_t popup_ty
     if (time_diff >= info->runtime.target_time) {
         ui_animation_play_t *ani = &thiz->priv.overlay_play_info;
         EXCEPTION_CHECK_VOID(ani);
+        if (ani->progress_cb == NULL) {
+            return;
+        }
         LOG_UI("%s display complete", popup_window_name_get(thiz, popup_type));
         ani->progress_cb(thiz, popup_type, ANI_POPUP_DISPLAY_FINISH);
     }

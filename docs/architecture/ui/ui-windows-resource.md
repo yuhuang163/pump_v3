@@ -37,7 +37,7 @@ Resource Manager (trunk/root_source/resource + overlay/resources)
 
 流程：`dispatch_new_window_args` → 校验优先级（target_z_order >= 当前才允许，否则后台 Blocked）→ `MSG_TYPE_WIN_DISPATCH` 到 WM 线程 → `window_switch` 二分查窗口对象 → `enter_new_window_xxx_screen`（分配 proc、注册回调）→ 生命周期 `CREATE/RESUME/PAUSE/DESTORY`。
 
-历史栈 `push/pop_window_history`；弹窗 overlay 不销毁 base。
+历史栈 `push/pop_window_history`；弹窗 overlay 不销毁 base。已在 `popup_window` 上再调度同一窗口时，投递 `WINDOW_ASYNC_EVT_POPUP_UPDATE`（带完整 extra）。overlay 按 top 弹窗优先级决定是否抢占：更高优先级替换当前内容；同级不同类型（如蓝牙连/断）替换并重置计时；更低优先级忽略。
 
 ## 4. UI 线程与 LVGL
 

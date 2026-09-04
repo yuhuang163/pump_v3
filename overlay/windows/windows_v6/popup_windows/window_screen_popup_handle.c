@@ -7,6 +7,7 @@
 #include "windows_manager.h" 
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "window_screen_popup.h" // IWYU pragma: keep
+#include "popup_sub_ui.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -39,15 +40,62 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void popup_overlay_apply_incoming_extra(ui_proc_popup_t *proc, struct window_event_data *evt_data)
+{
+    window_entry_extra_t *incoming = (window_entry_extra_t *)evt_data->user_data;
+    uint16_t new_type = (uint16_t)evt_data->args1;
+
+    if (incoming != NULL) {
+        memcpy(&proc->extra, incoming, sizeof(window_entry_extra_t));
+        new_type = (uint16_t)incoming->arg1;
+    } else {
+        proc->extra.arg1 = new_type;
+        proc->extra.popup_exit_time = evt_data->args2;
+    }
+
+    proc->popup_window_id = new_type;
+    proc->extra.popup_priority = popup_overlay_priority_get(new_type);
+    if (proc->extra.popup_exit_time < 500 || proc->extra.popup_exit_time > 10000) {
+        proc->extra.popup_exit_time = 2000;
+    }
+}
+
 static int popup_window_async_evt_handler_cb(struct window_event_data *evt_data)
 {
     window_context_t *w_ctx = (window_context_t *)evt_data->window_ctx;
     ui_proc_popup_t *proc = (ui_proc_popup_t *)w_ctx->user_data;
+    uint16_t new_type;
+
     WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_POPUP_WINDOW, 0);
     if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
         LOG_WM("wm not running, ignore.");
         return 0;
     }
+    if (evt_data->evt_id != WINDOW_ASYNC_EVT_POPUP_UPDATE) {
+        return 0;
+    }
+
+    new_type = (uint16_t)evt_data->args1;
+    if (evt_data->user_data != NULL) {
+        new_type = (uint16_t)((window_entry_extra_t *)evt_data->user_data)->arg1;
+    }
+    if (!popup_overlay_can_preempt(proc->popup_window_id, new_type)) {
+        LOG_WM("overlay popup preempt denied: %d(p=%d) -> %d(p=%d)",
+               proc->popup_window_id, popup_overlay_priority_get(proc->popup_window_id),
+               new_type, popup_overlay_priority_get(new_type));
+        return 0;
+    }
+
+    LOG_WM("overlay popup preempt: %d(p=%d) -> %d(p=%d)",
+           proc->popup_window_id, popup_overlay_priority_get(proc->popup_window_id),
+           new_type, popup_overlay_priority_get(new_type));
+    popup_overlay_apply_incoming_extra(proc, evt_data);
+    if (proc->ui) {
+        proc->ui->priv.is_playing_ui_overlay = false;
+        proc->ui->priv.overlay_play_info.progress_cb = NULL;
+        proc->ui->priv.overlay_play_info.user_data = NULL;
+    }
+    start_popup_ui_animation(proc);
     return 0;
 }
 
@@ -95,7 +143,17 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+#if WM_DEFER_POPUP_OVERLAY_UI_REMOVE
+            /// 方案1：只停 overlay 回调，LVGL 层由 WM 在新窗口 resume 后再 deinit
+            if (proc->ui) {
+                proc->ui->priv.is_playing_ui_overlay = false;
+                proc->ui->priv.overlay_play_info.progress_cb = NULL;
+                proc->ui->priv.overlay_play_info.user_data = NULL;
+            }
+#else
+            /// 方案0：pause 时立刻拆 overlay LVGL
             stop_popup_ui_animation(proc);
+#endif
             if (proc->key && proc->key->set_keyevent_shield_level) {
                 proc->key->set_keyevent_shield_level(KEY_HANDLER_SHIELD_LEVEL_1);
             }
@@ -129,6 +187,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     memcpy(&proc->extra, extra, sizeof(window_entry_extra_t));
     proc->margic = UI_WINDOW_MARGIC_CODE;
     proc->popup_window_id = extra->arg1;
+    proc->extra.popup_priority = popup_overlay_priority_get(proc->popup_window_id);
     proc->current_ui_type = POPUP_UI_TYPE_NONE;
     proc->wm = wm;
     proc->ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);

@@ -173,6 +173,7 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 - **永久 Wakelock**：CHARGE / POWER_OFF / SYSTEM_ABNORMAL 三窗口 `acquire_wakelock(name, -1)` 只在 destroy 释放。
 - **`not_push_history=1`** 的窗口（DUMMY/HOME/POPUP/THEME_GUIDE）不进历史栈，保证 HOME 是导航根。
 - **异步投递惯例**：广播回调只拷贝数据 + `POST_WM_TASK_HANDLER_NO_DELAY` 转发到 wm 线程，不在持锁上下文直接调窗口 API。
+- **overlay 弹窗优先级**（`popup_overlay_priority_get`，越大越高）：旅行锁倒计时 40 ＞ 低电/即将关机 30 ＞ 蓝牙连断/绑定 10。已显示 overlay 时新请求走 `WINDOW_ASYNC_EVT_POPUP_UPDATE`：更高优先级或同级不同类型可原地抢占并重置计时；更低优先级或同类型忽略。旅行锁长按倒计时不被蓝牙打断。
 - **模式切换确认持久化**：`pump_ui_persist_t.rhythm_confirm_shown` 按上电周期记忆，同时上报 `RHYTHM_SWITCHED_REPORT` 供 App 同步。
 - **产测隔离**：PRODUCT_TEST 窗口 `tests_manager_set_enable(true/false)`；Dummy 唤醒分流依据 `tests_manager_get_current_mode()!=TST_NONE`。
 - **按键码覆盖策略**：HOME/PUMP/PRODUCT_TEST 用全键+组合键；弹窗用高屏蔽；CHARGE 仅 POWER、BATTERY 仅 POWER/START。
