@@ -75,7 +75,7 @@
 `ui_popup.c` + `ui_popup_component.c`，挂在页面 root 内，`lv_obj_move_foreground(root)` 盖在内容上。支持 PUMP_RUNING_30M_TIP / PUMP_REST_MODE_ADJUST_TIP。组件：mask + 文本 + 图标 + ring 进度弧 + 倒计时数字。
 
 ### 3.2 top_popup（Overlay 独立层）
-`ui_popup_window.c`，root 建在 `lv_layer_top()`。支持 BT_CONNECT/DISCONNECT/CONNECTING、TRAVEL_LOCK_COUNTDOWN、LOW_POWER。走 `overlay_play_info.progress_cb` 回传。旅行锁/飞行模式进度弧预跑 1s 对齐 LONG_2S。
+`ui_popup_window.c`，root 建在 `lv_layer_top()`。支持 BT_CONNECT/DISCONNECT/CONNECTING、TRAVEL_LOCK_COUNTDOWN、LOW_POWER。走 `overlay_play_info.progress_cb` 回传。旅行锁/飞行模式进度弧预跑 1s 对齐 LONG_2S。多弹窗并发由 windows_v6 `popup_overlay_prio` 仲裁（旅行锁 ＞ 低电 ＞ 蓝牙）。
 
 ## 4. 组件类
 

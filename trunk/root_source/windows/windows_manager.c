@@ -211,7 +211,19 @@ static uint8_t pop_window_history(void)
     return to_valid_window_id(wm, window_id);
 }
 
-static int close_popup_overlay_internal(window_manager_context_t *wm)
+#if WM_DEFER_POPUP_OVERLAY_UI_REMOVE
+static void overlay_ui_deinit(void)
+{
+#if IS_SUPPORT_LVGL
+    ui_manager_context_t *ui = (ui_manager_context_t *)find_module(ID_MODULE_UI);
+    if (ui && ui->hook && ui->hook->ui_animation_overlay_deinit) {
+        ui->hook->ui_animation_overlay_deinit(ui);
+    }
+#endif
+}
+#endif
+
+static int close_popup_overlay_internal(window_manager_context_t *wm, uint8_t keep_overlay_ui)
 {
     window_context_record_t *record = &s_window_record;
     if (record->base_window_context == NULL || record->base_window_hdr == NULL) {
@@ -225,9 +237,10 @@ static int close_popup_overlay_internal(window_manager_context_t *wm)
     if (popup_hdr == NULL || popup_ctx == NULL || popup_ctx->is_popup_window == 0) {
         return -2;
     }
-    LOG_WM("close overlay popup: (%s) -> base(%s)",
+    LOG_WM("close overlay popup: (%s) -> base(%s), keep_ui:%d",
            to_window_name(popup_hdr->window_id),
-           base_hdr ? to_window_name(base_hdr->window_id) : "NULL");
+           base_hdr ? to_window_name(base_hdr->window_id) : "NULL",
+           keep_overlay_ui);
     /// 退出 popup（仅销毁 popup，不触碰 base）
     if (popup_hdr->scr_obj && popup_hdr->scr_obj->on_pause) {
         popup_hdr->scr_obj->on_pause(popup_ctx);
@@ -254,6 +267,13 @@ static int close_popup_overlay_internal(window_manager_context_t *wm)
     record->base_window_hdr = NULL;
     record->base_window_context = NULL;
     record->base_z_order = 0;
+#if WM_DEFER_POPUP_OVERLAY_UI_REMOVE
+    if (keep_overlay_ui == 0) {
+        overlay_ui_deinit();
+    }
+#else
+    (void)keep_overlay_ui;
+#endif
     return 0;
 }
 
@@ -413,7 +433,7 @@ static void window_dispatch_thread(const void *args)
                 break;
             case MSG_TYPE_CLOSE_POPUP_OVERLAY:
                 WM_LOCK("--close_popup");
-                close_popup_overlay_internal(wm);
+                close_popup_overlay_internal(wm, 0);
                 WM_UNLOCK("--close_popup");
                 break;
             case MSG_TYPE_HANDLER_POST_EVENT:
@@ -458,11 +478,58 @@ static void on_wm_receive_internal(broadcast_mask_id_t id, void *context, int32_
     }
 }
 
+static bool can_refresh_overlay_popup(uint8_t window_id)
+{
+    window_context_t *ctx = s_window_record.window_context;
+
+    return (window_id == ID_WINDOW_POPUP_WINDOW) && (ctx != NULL) && (ctx->is_popup_window != 0);
+}
+
+static int dispatch_overlay_popup_refresh(struct window_manager_context *wm, multi_func_msg_data_t *msg)
+{
+    multi_func_msg_data_t evt_msg = {0};
+    window_entry_extra_t extra_copy;
+    window_entry_extra_t *heap_extra = NULL;
+    uint8_t window_id;
+    uint32_t popup_type;
+    uint32_t popup_exit_time;
+
+    memcpy(&extra_copy, &msg->union_body.extra, sizeof(extra_copy));
+    window_id = extra_copy.window_id;
+    popup_type = (uint32_t)extra_copy.arg1;
+    popup_exit_time = extra_copy.popup_exit_time;
+
+    if (!wm->priv.window_dispatch_thd.msg_id) {
+        LOG_WM("refresh overlay popup thd not ready, ignore type=%lu", popup_type);
+        return -1;
+    }
+
+    heap_extra = (window_entry_extra_t *)u_malloz(sizeof(*heap_extra));
+    if (heap_extra != NULL) {
+        memcpy(heap_extra, &extra_copy, sizeof(*heap_extra));
+    }
+
+    LOG_WM("refresh overlay popup: type=%lu time=%lu extra=%p",
+           popup_type, popup_exit_time, heap_extra);
+    evt_msg.msg_type = MSG_TYPE_WIN_EVENT;
+    evt_msg.union_body.window_evt_data.window_id = window_id;
+    evt_msg.union_body.window_evt_data.evt_id = WINDOW_ASYNC_EVT_POPUP_UPDATE;
+    evt_msg.union_body.window_evt_data.args1 = popup_type;
+    evt_msg.union_body.window_evt_data.args2 = popup_exit_time;
+    evt_msg.union_body.window_evt_data.user_data = heap_extra;
+    evt_msg.union_body.window_evt_data.flags = (heap_extra != NULL) ? WINDOW_EVT_FLAG_FREE_USER_DATA : 0;
+    MSG_QUEUE_SEND(wm->priv.window_dispatch_thd.msg_id, &evt_msg, 0);
+    return 0;
+}
+
 static int dispatch_new_window_args(struct window_manager_context *wm, multi_func_msg_data_t *msg)
 {
     uint8_t window_id = msg->union_body.extra.window_id;
 
     if (wm->is_the_same_window(wm, window_id)) {
+        if (can_refresh_overlay_popup(window_id)) {
+            return dispatch_overlay_popup_refresh(wm, msg);
+        }
         LOG_WM("ignore the same scr: (%s/%d)", to_window_name(window_id), window_id);
         return -1;
     }
@@ -623,18 +690,30 @@ static int dispatch_new_window(window_context_t *ctx)
         return -1; /// 忽略同一个窗口
     }
     uint32_t t0 = get_timestamp();   /// 获取当前时间戳
+#if WM_DEFER_POPUP_OVERLAY_UI_REMOVE
+    uint8_t defer_overlay_ui = 0;
+#endif
     if (record->base_window_context != NULL && ctx->is_popup_window == 0) {
-        close_popup_overlay_internal(wm);   /// 已存在 overlay popup，先关闭旧 popup，再创建新 popup（单层 overlay）
-        /// todo: 弹窗支持
+#if WM_DEFER_POPUP_OVERLAY_UI_REMOVE
+        defer_overlay_ui = 1;
+        close_popup_overlay_internal(wm, 1);   /// 窗口按原顺序关，LVGL 层延后拆
+        if (wm->is_the_same_window(wm, ctx->new_window_id)) {
+            overlay_ui_deinit();
+            LOG_WM("ignore the same screen after closing overlay: %s", to_window_name(ctx->new_window_id));
+            return -1;
+        }
+#else
+        close_popup_overlay_internal(wm, 0);
         if (wm->is_the_same_window(wm, ctx->new_window_id)) {
             LOG_WM("ignore the same screen after closing overlay: %s", to_window_name(ctx->new_window_id));
             return -1;
         }
+#endif
     }
     /// overlay popup：不销毁 base window，仅创建 popup 叠加在上层
     if (ctx->is_popup_window) {
         if (record->base_window_context != NULL) {
-            close_popup_overlay_internal(wm); /// 已存在 overlay popup，先关闭旧 popup，再创建新 popup（单层 overlay）
+            close_popup_overlay_internal(wm, 0); /// 已存在 overlay popup，先关闭旧 popup，再创建新 popup（单层 overlay）
         }
 
         if (record->window_hdr == NULL || record->window_context == NULL) {
@@ -701,6 +780,11 @@ static int dispatch_new_window(window_context_t *ctx)
     }
     record->window_hdr = next; /// 更新当前窗口记录
     record->window_context = ctx;   /// 更新当前窗口上下文
+#if WM_DEFER_POPUP_OVERLAY_UI_REMOVE
+    if (defer_overlay_ui) {
+        overlay_ui_deinit();
+    }
+#endif
     LOGE("switch_windows finish: (%s/%d/z_order:%d), escaped: %ld ms", 
         to_window_name(next->window_id), next->window_id, record->z_order, get_timestamp_ms(t0));
     return 0;
@@ -729,7 +813,7 @@ static int close_popup_overlay_wrapper(struct window_manager_context *wm)
     EXCEPTION_CHECK_INT(wm);
     if (!wm->priv.window_dispatch_thd.msg_id) {
         MUTEX_LOCK(wm->priv.window_switch_lock);
-        int ret = close_popup_overlay_internal(wm);
+        int ret = close_popup_overlay_internal(wm, 0);
         MUTEX_UNLOCK(wm->priv.window_switch_lock);
         return ret;
     }

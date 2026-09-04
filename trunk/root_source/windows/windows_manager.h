@@ -12,6 +12,16 @@ extern "C" {
 #include "windows_manager_api.h" // IWYU pragma: keep
 #include "ui_manager_api.h" // IWYU pragma: keep
 
+/**
+ * overlay 切到普通窗口时，LVGL 叠加层拆除时机。
+ * 0: 原方案。popup pause 里立刻 overlay_deinit，会露出 base（home）一帧。
+ * 1: 延后方案。窗口生命周期仍按原顺序（pause popup → 切新窗口 → 挂按键），
+ *    仅把 overlay 的 LVGL 层留到新窗口 create/resume 之后再拆，避免闪 home。
+ */
+#ifndef WM_DEFER_POPUP_OVERLAY_UI_REMOVE
+#define WM_DEFER_POPUP_OVERLAY_UI_REMOVE                   (1)
+#endif
+
 /// 调试LV FPS.
 #define DEBUG_LV_FPS (1)
 
