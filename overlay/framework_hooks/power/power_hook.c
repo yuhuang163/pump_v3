@@ -173,7 +173,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
                     msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
                     LOG_PM("power on detect key up, adapter mismatch, goto charge");
                 } else {
-                    msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
+                    msg.union_body.extra.window_id = ID_WINDOW_POWER_ON_GUIDE;
                     LOG_PM("power on detect key up, goto power on guide");
                 }
                 dispatch_window_when_wm_ready(wm, &msg);
@@ -251,8 +251,8 @@ static void system_power_event_cb(hdr_post_args_t *args)
                 msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
                 LOG_PM("adapter mismatch, goto charge screen");
             } else {
-                msg.union_body.extra.window_id = ID_WINDOW_DUMMY;
-                LOG_PM("goto power on guide (dummy)");
+                msg.union_body.extra.window_id = ID_WINDOW_POWER_ON_GUIDE;
+                LOG_PM("goto power on guide");
             }
             dispatch_window_when_wm_ready(wm, &msg);
             break;
@@ -311,7 +311,7 @@ static int on_key_event_route(struct power_manager_context *ctx, uint16_t keycod
         #endif
 
         #if IS_SUPPORT_POWER_ON_GUIDE_UI
-        /// 短按未满足开机时长：进入 dummy 长按开机引导
+        /// 短按未满足开机时长：进入开机引导窗口
         POST_TASK_HANDLER_NO_DELAY_ARG1(system_power_event_cb, ctx, HDR_ACTION_POWER_ON_GUIDE,
             POWER_ONOFF_AND_STANDBY_TASK_NAME);
         #else

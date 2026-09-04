@@ -64,7 +64,8 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 
 | 窗口 | ID | 优先级 | 入口 |
 |------|----|--------|------|
-| dummy | `ID_WINDOW_DUMMY` | LOW | 开机落地/唤醒分流 |
+| dummy | `ID_WINDOW_DUMMY` | LOW | 休眠占位/唤醒分流 |
+| power_on_guide | `ID_WINDOW_POWER_ON_GUIDE` | LOW | 长按开机引导 |
 | pump | `ID_WINDOW_PUMP` | LEVEL2 | 泵奶运行 |
 | home | `ID_WINDOW_HOME` | LEVEL8 | 主界面（导航根） |
 | guide | `ID_WINDOW_GUIDE` | LEVEL9 | 新手引导 |
@@ -85,12 +86,18 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 
 ## 3. 逐窗口业务逻辑
 
-### 3.1 Dummy（开机落地）
+### 3.1 Dummy（休眠占位）
+- 待机入口：`pm_suspend_prepare_enter` 分派 `ID_WINDOW_DUMMY`，作为前台占位，允许任意界面进入休眠。
 - 广播 `ID_BROADCAST_PM_STATE_CHANGE`：`SYS_RESUME` 时按 `wakeup_reason` 分流（tests 模式非 NONE → PRODUCT_TEST，否则 HOME）。
-- `IS_SUPPORT_POWER_ON_GUIDE_UI`：适配器不匹配 → CHARGE；否则长按开机引导页（POWER DOWN/UP 控制进度）。
+- 进窗不绘制开机引导、不关机；POWER LONG_10S → `platform_system_reboot()`。
+- WM 特例：dummy 允许在 `on_suspend_gotoing` 时切换；不压历史栈。
+
+### 3.1.1 Power On Guide（开机引导）
+- 目录 `overlay/windows/windows_v6/power_on_guide/`，ID 为 `ID_WINDOW_POWER_ON_GUIDE`。
+- 短按未满足开机时长、关机充电页短按等走本窗口，不再占用 dummy。
+- `IS_SUPPORT_POWER_ON_GUIDE_UI`：适配器不匹配 → CHARGE；否则长按开机引导（POWER DOWN/UP 控制进度）。
   - 引导结束（长按完成 / 静默超时）：V3Pro 充电中 → `POWER_OFF(CHARGE)`；适配器不匹配 → CHARGE；未充电长按完成 → LOGO，静默超时 → 关机。
   - V3：长按完成 → LOGO；静默超时 → 关机（适配器不匹配仍进 CHARGE）。
-- POWER LONG_10S → `platform_system_reboot()`。
 
 ### 3.2 Logo（开机 LOGO）
 - on_create：背光/自适应亮度、`start_logo_ui_animation`、延迟 500ms 做触摸键固件版本检查。

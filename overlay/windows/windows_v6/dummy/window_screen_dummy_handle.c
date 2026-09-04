@@ -3,7 +3,7 @@
 *****************************************************************************************
 */
 #include "root_common_api.h" // IWYU pragma: keep
-#include "windows_manager.h" 
+#include "windows_manager.h"
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "window_screen_dummy.h" // IWYU pragma: keep
 
@@ -14,24 +14,12 @@
 #define PAGE_STATIC_NAME                        dummy
 #define PAGE_NAME_STR                           "dummy"
 #define DUMMY_BROADCAST_TASK_NAME               "dummy_broadcast_task"
-#define DUMMY_POWER_OFF_TASK_NAME               "dummy_power_off_task"
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
     REMOVE_TASK_HANDLER_DIRECTLY(DUMMY_BROADCAST_TASK_NAME); \
-    REMOVE_TASK_HANDLER_DIRECTLY(DUMMY_POWER_OFF_TASK_NAME); \
-    IF_SUPPORT_POWER_ON_GUIDE_UI_HDR_REMOVE(); \
 } while (0)
-
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
-#define IF_SUPPORT_POWER_ON_GUIDE_UI_HDR_REMOVE() \
-    dummy_power_on_hold_ui_hdr_remove()
-#define DUMMY_POWER_ON_HOLD_KEY_CODE            (KEY_CODE_POWER)
-#define DUMMY_POWER_ON_HOLD_KEY_TYPE            (KEY_EVENT_DOWN | KEY_EVENT_UP)
-#else
-#define IF_SUPPORT_POWER_ON_GUIDE_UI_HDR_REMOVE()
-#endif
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -62,7 +50,7 @@ static int dummy_window_async_evt_handler_cb(struct window_event_data *evt_data)
 
 static int wakup_enter_new_window_policy(ui_proc_dummy_t *proc, int wakeup_reason)
 {
-    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_DUMMY, 0);   
+    WINDOW_CONTEXT_GUARD_INT(proc, ID_WINDOW_DUMMY, 0);
     tests_manager_context_t *tests = proc->tests;
     multi_func_msg_data_t msg = {0};
     if (tests && tests->tests_manager_get_current_mode() != TST_NONE_TYPE) {
@@ -122,82 +110,6 @@ static void on_dummy_window_receive(broadcast_mask_id_t id, void *context,
     POST_WM_TASK_HANDLER_NO_DELAY(dummy_broadcast_receive_ui_cb, &proc->broadcast_args, DUMMY_BROADCAST_TASK_NAME);
 }
 
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
-static void dummy_power_on_hold_key_event_handler(ui_proc_dummy_t *proc, uint16_t keytype)
-{
-    if (proc->current_ui_type != DUMMY_UI_TYPE_POWER_ON_HOLD) {
-        return;
-    }
-    if (keytype == KEY_EVENT_DOWN) {
-        proc->power_on_hold_holding = 1;
-        proc->last_progress_ani_time = get_timestamp();
-        LOG_WM("power on hold key down.");
-    } else if (keytype == KEY_EVENT_UP) {
-        proc->power_on_hold_holding = 0;
-        proc->last_progress_ani_time = get_timestamp();
-        LOG_WM("power on hold key up, reset progress.");
-    }
-}
-
-#if (ROOT_PRODUCT_ID != ROOT_PRODUCT_V3PRO_ID)
-static void on_dummy_window_battery_state_cb(void *user_data, battery_state_info_t *info)
-{
-    ui_proc_dummy_t *proc = (ui_proc_dummy_t *)user_data;
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_DUMMY);
-    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
-        LOG_WM("wm not running, ignore.");
-        return;
-    }
-    if (proc->current_ui_type != DUMMY_UI_TYPE_POWER_ON_HOLD) {
-        return;
-    }
-    if (info == NULL || info->charge_status != CHARGE_STATE_ERROR) {
-        return;
-    }
-    if (proc->battery == NULL || proc->battery->is_vbus_plug_in() == 0) {
-        return;
-    }
-    LOG_WM("adapter mismatch on power on guide, goto charge screen");
-    multi_func_msg_data_t msg = {0};
-    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-    proc->wm->dispatch_new_window_args(proc->wm, &msg);
-}
-#endif
-#else
-static void dummy_power_off_task_handler(void *user_data)
-{
-    ui_proc_dummy_t *proc = (ui_proc_dummy_t *)user_data;
-    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_DUMMY);
-    LOGW("==========POWER_OFF==========");
-    uint16_t sleep_time = 50;  
-    peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
-    rt_device_node_t *power_dev = pbus->find_device(ID_DEVICE_POWER);
-    if (power_dev == NULL) {
-        LOGE("power dev not found, reboot");
-        msleep(50);
-        platform_system_reboot();
-    }
-    rt_device_node_t *led_dev = pbus->find_device(ID_DEVICE_LED);
-    if (led_dev) {
-        led_status_msg_t msg = {
-            .led_index = PUMP_LED_ALL_ID,
-            .led_status = {
-                .mode = LED_MODE_ONOFF,
-                .un.onoff = {
-                    .status = LED_STATUS_OFF,
-                },
-            },
-        };
-        led_dev->ioctl(led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
-        LOG_WM("set led off");
-        sleep_time = 100;
-    } 
-    msleep(sleep_time); /// 数据同步延时
-    int arg1[] = {0};
-    power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)arg1);
-}
-#endif
-
 static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t keytype)
 {
     ui_proc_dummy_t *proc = user_data;
@@ -208,12 +120,6 @@ static int on_dummy_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t key
     }
 
     LOG_WM("dummy key event: %d, %d", keycode, keytype);
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
-    if (proc->current_ui_type == DUMMY_UI_TYPE_POWER_ON_HOLD && keycode == KEY_CODE_POWER) {
-        dummy_power_on_hold_key_event_handler(proc, keytype);
-        return 0;
-    }
-#endif
     if (keytype == KEY_EVENT_LONG_10S) {
         msleep(1000);
         platform_system_reboot();
@@ -231,41 +137,17 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     EXCEPTION_CHECK_INT(ui);
     if (new_state == ID_SCR_STATE_ON_RESUME) {
         LOG_WM("==>%s window on resume", PAGE_NAME_STR);
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
-        ADD_KEYEVENT_CB(proc->key, "dummy_wm", proc, DUMMY_POWER_ON_HOLD_KEY_CODE,
-            DUMMY_POWER_ON_HOLD_KEY_TYPE | KEY_EVENT_LONG_10S, on_dummy_keyevent_hdr);
-#if (ROOT_PRODUCT_ID != ROOT_PRODUCT_V3PRO_ID)
-        ADD_BATTERY_STATE_CB(proc->battery, proc, on_dummy_window_battery_state_cb);
-#endif
-#else
         ADD_KEYEVENT_CB(proc->key, "dummy_wm", proc, (KEY_CODE_POWER), KEY_EVENT_LONG_10S,
             on_dummy_keyevent_hdr);
-#endif
         proc->enter_dummy_time = platform_get_utc_time();
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
-#if (ROOT_PRODUCT_ID != ROOT_PRODUCT_V3PRO_ID)
-        /// 进引导前若已识别为适配器不匹配，直接进不匹配页
-        if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
-            proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
-            multi_func_msg_data_t msg = {0};
-            msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-            LOG_WM("adapter mismatch on create, goto charge screen");
-            proc->wm->dispatch_new_window_args(proc->wm, &msg);
-            return 0;
-        }
-#endif
-        show_dummy_power_on_hold_ui(proc);
-#else
-        POST_WM_TASK_HANDLER_NO_DELAY(dummy_power_off_task_handler, proc, DUMMY_POWER_OFF_TASK_NAME);
-#endif
     }
     return 0;
 }
 
-static int exit_event_cb(window_lift_cycle_e new_state, 
+static int exit_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *new_scr)
 {
     ui_proc_dummy_t *proc = CONTAINER_OF(thiz, ui_proc_dummy_t, w_ctx);
@@ -276,9 +158,6 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
-            stop_dummy_ui_animation(proc);
-#endif
             break;
         case ID_SCR_STATE_ON_DESTORY:
             LOG_WM("==>%s window on destory", PAGE_NAME_STR);
@@ -287,9 +166,6 @@ static int exit_event_cb(window_lift_cycle_e new_state,
             proc->margic = UI_WINDOW_MARGIC_CODE_INVALID;
             unregister_broadcast_receiver(&proc->receiver);
             REMOVE_KEYEVENT_CB(proc->key, on_dummy_keyevent_hdr);
-#if IS_SUPPORT_POWER_ON_GUIDE_UI && (ROOT_PRODUCT_ID != ROOT_PRODUCT_V3PRO_ID)
-            REMOVE_BATTERY_STATE_CB(proc->battery, on_dummy_window_battery_state_cb);
-#endif
             u_free(proc);
             proc = NULL;
             LOG_WM("%s window on destory--end", PAGE_NAME_STR);
@@ -319,9 +195,6 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->tests = (tests_manager_context_t *)find_module(ID_MODULE_TESTS);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
-#if IS_SUPPORT_POWER_ON_GUIDE_UI
-    proc->battery = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-#endif
     /// 监听PM状态改变.
     proc->receiver.id.code = ID_BROADCAST_PM_STATE_CHANGE;
     proc->receiver.context = proc;
