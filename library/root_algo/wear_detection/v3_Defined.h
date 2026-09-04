@@ -55,11 +55,11 @@
 /* target pressure for each level - v2.13 */
 /* TODO SPECTRA -- 20260801 - LONGYI*/
 static float EXPRESSION_THRESHOLD[] = { -5, -10, -15, -18, -21,
-											-24, -26, -28, -30, -32,
-											-34, -36, -38, -39, -40 };
+										-24, -26, -28, -30, -32,
+										-34, -36, -38, -39, -40 };
 static float STIMULATION_THRESHOLD[] = { -6, -12,	-18, -23, -26};
 
-  
+
 /* mixed_threshold not used*/
 static float MIXED_THRESHOLD[] = { -4, -5, -6, -7.5, -11, -11, -16, -20,
 									   -25, -30, -35, -35, -40, -40, -40 };

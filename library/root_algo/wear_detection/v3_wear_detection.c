@@ -1294,7 +1294,9 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	{
 		return;
 	}
-	if (tFeatureInfoTemp->uWearStatus == 1 || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2)
+	/* 优化：区分漏气状态时，负压变大的情况，同时，对非密封/大漏时不进行补偿 */
+	//if (tFeatureInfoTemp->uWearStatus == 1 || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2)
+	if (tFeatureInfoTemp->uWearStatus != 0 && tFeatureInfoTemp->uLeakStatus != 3)
 	{
 		unsigned int uCount_Min = 0;
 		unsigned int uCount_Max = 0;
@@ -1338,7 +1340,6 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		float err4 = tFeatureInfoTemp->fMinDataBuff[4] - tFeatureInfoTemp->fLoadedThresholdBuff[4];
 		error = 0.2f * err2 + 0.3f * err3 + 0.5f * err4;
 
-		/* 至少有 4 个点提示负压偏小，进入补偿状态 1 */
 		if (uCount_Min >= 4)
 		{
 			tFeatureInfoTemp->uCompsStatus = 1;
@@ -1355,6 +1356,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				tFeatureInfoTemp->iDelta_pwm = 0;
 				tFeatureInfoTemp->fCompErrSum = 0.0f;
 				tFeatureInfoTemp->fCompPrevErr = 0.0f;
+				tFeatureInfoTemp->iPwmOffset = 0.0f;
 			}
 			else
 			{
@@ -1383,9 +1385,55 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				tFeatureInfoTemp->fCompPrevErr = error;
 			}
 		}
-		/* 至少有 4 个点提示负压偏大，进入补偿状态 2 */
-		else if (uCount_Max >= 2)
+		else if ((uCount_Max >= 4) && (tFeatureInfoTemp->uDataBaselineCnt[0] > 10) && (tFeatureInfoTemp->uDataBaselineCnt[2] == 0))
 		{
+			/* 漏气状态下，如果负压偏大4个点，则进入补偿状态1 */
+			tFeatureInfoTemp->uCompsStatus = 1;
+
+			if (error > 0.0f)
+			{
+				tFeatureInfoTemp->uCompsStatus = 0;
+				error = 0.0f;
+			}
+
+			/* 如果偏差过大，则不输出 PWM 补偿 */
+			if (fabs(error) > 10.0f)
+			{
+				tFeatureInfoTemp->iDelta_pwm = 0;
+				tFeatureInfoTemp->fCompErrSum = 0.0f;
+				tFeatureInfoTemp->fCompPrevErr = 0.0f;
+				tFeatureInfoTemp->iPwmOffset = 0.0f;
+			}
+			else
+			{
+				if (fabs(error) < deadband)
+				{
+					error = 0.0f;
+				}
+
+				/* PI 控制：偏浅时 error 应为正，输出正补偿 */
+				err_sum_candidate = tFeatureInfoTemp->fCompErrSum + error;
+				err_sum_candidate = CLAMP(err_sum_candidate, -i_limit, i_limit);
+
+				tFeatureInfoTemp->iDelta_pwm =
+					(int)(kp * error + ki * err_sum_candidate);
+				tFeatureInfoTemp->iDelta_pwm = CLAMP(-tFeatureInfoTemp->iDelta_pwm, 0, step_limit);
+
+				newPwmOffset = tFeatureInfoTemp->iPwmOffset + tFeatureInfoTemp->iDelta_pwm;
+
+				/* 输出正向饱和时冻结积分 */
+				if (!(newPwmOffset >= 5000 && error > 0.0f))
+				{
+					tFeatureInfoTemp->fCompErrSum = err_sum_candidate;
+				}
+
+				tFeatureInfoTemp->iPwmOffset = CLAMP(newPwmOffset, -5000, 5000);
+				tFeatureInfoTemp->fCompPrevErr = error;
+			}
+		}
+		else if ((uCount_Max >= 4) && (tFeatureInfoTemp->uDataBaselineCnt[0] < 10) && (tFeatureInfoTemp->uDataBaselineCnt[2] > 10))
+		{
+			/* 密封状态下，至少有 4 个点提示负压偏大，进入补偿状态 2 */
 			tFeatureInfoTemp->uCompsStatus = 2;
 
 			if (error > 0.0f)
@@ -1397,11 +1445,12 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* 如果偏差过大，则不输出 PWM 补偿 */
 			/* 即时密封后，step_limit需要尽快收敛 */
 			step_limit = 200;
-			if (fabs(error) > 50.0f)
+			if (fabs(error) > 10.0f)
 			{
 				tFeatureInfoTemp->iDelta_pwm = 0;
 				tFeatureInfoTemp->fCompErrSum = 0.0f;
 				tFeatureInfoTemp->fCompPrevErr = 0.0f;
+				tFeatureInfoTemp->iPwmOffset = 0.0f;
 			}
 			else
 			{
@@ -1440,6 +1489,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* 没触发补偿时，缓慢释放积分，避免积分残留过大 */
 			tFeatureInfoTemp->fCompErrSum *= 0.5f;
 			tFeatureInfoTemp->fCompPrevErr = 0.0f;
+			tFeatureInfoTemp->iPwmOffset = 0;
 		}
 	}
 }
@@ -2278,19 +2328,14 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 #if DEBUG == 1
 	{
 		unsigned int i = 0;
+		tFeatureInfo[i].uPrevLeakStatus = tFeatureInfo[i].uLeakStatus;
+		if (tFeatureInfo[i].uWearDetSegMinCommitted == 1)
+		{
+			tFeatureInfo[i].uWearDetSegMinCommitted = 0;
+		}
 		const STARGET_CURVE_ITEM* ptTargetCurve = NULL;
 
-		if ((sPressureData.pump_state[i].state == SUCTION_STATUS_GENERATE) ||
-			(sPressureData.pump_state[i].state == SUCTION_STATUS_HOLD))
-		{
-			tFeatureInfo[i].pumping_time += 1;
-		}
-		else
-		{
-			tFeatureInfo[i].uCompsStatus = 0;
-			tFeatureInfo[i].iDelta_pwm = 0;
-			tFeatureInfo[i].pumping_time = 0;
-		}
+		tFeatureInfo[i].uPumpState = sPressureData.pump_state[i].state;
 
 		ptTargetCurve = GetCurrentTargetCurveItem(&tDeviceInfo[i]);
 		if (ptTargetCurve != NULL)
@@ -2299,16 +2344,43 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			tFeatureInfo[i].fLoadedThreshold = ptTargetCurve->target_load_pressure;
 		}
 
-		PressureDataPreprocess(sPressureData.air_pressure[i],
-			&tFilterInfo[i],
-			&tDataBuffer[i],
+		PressureDataPreprocess(sPressureData.air_pressure[i], &tFilterInfo[i], &tDataBuffer[i], &tFeatureInfo[i]);
+
+		float fFilteredNow = tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos];
+		UpdateRawPumpSegment(sPressureData.air_pressure[i],
+			fFilteredNow,
+			tFeatureInfo[i].fThreshold,
+			sPressureData.pump_state[i].state,
 			&tFeatureInfo[i]);
+
+		/* 泵工作时间计数，泵不工作时，泵补偿相关变量置零，避免泵不工作时也在补偿 */
+		if ((sPressureData.pump_state[i].state == SUCTION_STATUS_GENERATE) ||
+			(sPressureData.pump_state[i].state == SUCTION_STATUS_HOLD))
+		{
+			tFeatureInfo[i].pumping_time += 1;
+			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+		}
+		else
+		{
+			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+			/* 如果不在泵奶期间，则不进行算法处理 */
+			tFeatureInfo[i].uCompsStatus = 0;
+			tFeatureInfo[i].iDelta_pwm = 0;
+			tFeatureInfo[i].pumping_time = 0;
+			tFeatureInfo[i].fCompErrSum = 0;
+			tFeatureInfo[i].fCompPrevErr = 0;
+		}
+
 		PressureDataFeature(&tPVInfo[i],
 			&tWaveInfo[i],
 			&tDataBuffer[i],
 			&tFeatureInfo[i],
 			&tDeviceInfo[i]);
-		WearDetectionDetermination(&tFeatureInfo[i], &tDeviceInfo[i]);
+		if (tFeatureInfo[i].uWearDetSegMinCommitted)
+		{
+			WearDetectionDetermination(&tFeatureInfo[i], &tDeviceInfo[i]);
+			tFeatureInfo[i].uDataBaselineCnt[2] = 0;
+		}
 	}
 #else
 	for (unsigned int i = 0; i < CHANNEL_NUM; i++)
