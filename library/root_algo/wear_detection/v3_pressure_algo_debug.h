@@ -13,6 +13,7 @@ void GetWearDetectionDebugInfoAlg(unsigned int* uWaveSpikes,
     float* fFilteredSegMinPressure,
     unsigned char* uWearDetSegMinCommitted, 
     unsigned short* uWearDetectTime,
-    unsigned short* uLeakDetectTime);
+    unsigned short* uLeakDetectTime, 
+    unsigned short* uDataBaselineCnt);
 
 #endif /* V3_PRESSURE_ALGO_DEBUG_H */

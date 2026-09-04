@@ -13,7 +13,8 @@ void GetWearDetectionDebugInfoAlg(unsigned int* uWaveSpikes,
     float* fFilteredSegMinPressure,
     unsigned char* uWearDetSegMinCommitted, 
     unsigned short* uWearDetectTime,
-    unsigned short* uLeakDetectTime)
+    unsigned short* uLeakDetectTime, 
+    unsigned short* uDataBaselineCnt)
 {
     if (uWaveSpikes != 0)
     {
@@ -86,5 +87,10 @@ void GetWearDetectionDebugInfoAlg(unsigned int* uWaveSpikes,
     {
         uLeakDetectTime[0] = tFeatureInfo[0].uLeakDetectTime;
         uLeakDetectTime[1] = tFeatureInfo[1].uLeakDetectTime;
+    }
+    if (uDataBaselineCnt != 0)
+    {
+        uDataBaselineCnt[0] = tFeatureInfo[0].uDataBaselineCnt[0];
+        uDataBaselineCnt[1] = tFeatureInfo[1].uDataBaselineCnt[1];
     }
 }
