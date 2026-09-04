@@ -913,6 +913,11 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 {
 	/* 休眠状态下 平台期是否回到基线0 (可能会出现平台期不止是在休眠状态下) */
 	//printf("0. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+	if (tFeatureInfoTemp->fRawSegMinPressure > -3)
+	{
+		return;
+	}
+	
 	if (uMode == MODE_EXPRESSION)
 	{
 		if (SUCTION_STATUS_SLEEP == uPumpState ||
@@ -1066,7 +1071,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		else if (uMode == MODE_STIMULATION)
 		{
 
-			if (uLevel <= 3 && (tFeatureInfoTemp->fThreshold + 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
+			if (uLevel <= 3 && fabs(tFeatureInfoTemp->fThreshold + 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
 			{
 				uCandidateWearStatus = 1;
 			}
@@ -1076,6 +1081,10 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			}
 			
 			else if (tFeatureInfoTemp->uWaveSpikes == 0 && tFeatureInfoTemp->fRawSegMinPressure < -3.0)
+			{
+				uCandidateWearStatus = 1;
+			}
+			else if (tFeatureInfoTemp->uWaveSpikes <= 1 && uLevel == 4 && tFeatureInfoTemp->fRawSegMinPressure < -3.0)
 			{
 				uCandidateWearStatus = 1;
 			}
@@ -1217,7 +1226,15 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		}
 		else if (tFeatureInfoTemp->uDataBaselineCnt[0] > 10)
 		{
-			tFeatureInfoTemp->uLeakStatus = 3;
+			if (tFeatureInfoTemp->uPrevLeakStatus == 2 && tFeatureInfoTemp->iPwmOffset !=0)
+			{
+				tFeatureInfoTemp->uLeakStatus = 2;
+			}
+			else
+			{
+				tFeatureInfoTemp->uLeakStatus = 3;
+			}
+			
 			tFeatureInfoTemp->uDataBaselineCnt[2] = 0;
 		}
 		else if (tFeatureInfoTemp->uDataBaselineCnt[1] > 10)
@@ -1242,12 +1259,13 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				tFeatureInfoTemp->uLeakSwitchTime = 0;
 			}
 		}
-		else
-		{
-			/* 切换状态置零 */
-			tFeatureInfoTemp->uLeakSwitchTime = 0;
-		}
-
+		/* 不进行下方代码，不然切不了下一状态 */
+		//else
+		//{
+		//	/* 切换状态置零 */
+		//	tFeatureInfoTemp->uLeakSwitchTime = 0;
+		//}
+		
 		//LeakDetectUpdate(tFeatureInfoTemp, tDeviceInfoTemp);
 	}
 
@@ -1259,9 +1277,18 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	{
 		tFeatureInfoTemp->uLeakStatus = 0;
 	}
-	if (tFeatureInfoTemp->uWearStatus == 1 && tFeatureInfoTemp->uLeakStatus == 0)
+	if (tFeatureInfoTemp->uWearStatus == 1)
 	{
-		tFeatureInfoTemp->uLeakStatus = 1;
+		/* 没检测出漏气等级，但是wearStatus是1，则认为是佩戴 */
+		if (tFeatureInfoTemp->uLeakStatus == 0)
+		{
+			tFeatureInfoTemp->uLeakStatus = 1;
+		}
+		else if (tFeatureInfoTemp->uLeakStatus == 3 && tFeatureInfoTemp->uDataBaselineCnt[0] < 10)
+		{
+			/* 漏气等级为3（是为了钳制跳变引起的，但是检测的平台属于正常范围(但是<10个数据点，前面进入不到)，则将leakstatus调回1） */
+			tFeatureInfoTemp->uLeakStatus = 1;
+		}
 	}
 	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uLeakStatus == 3)
 	{
@@ -2301,18 +2328,16 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			tFeatureInfo[i].fThreshold = ptTargetCurve->target_pump_pressure;
 			tFeatureInfo[i].fLoadedThreshold = ptTargetCurve->target_load_pressure;
 		}
-		PressureDataPreprocess(sPressureData.air_pressure[i],
-			&tFilterInfo[i],
-			&tDataBuffer[i],
+
+		PressureDataPreprocess(sPressureData.air_pressure[i], &tFilterInfo[i], &tDataBuffer[i], &tFeatureInfo[i]);
+		
+		float fFilteredNow = tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos];
+		UpdateRawPumpSegment(sPressureData.air_pressure[i],
+			fFilteredNow,
+			tFeatureInfo[i].fThreshold,
+			sPressureData.pump_state[i].state,
 			&tFeatureInfo[i]);
-		{
-			float fFilteredNow = tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos];
-			UpdateRawPumpSegment(sPressureData.air_pressure[i],
-				fFilteredNow,
-				tFeatureInfo[i].fThreshold,
-				sPressureData.pump_state[i].state,
-				&tFeatureInfo[i]);
-		}
+		
 		/* 泵工作时间计数，泵不工作时，泵补偿相关变量置零，避免泵不工作时也在补偿 */
 		if ((sPressureData.pump_state[i].state == SUCTION_STATUS_GENERATE) ||
 			(sPressureData.pump_state[i].state == SUCTION_STATUS_HOLD))
