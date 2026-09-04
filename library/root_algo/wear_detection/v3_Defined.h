@@ -15,7 +15,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "2.0.0.0"
+#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.0.1"
 
 /* hardware parameters */
 #define SAMPLE_RATE			(50)
@@ -256,14 +256,15 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uPrevLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
 	unsigned short  uWearDetectTime;			/* 检测佩戴状态的时长 */
 	unsigned short  uLeakDetectTime;			/* 检测完全漏气状态的时长 */
-	unsigned short	uDataBaselineCnt[2];		/* 休眠状态下 基线平台>100Pa 和 <100Pa 计数 */
+	unsigned short  uLeakSwitchTime;			/* 切换状态时长 */
 
+	unsigned short	uDataBaselineCnt[3];		/* 休眠状态下, 基线平台>1200Pa (大漏), >700Pa (小漏), <100Pa (正常) 计数 */
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_
 {
 	float			fDataBuff[WIN_SIZE];
-	float fLoadedThresholdData[WIN_SIZE];
+	float			fLoadedThresholdData[WIN_SIZE];
 	float			fDataMax;
 	float			fDataMin;
 	unsigned int	uCurrPos;		/* current pos */

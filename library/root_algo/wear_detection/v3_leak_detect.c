@@ -113,11 +113,11 @@ void LeakDetectReset(SFEATURE_INFO* tFeatureInfoTemp)
 	tFeatureInfoTemp->uLeakValleyCount = 0;
 	tFeatureInfoTemp->uLeakStatus = 0;
 	tFeatureInfoTemp->uPrevLeakStatus = 0;
-	for (unsigned i = 0; i < 10; i++)
-	{
-		tFeatureInfoTemp->uDataBaselineCnt[0] = 0;
-		tFeatureInfoTemp->uDataBaselineCnt[1] = 0;
-	}
+
+	tFeatureInfoTemp->uDataBaselineCnt[0] = 0;
+	tFeatureInfoTemp->uDataBaselineCnt[1] = 0;
+	tFeatureInfoTemp->uDataBaselineCnt[2] = 0;
+
 }
 
 /* 与 Python 相同：整体左移，新谷写 [5]；n 从 0 增到 6。n=3 时 last3 即 buff[3..5] */
@@ -288,6 +288,7 @@ static unsigned char LeakClassify(const float* buff, unsigned char n, const SLEA
 	}
 
 	/* --- 大漏 --- */
+	/*
 	if ((spec->uHas & LEAK_HAS_LARGE) && LeakThreePass(last3, spec->T_large, spec->uFamily))
 	{
 		return 2;
@@ -306,6 +307,7 @@ static unsigned char LeakClassify(const float* buff, unsigned char n, const SLEA
 	{
 		return 2;
 	}
+
 	if (n == 6 && (spec->uHas & LEAK_HAS_T6))
 	{
 		all_lt_t6 = 1;
@@ -322,7 +324,9 @@ static unsigned char LeakClassify(const float* buff, unsigned char n, const SLEA
 			return 2;
 		}
 	}
+	*/
 	/* --- 小漏（偏浅）--- */
+	/*
 	if ((spec->uHas & LEAK_HAS_SMALL) && LeakThreePass(last3, spec->T_small, LEAK_FAM_SHALLOW))
 	{
 		return 1;
@@ -337,6 +341,7 @@ static unsigned char LeakClassify(const float* buff, unsigned char n, const SLEA
 	{
 		return 1;
 	}
+	*/
 	return 0;
 }
 
@@ -377,8 +382,13 @@ void LeakDetectUpdate(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfo
 	LeakPushValley(tFeatureInfoTemp, tFeatureInfoTemp->fRawSegMinPressure);
 
 	/* 2. 未佩戴：对外 0，缓冲保留 */
-	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uPrevLeakStatus != 2)
+	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uPrevLeakStatus != 3)
 	{
+		if (tFeatureInfoTemp->uLeakStatus == 3)
+		{
+			tFeatureInfoTemp->uLeakStatus = 3;
+			return;
+		}
 		tFeatureInfoTemp->uLeakStatus = 0;
 		return;
 	}
@@ -405,6 +415,11 @@ void LeakDetectUpdate(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfo
 
 	/* 5. 吸乳 / 刺激分级 */
 	inst = 0;
+	
+	if (tFeatureInfoTemp->uDataBaselineCnt[0] == 0 || tFeatureInfoTemp->uDataBaselineCnt[0] > 10)
+	{
+		return;
+	}
 	if (uMode == MODE_EXPRESSION)
 	{
 		inst = LeakDetectExpression(tFeatureInfoTemp->fLeakValleyBuff,

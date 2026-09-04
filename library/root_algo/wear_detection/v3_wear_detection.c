@@ -50,7 +50,7 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 	tDeviceInfo[CHANNEL_0].uLevel = uLevelLeft - 1;
 	tDeviceInfo[CHANNEL_1].uMode = uModeRight;
 	tDeviceInfo[CHANNEL_1].uLevel = ulevelRight - 1;
-
+	
 	for (int j = 0; j < CHANNEL_NUM; j++)
 	{
 		/* pv info */
@@ -116,7 +116,8 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 		tFeatureInfo[j].uWearDetSegMinCommitted = 0;
 		tFeatureInfo[j].uLeakDetectTime = 0;
 		tFeatureInfo[j].uWearDetectTime = 0;
-		
+		tFeatureInfo[j].uLeakSwitchTime = 0;
+
 		LeakDetectReset(&tFeatureInfo[j]);
 
 		for (int i = 0; i < 6; i++)
@@ -228,6 +229,8 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 	tFeatureInfo[uChannelIdx].uWearDetSegMinCommitted = 0;
 	tFeatureInfo[uChannelIdx].uLeakDetectTime = 0;
 	tFeatureInfo[uChannelIdx].uWearDetectTime = 0;
+	tFeatureInfo[uChannelIdx].uLeakSwitchTime = 0;
+
 	LeakDetectReset(&tFeatureInfo[uChannelIdx]);
 	for (int i = 0; i < 6; i++)
 	{
@@ -895,6 +898,98 @@ void PressureDataFeature(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA
 }
 
 
+
+/*************************************************************************************************************************************************
+* 函数名称：PressureDataFeature
+* 作    者：sahar.hu
+* 创建日期：2025.12.19
+* 功能说明：波形特征分析
+* 输入参数：无
+* 输出参数：无
+* 返 回 值：无
+*************************************************************************************************************************************************
+*/
+void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpState, unsigned char uMode, unsigned char uLevel, float fPressure1, float fPressure2)
+{
+	/* 休眠状态下 平台期是否回到基线0 (可能会出现平台期不止是在休眠状态下) */
+	//printf("0. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+	if (uMode == MODE_EXPRESSION)
+	{
+		if (SUCTION_STATUS_SLEEP == uPumpState ||
+			(SUCTION_STATUS_GENERATE == uPumpState && tFeatureInfoTemp->pumping_time < 10 &&
+				fabs(fPressure1 - fPressure2) < .1 && uLevel > 0))
+		{
+			if (fPressure1 <= -1.2 && SUCTION_STATUS_SLEEP == uPumpState)
+			{
+				/* 平台期小于1.2kPa的加大权重，因为可能期间时长比较短，不足以达到10个点 */
+				tFeatureInfoTemp->uDataBaselineCnt[0] += 2;
+				//printf("1. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+			}
+			else if (fPressure1 <= -1.2)
+			{
+				tFeatureInfoTemp->uDataBaselineCnt[0] += 1;
+				//printf("1. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+			}
+			else if (fPressure1 <= -.7)
+			{
+				tFeatureInfoTemp->uDataBaselineCnt[1]++;
+				//printf("1. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+			}
+			else if (fPressure1 <= -.6 && uLevel == 2 && uMode == MODE_EXPRESSION)
+			{
+				tFeatureInfoTemp->uDataBaselineCnt[1]++;
+			}
+
+		}
+		if (SUCTION_STATUS_SLEEP == uPumpState && (fPressure1 > -.6))		//  || (fPressure1 > -.9 && uLevel > 9)
+		{
+			tFeatureInfoTemp->uDataBaselineCnt[2]++;
+			tFeatureInfoTemp->uDataBaselineCnt[0] = 0;
+			tFeatureInfoTemp->uDataBaselineCnt[1] = 0;
+		}
+	}
+	else if (uMode == MODE_STIMULATION)
+	{
+		if (SUCTION_STATUS_SLEEP == uPumpState ||
+			(SUCTION_STATUS_GENERATE == uPumpState && tFeatureInfoTemp->pumping_time < 10 &&
+				fabs(fPressure1 - fPressure2) < .1 && uLevel == 0))
+		{
+
+		}
+		if (SUCTION_STATUS_SLEEP == uPumpState ||
+			(SUCTION_STATUS_GENERATE == uPumpState && tFeatureInfoTemp->pumping_time < 10 &&
+				fabs(fPressure1 - fPressure2) < .1 && uLevel > 0))
+		{
+			if (fPressure1 <= -1.2 && SUCTION_STATUS_SLEEP == uPumpState)
+			{
+				/* 平台期小于1.2kPa的加大权重，因为可能期间时长比较短，不足以达到10个点 */
+				tFeatureInfoTemp->uDataBaselineCnt[0] += 2;
+				//printf("1. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+			}
+			else if (fPressure1 <= -.75)
+			{
+				tFeatureInfoTemp->uDataBaselineCnt[0] += 1;
+				//printf("1. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+			}
+			else if (fPressure1 <= -.25)
+			{
+				tFeatureInfoTemp->uDataBaselineCnt[1]++;
+				//printf("1. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
+			}
+
+		}
+		if (SUCTION_STATUS_SLEEP == uPumpState && fPressure1 > -.25)
+		{
+			tFeatureInfoTemp->uDataBaselineCnt[2] ++;
+			tFeatureInfoTemp->uDataBaselineCnt[0] = 0;;
+			tFeatureInfoTemp->uDataBaselineCnt[1] = 0;
+		}
+	}
+
+}
+
+
+
 #if LONGYI_OR_SHIGUANG == 2
 void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfoTemp)
 {
@@ -907,34 +1002,15 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	unsigned int uMode = tDeviceInfoTemp->uMode;
 	unsigned int uLevel = tDeviceInfoTemp->uLevel;
 
-	// 漏气状态
-	if (tFeatureInfoTemp->uWearDetSegMinCommitted)
-	{
-		/* 平台期 负压回不到0基线 ( < -1kPa ) 则认为是大漏 */
-		if (tFeatureInfoTemp->uDataBaselineCnt[0] > 10)
-		{
-			tFeatureInfoTemp->uLeakStatus = 2;
-			tFeatureInfoTemp->uDataBaselineCnt[1] = 0;
-		}
-		else if (tFeatureInfoTemp->uDataBaselineCnt[1] > 10)
-		{
-			tFeatureInfoTemp->uLeakStatus = 0;
-			tFeatureInfoTemp->uDataBaselineCnt[0] = 0;
-		}
-		LeakDetectUpdate(tFeatureInfoTemp, tDeviceInfoTemp);
-	}
-
-	/* 初始 -> 佩戴检测(包括漏气) 时间 */
+	
 	if (tFeatureInfoTemp->uLeakStatus == 0)
 	{
-		tFeatureInfoTemp->uWearDetectTime ++;
-		tFeatureInfoTemp->uLeakDetectTime = 0;
+		/* 初始 -> 佩戴检测(包括漏气) 时间 */
+		tFeatureInfoTemp->uWearDetectTime++;
 	}
-
-	/* 佩戴(包括漏气) -> 非密封检测时间 */
-	if (tFeatureInfoTemp->uLeakStatus != 0)
+	else
 	{
-		tFeatureInfoTemp->uLeakDetectTime ++;
+		/* 佩戴(包括漏气) -> 非密封检测时间 */
 		tFeatureInfoTemp->uWearDetectTime = 0;
 	}
 
@@ -948,18 +1024,18 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		 * ------------------------- */
 		if (uMode == MODE_EXPRESSION)
 		{
-			if (tFeatureInfo->uDataBaselineCnt[1] > 10 && tFeatureInfoTemp->fRawSegMinPressure < -10)
+			if (tFeatureInfo->uDataBaselineCnt[2] > 10 && tFeatureInfoTemp->fRawSegMinPressure < -10)
 			{
 				tFeatureInfo->uLeakStatus = 0;
 				uCandidateWearStatus = 1;
 			}
 
 			/* L1 ~ L15 的基础进入条件 */
-			if (uLevel >= 5 && (tFeatureInfoTemp->fThreshold - 0.25) < tFeatureInfoTemp->fRawSegMinPressure && tFeatureInfoTemp->uWaveSpikes <= 2)
+			if (uLevel >= 5 && tFeatureInfoTemp->fThreshold - 0.25 < tFeatureInfoTemp->fRawSegMinPressure && tFeatureInfoTemp->uWaveSpikes <= 2)
 			{
 				uCandidateWearStatus = 1;
 			}
-			else if ((uLevel < 3) && ((tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure))
+			else if ((uLevel < 3) && (tFeatureInfoTemp->fThreshold - 0.25 > tFeatureInfoTemp->fRawSegMinPressure) || (tFeatureInfoTemp->fThreshold + 0.25 > tFeatureInfoTemp->fRawSegMinPressure))
 			{
 				uCandidateWearStatus = 1;
 			} 
@@ -990,11 +1066,11 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		else if (uMode == MODE_STIMULATION)
 		{
 
-			if (uLevel <= 3 && (tFeatureInfoTemp->fThreshold + 0.25) > tFeatureInfoTemp->fFilteredSegMinPressure)
+			if (uLevel <= 3 && (tFeatureInfoTemp->fThreshold + 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
 			{
 				uCandidateWearStatus = 1;
 			}
-			else if (uLevel > 3 && (tFeatureInfoTemp->fThreshold + 0.25) > (tFeatureInfoTemp->fFilteredSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
+			else if (uLevel > 3 && (tFeatureInfoTemp->fThreshold + 0.25) > (tFeatureInfoTemp->fRawSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 			{
 				uCandidateWearStatus = 1;
 			}
@@ -1028,9 +1104,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			 * ------------------------- */
 			if (uMode == MODE_EXPRESSION)
 			{
+				/* 对于泵侧无吸力的情况 */
+				if (tFeatureInfoTemp->fRawSegMinPressure > -3)
+				{
+					uCandidateWearStatus = 0;
+				}
 				if (uLevel >= 7 && (tFeatureInfoTemp->fThreshold - 0.25) < tFeatureInfoTemp->fRawSegMinPressure && tFeatureInfoTemp->uWaveSpikes > 4)
 				{
-					uCandidateWearStatus = 0;		//? 
+					uCandidateWearStatus = 0;		
 				}
 				else if (uLevel <= 1)
 				{
@@ -1063,6 +1144,10 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			 * ------------------------- */
 			else if (uMode == MODE_STIMULATION)
 			{
+				if (tFeatureInfoTemp->fRawSegMinPressure > -3)
+				{
+					uCandidateWearStatus = 0;
+				}
 				if (uLevel <= 3 && (tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fFilteredSegMinPressure && tFeatureInfoTemp->uWaveSpikes > 4)
 				{
 					uCandidateWearStatus = 0;
@@ -1119,10 +1204,70 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* 保存最终状态，供下一轮“保持上一状态”逻辑使用 */
 	tFeatureInfoTemp->uPrevWearStatus = tFeatureInfoTemp->uWearStatus;
 
+	// 漏气级别
+	//printf("2. %d\n", tFeatureInfoTemp->uLeakStatus);
+	if (tFeatureInfoTemp->uWearDetSegMinCommitted)
+	{
+		/* 平台期 负压回不到0基线 ( < -1kPa ) 则认为是大漏 */
+
+		if (tFeatureInfoTemp->uDataBaselineCnt[2] > 10 && tFeatureInfoTemp->uDataBaselineCnt[2] < 100)
+		{
+			tFeatureInfoTemp->uLeakStatus = 0;
+			tFeatureInfoTemp->uDataBaselineCnt[0] = 0;
+		}
+		else if (tFeatureInfoTemp->uDataBaselineCnt[0] > 10)
+		{
+			tFeatureInfoTemp->uLeakStatus = 3;
+			tFeatureInfoTemp->uDataBaselineCnt[2] = 0;
+		}
+		else if (tFeatureInfoTemp->uDataBaselineCnt[1] > 10)
+		{
+			tFeatureInfoTemp->uLeakStatus = 2;
+			tFeatureInfoTemp->uDataBaselineCnt[1] = 0;
+		}
+
+		/* 切换时长判定 */
+		if (tFeatureInfoTemp->uLeakStatus != tFeatureInfoTemp->uPrevLeakStatus)
+		{
+			/* 切换后时长 */
+			tFeatureInfoTemp->uLeakSwitchTime++;
+			if (tFeatureInfoTemp->uLeakSwitchTime < 5)
+			{
+				tFeatureInfoTemp->uLeakStatus = tFeatureInfoTemp->uPrevLeakStatus;
+			}
+			else
+			{
+				tFeatureInfoTemp->uLeakStatus = tFeatureInfoTemp->uLeakStatus;
+				/* 切换状态置零 */
+				tFeatureInfoTemp->uLeakSwitchTime = 0;
+			}
+		}
+		else
+		{
+			/* 切换状态置零 */
+			tFeatureInfoTemp->uLeakSwitchTime = 0;
+		}
+
+		//LeakDetectUpdate(tFeatureInfoTemp, tDeviceInfoTemp);
+	}
+
+
 	/* =========================================================
 	 * 4. 只有在“已佩戴”时，才进行补偿状态计算
 	 * ========================================================= */
-	if (tFeatureInfoTemp->uWearStatus == 1)
+	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uLeakStatus == 0)
+	{
+		tFeatureInfoTemp->uLeakStatus = 0;
+	}
+	if (tFeatureInfoTemp->uWearStatus == 1 && tFeatureInfoTemp->uLeakStatus == 0)
+	{
+		tFeatureInfoTemp->uLeakStatus = 1;
+	}
+	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uLeakStatus == 3)
+	{
+		return;
+	}
+	if (tFeatureInfoTemp->uWearStatus == 1 || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2)
 	{
 		unsigned int uCount_Min = 0;
 		unsigned int uCount_Max = 0;
@@ -1143,9 +1288,6 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				/* 负压偏大，记录一次“需要减弱补偿”的计数 */
 				uCount_Max += 1;
 			}
-
-			
-
 		}
 
 		float error = 0.0f;
@@ -1205,17 +1347,17 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				newPwmOffset = tFeatureInfoTemp->iPwmOffset + tFeatureInfoTemp->iDelta_pwm;
 
 				/* 输出正向饱和时冻结积分 */
-				if (!(newPwmOffset >= 3000 && error > 0.0f))
+				if (!(newPwmOffset >= 5000 && error > 0.0f))
 				{
 					tFeatureInfoTemp->fCompErrSum = err_sum_candidate;
 				}
 
-				tFeatureInfoTemp->iPwmOffset = CLAMP(newPwmOffset, -3000, 3000);
+				tFeatureInfoTemp->iPwmOffset = CLAMP(newPwmOffset, -5000, 5000);
 				tFeatureInfoTemp->fCompPrevErr = error;
 			}
 		}
 		/* 至少有 4 个点提示负压偏大，进入补偿状态 2 */
-		else if (uCount_Max >= 4)
+		else if (uCount_Max >= 2)
 		{
 			tFeatureInfoTemp->uCompsStatus = 2;
 
@@ -1226,7 +1368,9 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			}
 
 			/* 如果偏差过大，则不输出 PWM 补偿 */
-			if (fabs(error) > 10.0f)
+			/* 即时密封后，step_limit需要尽快收敛 */
+			step_limit = 200;
+			if (fabs(error) > 50.0f)
 			{
 				tFeatureInfoTemp->iDelta_pwm = 0;
 				tFeatureInfoTemp->fCompErrSum = 0.0f;
@@ -1246,16 +1390,17 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				tFeatureInfoTemp->iDelta_pwm =
 					(int)(kp * error + ki * err_sum_candidate);
 				tFeatureInfoTemp->iDelta_pwm = CLAMP(tFeatureInfoTemp->iDelta_pwm, -step_limit, 0);
+				//tFeatureInfoTemp->iDelta_pwm = -tFeatureInfoTemp->iDelta_pwm < step_limit ? -step_limit : tFeatureInfoTemp->iDelta_pwm;
 
 				newPwmOffset = tFeatureInfoTemp->iPwmOffset + tFeatureInfoTemp->iDelta_pwm;
 
 				/* 输出负向饱和时冻结积分 */
-				if (!(newPwmOffset <= -3000 && error < 0.0f))
+				if (!(newPwmOffset <= -5000 && error < 0.0f))
 				{
 					tFeatureInfoTemp->fCompErrSum = err_sum_candidate;
 				}
 
-				tFeatureInfoTemp->iPwmOffset = CLAMP(newPwmOffset, -3000, 3000);
+				tFeatureInfoTemp->iPwmOffset = CLAMP(newPwmOffset, -5000, 5000);
 				tFeatureInfoTemp->fCompPrevErr = error;
 			}
 		}
@@ -2168,34 +2313,22 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 				sPressureData.pump_state[i].state,
 				&tFeatureInfo[i]);
 		}
-
+		/* 泵工作时间计数，泵不工作时，泵补偿相关变量置零，避免泵不工作时也在补偿 */
 		if ((sPressureData.pump_state[i].state == SUCTION_STATUS_GENERATE) ||
 			(sPressureData.pump_state[i].state == SUCTION_STATUS_HOLD))
 		{
 			tFeatureInfo[i].pumping_time += 1;
+			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
 		}
 		else
 		{
+			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
 			/* 如果不在泵奶期间，则不进行算法处理 */
 			tFeatureInfo[i].uCompsStatus = 0;
 			tFeatureInfo[i].iDelta_pwm = 0;
 			tFeatureInfo[i].pumping_time = 0;
 			tFeatureInfo[i].fCompErrSum = 0;
 			tFeatureInfo[i].fCompPrevErr = 0;
-		}
-		/* 休眠状态下 平台期是否回到基线0 */
-		if (SUCTION_STATUS_SLEEP == sPressureData.pump_state[i].state || 
-			(fabs(sPressureData.air_pressure[i] - tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]) < .1 && sPressureData.pump_state[i].level > 1))
-		{
-			if (sPressureData.air_pressure[i] < -1)
-			{
-				tFeatureInfo[i].uDataBaselineCnt[0]++;
-				//printf("1. %d, %d %f, %f\n", sPressureData.pump_state[i].state, tFeatureInfo[i].uDataBaselineCnt[0], sPressureData.air_pressure[i], tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos]);
-			}
-		}
-		if (SUCTION_STATUS_SLEEP == sPressureData.pump_state[i].state && sPressureData.air_pressure[i] > -.6)
-		{
-			tFeatureInfo[i].uDataBaselineCnt[1]++;
 		}
 
 		PressureDataFeature(&tPVInfo[i],
@@ -2206,7 +2339,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		if (tFeatureInfo[i].uWearDetSegMinCommitted)
 		{
 			WearDetectionDetermination(&tFeatureInfo[i], &tDeviceInfo[i]);
-			tFeatureInfo[i].uDataBaselineCnt[1] = 0;
+			tFeatureInfo[i].uDataBaselineCnt[2] = 0;
 		}
 
 
@@ -2231,6 +2364,7 @@ void GetWearDetectionResult(unsigned char* uWearStatus)
 	// uWearStatus[1] = tFeatureInfo[1].uWearStatus;
 	uWearStatus[0] = tFeatureInfo[0].uLeakStatus;
 	uWearStatus[1] = tFeatureInfo[1].uLeakStatus;
+	//ALGO_LOG_INFO("wear state13: %d, %d", uWearStatus[0], uWearStatus[1]);
 }
 
 
@@ -2249,13 +2383,23 @@ void GetCompensationStatus(unsigned char* uCompsStatus, int* iDelta_pwm)
 	uCompsStatus[0] = tFeatureInfo[0].uCompsStatus;
 	uCompsStatus[1] = tFeatureInfo[1].uCompsStatus;
 
-	if ((tFeatureInfo[0].uPumpState == SUCTION_STATUS_GENERATE) ||
+	/* 对于大漏气以上，不反馈补偿 */
+	if (tFeatureInfo[0].uLeakStatus == 3 || tFeatureInfo[0].uLeakStatus == 0)
+	{
+		iDelta_pwm[0] = 0;
+	}
+	else if ((tFeatureInfo[0].uPumpState == SUCTION_STATUS_GENERATE) ||
 		(tFeatureInfo[0].uPumpState == SUCTION_STATUS_HOLD))
 		iDelta_pwm[0] = tFeatureInfo[0].iPwmOffset;
 	else
 		iDelta_pwm[0] = 0;
 
-	if ((tFeatureInfo[1].uPumpState == SUCTION_STATUS_GENERATE) ||
+
+	if (tFeatureInfo[1].uLeakStatus == 3 || tFeatureInfo[1].uLeakStatus == 0)
+	{
+		iDelta_pwm[1] = 0;
+	}
+	else if ((tFeatureInfo[1].uPumpState == SUCTION_STATUS_GENERATE) ||
 		(tFeatureInfo[1].uPumpState == SUCTION_STATUS_HOLD))
 		iDelta_pwm[1] = tFeatureInfo[1].iPwmOffset;
 	else
