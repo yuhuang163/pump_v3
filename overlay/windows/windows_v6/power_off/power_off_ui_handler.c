@@ -96,22 +96,36 @@ static void power_off_cb(hdr_post_args_t *args)
     ui_proc_power_off_t *proc = (ui_proc_power_off_t *)args->user_data;
     EXCEPTION_CHECK_VOID(proc);
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_POWER_OFF);
-#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+    power_off_handle(proc);
+}
+
+static int power_off_show_ui_by_charge_state(ui_proc_power_off_t *proc)
+{
+    EXCEPTION_CHECK_INT(proc);
     if (proc->battery) {
         int chage_state = proc->battery->get_charge_status();
         if (BATTERY_IS_CHARGING(chage_state)) {
             LOG_WM("goto charging ui");
             show_power_off_charging_ui(proc);
-            return;
+            return 1;
         }
+
         if (chage_state == CHARGE_STATE_ERROR) {
             LOG_WM("goto charge error ui");
             show_power_off_charge_error_ui(proc);
-            return;
+            return 1;
         }
-    }
+
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+        if (proc->battery->is_vbus_plug_in()) {
+            LOG_WM("vbus plug in, delay power off check");
+            POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, 100, proc, POWER_OFF_TASK_NAME);
+            return 1;
+        }
 #endif
-    power_off_handle(proc);
+
+    }
+    return 0;
 }
 
 /*
@@ -158,7 +172,13 @@ void power_off_handle(ui_proc_power_off_t *proc)
         }
     }
     msleep(sleep_time); /// 数据同步延时
-    if (st ) {
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+    if (power_off_show_ui_by_charge_state(proc)) {
+        LOG_WM("show power off ui by charge state");
+        return;
+    }
+#endif
+    if (st) {
         st->flash_protect(true); /// 禁止flash读写操作.
         LOG_WM("flash protect true");
     }

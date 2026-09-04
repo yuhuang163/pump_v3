@@ -49,6 +49,7 @@ static void peripheral_power_gpio_init(void)
 static void sys_power_gpio_control(bool enable)
 { 
     if (enable == false) {
+        GPIO_PIN_CTRL(PERIPHERAL_POWER_PIN, 0);
         pmu_shutdown();
     }
 }
