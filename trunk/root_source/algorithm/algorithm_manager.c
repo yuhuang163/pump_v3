@@ -140,6 +140,7 @@ void *register_module_for_algo_fusion_new(list_head_t *list_head)
     ptr->priv.algo_inited = 0;
     ptr->priv.is_algo_enabled = true;
     MUTEX_INIT(&ptr->priv.m_lock, algo_client_mutex);
+    MUTEX_INIT(&ptr->priv.sampling_lock, algo_sampling_mutex);
     USE_INIT_LIST_HEAD(&ptr->priv.client_list);
     ptr->get_algo_data = get_algo_data;
     ptr->add_algo_result_listener = algo_add_result_listener;

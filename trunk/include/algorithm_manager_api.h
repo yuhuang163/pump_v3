@@ -34,6 +34,7 @@ typedef struct algo_manager_context {
     struct __algo_private {
         broadcast_obj_t m_bcd;
         os_mutex_id m_lock;
+        os_mutex_id sampling_lock;    /// 保护采样缓冲区/状态的专用锁
         list_head_t client_list;
         int algo_inited;
         uint8_t is_sampling;          /// 是否正在采集
