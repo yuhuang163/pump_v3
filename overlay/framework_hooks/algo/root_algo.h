@@ -18,6 +18,13 @@ typedef enum {
     ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK = 3,
 } algo_wear_detection_result_e;
 
+/// 佩戴状态（weared_status）
+typedef enum {
+    ALGO_WEARED_STATUS_INVALID = 0,  /// 检测未启动
+    ALGO_WEARED_STATUS_WORN = 1,     /// 佩戴
+    ALGO_WEARED_STATUS_NOT_WORN = 2, /// 未佩戴
+} algo_weared_status_e;
+
 /// 算法输出数据
 typedef struct {
     uint32_t timestamp;

@@ -159,7 +159,7 @@ typedef enum {
     PUMP_UI_TYPE_WILL_FINISH, /// 韵律即将结束提示
     PUMP_UI_TYPE_LOW_POWER, /// 泵奶中低电量提示（3s 倒计时，可按键退出）
     PUMP_UI_TYPE_SEAL_LEAK, /// 重度漏气提醒（Tubing / Cup / Fit / Complete）
-    PUMP_UI_TYPE_FIT_NOT_DETECTED, /// 未佩戴弹窗（双通道无效 20s）
+    PUMP_UI_TYPE_FIT_NOT_DETECTED, /// 未佩戴弹窗（weared_status 未佩戴）
     PUMP_UI_TYPE_MAX
 } pump_ui_type_e;
 
@@ -324,8 +324,6 @@ typedef struct {
     /// 重度漏气提醒：本次进入泵奶窗口是否已跳转过；页索引 pump_seal_leak_page_e
     uint8_t seal_leak_shown;
     uint16_t seal_leak_page_index;
-    /// 未佩戴弹窗：双通道 wear=0 已启动 20s 计时
-    uint8_t fit_not_detected_armed;
 
 } ui_proc_pump_t;
 
@@ -481,12 +479,12 @@ void pump_seal_leak_init(ui_proc_pump_t *proc);
 /// 漏气检测退出
 void pump_seal_leak_exit(ui_proc_pump_t *proc);
 
-/// 未佩戴弹窗：双通道 wear=0 维持 20s 后暂停并进入；短按 power/start 恢复泵奶
+/// 未佩戴弹窗：weared_status 未佩戴时暂停并进入；短按 power/start 恢复泵奶
 void show_pump_fit_not_detected_ui(ui_proc_pump_t *proc);
 void pump_fit_not_detected_ui_exit(ui_proc_pump_t *proc);
 void pump_fit_not_detected_resume(ui_proc_pump_t *proc);
 void pump_fit_not_detected_reset(ui_proc_pump_t *proc);
-void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *wear);
+void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared);
 void pump_fit_not_detected_led_tick(ui_proc_pump_t *proc);
 
 #ifdef __cplusplus

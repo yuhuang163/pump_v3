@@ -14,7 +14,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_FIT_NOT_DETECTED_TIMEOUT_MS               (20000)
 #define PUMP_FIT_NOT_DETECTED_BLINK_PERIOD_MS          (1000) /// 半周期 1000ms → 0.5Hz
 
 /*
@@ -132,23 +131,11 @@ static void pump_fit_not_detected_do_jump(ui_proc_pump_t *proc)
         return;
     }
 
-    LOG_WM("fit not detected 20s, jump to popup.");
-    proc->fit_not_detected_armed = 0;
+    LOG_WM("not worn detected, jump to popup.");
     proc->seal_tip = PUMP_SEAL_TIP_NONE;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
     pump_fit_not_detected_pause_pump(proc);
     show_pump_fit_not_detected_ui(proc);
-}
-
-static void pump_fit_not_detected_timeout_cb(hdr_post_args_t *args)
-{
-    ui_proc_pump_t *proc;
-
-    EXCEPTION_CHECK_VOID(args);
-    proc = (ui_proc_pump_t *)args->user_data;
-    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
-    proc->fit_not_detected_armed = 0;
-    pump_fit_not_detected_do_jump(proc);
 }
 
 /*
@@ -158,43 +145,34 @@ static void pump_fit_not_detected_timeout_cb(hdr_post_args_t *args)
 void pump_fit_not_detected_reset(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    proc->fit_not_detected_armed = 0;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_FIT_NOT_DETECTED_TASK_NAME);
 }
 
-void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *wear)
+void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared)
 {
     uint8_t i;
-    uint8_t both_invalid = 1;
+    uint8_t not_worn = 0;
 
     EXCEPTION_CHECK_VOID(proc);
-    if (wear == NULL || proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
+    if (weared == NULL || proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         return;
     }
     if (!pump_fit_not_detected_can_jump(proc)) {
-        pump_fit_not_detected_reset(proc);
         return;
     }
 
+    /// weared_status: 0 无效, 1 佩戴, 2 未佩戴
     for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-        if (wear[i] != ALGO_WEAR_DETECTION_RESULT_INVALID) {
-            both_invalid = 0;
+        if (weared[i] == ALGO_WEARED_STATUS_NOT_WORN) {
+            not_worn = 1;
             break;
         }
     }
-
-    if (!both_invalid) {
-        pump_fit_not_detected_reset(proc);
+    if (!not_worn) {
         return;
     }
-    if (proc->fit_not_detected_armed) {
-        return;
-    }
-    proc->fit_not_detected_armed = 1;
-    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_FIT_NOT_DETECTED_TASK_NAME);
-    POST_WM_TASK_HANDLER_DELAYED_ARG1(pump_fit_not_detected_timeout_cb,
-        PUMP_FIT_NOT_DETECTED_TIMEOUT_MS, proc, PUMP_FIT_NOT_DETECTED_TASK_NAME);
-    LOG_WM("fit not detected arm 20s.");
+    LOG_WM("weared status: %d/%d, jump fit not detected.", weared[0], weared[1]);
+    pump_fit_not_detected_do_jump(proc);
 }
 
 void pump_fit_not_detected_led_tick(ui_proc_pump_t *proc)
@@ -291,10 +269,10 @@ void pump_fit_not_detected_reset(ui_proc_pump_t *proc)
     (void)proc;
 }
 
-void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *wear)
+void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared)
 {
     (void)proc;
-    (void)wear;
+    (void)weared;
 }
 
 void pump_fit_not_detected_led_tick(ui_proc_pump_t *proc)
