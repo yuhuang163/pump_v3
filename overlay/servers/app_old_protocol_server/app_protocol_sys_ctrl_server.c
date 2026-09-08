@@ -67,6 +67,42 @@ static void app_old_comm_apply_night_light_fields(led_manager_context_t *led, ui
 }
 #endif
 
+#if 0
+/// 三路（夜灯/背景背光/按键灯）自适应全部关闭时，联动关闭总自适应开关
+static void app_old_comm_light_adaptive_sync(led_manager_context_t *led)
+{
+    uint8_t any_adaptive_on = 0;
+
+    if (led == NULL || led->hook == NULL) {
+        return;
+    }
+#if IS_SUPPORT_NIGHT_LIGHT
+    if (led->hook->get_night_light_adaptive_dimming_switch &&
+        led->hook->get_night_light_adaptive_dimming_switch(led) > 0) {
+        any_adaptive_on = 1;
+    }
+#endif
+    if (led->hook->get_ui_backlight_adaptive_dimming_switch &&
+        led->hook->get_ui_backlight_adaptive_dimming_switch(led) > 0) {
+        any_adaptive_on = 1;
+    }
+    if (led->hook->get_key_backlight_adaptive_dimming_switch &&
+        led->hook->get_key_backlight_adaptive_dimming_switch(led) > 0) {
+        any_adaptive_on = 1;
+    }
+
+    if (!any_adaptive_on && led->hook->set_global_adaptive_dimming_switch) {
+        led->hook->set_global_adaptive_dimming_switch(led, 0);
+        LOG_SRV("light adaptive all off, close global adaptive");
+    }
+}
+#else
+static void app_old_comm_light_adaptive_sync(led_manager_context_t *led)
+{
+    (void)led;
+}
+#endif
+
 /*
  * 0xC2 CAL=2：subcmd + value，一次只改一类。
  * 控制语义对齐原灯光控制逻辑（自适应只切总开关；开自适应下开夜灯抬 L2；
@@ -113,12 +149,14 @@ static uint8_t app_old_comm_apply_light_subcmd(uint8_t subcmd, uint8_t value)
                 if (led->hook->set_night_light_onoff) {
                     led->hook->set_night_light_onoff(led, 1);
                 }
+                app_old_comm_light_adaptive_sync(led);
                 return 1;
             }
             if (cur_adaptive && !value) {
                 if (led->hook->set_night_light_onoff) {
                     led->hook->set_night_light_onoff(led, 0);
                 }
+                app_old_comm_light_adaptive_sync(led);
                 return 1;
             }
             if (led->hook->get_night_light_gear) {
@@ -131,6 +169,7 @@ static uint8_t app_old_comm_apply_light_subcmd(uint8_t subcmd, uint8_t value)
                     led->hook->set_night_light_onoff(led, 0);
                 }
             }
+            app_old_comm_light_adaptive_sync(led);
             return 1;
 
         case APP_OLD_COMM_LIGHT_SUBCMD_NIGHT_LEVEL:
@@ -144,6 +183,7 @@ static uint8_t app_old_comm_apply_light_subcmd(uint8_t subcmd, uint8_t value)
                 }
             }
             app_old_comm_apply_night_light_fields(led, value > 0 ? 1 : 0, value);
+            app_old_comm_light_adaptive_sync(led);
             return 1;
 
         case APP_OLD_COMM_LIGHT_SUBCMD_STARTUP:
@@ -177,6 +217,7 @@ static uint8_t app_old_comm_apply_light_subcmd(uint8_t subcmd, uint8_t value)
                 }
             }
             app_old_comm_apply_screen_key_backlight(led, value);
+            app_old_comm_light_adaptive_sync(led);
             return 1;
 
         default:
@@ -582,21 +623,17 @@ void app_old_comm_handle_dev_abnormal_app_req(uint8_t cal, uint8_t *cab)
     peripheral_bus_context_t *pbus = (peripheral_bus_context_t *)find_module(ID_MODULE_DEVICE_BUS);
     airplane_mode_context_t *air_ctx = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     battery_manager_context_t *batt_ctx = (battery_manager_context_t *)find_module(ID_MODULE_BATTERY);
-    struct rt_device_node *battery;
     app_old_comm_abnormal_infor_t report = {0};
-    int percent = 100;
 
     (void)cal;
     (void)cab;
     EXCEPTION_CHECK_VOID(pbus && air_ctx && batt_ctx);
-    battery = pbus->find_device(ID_DEVICE_BATTERY);
-    if (battery) {
-        DEVICE_READ_ARGS(battery, &percent, sizeof(percent));
-    }
 
-    report.cannot_start = app_old_comm_abnormal_flag(percent < FORBID_START_BAT_PERCENTAGE);
-    report.low_battery = app_old_comm_abnormal_flag(percent < LOW_POWER_RUN_PERCENTAGE);
-    report.shutdown_soon = app_old_comm_abnormal_flag(percent < LOW_BAT_PERCENTAGE);
+    uint8_t battery_state = batt_ctx->get_battery_state();
+    report.cannot_start = app_old_comm_abnormal_flag(battery_state == BATTERY_STATE_FORBID_START);
+    report.low_battery = app_old_comm_abnormal_flag(battery_state == BATTERY_STATE_LOW_POWER_RUN);
+    report.shutdown_soon = app_old_comm_abnormal_flag(battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+                                                      battery_state == BATTERY_STATE_EMPTY);
     report.micro_air_leak = app_old_comm_algo_has_wear_result(ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK);
     report.travel_lock = app_old_comm_abnormal_flag(air_ctx->is_on_airplane_mode());
     report.adapter_error = app_old_comm_abnormal_flag(batt_ctx->get_charge_status() == CHARGE_STATE_ERROR);
