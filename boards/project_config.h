@@ -136,6 +136,8 @@ extern "C" {
 #define LED_MEDIUM_BLINK_TIME                          (200)  /// 200ms
 /// LED慢闪时间
 #define LED_SLOW_BLINK_TIME                            (500) /// 1000ms
+/// 按键灯呼吸完整周期（灭→亮→灭），单位ms
+#define LED_BREATH_CYCLE_TIME                           (4000)
 /// 关机提醒时间
 #define POWER_OFF_REMINDER_TIME                        (3000) /// 3秒
 /// OTA单块原数据大小

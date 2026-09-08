@@ -20,7 +20,8 @@ extern "C" {
 #define PUMP_LEVEL_ANIMATION_FREQ              (20)
 #define PUMP_LOW_POWER_COMPLETE_TASK_NAME      "pump_low_power_complete"
 #define PUMP_SEAL_LEAK_TASK_NAME               "pump_seal_leak"
-#define PUMP_SEAL_RESULT_TIP_TASK_NAME         "pump_seal_result_tip" 
+#define PUMP_SEAL_RESULT_TIP_TASK_NAME         "pump_seal_result_tip"
+#define PUMP_FIT_NOT_DETECTED_TASK_NAME        "pump_fit_not_detected" 
 
 /// 是否支持泵奶中切换韵律
 #define IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM  (1)
@@ -128,6 +129,8 @@ typedef enum {
 typedef enum {
     PUMP_LIGHT_STATUS_DEFAULT = 0,      /// 默认常亮
     PUMP_LIGHT_STATUS_PAUSE,            /// 暂停：start 灯闪烁
+    PUMP_LIGHT_STATUS_FIT_NOT_DETECTED, /// 未佩戴弹窗：其它灯灭，start 0.5Hz 闪
+    PUMP_LIGHT_STATUS_SEAL_LEAK,        /// 重度漏气：其它灯灭，start 0.5Hz 闪
     PUMP_LIGHT_STATUS_MAX
 } pump_light_status_e;
 
@@ -155,7 +158,8 @@ typedef enum {
     PUMP_UI_TYPE_PAUSE_TIMEOUT, /// 暂停无操作超时结算（方案1→自动关机 / 方案2可按键退出）
     PUMP_UI_TYPE_WILL_FINISH, /// 韵律即将结束提示
     PUMP_UI_TYPE_LOW_POWER, /// 泵奶中低电量提示（3s 倒计时，可按键退出）
-    PUMP_UI_TYPE_SEAL_LEAK, /// 重度漏气提醒（Check Fit / Tubing / Cup / 暂停）
+    PUMP_UI_TYPE_SEAL_LEAK, /// 重度漏气提醒（Tubing / Cup / Fit / Complete）
+    PUMP_UI_TYPE_FIT_NOT_DETECTED, /// 未佩戴弹窗（双通道无效 20s）
     PUMP_UI_TYPE_MAX
 } pump_ui_type_e;
 
@@ -181,10 +185,10 @@ typedef enum {
 
 /// 重度漏气提醒页（与 UI 四页对齐，由 ui_proc_pump_t.seal_leak_page_index 驱动）
 typedef enum {
-    PUMP_SEAL_LEAK_PAGE_CHECK_FIT = 0,     /// Check Fit
-    PUMP_SEAL_LEAK_PAGE_CHECK_TUBING,      /// Check Tubing
+    PUMP_SEAL_LEAK_PAGE_CHECK_TUBING = 0,  /// Check Air Seal
     PUMP_SEAL_LEAK_PAGE_CHECK_CUP,         /// Check Cup
-    PUMP_SEAL_LEAK_PAGE_PAUSE,             /// 漏气暂停页
+    PUMP_SEAL_LEAK_PAGE_CHECK_FIT,        /// Check Fit
+    PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE,    /// Self-Check Complete
     PUMP_SEAL_LEAK_PAGE_MAX
 } pump_seal_leak_page_e;
 
@@ -310,6 +314,7 @@ typedef struct {
     uint8_t seal_tip;
     /// 本轮检测窗口内最新结果 pump_seal_result_e
     uint8_t seal_result;
+    uint8_t leak_channel[AIR_PRESSURE_NUM]; /// 1: 该侧重度漏气（左/右）
     #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     uint8_t wear_result[AIR_PRESSURE_NUM]; /// 漏气检测结果
     #endif
@@ -319,6 +324,8 @@ typedef struct {
     /// 重度漏气提醒：本次进入泵奶窗口是否已跳转过；页索引 pump_seal_leak_page_e
     uint8_t seal_leak_shown;
     uint16_t seal_leak_page_index;
+    /// 未佩戴弹窗：双通道 wear=0 已启动 20s 计时
+    uint8_t fit_not_detected_armed;
 
 } ui_proc_pump_t;
 
@@ -451,13 +458,16 @@ void show_pump_will_finish_ui(ui_proc_pump_t *proc);
 void pump_will_finish_ui_exit(ui_proc_pump_t *proc);
 void pump_will_finish_ui_dismiss(ui_proc_pump_t *proc);
 
-/// 重度漏气提醒：检测到后暂停泵奶并进入 Check Fit 首页；1-3 页禁短按 power 启动，第 4 页解除
+/// 重度漏气提醒：暂停泵奶后进入引导；仅 power/start/旋钮可用，其它按键灯灭，start 0.5Hz 闪
 void show_pump_seal_leak_ui(ui_proc_pump_t *proc);
 void pump_seal_leak_ui_exit(ui_proc_pump_t *proc);
 int pump_seal_leak_page_adjust(ui_proc_pump_t *proc, bool is_left);
 void pump_seal_leak_resume(ui_proc_pump_t *proc);
-/// 1-3 页为 true：禁用短按 power 启动吸奶
+/// 重度漏气页内：屏蔽模式/力度等按键（power/start/旋钮除外）
 bool pump_seal_leak_restrict_keys(const ui_proc_pump_t *proc);
+/// 短按 power/start：非末页切下一页，末页启动泵奶并退出
+void pump_seal_leak_power_start_click(ui_proc_pump_t *proc);
+void pump_seal_leak_led_tick(ui_proc_pump_t *proc);
 /// 重度漏气：本窗口尚未展示过则跳转重度 UI
 void pump_seal_leak_jump_severe(ui_proc_pump_t *proc);
 
@@ -470,6 +480,14 @@ void pump_low_power_ui_dismiss(ui_proc_pump_t *proc);
 void pump_seal_leak_init(ui_proc_pump_t *proc);
 /// 漏气检测退出
 void pump_seal_leak_exit(ui_proc_pump_t *proc);
+
+/// 未佩戴弹窗：双通道 wear=0 维持 20s 后暂停并进入；短按 power/start 恢复泵奶
+void show_pump_fit_not_detected_ui(ui_proc_pump_t *proc);
+void pump_fit_not_detected_ui_exit(ui_proc_pump_t *proc);
+void pump_fit_not_detected_resume(ui_proc_pump_t *proc);
+void pump_fit_not_detected_reset(ui_proc_pump_t *proc);
+void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *wear);
+void pump_fit_not_detected_led_tick(ui_proc_pump_t *proc);
 
 #ifdef __cplusplus
 }

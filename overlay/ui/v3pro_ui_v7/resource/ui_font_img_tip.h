@@ -22,6 +22,8 @@ const ui_img_data_t *ui_font_img_level_adjust_tip_get(void);
 const ui_img_data_t *ui_font_img_pump_break_tip_get(void);
 /** 引导页「Press the knob to skip」提示图，全工程只保留一份 PNG 数据 */
 const ui_img_data_t *ui_font_img_guide_skip_tip_get(void);
+/** 重度漏气完成页「Press to resume」扫光提示图 */
+const ui_img_data_t *ui_font_img_pump_resume_tip_get(void);
 
 #ifdef __cplusplus
 }

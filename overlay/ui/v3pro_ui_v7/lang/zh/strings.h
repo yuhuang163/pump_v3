@@ -167,13 +167,17 @@ extern "C" {
 /*******************************************************************************
  * Seal leak (Pro)
  ******************************************************************************/
-#define PUMP_SEAL_LEAK_FIRST_TITLE                      "气密需要\n注意"
-#define PUMP_SEAL_LEAK_PAUSE_HINT_TEXT                  "按下继续\n长按结束吸乳"
+#define PUMP_SEAL_LEAK_TITLE_AIR_SEAL                    "检查气密"
 #define PUMP_SEAL_LEAK_TITLE_FIT                        "检查贴合"
 #define PUMP_SEAL_LEAK_TITLE_CUP                        "检查奶杯"
+#define PUMP_SEAL_LEAK_TITLE_COMPLETE                    "自检完成"
 #define PUMP_SEAL_LEAK_DESC_TUBING                      "请将导管插紧"
 #define PUMP_SEAL_LEAK_DESC_FLANGE                      "对准乳头\n压紧法兰"
 #define PUMP_SEAL_LEAK_DESC_CUP                         "扣紧杯缘\n装好鸭嘴阀"
+#define PUMP_SEAL_LEAK_DESC_COMPLETE                     "按下继续"
+#define PUMP_FIT_NOT_DETECTED_TITLE                      "未检测到贴合"
+#define PUMP_FIT_NOT_DETECTED_DESC \
+    "请检查奶杯佩戴\n按下继续"
 
 /*******************************************************************************
  * Product tests

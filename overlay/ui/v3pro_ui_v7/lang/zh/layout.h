@@ -48,7 +48,7 @@ extern "C" {
 #define PUMP_HOME_MAIN_MODE_TITLE_Y                     (62 + 4)
 #define PUMP_HOME_MAIN_HINT_Y                           (220)
 
-#define PUMP_HOME_MAIN_SEAL_CHECK_Y                     (207 + 4)
+#define PUMP_HOME_MAIN_SEAL_CHECK_Y                     (208)
 #define PUMP_HOME_MAIN_MODE_SWITCH_Y                    (208)
 #define PUMP_HOME_MAIN_MODE_SWITCH_LINE_SPACE           (8)
 #define PUMP_MODE_PAGE_STIM_ICON_Y                      (107)
@@ -174,14 +174,17 @@ extern "C" {
 /*******************************************************************************
  * Seal leak (Pro)
  ******************************************************************************/
-#define PUMP_SEAL_LEAK_TITLE_Y                          (48)
-#define PUMP_SEAL_LEAK_TITLE_LINE_SPACE                 (8)
+#define PUMP_SEAL_LEAK_TITLE_Y                          (46)
+#define PUMP_SEAL_LEAK_FIRST_TITLE_Y                    (63)
+#define PUMP_SEAL_LEAK_DIR_ICON_Y                      (105)
 #define PUMP_SEAL_LEAK_DESC_Y                           (296)
 #define PUMP_SEAL_LEAK_DESC_LINE_SPACE                  (4)
 #define PUMP_SEAL_LEAK_FIRST_DESC_Y                     (314)
-#define PUMP_SEAL_LEAK_PAUSE_TITLE_Y                    (64)
-#define PUMP_SEAL_LEAK_PAUSE_HINT_Y                     (204)
-#define PUMP_SEAL_LEAK_PAUSE_HINT_LINE_SPACE            (8)
+#define PUMP_SEAL_LEAK_COMPLETE_DESC_Y                  (314)
+#define PUMP_SEAL_LEAK_COMPLETE_TITLE_LINE_SPACE         (8)
+#define PUMP_FIT_NOT_DETECTED_TITLE_Y                   (48)
+#define PUMP_FIT_NOT_DETECTED_DESC_Y                    (296)
+#define PUMP_FIT_NOT_DETECTED_DESC_LINE_SPACE           (4)
 
 /*******************************************************************************
  * Theme guide

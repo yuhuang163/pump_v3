@@ -122,8 +122,8 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 ### 3.6 Pump（泵奶运行）
 - 广播 `ID_BROADCAST_BREAST_PUMP_STATE_CHANGE`：COMPLETED → HOME(PUMP_RESULT)；TIMEOUT → 结算；RUNNING_30M_TIP → 暂停+提示；WILL_FINISH → 即将完成。
 - 电池回调：charge error → 充电异常结算；低电 → POWER_OFF(LOW_POWER)；FORBID_START → 禁启动。
-- 子 UI（PUMP_UI_TYPE_*）：HOME / RHYTHM_CONFIRM / SETTINGS_SUCCESS / STOP_HOLD / POWER_OFF_HOLD / LEVEL/BOTH_LEVEL/SPEED_ADJUST / FINISH_TIMEOUT / FINISH_CHARGE_ERROR / PAUSE_TIMEOUT / WILL_FINISH / LOW_POWER / SEAL_LEAK。
-- 气密检测（V3Pro）：`pump_seal_check_start` → 结果分 NO_LEAK / SLIGHT / SEVERE（SEVERE 进 SEAL_LEAK 页，Check Fit→Tubing→Cup→Pause）。
+- 子 UI（PUMP_UI_TYPE_*）：HOME / RHYTHM_CONFIRM / SETTINGS_SUCCESS / STOP_HOLD / POWER_OFF_HOLD / LEVEL/BOTH_LEVEL/SPEED_ADJUST / FINISH_TIMEOUT / FINISH_CHARGE_ERROR / PAUSE_TIMEOUT / WILL_FINISH / LOW_POWER / SEAL_LEAK / FIT_NOT_DETECTED。
+- 气密检测（V3Pro）：`pump_seal_check_start` → 结果分 NO_LEAK / SLIGHT / SEVERE（SEVERE 进 SEAL_LEAK：Tubing→Cup→Fit→Complete）。SEAL_LEAK 仅响应 power/start/旋钮，其它按键灯灭、start 0.5Hz 闪；非末页短按 power/start 切下一页，末页启动泵奶并退出后恢复按键灯。双通道 wear=0 连续 20s 进 FIT_NOT_DETECTED 弹窗并暂停；短按 power/start 恢复泵奶后重新计时。
 
 ### 3.7 Battery（低电）
 - on_create：vbus+error → CHARGE；否则低电页 + 自动关机调度（EMPTY 立即，否则超时）。
@@ -161,7 +161,7 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 
 **pump_sub_ui_type_e（2 种）**：NONE(直接启动泵奶) / SETTINGS_SUCCESS(先成功页再泵奶主页)。
 
-**PUMP_UI_TYPE ↔ handler 文件**：RHYTHM_CONFIRM→pump_rhythm_confirm、SETTINGS_SUCCESS→pump_settings_success、STOP_HOLD→pump_stop_hold、POWER_OFF_HOLD→pump_power_off_hold、LEVEL/BOTH/SPEED_ADJUST→pump_*_adjust、FINISH_TIMEOUT→pump_finish_timeout、FINISH_CHARGE_ERROR→pump_finish_charge_error、PAUSE_TIMEOUT→pump_pause_timeout、WILL_FINISH→pump_will_finish、LOW_POWER→pump_low_power、SEAL_LEAK→pump_seal_leak、HOME→pumping。
+**PUMP_UI_TYPE ↔ handler 文件**：RHYTHM_CONFIRM→pump_rhythm_confirm、SETTINGS_SUCCESS→pump_settings_success、STOP_HOLD→pump_stop_hold、POWER_OFF_HOLD→pump_power_off_hold、LEVEL/BOTH/SPEED_ADJUST→pump_*_adjust、FINISH_TIMEOUT→pump_finish_timeout、FINISH_CHARGE_ERROR→pump_finish_charge_error、PAUSE_TIMEOUT→pump_pause_timeout、WILL_FINISH→pump_will_finish、LOW_POWER→pump_low_power、SEAL_LEAK→pump_seal_leak、FIT_NOT_DETECTED→pump_fit_not_detected、HOME→pumping。
 
 ## 5. 通用退出策略（几乎所有窗口共用）
 

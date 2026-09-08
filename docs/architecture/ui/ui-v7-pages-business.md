@@ -46,6 +46,7 @@
 
 ### 2.5 纯状态提示页（静态）
 `rhythm_confirm`（QUANDARY 图标 + shine 提示）、`settings_success`（两 style）、`system_abnormal`（系统错误/电池高温两套文案）、`charge_adapter`、`pump_will_finish`、`home_idle`（屏保）。
+V3Pro 另有 `pump_fit_not_detected`：标题 + Check Fit 同款帧动画 + 底部双行提示。
 
 ### 2.6 转圈等待页（spin arc 复用）
 `power_off` / `factory_reset` / `restart` 三页同构：50px 弧段 3ms/度匀速旋转 + 文案（power_off 文案随 `power_off_text_type_e` 切换）。
@@ -92,12 +93,13 @@
 
 ## 5. V3 vs V3Pro 差异
 
-1. **`pump_seal_leak/` 仅 V3Pro**（密封性检查页，4 子页 CHECK_FIT/CHECK_TUBING/CHECK_CUP/PAUSE），`ui_page_define.h` 差异即 V3Pro 多 `#include "pump_seal_leak_ui.h"`。
-2. **电量显示**：V3Pro 的 `battery_ui.c` 完整实现（电池框+填充+充电图标+低电红/充电绿），home/pump_home process 里 `battery_ui_update`（5 参含 BLE 态）；V3 空桩。
-3. **BLE 图标位置**：V3 左上 (0,16)；V3Pro 移到 (150,18) 与电池并排。
-4. **product_tests 电量**：V3Pro 产线 home/aging 页额外显示电量百分比。
-5. **shine 组件**：V3Pro `ui_shine_prepare_from_text` 多 `line_space` 参数。
-6. **lang 文案/布局**：en/zh strings.h 与 layout.h 不同。
+1. **`pump_seal_leak/` 仅 V3Pro**（密封性检查页，4 子页 CHECK_TUBING/CHECK_CUP/CHECK_FIT/CHECK_COMPLETE），`ui_page_define.h` 差异即 V3Pro 多 `#include "pump_seal_leak_ui.h"`。
+2. **`pump_fit_not_detected/` 仅 V3Pro**（未佩戴弹窗：标题 Fit Not Detected + Check Fit 动画 + 底部双行文案）。
+3. **电量显示**：V3Pro 的 `battery_ui.c` 完整实现（电池框+填充+充电图标+低电红/充电绿），home/pump_home process 里 `battery_ui_update`（5 参含 BLE 态）；V3 空桩。
+4. **BLE 图标位置**：V3 左上 (0,16)；V3Pro 移到 (150,18) 与电池并排。
+5. **product_tests 电量**：V3Pro 产线 home/aging 页额外显示电量百分比。
+6. **shine 组件**：V3Pro `ui_shine_prepare_from_text` 多 `line_space` 参数。
+7. **lang 文案/布局**：en/zh strings.h 与 layout.h 不同。
 
 ### Base/Custom 双主题分派
 - facade（home/pump_finish/home_screen_saver/charge_adapter/guide）里 `get_sys_theme_type()`，CUSTOM → `xxx_custom_ui_*`，否则 base。

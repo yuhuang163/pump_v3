@@ -62,7 +62,7 @@ extern "C" {
 #define PUMP_WILL_FINISH_TITLE1_TEXT                    "Your pumping program is\nabout to end."
 #define PUMP_WILL_FINISH_TITLE2_TEXT                    "Press the knob to\ncontinue pumping."
 #define PUMP_FINISH_TITLE_TEXT                          "Pumping complete."
-#define PUMP_FINISH_CONTENT_TEXT                        "Open the Momcozy App\nto log your milk output."
+#define PUMP_FINISH_CONTENT_TEXT                        "Open the Momcozy App\nto log your milk output." // ？
 #define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT            "Incompatible adapter"
 #define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT            "Ending automatically"
 #define PUMP_RUNING_30M_TIP_TEXT                        "Pumping over 30 min.\nTake a short break."
@@ -131,8 +131,7 @@ extern "C" {
 #define GUIDE_INTRO_TITLE_TEXT                          "Let's get started!"
 #define GUIDE_QRCODE_DESC_TEXT                          "Scan the QR code to\ndownload the app and\nconnect your pump."
 #define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
-#define GUIDE_FINISH_DESC_TEXT \
-    "Tutorial complete. Scan the\nQR code anytime to view it\nagain."
+#define GUIDE_FINISH_DESC_TEXT                          "Tutorial complete. Scan the\nQR code anytime to view it\nagain."
 #define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT              "Turn the knob to\nexplore more options."
 #define GUIDE_PUMP_START_GUIDE_TITLE_TEXT               "Press the knob to\nstart."
 #define GUIDE_PUMP_PAUSE_GUIDE_TITLE_TEXT               "Press the knob to\npause."

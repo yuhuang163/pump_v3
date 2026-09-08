@@ -62,6 +62,94 @@
       "x_offset": 0,
       "y_offset": 0,
       "note": "file_index = resource_id - 1400"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_CHECKING_SEAL_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_CHECKING_SEAL_ANIM_END",
+      "description": "气密检测中动画",
+      "file_template": "animation/checking_seal/baj/CSeal_{file_index:05d}_90x90_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1500,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1500"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_CHECK_PASSED_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_CHECK_PASSED_ANIM_END",
+      "description": "气密检测通过动画",
+      "file_template": "animation/check_passed/baj/CPass_{file_index:05d}_90x90_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1520,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1520"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_CHECK_COMPLETE_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_CHECK_COMPLETE_ANIM_END",
+      "description": "自检完成动画",
+      "file_template": "animation/check_complete/baj/CComp_{file_index:05d}_250x250_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1600,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1600"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_CHECK_FIT_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_CHECK_FIT_ANIM_END",
+      "description": "检查贴合动画",
+      "file_template": "animation/check_fit/baj/CFit_{file_index:05d}_222x222_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1800,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1800"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_CHECK_TUBING_BOTH_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_CHECK_TUBING_BOTH_ANIM_END",
+      "description": "检查管路双侧动画",
+      "file_template": "animation/check_tubing_both/baj/CTubB_{file_index:05d}_76x54_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -2000,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 2000"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_CHECK_TUBING_LEFT_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_CHECK_TUBING_LEFT_ANIM_END",
+      "description": "检查管路左侧动画",
+      "file_template": "animation/check_tubing_left/baj/CTubL_{file_index:05d}_48x50_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -2100,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 2100"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_CHECK_TUBING_RIGHT_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_CHECK_TUBING_RIGHT_ANIM_END",
+      "description": "检查管路右侧动画",
+      "file_template": "animation/check_tubing_right/baj/CTubR_{file_index:05d}_54x34_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -2140,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 2140"
+    },
+    {
+      "start_resource_id": "BASE_RES_ID_CHECK_CUP_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_CHECK_CUP_ANIM_END",
+      "description": "检查杯盖动画",
+      "file_template": "animation/check_cup/baj/CCup_{file_index:05d}_208x208_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -2200,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 2200"
     }
   ],
   "resources": [
@@ -437,23 +525,51 @@
       "y_offset": 0
     }, 
     {
-      "resource_id": "BASE_RES_ID_CHECK_CUP_ICON",
-      "description": "检查杯盖图标",
-      "file": "baj/icon_check_cup_208x208_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_CHECK_SEAL_LEFT_ICON",
+      "description": "气密检测左侧图标",
+      "file": "baj/icon_check_seal_left_48x32_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_CHECK_FIT_ICON",
-      "description": "检查滤芯图标",
-      "file": "baj/icon_check_fit_208x208_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_CHECK_SEAL_LEFT_UNSEL_ICON",
+      "description": "气密检测左侧未选中图标",
+      "file": "baj/icon_check_seal_left_unsel_48x32_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_CHECK_TUBING_ICON",
-      "description": "检查管道图标",
-      "file": "baj/icon_check_tubing_208x208_a8_q99_444.baj",
+      "resource_id": "BASE_RES_ID_CHECK_SEAL_RIGHT_ICON",
+      "description": "气密检测右侧图标",
+      "file": "baj/icon_check_seal_right_48x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_CHECK_SEAL_RIGHT_UNSEL_ICON",
+      "description": "气密检测右侧未选中图标",
+      "file": "baj/icon_check_seal_right_unsel_48x32_a8_q99_444.baj",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_CHECK_TUBING_BOTH_ICON",
+      "description": "检查管道双侧图标",
+      "file": "png/icon_check_tubing.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_CHECK_TUBING_LEFT_ICON",
+      "description": "检查管道左侧图标",
+      "file": "png/icon_check_tubing_left.png",
+      "x_offset": 0,
+      "y_offset": 0
+    },
+    {
+      "resource_id": "BASE_RES_ID_CHECK_TUBING_RIGHT_ICON",
+      "description": "检查管道右侧图标",
+      "file": "png/icon_check_tubing_right.png",
       "x_offset": 0,
       "y_offset": 0
     }
