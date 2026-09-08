@@ -21,7 +21,8 @@ typedef enum {
 /// 算法输出数据
 typedef struct {
     uint32_t timestamp;
-    uint8_t result[AIR_PRESSURE_NUM]; //佩戴检测结果 0:未佩戴 1:佩戴    
+    uint8_t wear_result[AIR_PRESSURE_NUM]; /// 检测未启动无效状态：0，佩戴：1，未佩戴：2  
+    uint8_t result[AIR_PRESSURE_NUM]; // 泵奶未启动结果无效状态:0,佩戴正常无漏气：1,佩戴微小漏气:2，佩戴强漏气:3    
     uint8_t compensation_status[AIR_PRESSURE_NUM]; //气压补偿状态 0:不补偿, 1:减小气压, 2:加大气压
     int compensation_delta_pwm[AIR_PRESSURE_NUM]; //气压补偿delta_pwm -10000~-1:PWM减小, 1~10000: PWM增加
 } algo_wear_detection_data_output_t;

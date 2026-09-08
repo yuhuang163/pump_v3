@@ -141,6 +141,7 @@ static uint8_t app_old_comm_apply_light_subcmd(uint8_t subcmd, uint8_t value)
                 return 0;
             }
             LOG_SRV("light subcmd: night_onoff=%u adaptive=%u", value, cur_adaptive);
+            ///自适应打开情况设置夜灯开关
             if (cur_adaptive && value) {
                 /* 自适应开：开灯抬 L2 并点亮，不立刻再开夜灯 ALS */
                 if (led->hook->set_night_light_gear) {
@@ -149,16 +150,15 @@ static uint8_t app_old_comm_apply_light_subcmd(uint8_t subcmd, uint8_t value)
                 if (led->hook->set_night_light_onoff) {
                     led->hook->set_night_light_onoff(led, 1);
                 }
-                app_old_comm_light_adaptive_sync(led);
                 return 1;
             }
             if (cur_adaptive && !value) {
                 if (led->hook->set_night_light_onoff) {
                     led->hook->set_night_light_onoff(led, 0);
                 }
-                app_old_comm_light_adaptive_sync(led);
                 return 1;
             }
+            ///自适应关闭情况设置夜灯开关
             if (led->hook->get_night_light_gear) {
                 cur_gear = (uint8_t)led->hook->get_night_light_gear(led);
             }

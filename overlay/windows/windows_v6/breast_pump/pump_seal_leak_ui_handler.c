@@ -93,7 +93,7 @@ static uint8_t pump_seal_result_from_wear(ui_proc_pump_t *proc, const uint8_t *w
         return PUMP_SEAL_RESULT_NONE;
     }
 
-    /// wear_status: 0 无效, 1 无漏气, 2 微小漏气, 3 强漏气；两侧取更差一侧
+    /// leakage_status: 0 无效, 1 无漏气, 2 微小漏气, 3 强漏气；两侧取更差一侧
     for (i = 0; i < AIR_PRESSURE_NUM; i++) {
         if (wear[i] > worst && wear[i] <= ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK) {
             worst = wear[i];
