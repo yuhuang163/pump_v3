@@ -226,6 +226,7 @@ typedef struct _FEATURE_INFO_
 	float			fThreshold;
 	float			fLoadedThreshold;
 	unsigned char	uWearStatus;	/* result */
+	unsigned char	uDetectOverTime;	/* 检测超时 */
 	unsigned short	uPump_flag;
 	unsigned char	pumping_time;
 	unsigned char	uPumpState;
@@ -259,6 +260,7 @@ typedef struct _FEATURE_INFO_
 	unsigned short  uLeakSwitchTime;			/* 切换状态时长 */
 
 	unsigned short	uDataBaselineCnt[3];		/* 休眠状态下, 基线平台>1200Pa (大漏), >700Pa (小漏), <100Pa (正常) 计数 */
+	unsigned short  uMinPressureCnt;			/* 最小负压低于目标负压 */
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_

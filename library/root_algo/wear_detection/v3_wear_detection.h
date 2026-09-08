@@ -36,7 +36,7 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 /*interface*/
 void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight);
 void V3WearDetectionMain(algo_air_pressure_data_t sPressureData);
-void GetWearDetectionResult(unsigned char* uWearStatus);
+void GetWearDetectionResult(unsigned char* uWearStatus, unsigned char* uLeakStatus, unsigned char* DetectOverTime);
 void GetCompensationStatus(unsigned char* uCompsStatus, int* iDelta_pwm);
 void GetFilteredPressureData(float* fFilteredData);
 const char* v3_pressure_algo_get_version(void);
