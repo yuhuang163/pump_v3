@@ -47,7 +47,7 @@ static void wear_detection_process_data(void)
         /// TODO: 实现佩戴检测算法
         V3WearDetectionMain(s_air_pressure_data);
         /// TODO: 修改算法结果s_result
-        GetWearDetectionResult(s_result.leakage_status);/// 泵奶未启动结果无效状态:0,佩戴漏气，1. 正常无漏气：2,佩戴微小漏气:3，佩戴强漏气
+        GetWearDetectionResult(s_result.weared_status, s_result.leakage_status, s_result.detection_overtime);/// 泵奶未启动结果无效状态:0,佩戴漏气，1. 正常无漏气：2,佩戴微小漏气:3，佩戴强漏气
         //ALGO_LOG_INFO("wear state13: %d, %d", s_result.leakage_status[0], s_result.leakage_status[1]);
         GetCompensationStatus(s_result.compensation_status, s_result.compensation_delta_pwm);
         
@@ -77,9 +77,8 @@ static void wear_detection_process_data(void)
         ALGO_LOG_INFO("pump state: %d, %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state);
         ALGO_LOG_INFO("v3pro status: %d/%d, delta_pwm: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
         ALGO_LOG_INFO("wear state: %d, %d", s_result.leakage_status[0], s_result.leakage_status[1]);
-        //ALGO_LOG_INFO("BaselineCnt: %d, %d", uDataBaselineCnt[0], uDataBaselineCnt[1]);
-        
         /*
+        //ALGO_LOG_INFO("BaselineCnt: %d, %d", uDataBaselineCnt[0], uDataBaselineCnt[1]);
         ALGO_LOG_INFO("target pressure: %d, %d", s_air_pressure_data.pump_state[0].target_pressure, s_air_pressure_data.pump_state[1].target_pressure);
         ALGO_LOG_INFO("target pump time: %d, %d", s_air_pressure_data.pump_state[0].target_pump_time, s_air_pressure_data.pump_state[1].target_pump_time);
         ALGO_LOG_INFO("p1_filtered: %f, p2_filtered: %f", fFilteredData[0], fFilteredData[1]);
