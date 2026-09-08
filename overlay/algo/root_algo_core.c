@@ -46,15 +46,15 @@ static void on_sensor_data_algo_cb(void *user_data, uint8_t *data, int data_len)
 static void algo_out_result_cb(algo_fusion_result_t *algo_result)
 {  
     static uint16_t log_count = 0;
-    uint8_t old_wear[AIR_PRESSURE_NUM];
+    uint8_t old_leakage[AIR_PRESSURE_NUM];
     EXCEPTION_CHECK_VOID(algo_result);
     algo_manager_context_t *ctx = s_algo_ctx;
     EXCEPTION_CHECK_VOID(ctx);
-    memcpy(old_wear, ctx->priv.algo_data.wear_detection.result, sizeof(old_wear));
+    memcpy(old_leakage, ctx->priv.algo_data.wear_detection.result, sizeof(old_leakage));
     if (!ctx->priv.is_algo_enabled) {
         /// 算法未启用，结果上报默认值
-        algo_result->wear_status[0] = ALGO_WEAR_DETECTION_RESULT_INVALID;
-        algo_result->wear_status[1] = ALGO_WEAR_DETECTION_RESULT_INVALID;
+        algo_result->leakage_status[0] = ALGO_WEAR_DETECTION_RESULT_INVALID;
+        algo_result->leakage_status[1] = ALGO_WEAR_DETECTION_RESULT_INVALID;
         algo_result->compensation_status[0] = 0;
         algo_result->compensation_status[1] = 0;
         algo_result->compensation_delta_pwm[0] = 0;
@@ -63,17 +63,19 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
         return;
     }
     /// 仅当任一侧处于微小漏气(2)/强漏气(3)时才上报异常，且状态发生变化才触发
-    if ((algo_result->wear_status[0] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK ||
-         algo_result->wear_status[1] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK) &&
-        (algo_result->wear_status[0] != old_wear[0] ||
-         algo_result->wear_status[1] != old_wear[1])) {
+    if ((algo_result->leakage_status[0] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK ||
+         algo_result->leakage_status[1] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK) &&
+        (algo_result->leakage_status[0] != old_leakage[0] ||
+         algo_result->leakage_status[1] != old_leakage[1])) {
         /// 漏气异常上报 EVT_011：error_code=AIR_LEAKAGE(0x24)，error_data 低8位左/次8位右
         DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_AIR_LEAKAGE,
-            DATA_BURY_PACK_WEAR_DETECTION_DATA(algo_result->wear_status[0],
-                                               algo_result->wear_status[1]));
+            DATA_BURY_PACK_WEAR_DETECTION_DATA(algo_result->leakage_status[0],
+                                               algo_result->leakage_status[1]));
     }
-    ctx->priv.algo_data.wear_detection.result[0] = algo_result->wear_status[0];
-    ctx->priv.algo_data.wear_detection.result[1] = algo_result->wear_status[1];
+    ctx->priv.algo_data.wear_detection.result[0] = algo_result->leakage_status[0];
+    ctx->priv.algo_data.wear_detection.result[1] = algo_result->leakage_status[1];
+    ctx->priv.algo_data.wear_detection.wear_result[0] = algo_result->weared_status[0];
+    ctx->priv.algo_data.wear_detection.wear_result[1] = algo_result->weared_status[1];
     ctx->priv.algo_data.wear_detection.compensation_status[0] = algo_result->compensation_status[0];
     ctx->priv.algo_data.wear_detection.compensation_status[1] = algo_result->compensation_status[1];
     ctx->priv.algo_data.wear_detection.compensation_delta_pwm[0] = algo_result->compensation_delta_pwm[0];
@@ -82,7 +84,8 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
     log_count++;
     if (log_count > 100) {
         log_count = 0;
-        LOG_ALGO("wear status %d/%d", algo_result->wear_status[0], algo_result->wear_status[1]);
+        LOG_ALGO("wear status %d/%d", algo_result->leakage_status[0], algo_result->leakage_status[1]);
+        LOG_ALGO("weared status %d/%d", algo_result->weared_status[0], algo_result->weared_status[1]);
         LOG_ALGO("compensation status %d/%d %d/%d", algo_result->compensation_status[0], algo_result->compensation_status[1], algo_result->compensation_delta_pwm[0], \
                  algo_result->compensation_delta_pwm[1]);
     }

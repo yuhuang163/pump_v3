@@ -247,7 +247,7 @@ typedef struct {
 #define DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(_left, _right) \
     ((uint16_t)(((uint8_t)(_left) & 0xFFu) | (((uint16_t)((uint8_t)(_right) & 0xFFu)) << 8)))
 
-/** 佩戴检测数据打包：低 8 位左、次 8 位右（wear_status 0/1） */
+/** 佩戴检测数据打包：低 8 位左、次 8 位右（leakage_status 0/1） */
 #define DATA_BURY_PACK_WEAR_DETECTION_DATA(_left, _right) \
     ((uint32_t)(((uint32_t)(uint8_t)(_left)) | (((uint32_t)(uint8_t)(_right)) << 8)))
 
