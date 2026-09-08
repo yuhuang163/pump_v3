@@ -53,6 +53,7 @@ typedef void (*on_led_state_cb_ptr)(void *user_data, led_state_info_t *info);
 typedef enum {
     LED_OP_CODE_SET_UI_KEY_BACKLIGHT = 100, /// 设置UI按键背光.
     LED_OP_CODE_SET_LED_BLINK, /// 设置LED闪烁.
+    LED_OP_CODE_SET_LED_BREATH, /// 设置LED呼吸.
     LED_OP_CODE_SET_LED_LEVEL, /// 设置LED亮度.
     LED_OP_CODE_SET_LED_ONOFF, /// 设置LED开关.
     LED_OP_CODE_TOGGLE_NIGHT_LIGHT, /// 切换夜灯开关.
@@ -66,6 +67,8 @@ struct power_manager_context;
 typedef struct led_manager_context {
 /// public:
     void (*set_led_blink)(uint8_t led_index, uint16_t period, uint16_t blink_times, uint8_t finish_status);
+    /// period：完整呼吸周期（灭→亮→灭）ms，0 用 LED_BREATH_CYCLE_TIME；continue_time：持续时长 ms，0 一直呼吸
+    void (*set_led_breath)(uint8_t led_index, uint16_t period, uint32_t continue_time);
     void (*set_led_level)(uint8_t led_index, uint8_t level);
     void (*set_led_onoff)(uint8_t led_index, uint8_t onoff);
     void (*add_led_state_cb)(void *user_data, on_led_state_cb_ptr cb);

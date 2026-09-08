@@ -73,14 +73,16 @@ typedef struct {
 
 typedef void (*led_breath_finish_cb)(void);
 typedef struct {
-    uint8_t  polarity;            /// 极性
-    uint8_t  direction;           /// 呼吸方向 1呼吸+，2呼吸-
-    uint16_t step;                /// 脉宽调节幅度
-    uint16_t pluse_max;           /// 脉宽最大值
-    uint16_t period;              /// 周期，单位ms
-    uint32_t start_time;          /// 开始时间
-    uint32_t continue_time;       /// 呼吸连续时间，0：一直闪烁，单位ms
-    led_breath_finish_cb cb;      /// 呼吸回调
+    uint8_t  polarity;            /// 0:从灭开始, 1:从亮开始
+    uint8_t  direction;           /// 1:渐亮, 2:渐暗
+    uint8_t  current_level;       /// 当前亮度 0-100（驱动内部）
+    uint16_t step;                /// 每次脉宽调节幅度，0 则默认为 1
+    uint16_t pluse_max;           /// 峰值亮度，0 则用当前 level_max
+    uint16_t period;              /// 步进间隔，单位ms
+    uint32_t start_time;          /// 开始 tick（驱动内部）
+    uint32_t step_time;           /// 上次步进 tick（驱动内部）
+    uint32_t continue_time;       /// 持续时间，0：一直呼吸，单位ms
+    led_breath_finish_cb cb;      /// 呼吸结束回调
 } led_breath_t;
 
 /// 最大亮度值

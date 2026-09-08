@@ -480,6 +480,7 @@ static void pump_home_main_time_update(pump_home_base_ui_info_t *info, uint8_t h
     uint8_t minutes, uint8_t seconds, bool paused)
 {
     const uint8_t digit_size = (hours == 0) ? PUMP_HOME_MAIN_TIME_2SEG : PUMP_HOME_MAIN_TIME_3SEG;
+    const bool time_visible = !paused && (info->main.shown_seal_check == 0);
 
     if (!paused) {
         pump_home_main_time_h_update(info, hours, digit_size);
@@ -488,7 +489,7 @@ static void pump_home_main_time_update(pump_home_base_ui_info_t *info, uint8_t h
         pump_home_main_time_colon_update(info, digit_size);
         info->main.shown_digit_size = digit_size;
     }
-    pump_home_main_time_visibility_set(info, !paused, digit_size);
+    pump_home_main_time_visibility_set(info, time_visible, digit_size);
 }
 
 static void pump_home_main_play_icon_update(pump_home_base_ui_info_t *info, bool paused)
@@ -773,7 +774,7 @@ static void pump_home_main_seal_check_update(pump_home_base_ui_info_t *info, ui_
         }
     }
 
-    info->animation.hidden_by_seal_check = show ? 1 : 0;
+    info->animation.seal_tip = show ? proc->seal_tip : PUMP_SEAL_TIP_NONE;
     pump_home_main_seal_check_mask_update(info, show, text);
     info->main.shown_seal_check = show ? 1 : 0;
 }
@@ -907,7 +908,7 @@ void pump_home_main_page_ui_build(pump_home_base_ui_info_t *info)
     info->main.mode_switch_time = 0;
     info->animation.paused_by_transition = 0;
     info->animation.hidden_by_mode_switch = 0;
-    info->animation.hidden_by_seal_check = 0;
+    info->animation.seal_tip = PUMP_SEAL_TIP_NONE;
     #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     info->main.wear_result[0] = 0xFF;
     info->main.wear_result[1] = 0xFF;

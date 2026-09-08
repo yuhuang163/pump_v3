@@ -62,7 +62,7 @@ extern "C" {
 #define PUMP_FINISH_TIMEOUT_TITLE1_TEXT                 "结束吸乳"
 #define PUMP_FINISH_TIMEOUT_TITLE2_TEXT                 "自动结束中..."
 #define PUMP_WILL_FINISH_TITLE1_TEXT                    "吸乳即将结束"
-#define PUMP_WILL_FINISH_TITLE2_TEXT                    "按下旋钮继续吸乳"
+#define PUMP_WILL_FINISH_TITLE2_TEXT                    "如需继续请按下旋钮"
 #define PUMP_FINISH_TITLE_TEXT                          "吸乳已完成"
 #define PUMP_FINISH_CONTENT_TEXT                        "打开 Momcozy App 记录\n奶量吧"
 #define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT            "充电器不兼容"
@@ -75,15 +75,15 @@ extern "C" {
  ******************************************************************************/
 #define RHYTHM_CONFIRM_TITLE_TEXT                       "确定切换吸乳程序吗？"
 #define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "切换后将重新计时"
-#define SETTINGS_SUCCESS_TITLE_TEXT                     "模式切换成功"
+#define SETTINGS_SUCCESS_TITLE_TEXT                     "成功"
 #define SETTINGS_SUCCESS_PROGRAM_TITLE_TEXT             "切换成功"
 #define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_TEXT          "即将重新计时"
 
 /*******************************************************************************
  * Power / lock / airplane
  ******************************************************************************/
-#define POWER_OFF_HOLD_TITLE_TEXT                       "按住旋钮3秒\n设备即将关机"
-#define POWER_OFF_TEXT_POWERING_OFF_STR                 "设备正在关机"
+#define POWER_OFF_HOLD_TITLE_TEXT                       "长按关机"
+#define POWER_OFF_TEXT_POWERING_OFF_STR                 "正在关机"
 #define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "长时间没有操作\n设备即将自动关机"
 #define RESTARTING_TEXT                                 "正在重新启动\n请稍候..."
 #define POWER_ON_HOLD_LINE1_TEXT                        "按住 2 秒开机"
@@ -130,10 +130,10 @@ extern "C" {
 /*******************************************************************************
  * Guide
  ******************************************************************************/
-#define GUIDE_INTRO_TITLE_TEXT                          "准备好了吗？\n开始你的吸乳之旅吧"
-#define GUIDE_QRCODE_DESC_TEXT                          "扫码下载 Momcozy App\n连接设备，开启贴心吸乳体验"
+#define GUIDE_INTRO_TITLE_TEXT                          "开始你的吸乳之旅吧！"
+#define GUIDE_QRCODE_DESC_TEXT                          "扫码下载并连接 App\n智能吸奶，奶量记录，轻松遥\n控"
 #define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
-#define GUIDE_FINISH_DESC_TEXT                          "新手引导已完成\n可扫码查看操作视频"
+#define GUIDE_FINISH_DESC_TEXT                          "完成新手引导"
 #define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT              "转动旋钮\n查看更多选择"
 #define GUIDE_PUMP_START_GUIDE_TITLE_TEXT               "按下旋钮开始"
 #define GUIDE_PUMP_PAUSE_GUIDE_TITLE_TEXT               "按下旋钮暂停"
@@ -146,7 +146,7 @@ extern "C" {
 #define GUIDE_SPEED_GUIDE_ADJUST_TEXT                   "调节吸乳速度"
 #define GUIDE_LEVEL_SIDE_GUIDE_PRESS_TEXT               "按下"
 #define GUIDE_LEVEL_SIDE_GUIDE_OR_TEXT                  "或"
-#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_TEXT              "分开调节左/右侧档\n位"
+#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_TEXT              "分开调节左/右吸力"
 #define GUIDE_LEVEL_BOTH_GUIDE_PRESS_TEXT               "同时按下"
 #define GUIDE_LEVEL_BOTH_GUIDE_AND_TEXT                 "和"
 #define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_TEXT              "一起调节两侧吸力"

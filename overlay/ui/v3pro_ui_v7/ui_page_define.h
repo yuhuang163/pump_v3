@@ -48,6 +48,7 @@ extern "C" {
 #include "pump_pause_timeout_ui.h" // IWYU pragma: keepin
 #include "pump_will_finish_ui.h" // IWYU pragma: keepin
 #include "pump_seal_leak_ui.h" // IWYU pragma: keepin
+#include "pump_fit_not_detected_ui.h" // IWYU pragma: keepin
 #include "system_abnormal_ui.h" // IWYU pragma: keepin
 #include "ui_popup_window.h" // IWYU pragma: keep
 #include "ui_img_resource.h" // IWYU pragma: keep

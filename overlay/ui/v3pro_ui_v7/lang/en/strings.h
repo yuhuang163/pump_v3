@@ -166,17 +166,19 @@ extern "C" {
 /*******************************************************************************
  * Seal leak (Pro)
  ******************************************************************************/
-#define PUMP_SEAL_LEAK_FIRST_TITLE \
-    "Air Seal Needs\nAttention"
-#define PUMP_SEAL_LEAK_PAUSE_HINT_TEXT \
-    "Press to resume\nPress and hold to end pumping"
+#define PUMP_SEAL_LEAK_TITLE_AIR_SEAL                    "Check Air Seal"
 #define PUMP_SEAL_LEAK_TITLE_FIT                        "Check Fit"
 #define PUMP_SEAL_LEAK_TITLE_CUP                        "Check Cup"
+#define PUMP_SEAL_LEAK_TITLE_COMPLETE                    "Self-Check\nComplete"
 #define PUMP_SEAL_LEAK_DESC_TUBING                      "Reinsert tubing firmly"
 #define PUMP_SEAL_LEAK_DESC_FLANGE \
     "Center the nipple\nSeal flange firmly"
 #define PUMP_SEAL_LEAK_DESC_CUP \
     "Snap rim shut\nSeat duckbill valve"
+#define PUMP_SEAL_LEAK_DESC_COMPLETE                     "Press to resume"
+#define PUMP_FIT_NOT_DETECTED_TITLE                      "Fit Not Detected"
+#define PUMP_FIT_NOT_DETECTED_DESC \
+    "Check cup placement\nPress to resume"
 
 /*******************************************************************************
  * Product tests

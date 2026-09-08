@@ -160,7 +160,8 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
         pump_popup_ui_type_update(proc, ID_POPUP_UI_NONE);
         LOG_UI("pump start: %d, page index: %d", pump_status, proc->ui_mode_page_index);
         /* 首页/力度/速度调节页：start 不改 page_index，也不回退导航栈 */
-        if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
+        if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK ||
+            proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
             pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
         } else if (proc->current_ui_type != PUMP_UI_TYPE_HOME &&
             proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&

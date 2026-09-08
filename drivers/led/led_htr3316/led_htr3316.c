@@ -15,6 +15,8 @@
 */
 #define LED_TOTAL_SIZE                      (6)
 #define LED_THREAD_POLL_INTERVAL            (10)
+#define LED_BREATH_PERIOD_DEFAULT         (10)
+#define LED_BREATH_STEP_DEFAULT            (1)
 #define HTR3316_RETRY_COUNT                 (3)
 #define HTR3316_DEV_ADDR                    (0x5B)
 #define LED_ABNORMAL_MAX_COUNT              (20)
@@ -320,6 +322,86 @@ static void led_onoff_handle(uint8_t index)
     led_extension_level_set_no_retry(index, led_status[index].un.onoff.level);
 }
 
+static uint8_t led_breath_peak_get(uint8_t index, const led_breath_t *br)
+{
+    uint8_t peak = br->pluse_max;
+
+    if (peak == 0 || peak > led_status[index].level_max) {
+        peak = led_status[index].level_max;
+    }
+    if (peak > LED_LUX_MAX) {
+        peak = LED_LUX_MAX;
+    }
+    if (peak == 0) {
+        peak = 1;
+    }
+    return peak;
+}
+
+static void led_breath_finish(uint8_t index)
+{
+    led_breath_finish_cb cb = led_status[index].un.breath.cb;
+
+    led_status[index].mode = LED_MODE_ONOFF;
+    led_status[index].un.onoff.status = LED_STATUS_OFF;
+    led_status[index].un.onoff.level = 0;
+    led_extension_level_set(index, 0);
+    if (cb) {
+        cb();
+    }
+}
+
+static void led_breath_handle(uint8_t index)
+{
+    led_breath_t *br = &led_status[index].un.breath;
+    uint8_t peak;
+    uint16_t step;
+    uint16_t period;
+    uint8_t next_level;
+
+    if (br->continue_time != 0 &&
+        get_blink_tick_elapsed_ms(br->start_time) >= br->continue_time) {
+        led_breath_finish(index);
+        return;
+    }
+
+    period = br->period ? br->period : LED_BREATH_PERIOD_DEFAULT;
+    if (get_blink_tick_elapsed_ms(br->step_time) < period) {
+        return;
+    }
+    br->step_time = get_blink_tick();
+
+    peak = led_breath_peak_get(index, br);
+    step = br->step ? br->step : LED_BREATH_STEP_DEFAULT;
+    if (br->direction != 2) {
+        br->direction = 1;
+    }
+
+    if (br->current_level > peak) {
+        br->current_level = peak;
+    }
+
+    if (br->direction == 1) {
+        next_level = (uint8_t)(br->current_level + step);
+        if (next_level >= peak || next_level < br->current_level) {
+            next_level = peak;
+            br->direction = 2;
+        }
+    } else {
+        if (br->current_level <= step) {
+            next_level = 0;
+            br->direction = 1;
+        } else {
+            next_level = (uint8_t)(br->current_level - step);
+        }
+    }
+
+    if (next_level != br->current_level) {
+        br->current_level = next_level;
+        led_extension_level_set_no_retry(index, br->current_level);
+    }
+}
+
 static void led_thread_timer_handle(void *arg)
 {
     uint8_t msg = 0;
@@ -348,6 +430,9 @@ static void led_device_thread(void *arg)
                     break;
                 case LED_MODE_LEVEL:
                     led_level_handle(i);
+                    break;
+                case LED_MODE_BREATH:
+                    led_breath_handle(i);
                     break;
                 default:
                     break;
@@ -426,6 +511,50 @@ static void led_blink_set(uint8_t index, led_blink_t blink)
     }
     MUTEX_UNLOCK(s_led_mutex_id);
     BSP_LOG("led blink", "index: %d, level: %d", index, led_status[index].un.blink.level);
+}
+
+static void led_breath_config_one(uint8_t index, const led_breath_t *src)
+{
+    led_breath_t *br = &led_status[index].un.breath;
+    uint8_t peak;
+
+    memcpy(br, src, sizeof(led_breath_t));
+    if (br->period == 0) {
+        br->period = LED_BREATH_PERIOD_DEFAULT;
+    }
+    if (br->step == 0) {
+        br->step = LED_BREATH_STEP_DEFAULT;
+    }
+    if (br->direction != 2) {
+        br->direction = 1;
+    }
+    peak = led_breath_peak_get(index, br);
+    if (br->polarity) {
+        br->current_level = peak;
+        br->direction = 2;
+    } else {
+        br->current_level = 0;
+        br->direction = 1;
+    }
+    br->start_time = get_blink_tick();
+    br->step_time = br->start_time;
+    led_status[index].mode = LED_MODE_BREATH;
+    led_extension_level_set(index, br->current_level);
+}
+
+static void led_breath_set(uint8_t index, led_breath_t breath)
+{
+    MUTEX_LOCK(s_led_mutex_id);
+    if (index == PUMP_LED_ALL_ID) {
+        for (uint8_t i = 0; i < LED_TOTAL_SIZE; i++) {
+            led_breath_config_one(i, &breath);
+        }
+    } else {
+        led_breath_config_one(index, &breath);
+    }
+    MUTEX_UNLOCK(s_led_mutex_id);
+    BSP_LOG("led breath", "index: %d, period: %d, continue: %d",
+            index, breath.period, (int)breath.continue_time);
 }
 
 static void led_htr3316_chip_id_get(uint8_t *chip_id)
@@ -617,8 +746,8 @@ int bsp_led_status_set(led_status_msg_t *msg)
             break;
 
         case LED_MODE_BREATH:
-            LOGE("LED breathing is not supported");
-        break;
+            led_breath_set(msg->led_index, msg->led_status.un.breath);
+            break;
     }
 
     return BSP_OK;

@@ -6,10 +6,11 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h"   // IWYU pragma: keep
 #include "ui_snapshot.h" // IWYU pragma: keep
+#include "ui_img_resource.h" // IWYU pragma: keep
+#include "ui_img_baj_decode.h" // IWYU pragma: keep
 #include "ui_shine_component.h" // IWYU pragma: keep
 #include "pump_seal_leak_ui.h" // IWYU pragma: keep
 #include "window_screen_pump.h" // IWYU pragma: keep
-#include "storage_manager_api.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -19,38 +20,42 @@
 #define PUMP_SEAL_LEAK_SCALE_FULL                       (256)
 #define PUMP_SEAL_LEAK_PROGRESS_FULL                    (256)
 #define PUMP_SEAL_LEAK_PAGE_INDEX_INVALID               (0xFF)
-#define PUMP_SEAL_LEAK_CUSTOM_NAME_LEN                  (24)
+#define PUMP_SEAL_LEAK_ANIM_FRAME_INVALID               (0xFFFF)
+#define PUMP_SEAL_LEAK_ANIM_ALIGN_MID                   (INT16_MIN)
 
-/** Check 页背景：参考图为黑底；标题为白色，不能用 0xFFFFFF 作底 */
+#ifndef IS_SUPPORT_PUMP_SEAL_LEAK_COMPLETE_ANIM_PREDECODE
+#define IS_SUPPORT_PUMP_SEAL_LEAK_COMPLETE_ANIM_PREDECODE (1)
+#endif
+
+#define PUMP_SEAL_LEAK_COMPLETE_TIP_H                   (28)
+#define PUMP_SEAL_LEAK_COMPLETE_TIP_Y \
+    (PANLE_DISPLAY_H - PUMP_SEAL_LEAK_COMPLETE_TIP_H - 8)
+#define PUMP_SEAL_LEAK_COMPLETE_TIP_BASE_OPA            (LV_OPA_70)
+
 #define PUMP_SEAL_LEAK_CHECK_BG_COLOR                   (0x000000)
 #define PUMP_SEAL_LEAK_TITLE_COLOR                      (0xFFFFFF)
 #define PUMP_SEAL_LEAK_DESC_COLOR                       (0x999999)
-#define PUMP_SEAL_LEAK_ICON_Y                           (86)
-/** 第一页（Air Seal Needs Attention）独立布局 */
-#define PUMP_SEAL_LEAK_FIRST_ICON_Y                     (104)
 
-#define PUMP_SEAL_LEAK_PAUSE_WAVE_Y                     (136)
-#define PUMP_SEAL_LEAK_PAUSE_ICON_Y                     (136)
-#define PUMP_SEAL_LEAK_PAUSE_WAVE_OPA                   (LV_OPA_60)
-#define PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_STIMULATION     (0xAD7C89)
-#define PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_LACTATION       (0xB9D9FF)
-#define PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_PROGRAM         (0xB195DF)
-#define PUMP_SEAL_LEAK_PAUSE_HINT_SHINE_W               (140)
+#define PUMP_SEAL_LEAK_FIRST_ICON_Y                     (120)
+#define PUMP_SEAL_LEAK_DIR_LEFT_X                       (122)
+#define PUMP_SEAL_LEAK_DIR_RIGHT_X                      (186)
 
-/** 力度/速度：X/宽/间距/对齐与 home 一致，整体相对 home 下移 21 */
-#define PUMP_SEAL_LEAK_PAUSE_LEVEL_OFFSET_Y             (21)
-#define PUMP_SEAL_LEAK_PAUSE_SPEED_GROUP_WIDTH          (47)
-#define PUMP_SEAL_LEAK_PAUSE_SPEED_ICON_Y               (265 + 4 + PUMP_SEAL_LEAK_PAUSE_LEVEL_OFFSET_Y)
-#define PUMP_SEAL_LEAK_PAUSE_SPEED_VALUE_Y              (267 + 4 + PUMP_SEAL_LEAK_PAUSE_LEVEL_OFFSET_Y)
-#define PUMP_SEAL_LEAK_PAUSE_SPEED_ICON_VALUE_GAP       (6)
-#define PUMP_SEAL_LEAK_PAUSE_LEFT_LEVEL_X               (68 + 4)
-#define PUMP_SEAL_LEAK_PAUSE_LEFT_LEVEL_Y               (267 + 4 + PUMP_SEAL_LEAK_PAUSE_LEVEL_OFFSET_Y)
-#define PUMP_SEAL_LEAK_PAUSE_LEFT_LEVEL_W               (58)
-#define PUMP_SEAL_LEAK_PAUSE_RIGHT_LEVEL_X              (227 + 4)
-#define PUMP_SEAL_LEAK_PAUSE_RIGHT_LEVEL_Y              (PUMP_SEAL_LEAK_PAUSE_LEFT_LEVEL_Y)
-#define PUMP_SEAL_LEAK_PAUSE_RIGHT_LEVEL_W              (58)
-#define PUMP_SEAL_LEAK_PAUSE_LEVEL_COLOR                (0xFFFFFF)
-#define PUMP_SEAL_LEAK_PAUSE_SPEED_COLOR                (0xFFFFFF)
+#define PUMP_SEAL_LEAK_CUP_ANIM_X                       (67 + 23)
+#define PUMP_SEAL_LEAK_CUP_ANIM_Y                       (87)
+#define PUMP_SEAL_LEAK_TUBING_LEFT_ANIM_X               (200)
+#define PUMP_SEAL_LEAK_TUBING_LEFT_ANIM_Y               (263)
+#define PUMP_SEAL_LEAK_TUBING_RIGHT_ANIM_X              (219)
+#define PUMP_SEAL_LEAK_TUBING_RIGHT_ANIM_Y              (260)
+#define PUMP_SEAL_LEAK_TUBING_BOTH_ANIM_X               (199)
+#define PUMP_SEAL_LEAK_TUBING_BOTH_ANIM_Y               (259)
+#define PUMP_SEAL_LEAK_FIT_ANIM_X                       (54)
+#define PUMP_SEAL_LEAK_FIT_ANIM_Y                       (64)
+#define PUMP_SEAL_LEAK_COMPLETE_ANIM_X                  (68)
+#define PUMP_SEAL_LEAK_COMPLETE_ANIM_Y                  (108)
+
+#define PUMP_SEAL_LEAK_ANIM_REST_MS_CUP_FIT            (2000)
+#define PUMP_SEAL_LEAK_ANIM_REST_MS_COMPLETE             (1000)
+#define PUMP_SEAL_LEAK_ANIM_FRAME_INTERVAL_MS           (1000 / PUMP_ANIMATION_FREQ)
 
 #define PUMP_SEAL_LEAK_DOT_DIAMETER                     (11)
 #define PUMP_SEAL_LEAK_DOT_COLOR_ACTIVE                 (0xFFFFFF)
@@ -65,24 +70,27 @@
 #endif
 
 typedef struct {
-    lv_obj_t *bg;
     lv_obj_t *title;
     lv_obj_t *icon;
     lv_obj_t *desc;
-    lv_obj_t *wave;
-    lv_obj_t *play_icon;
-    lv_obj_t *hint_text;
-    ui_shine_info_t hint_shine;
-    lv_obj_t *speed_icon;
-    lv_obj_t *speed_value;
-    lv_obj_t *left_level;
-    lv_obj_t *right_level;
+    lv_obj_t *anim;
+    lv_obj_t *tip_img;
+    lv_obj_t *dir_icon[AIR_PRESSURE_NUM];
     lv_draw_buf_t *icon_buf;
-    lv_draw_buf_t *wave_buf;
+    lv_draw_buf_t *dir_buf[AIR_PRESSURE_NUM];
+    lv_draw_buf_t *anim_buf;
+    lv_draw_buf_t *tip_buf;
+    ui_shine_info_t tip_shine;
+    res_img_info_t anim_info;
+    lv_fs_path_ex_t anim_path;
     uint8_t page_index;
-    uint16_t shown_bg_id;
-    uint16_t shown_icon_id;
-    uint16_t shown_wave_id;
+    uint8_t anim_resting;
+    uint16_t anim_start;
+    uint16_t anim_end;
+    uint16_t frame_id;
+    uint16_t shown_frame_id;
+    uint32_t last_frame_tick_ms;
+    uint32_t anim_rest_start_ms;
 } pump_seal_leak_page_ctx_t;
 
 typedef struct {
@@ -99,13 +107,7 @@ typedef struct {
     uint32_t start_ms;
     uint8_t selected_dot;
     uint8_t force_update;
-    uint8_t pump_mode;
-    uint8_t mode_type;
-    uint8_t left_level;
-    uint8_t right_level;
-    uint8_t speed;
-    char custom_id_str[PUMP_SEAL_LEAK_CUSTOM_NAME_LEN];
-    storage_manager_context_t *st;
+    uint8_t leak_channel[AIR_PRESSURE_NUM];
     ui_manager_context_t *ui;
 #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     lv_obj_t *wear_result_text;
@@ -132,126 +134,132 @@ static const lv_point_t s_leak_dot_pos[PUMP_SEAL_LEAK_DOT_COUNT] = {
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
-static bool pump_seal_leak_is_check_page(uint8_t page_index)
-{
-    return page_index == PUMP_SEAL_LEAK_PAGE_CHECK_FIT ||
-           page_index == PUMP_SEAL_LEAK_PAGE_CHECK_TUBING ||
-           page_index == PUMP_SEAL_LEAK_PAGE_CHECK_CUP;
-}
-
-static uint16_t pump_seal_leak_check_icon_id_get(uint8_t page_index)
+static const char *pump_seal_leak_title_get(uint8_t page_index)
 {
     switch (page_index) {
-        case PUMP_SEAL_LEAK_PAGE_CHECK_FIT:
-            return BASE_RES_ID_CHECK_TUBING_ICON;
         case PUMP_SEAL_LEAK_PAGE_CHECK_TUBING:
-            return BASE_RES_ID_CHECK_FIT_ICON;
-        case PUMP_SEAL_LEAK_PAGE_CHECK_CUP:
-            return BASE_RES_ID_CHECK_CUP_ICON;
-        default:
-            return BASE_RES_ID_NONE;
-    }
-}
-
-static const char *pump_seal_leak_check_title_get(uint8_t page_index)
-{
-    switch (page_index) {
-        case PUMP_SEAL_LEAK_PAGE_CHECK_FIT:
-            return PUMP_SEAL_LEAK_FIRST_TITLE;
-        case PUMP_SEAL_LEAK_PAGE_CHECK_TUBING:
-            return PUMP_SEAL_LEAK_TITLE_FIT;
+            return PUMP_SEAL_LEAK_TITLE_AIR_SEAL;
         case PUMP_SEAL_LEAK_PAGE_CHECK_CUP:
             return PUMP_SEAL_LEAK_TITLE_CUP;
+        case PUMP_SEAL_LEAK_PAGE_CHECK_FIT:
+            return PUMP_SEAL_LEAK_TITLE_FIT;
+        case PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE:
+            return PUMP_SEAL_LEAK_TITLE_COMPLETE;
         default:
             return "";
     }
 }
 
-static const char *pump_seal_leak_check_desc_get(uint8_t page_index)
+static const char *pump_seal_leak_desc_get(uint8_t page_index)
 {
     switch (page_index) {
-        case PUMP_SEAL_LEAK_PAGE_CHECK_FIT:
-            return PUMP_SEAL_LEAK_DESC_TUBING;
         case PUMP_SEAL_LEAK_PAGE_CHECK_TUBING:
-            return PUMP_SEAL_LEAK_DESC_FLANGE;
+            return PUMP_SEAL_LEAK_DESC_TUBING;
         case PUMP_SEAL_LEAK_PAGE_CHECK_CUP:
             return PUMP_SEAL_LEAK_DESC_CUP;
+        case PUMP_SEAL_LEAK_PAGE_CHECK_FIT:
+            return PUMP_SEAL_LEAK_DESC_FLANGE;
+        case PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE:
+            return PUMP_SEAL_LEAK_DESC_COMPLETE;
         default:
             return "";
     }
 }
 
-static uint16_t pump_seal_leak_pause_bg_id_get(uint8_t mode)
+static lv_coord_t pump_seal_leak_title_y_get(uint8_t page_index)
 {
-    switch (mode) {
-        case BREAST_PUMP_STIMULATION_MODE:
-            return BASE_RES_ID_SIMULATION_MODE_BG;
-        case BREAST_PUMP_LACTATION_MODE:
-            return BASE_RES_ID_EXPRESSION_MODE_BG;
-        case BREAST_PUMP_MILK_BOOST_MODE:
-        case BREAST_PUMP_PP_MILK_TRACK_MODE:
-        case BREAST_PUMP_CUSTOM_MODE:
-            return BASE_RES_ID_PROGRAM_MODE_BG;
+    return (page_index == PUMP_SEAL_LEAK_PAGE_CHECK_TUBING) ?
+        PUMP_SEAL_LEAK_FIRST_TITLE_Y : PUMP_SEAL_LEAK_TITLE_Y;
+}
+
+static lv_coord_t pump_seal_leak_desc_y_get(uint8_t page_index)
+{
+    switch (page_index) {
+        case PUMP_SEAL_LEAK_PAGE_CHECK_TUBING:
+            return PUMP_SEAL_LEAK_FIRST_DESC_Y;
+        case PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE:
+            return PUMP_SEAL_LEAK_COMPLETE_DESC_Y;
         default:
-            return BASE_RES_ID_SIMULATION_MODE_BG;
+            return PUMP_SEAL_LEAK_DESC_Y;
     }
 }
 
-static uint32_t pump_seal_leak_pause_hint_color_get(uint8_t mode)
+static int32_t pump_seal_leak_desc_line_space_get(uint8_t page_index)
 {
-    switch (mode) {
-        case BREAST_PUMP_STIMULATION_MODE:
-            return PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_STIMULATION;
-        case BREAST_PUMP_LACTATION_MODE:
-            return PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_LACTATION;
-        case BREAST_PUMP_MILK_BOOST_MODE:
-        case BREAST_PUMP_PP_MILK_TRACK_MODE:
-        case BREAST_PUMP_CUSTOM_MODE:
-            return PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_PROGRAM;
+    if (page_index == PUMP_SEAL_LEAK_PAGE_CHECK_CUP ||
+        page_index == PUMP_SEAL_LEAK_PAGE_CHECK_FIT) {
+        return PUMP_SEAL_LEAK_DESC_LINE_SPACE;
+    }
+    return 0;
+}
+
+static int32_t pump_seal_leak_title_line_space_get(uint8_t page_index)
+{
+    if (page_index == PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE) {
+        return PUMP_SEAL_LEAK_COMPLETE_TITLE_LINE_SPACE;
+    }
+    return 0;
+}
+
+static uint32_t pump_seal_leak_anim_rest_ms_get(uint8_t page_index)
+{
+    switch (page_index) {
+        case PUMP_SEAL_LEAK_PAGE_CHECK_CUP:
+        case PUMP_SEAL_LEAK_PAGE_CHECK_FIT:
+            return PUMP_SEAL_LEAK_ANIM_REST_MS_CUP_FIT;
+        case PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE:
+            return PUMP_SEAL_LEAK_ANIM_REST_MS_COMPLETE;
         default:
-            return PUMP_SEAL_LEAK_PAUSE_HINT_COLOR_STIMULATION;
+            return 0;
     }
 }
 
-static void pump_seal_leak_pause_title_get(pump_seal_leak_ui_info_t *info, char *buf, size_t buf_len)
+static bool pump_seal_leak_anim_cfg_get(const pump_seal_leak_ui_info_t *info,
+    uint8_t page_index, uint16_t *start_id, uint16_t *end_id, lv_coord_t *x, lv_coord_t *y)
 {
-    switch (info->pump_mode) {
-        case BREAST_PUMP_STIMULATION_MODE:
-            snprintf(buf, buf_len, "%s", UI_STR_MODE_STIMULATION);
-            break;
-        case BREAST_PUMP_LACTATION_MODE:
-            snprintf(buf, buf_len, "%s", UI_STR_MODE_EXPRESSION);
-            break;
-        case BREAST_PUMP_MILK_BOOST_MODE:
-            snprintf(buf, buf_len, "%s", UI_STR_MODE_MILK_BOOST);
-            break;
-        case BREAST_PUMP_PP_MILK_TRACK_MODE:
-            snprintf(buf, buf_len, "%s", UI_STR_MODE_POWER_PUMPING);
-            break;
-        case BREAST_PUMP_CUSTOM_MODE:
-            snprintf(buf, buf_len, "%s", info->custom_id_str);
-            break;
-        default:
-            snprintf(buf, buf_len, "");
-            break;
-    }
-}
+    switch (page_index) {
+        case PUMP_SEAL_LEAK_PAGE_CHECK_TUBING: {
+            uint8_t left_leak = (info != NULL) ? info->leak_channel[0] : 1;
+            uint8_t right_leak = (info != NULL) ? info->leak_channel[1] : 1;
 
-static uint16_t pump_seal_leak_wave_frame_id_get(uint8_t mode, uint8_t mode_type)
-{
-    switch (mode_type) {
-        case PUMP_MODE_STIMULATION:
-            return PUMP_IS_COMMON_MODE(mode) ?
-                BASE_RES_ID_STIMULATION_ANIM_START : BASE_RES_ID_PROGRAM_STIMULATION_ANIM_START;
-        case PUMP_MODE_LACTATION:
-            return PUMP_IS_COMMON_MODE(mode) ?
-                BASE_RES_ID_EXPRESSION_ANIM_START : BASE_RES_ID_PROGRAM_EXPRESSION_ANIM_START;
-        case PUMP_MODE_MIX:
-            return BASE_RES_ID_STIMULATION_ANIM_START;
-        case PUMP_MODE_IDLE:
-            return BASE_RES_ID_PROGRAM_RELAX_ANIM_START;
+            if (left_leak && !right_leak) {
+                *start_id = BASE_RES_ID_CHECK_TUBING_LEFT_ANIM_START;
+                *end_id = BASE_RES_ID_CHECK_TUBING_LEFT_ANIM_END;
+                *x = PUMP_SEAL_LEAK_TUBING_LEFT_ANIM_X;
+                *y = PUMP_SEAL_LEAK_TUBING_LEFT_ANIM_Y;
+            } else if (!left_leak && right_leak) {
+                *start_id = BASE_RES_ID_CHECK_TUBING_RIGHT_ANIM_START;
+                *end_id = BASE_RES_ID_CHECK_TUBING_RIGHT_ANIM_END;
+                *x = PUMP_SEAL_LEAK_TUBING_RIGHT_ANIM_X;
+                *y = PUMP_SEAL_LEAK_TUBING_RIGHT_ANIM_Y;
+            } else {
+                *start_id = BASE_RES_ID_CHECK_TUBING_BOTH_ANIM_START;
+                *end_id = BASE_RES_ID_CHECK_TUBING_BOTH_ANIM_END;
+                *x = PUMP_SEAL_LEAK_TUBING_BOTH_ANIM_X;
+                *y = PUMP_SEAL_LEAK_TUBING_BOTH_ANIM_Y;
+            }
+            return true;
+        }
+        case PUMP_SEAL_LEAK_PAGE_CHECK_CUP:
+            *start_id = BASE_RES_ID_CHECK_CUP_ANIM_START;
+            *end_id = BASE_RES_ID_CHECK_CUP_ANIM_END;
+            *x = PUMP_SEAL_LEAK_CUP_ANIM_X;
+            *y = PUMP_SEAL_LEAK_CUP_ANIM_Y;
+            return true;
+        case PUMP_SEAL_LEAK_PAGE_CHECK_FIT:
+            *start_id = BASE_RES_ID_CHECK_FIT_ANIM_START;
+            *end_id = BASE_RES_ID_CHECK_FIT_ANIM_END;
+            *x = PUMP_SEAL_LEAK_FIT_ANIM_X;
+            *y = PUMP_SEAL_LEAK_FIT_ANIM_Y;
+            return true;
+        case PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE:
+            *start_id = BASE_RES_ID_CHECK_COMPLETE_ANIM_START;
+            *end_id = BASE_RES_ID_CHECK_COMPLETE_ANIM_END;
+            *x = PUMP_SEAL_LEAK_COMPLETE_ANIM_X;
+            *y = PUMP_SEAL_LEAK_COMPLETE_ANIM_Y;
+            return true;
         default:
-            return BASE_RES_ID_STIMULATION_ANIM_START;
+            return false;
     }
 }
 
@@ -286,6 +294,60 @@ static lv_obj_t *pump_seal_leak_label_create(lv_obj_t *parent, const lv_font_t *
     return label;
 }
 
+static lv_draw_buf_t *pump_seal_leak_png_bind(ui_manager_context_t *ui, lv_obj_t *obj,
+    uint16_t res_id)
+{
+    lv_draw_buf_t *buf = ui_img_png_theme_decode_draw_buf(ui, res_id, RES_THEME_TYPE_BASE,
+        UI_IMG_PNG_DECODE_RGBA8888);
+
+    if (buf != NULL) {
+        lv_image_set_src(obj, buf);
+        return buf;
+    }
+    ui_img_png_theme_set_src(ui, obj, res_id, RES_THEME_TYPE_BASE, UI_IMG_PNG_DECODE_RGBA8888);
+    return NULL;
+}
+
+static void pump_seal_leak_png_unbind(lv_obj_t *obj, lv_draw_buf_t **buf)
+{
+    if (buf != NULL && *buf != NULL) {
+        if (obj != NULL && lv_obj_is_valid(obj)) {
+            lv_image_set_src(obj, NULL);
+        }
+        lv_draw_buf_destroy(*buf);
+        *buf = NULL;
+        return;
+    }
+    ui_img_png_release_decoded_buf(obj);
+}
+
+static lv_draw_buf_t *pump_seal_leak_baj_bind(ui_manager_context_t *ui, lv_obj_t *obj,
+    uint16_t res_id)
+{
+    lv_draw_buf_t *buf = ui_img_baj_theme_decode_draw_buf(ui, res_id, RES_THEME_TYPE_BASE,
+        UI_IMG_BAJ_DECODE_RGBA8888);
+
+    if (buf != NULL) {
+        lv_image_set_src(obj, buf);
+        return buf;
+    }
+    ui_img_baj_theme_set_src(ui, obj, res_id, RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    return NULL;
+}
+
+static void pump_seal_leak_baj_unbind(lv_obj_t *obj, lv_draw_buf_t **buf)
+{
+    if (buf != NULL && *buf != NULL) {
+        if (obj != NULL && lv_obj_is_valid(obj)) {
+            lv_image_set_src(obj, NULL);
+        }
+        lv_draw_buf_destroy(*buf);
+        *buf = NULL;
+        return;
+    }
+    ui_img_baj_release_decoded_buf(obj);
+}
+
 static pump_seal_leak_page_ctx_t *pump_seal_leak_page_ctx_get(lv_obj_t *page)
 {
     if (page == NULL || !lv_obj_is_valid(page)) {
@@ -294,50 +356,47 @@ static pump_seal_leak_page_ctx_t *pump_seal_leak_page_ctx_get(lv_obj_t *page)
     return (pump_seal_leak_page_ctx_t *)lv_obj_get_user_data(page);
 }
 
-static void pump_seal_leak_page_ctx_release(pump_seal_leak_page_ctx_t *ctx)
+static void pump_seal_leak_anim_deinit(pump_seal_leak_ui_info_t *info, pump_seal_leak_page_ctx_t *ctx)
 {
     if (ctx == NULL) {
         return;
     }
-    ui_shine_remove(&ctx->hint_shine);
-    if (ctx->bg != NULL && lv_obj_is_valid(ctx->bg)) {
-        const void *src = lv_image_get_src(ctx->bg);
+#if IS_SUPPORT_PUMP_SEAL_LEAK_COMPLETE_ANIM_PREDECODE
+    if (ctx->page_index == PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE) {
+        pump_seal_leak_baj_unbind(ctx->anim, &ctx->anim_buf);
+        ctx->shown_frame_id = PUMP_SEAL_LEAK_ANIM_FRAME_INVALID;
+        return;
+    }
+#endif
+    if (ctx->anim_info.data != NULL && info != NULL && info->ui != NULL) {
+        ui_img_resource_deinit(info->ui, &ctx->anim_info);
+        memset(&ctx->anim_info, 0, sizeof(ctx->anim_info));
+    }
+    if (ctx->anim != NULL && lv_obj_is_valid(ctx->anim)) {
+        lv_image_set_src(ctx->anim, NULL);
+    }
+    ctx->shown_frame_id = PUMP_SEAL_LEAK_ANIM_FRAME_INVALID;
+}
 
-        if (src != NULL && get_predecoded_bg(ctx->shown_bg_id) == src) {
-            lv_image_set_src(ctx->bg, NULL);
-        } else {
-            ui_img_png_release_decoded_buf(ctx->bg);
-        }
+static void pump_seal_leak_page_ctx_release(pump_seal_leak_ui_info_t *info,
+    pump_seal_leak_page_ctx_t *ctx)
+{
+    uint8_t i;
+
+    if (ctx == NULL) {
+        return;
     }
-    if (ctx->shown_icon_id == BASE_RES_ID_CHECK_TUBING_ICON && ctx->icon_buf == NULL) {
-        ui_img_png_release_decoded_buf(ctx->icon);
-    } else if (ctx->icon != NULL && lv_obj_is_valid(ctx->icon)) {
-        lv_image_set_src(ctx->icon, NULL);
+    pump_seal_leak_anim_deinit(info, ctx);
+    ui_shine_remove(&ctx->tip_shine);
+    pump_seal_leak_png_unbind(ctx->tip_img, &ctx->tip_buf);
+    pump_seal_leak_png_unbind(ctx->icon, &ctx->icon_buf);
+    for (i = 0; i < AIR_PRESSURE_NUM; i++) {
+        pump_seal_leak_baj_unbind(ctx->dir_icon[i], &ctx->dir_buf[i]);
     }
-    if (ctx->play_icon != NULL && lv_obj_is_valid(ctx->play_icon)) {
-        lv_image_set_src(ctx->play_icon, NULL);
-    }
-    if (ctx->wave != NULL && lv_obj_is_valid(ctx->wave)) {
-        lv_image_set_src(ctx->wave, NULL);
-    }
-    if (ctx->icon_buf != NULL) {
-        lv_draw_buf_destroy(ctx->icon_buf);
-        ctx->icon_buf = NULL;
-    } else if (ctx->shown_icon_id != BASE_RES_ID_CHECK_TUBING_ICON) {
-        ui_img_baj_release_decoded_buf(ctx->icon);
-        ui_img_baj_release_decoded_buf(ctx->play_icon);
-    }
-    if (ctx->wave_buf != NULL) {
-        lv_draw_buf_destroy(ctx->wave_buf);
-        ctx->wave_buf = NULL;
-    } else {
-        ui_img_baj_release_decoded_buf(ctx->wave);
-    }
-    ui_img_baj_release_decoded_buf(ctx->speed_icon);
     u_free(ctx);
 }
 
-static void pump_seal_leak_page_content_remove(lv_obj_t *page)
+static void pump_seal_leak_page_content_remove(pump_seal_leak_ui_info_t *info, lv_obj_t *page)
 {
     pump_seal_leak_page_ctx_t *ctx = pump_seal_leak_page_ctx_get(page);
 
@@ -345,7 +404,7 @@ static void pump_seal_leak_page_content_remove(lv_obj_t *page)
         return;
     }
     lv_obj_set_user_data(page, NULL);
-    pump_seal_leak_page_ctx_release(ctx);
+    pump_seal_leak_page_ctx_release(info, ctx);
 }
 
 static lv_obj_t *pump_seal_leak_page_container_create(pump_seal_leak_ui_info_t *info)
@@ -370,194 +429,210 @@ static lv_obj_t *pump_seal_leak_page_container_create(pump_seal_leak_ui_info_t *
     return page;
 }
 
+static uint16_t pump_seal_leak_tubing_icon_id_get(const pump_seal_leak_ui_info_t *info)
+{
+    uint8_t left_leak = (info != NULL) ? info->leak_channel[0] : 1;
+    uint8_t right_leak = (info != NULL) ? info->leak_channel[1] : 1;
+
+    if (left_leak && !right_leak) {
+        return BASE_RES_ID_CHECK_TUBING_LEFT_ICON;
+    }
+    if (!left_leak && right_leak) {
+        return BASE_RES_ID_CHECK_TUBING_RIGHT_ICON;
+    }
+    return BASE_RES_ID_CHECK_TUBING_BOTH_ICON;
+}
+
+static void pump_seal_leak_first_dir_build(pump_seal_leak_ui_info_t *info,
+    lv_obj_t *page, pump_seal_leak_page_ctx_t *ctx)
+{
+    uint16_t left_id;
+    uint16_t right_id;
+
+    EXCEPTION_CHECK_VOID(info && page && ctx);
+    left_id = info->leak_channel[0] ? BASE_RES_ID_CHECK_SEAL_LEFT_ICON :
+        BASE_RES_ID_CHECK_SEAL_LEFT_UNSEL_ICON;
+    right_id = info->leak_channel[1] ? BASE_RES_ID_CHECK_SEAL_RIGHT_ICON :
+        BASE_RES_ID_CHECK_SEAL_RIGHT_UNSEL_ICON;
+
+    ctx->dir_icon[0] = lv_image_create(page);
+    EXCEPTION_CHECK_VOID(ctx->dir_icon[0]);
+    ctx->dir_buf[0] = pump_seal_leak_baj_bind(info->ui, ctx->dir_icon[0], left_id);
+    lv_obj_align(ctx->dir_icon[0], LV_ALIGN_TOP_LEFT, PUMP_SEAL_LEAK_DIR_LEFT_X,
+        PUMP_SEAL_LEAK_DIR_ICON_Y);
+
+    ctx->dir_icon[1] = lv_image_create(page);
+    EXCEPTION_CHECK_VOID(ctx->dir_icon[1]);
+    ctx->dir_buf[1] = pump_seal_leak_baj_bind(info->ui, ctx->dir_icon[1], right_id);
+    lv_obj_align(ctx->dir_icon[1], LV_ALIGN_TOP_LEFT, PUMP_SEAL_LEAK_DIR_RIGHT_X,
+        PUMP_SEAL_LEAK_DIR_ICON_Y);
+}
+
+static void pump_seal_leak_first_title_build(pump_seal_leak_ui_info_t *info,
+    lv_obj_t *page, pump_seal_leak_page_ctx_t *ctx)
+{
+    EXCEPTION_CHECK_VOID(info && page && ctx);
+    ctx->title = pump_seal_leak_label_create(page, UI_FONT_TITLE,
+        PUMP_SEAL_LEAK_TITLE_COLOR, PUMP_SEAL_LEAK_FIRST_TITLE_Y, 0);
+    EXCEPTION_CHECK_VOID(ctx->title);
+    lv_label_set_text(ctx->title, pump_seal_leak_title_get(ctx->page_index));
+}
+
+static void pump_seal_leak_anim_frame_show(pump_seal_leak_ui_info_t *info,
+    pump_seal_leak_page_ctx_t *ctx, uint16_t frame_id)
+{
+    EXCEPTION_CHECK_VOID(info && ctx && ctx->anim);
+    if (ctx->shown_frame_id == frame_id) {
+        return;
+    }
+#if IS_SUPPORT_PUMP_SEAL_LEAK_COMPLETE_ANIM_PREDECODE
+    if (ctx->page_index == PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE) {
+        pump_seal_leak_baj_unbind(ctx->anim, &ctx->anim_buf);
+        ctx->anim_buf = pump_seal_leak_baj_bind(info->ui, ctx->anim, frame_id);
+        ctx->shown_frame_id = frame_id;
+        return;
+    }
+#endif
+    if (ctx->anim_info.data != NULL) {
+        ui_img_resource_deinit(info->ui, &ctx->anim_info);
+        memset(&ctx->anim_info, 0, sizeof(ctx->anim_info));
+    }
+    ui_theme_img_resource_init(info->ui, frame_id, RES_THEME_TYPE_BASE, &ctx->anim_info);
+    EXCEPTION_CHECK_VOID(ctx->anim_info.data);
+    lv_fs_make_path_from_buffer(&ctx->anim_path, LV_FS_MEMFS_LETTER,
+        ctx->anim_info.data, ctx->anim_info.size, "baj");
+    lv_image_set_src(ctx->anim, (const void *)&ctx->anim_path);
+    ctx->shown_frame_id = frame_id;
+}
+
+static void pump_seal_leak_anim_build(pump_seal_leak_ui_info_t *info, lv_obj_t *page,
+    pump_seal_leak_page_ctx_t *ctx)
+{
+    uint16_t start_id = 0;
+    uint16_t end_id = 0;
+    lv_coord_t x = 0;
+    lv_coord_t y = 0;
+
+    EXCEPTION_CHECK_VOID(info && page && ctx);
+    if (!pump_seal_leak_anim_cfg_get(info, ctx->page_index, &start_id, &end_id, &x, &y)) {
+        return;
+    }
+    ctx->anim = lv_image_create(page);
+    EXCEPTION_CHECK_VOID(ctx->anim);
+    ctx->anim_start = start_id;
+    ctx->anim_end = end_id;
+    ctx->frame_id = start_id;
+    ctx->shown_frame_id = PUMP_SEAL_LEAK_ANIM_FRAME_INVALID;
+    ctx->anim_resting = 0;
+    ctx->last_frame_tick_ms = get_timestamp();
+    pump_seal_leak_anim_frame_show(info, ctx, ctx->frame_id);
+    if (x == PUMP_SEAL_LEAK_ANIM_ALIGN_MID) {
+        lv_obj_align(ctx->anim, LV_ALIGN_TOP_MID, 0, y);
+    } else {
+        lv_obj_align(ctx->anim, LV_ALIGN_TOP_LEFT, x, y);
+    }
+}
+
+static void pump_seal_leak_complete_tip_style_get(ui_shine_style_t *style)
+{
+    ui_shine_style_init(style);
+    style->mask_y = PUMP_SEAL_LEAK_COMPLETE_TIP_Y;
+    style->screen_w = PUMP_SEAL_LEAK_SCREEN_W;
+}
+
+static lv_draw_buf_t *pump_seal_leak_complete_tip_predecode(pump_seal_leak_page_ctx_t *ctx)
+{
+    const ui_img_data_t *tip;
+
+    if (ctx == NULL) {
+        return NULL;
+    }
+    if (ctx->tip_buf != NULL) {
+        return ctx->tip_buf;
+    }
+    tip = ui_font_img_pump_resume_tip_get();
+    if (tip == NULL || tip->data == NULL || tip->size == 0U) {
+        return NULL;
+    }
+    ctx->tip_buf = ui_img_png_decode_draw_buf(tip->data, tip->size,
+        UI_IMG_PNG_DECODE_RGBA8888);
+    return ctx->tip_buf;
+}
+
+static void pump_seal_leak_complete_tip_build(lv_obj_t *page, pump_seal_leak_page_ctx_t *ctx)
+{
+    lv_draw_buf_t *predecoded;
+    ui_shine_style_t style;
+
+    EXCEPTION_CHECK_VOID(page && ctx);
+    predecoded = pump_seal_leak_complete_tip_predecode(ctx);
+    ctx->tip_img = lv_image_create(page);
+    EXCEPTION_CHECK_VOID(ctx->tip_img);
+    lv_obj_clear_flag(ctx->tip_img, LV_OBJ_FLAG_CLICKABLE);
+    if (predecoded != NULL) {
+        lv_image_set_src(ctx->tip_img, predecoded);
+    }
+    lv_obj_set_style_image_opa(ctx->tip_img, PUMP_SEAL_LEAK_COMPLETE_TIP_BASE_OPA, 0);
+    lv_obj_align(ctx->tip_img, LV_ALIGN_TOP_MID, 0, PUMP_SEAL_LEAK_COMPLETE_TIP_Y);
+
+    pump_seal_leak_complete_tip_style_get(&style);
+    ui_shine_prepare_from_tip(&ctx->tip_shine, &style, predecoded);
+    ui_shine_update(&ctx->tip_shine, page, &style, ctx->tip_img, 1);
+    lv_obj_move_foreground(ctx->tip_img);
+    ui_shine_show(&ctx->tip_shine);
+}
+
+static void pump_seal_leak_complete_tip_tick(lv_obj_t *page)
+{
+    pump_seal_leak_page_ctx_t *ctx = pump_seal_leak_page_ctx_get(page);
+    ui_shine_style_t style;
+
+    if (ctx == NULL || ctx->tip_img == NULL || !lv_obj_is_valid(ctx->tip_img)) {
+        return;
+    }
+    pump_seal_leak_complete_tip_style_get(&style);
+    ui_shine_anim_update(&ctx->tip_shine, &style, ctx->tip_img, 0);
+}
+
 static void pump_seal_leak_check_page_build(pump_seal_leak_ui_info_t *info, lv_obj_t *page,
     uint8_t page_index)
 {
     pump_seal_leak_page_ctx_t *ctx = (pump_seal_leak_page_ctx_t *)lv_obj_get_user_data(page);
-    uint16_t icon_id = pump_seal_leak_check_icon_id_get(page_index);
-
-    bool is_first = (page_index == PUMP_SEAL_LEAK_PAGE_CHECK_FIT);
-    lv_coord_t title_y = PUMP_SEAL_LEAK_TITLE_Y;
-    lv_coord_t icon_y = is_first ? PUMP_SEAL_LEAK_FIRST_ICON_Y : PUMP_SEAL_LEAK_ICON_Y;
-    lv_coord_t desc_y = is_first ? PUMP_SEAL_LEAK_FIRST_DESC_Y : PUMP_SEAL_LEAK_DESC_Y;
-    int32_t title_line_space = is_first ? PUMP_SEAL_LEAK_TITLE_LINE_SPACE : 0;
 
     EXCEPTION_CHECK_VOID(ctx);
     lv_obj_set_style_bg_color(page, lv_color_hex(PUMP_SEAL_LEAK_CHECK_BG_COLOR), 0);
     lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
 
-    ctx->icon = lv_image_create(page);
-    EXCEPTION_CHECK_VOID(ctx->icon);
-    // if (icon_id == BASE_RES_ID_CHECK_TUBING_ICON) {
-    if (0) {
-        ctx->icon_buf = ui_img_png_theme_decode_draw_buf(info->ui, icon_id, RES_THEME_TYPE_BASE,
-            UI_IMG_PNG_DECODE_RGBA8888);
-        if (ctx->icon_buf != NULL) {
-            lv_image_set_src(ctx->icon, ctx->icon_buf);
-        } else {
-            ui_img_png_theme_set_src(info->ui, ctx->icon, icon_id, RES_THEME_TYPE_BASE,
-                UI_IMG_PNG_DECODE_RGBA8888);
-        }
+    if (page_index == PUMP_SEAL_LEAK_PAGE_CHECK_TUBING) {
+        ctx->icon = lv_image_create(page);
+        EXCEPTION_CHECK_VOID(ctx->icon);
+        ctx->icon_buf = pump_seal_leak_png_bind(info->ui, ctx->icon,
+            pump_seal_leak_tubing_icon_id_get(info));
+        lv_obj_align(ctx->icon, LV_ALIGN_TOP_MID, 0, PUMP_SEAL_LEAK_FIRST_ICON_Y);
+    }
+
+    pump_seal_leak_anim_build(info, page, ctx);
+
+    if (page_index == PUMP_SEAL_LEAK_PAGE_CHECK_COMPLETE) {
+        pump_seal_leak_complete_tip_build(page, ctx);
     } else {
-        ctx->icon_buf = ui_img_baj_theme_decode_draw_buf(info->ui, icon_id, RES_THEME_TYPE_BASE,
-            UI_IMG_BAJ_DECODE_RGBA8888);
-        if (ctx->icon_buf != NULL) {
-            lv_image_set_src(ctx->icon, ctx->icon_buf);
-        } else {
-            ui_img_baj_theme_set_src(info->ui, ctx->icon, icon_id, RES_THEME_TYPE_BASE,
-                UI_IMG_BAJ_DECODE_RGBA8888);
-        }
+        ctx->desc = pump_seal_leak_label_create(page, UI_FONT_HINT,
+            PUMP_SEAL_LEAK_DESC_COLOR, pump_seal_leak_desc_y_get(page_index),
+            pump_seal_leak_desc_line_space_get(page_index));
+        EXCEPTION_CHECK_VOID(ctx->desc);
+        lv_label_set_text(ctx->desc, pump_seal_leak_desc_get(page_index));
     }
-    lv_obj_align(ctx->icon, LV_ALIGN_TOP_MID, 0, icon_y);
-    ctx->shown_icon_id = icon_id;
 
-    ctx->title = pump_seal_leak_label_create(page, UI_FONT_TITLE,
-        PUMP_SEAL_LEAK_TITLE_COLOR, title_y, title_line_space);
-    EXCEPTION_CHECK_VOID(ctx->title);
-    lv_label_set_text(ctx->title, pump_seal_leak_check_title_get(page_index));
-
-    ctx->desc = pump_seal_leak_label_create(page, UI_FONT_HINT,
-        PUMP_SEAL_LEAK_DESC_COLOR, desc_y, PUMP_SEAL_LEAK_DESC_LINE_SPACE);
-    EXCEPTION_CHECK_VOID(ctx->desc);
-    lv_label_set_text(ctx->desc, pump_seal_leak_check_desc_get(page_index));
-}
-
-static void pump_seal_leak_pause_hint_style_get(ui_shine_style_t *style)
-{
-    ui_shine_style_init(style);
-    style->mask_w = PUMP_SEAL_LEAK_PAUSE_HINT_SHINE_W;
-    style->mask_y = PUMP_SEAL_LEAK_PAUSE_HINT_Y;
-    style->screen_w = PUMP_SEAL_LEAK_SCREEN_W;
-}
-
-static void pump_seal_leak_pause_page_build(pump_seal_leak_ui_info_t *info, lv_obj_t *page)
-{
-    pump_seal_leak_page_ctx_t *ctx = (pump_seal_leak_page_ctx_t *)lv_obj_get_user_data(page);
-    char title[PUMP_SEAL_LEAK_CUSTOM_NAME_LEN] = {0};
-    uint16_t bg_id = pump_seal_leak_pause_bg_id_get(info->pump_mode);
-    uint16_t wave_id = pump_seal_leak_wave_frame_id_get(info->pump_mode, info->mode_type);
-    uint32_t hint_color = pump_seal_leak_pause_hint_color_get(info->pump_mode);
-    lv_draw_buf_t *predecoded_bg;
-    ui_shine_style_t style;
-    char speed_text[8] = {0};
-    char level_text[8] = {0};
-    lv_coord_t icon_w = 0;
-    lv_coord_t value_w = 0;
-    lv_coord_t total_w;
-    lv_coord_t start_x;
-
-    EXCEPTION_CHECK_VOID(ctx);
-    lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(page, lv_color_black(), 0);
-
-    ctx->bg = lv_image_create(page);
-    EXCEPTION_CHECK_VOID(ctx->bg);
-    lv_obj_move_background(ctx->bg);
-    predecoded_bg = get_predecoded_bg(bg_id);
-    if (predecoded_bg != NULL) {
-        lv_image_set_src(ctx->bg, predecoded_bg);
+    if (page_index == PUMP_SEAL_LEAK_PAGE_CHECK_TUBING) {
+        pump_seal_leak_first_dir_build(info, page, ctx);
+        pump_seal_leak_first_title_build(info, page, ctx);
     } else {
-        ui_img_png_theme_set_src(info->ui, ctx->bg, bg_id, RES_THEME_TYPE_BASE,
-            UI_IMG_PNG_DECODE_RGBA8888);
+        ctx->title = pump_seal_leak_label_create(page, UI_FONT_TITLE,
+            PUMP_SEAL_LEAK_TITLE_COLOR, pump_seal_leak_title_y_get(page_index),
+            pump_seal_leak_title_line_space_get(page_index));
+        EXCEPTION_CHECK_VOID(ctx->title);
+        lv_label_set_text(ctx->title, pump_seal_leak_title_get(page_index));
     }
-    lv_obj_align(ctx->bg, LV_ALIGN_CENTER, 0, 0);
-    ctx->shown_bg_id = bg_id;
-
-    pump_seal_leak_pause_title_get(info, title, sizeof(title));
-    ctx->title = pump_seal_leak_label_create(page, UI_FONT_TITLE,
-        PUMP_SEAL_LEAK_TITLE_COLOR, PUMP_SEAL_LEAK_PAUSE_TITLE_Y, 0);
-    EXCEPTION_CHECK_VOID(ctx->title);
-    lv_label_set_text(ctx->title, title);
-
-    ctx->wave = lv_image_create(page);
-    EXCEPTION_CHECK_VOID(ctx->wave);
-    ctx->wave_buf = ui_img_baj_theme_decode_draw_buf(info->ui, wave_id, RES_THEME_TYPE_BASE,
-        UI_IMG_BAJ_DECODE_RGBA8888);
-    if (ctx->wave_buf != NULL) {
-        lv_image_set_src(ctx->wave, ctx->wave_buf);
-    } else {
-        ui_img_baj_theme_set_src(info->ui, ctx->wave, wave_id, RES_THEME_TYPE_BASE,
-            UI_IMG_BAJ_DECODE_RGBA8888);
-    }
-    lv_obj_set_style_opa(ctx->wave, PUMP_SEAL_LEAK_PAUSE_WAVE_OPA, 0);
-    lv_obj_align(ctx->wave, LV_ALIGN_TOP_MID, 0, PUMP_SEAL_LEAK_PAUSE_WAVE_Y);
-    ctx->shown_wave_id = wave_id;
-
-    ctx->play_icon = lv_image_create(page);
-    EXCEPTION_CHECK_VOID(ctx->play_icon);
-    ctx->icon_buf = ui_img_baj_theme_decode_draw_buf(info->ui, BASE_RES_ID_PLAY_ICON,
-        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-    if (ctx->icon_buf != NULL) {
-        lv_image_set_src(ctx->play_icon, ctx->icon_buf);
-    } else {
-        ui_img_baj_theme_set_src(info->ui, ctx->play_icon, BASE_RES_ID_PLAY_ICON,
-            RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-    }
-    lv_obj_align(ctx->play_icon, LV_ALIGN_TOP_MID, 0, PUMP_SEAL_LEAK_PAUSE_ICON_Y);
-    ctx->shown_icon_id = BASE_RES_ID_PLAY_ICON;
-
-    ctx->hint_text = pump_seal_leak_label_create(page, UI_FONT_HINT,
-        hint_color, PUMP_SEAL_LEAK_PAUSE_HINT_Y, PUMP_SEAL_LEAK_PAUSE_HINT_LINE_SPACE);
-    EXCEPTION_CHECK_VOID(ctx->hint_text);
-    lv_label_set_text(ctx->hint_text, PUMP_SEAL_LEAK_PAUSE_HINT_TEXT);
-
-    pump_seal_leak_pause_hint_style_get(&style);
-    ctx->hint_shine.mask_x = (int16_t)(-(int16_t)style.mask_w);
-    ctx->hint_shine.mask_tick_ms = get_timestamp();
-    ui_shine_prepare_from_text(&ctx->hint_shine, &style, PUMP_SEAL_LEAK_PAUSE_HINT_TEXT,
-        UI_FONT_HINT, 0, PUMP_SEAL_LEAK_PAUSE_HINT_LINE_SPACE);
-    ui_shine_update(&ctx->hint_shine, page, &style, ctx->hint_text, 1);
-    ui_shine_show(&ctx->hint_shine);
-
-    ctx->speed_icon = lv_image_create(page);
-    EXCEPTION_CHECK_VOID(ctx->speed_icon);
-    ui_img_baj_theme_set_src(info->ui, ctx->speed_icon, BASE_RES_ID_SPEED_ICON,
-        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-    ctx->speed_value = lv_label_create(page);
-    EXCEPTION_CHECK_VOID(ctx->speed_value);
-    lv_obj_set_style_text_color(ctx->speed_value, lv_color_hex(PUMP_SEAL_LEAK_PAUSE_SPEED_COLOR), 0);
-    lv_obj_set_style_text_font(ctx->speed_value, UI_FONT_TITLE, 0);
-    snprintf(speed_text, sizeof(speed_text), "%u", (unsigned)(info->speed + 1));
-    lv_label_set_text(ctx->speed_value, speed_text);
-    lv_obj_update_layout(ctx->speed_icon);
-    lv_obj_update_layout(ctx->speed_value);
-    icon_w = lv_obj_get_width(ctx->speed_icon);
-    value_w = lv_obj_get_width(ctx->speed_value);
-    total_w = icon_w + PUMP_SEAL_LEAK_PAUSE_SPEED_ICON_VALUE_GAP + value_w;
-    if (total_w > PUMP_SEAL_LEAK_PAUSE_SPEED_GROUP_WIDTH) {
-        total_w = PUMP_SEAL_LEAK_PAUSE_SPEED_GROUP_WIDTH;
-    }
-    start_x = (PUMP_SEAL_LEAK_SCREEN_W - total_w) / 2;
-    lv_obj_align(ctx->speed_icon, LV_ALIGN_TOP_LEFT, start_x, PUMP_SEAL_LEAK_PAUSE_SPEED_ICON_Y);
-    lv_obj_align(ctx->speed_value, LV_ALIGN_TOP_LEFT,
-        start_x + icon_w + PUMP_SEAL_LEAK_PAUSE_SPEED_ICON_VALUE_GAP,
-        PUMP_SEAL_LEAK_PAUSE_SPEED_VALUE_Y);
-
-    ctx->left_level = lv_label_create(page);
-    EXCEPTION_CHECK_VOID(ctx->left_level);
-    lv_label_set_long_mode(ctx->left_level, LV_LABEL_LONG_CLIP);
-    lv_obj_set_width(ctx->left_level, PUMP_SEAL_LEAK_PAUSE_LEFT_LEVEL_W);
-    lv_obj_set_style_text_color(ctx->left_level, lv_color_hex(PUMP_SEAL_LEAK_PAUSE_LEVEL_COLOR), 0);
-    lv_obj_set_style_text_font(ctx->left_level, UI_FONT_TITLE, 0);
-    lv_obj_set_style_text_align(ctx->left_level, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_style_text_letter_space(ctx->left_level, 3, 0);
-    snprintf(level_text, sizeof(level_text), "L%u", (unsigned)info->left_level);
-    lv_label_set_text(ctx->left_level, level_text);
-    lv_obj_align(ctx->left_level, LV_ALIGN_TOP_LEFT, PUMP_SEAL_LEAK_PAUSE_LEFT_LEVEL_X,
-        PUMP_SEAL_LEAK_PAUSE_LEFT_LEVEL_Y);
-
-    ctx->right_level = lv_label_create(page);
-    EXCEPTION_CHECK_VOID(ctx->right_level);
-    lv_label_set_long_mode(ctx->right_level, LV_LABEL_LONG_CLIP);
-    lv_obj_set_width(ctx->right_level, PUMP_SEAL_LEAK_PAUSE_RIGHT_LEVEL_W);
-    lv_obj_set_style_text_color(ctx->right_level, lv_color_hex(PUMP_SEAL_LEAK_PAUSE_LEVEL_COLOR), 0);
-    lv_obj_set_style_text_font(ctx->right_level, UI_FONT_TITLE, 0);
-    lv_obj_set_style_text_align(ctx->right_level, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_style_text_letter_space(ctx->right_level, 3, 0);
-    snprintf(level_text, sizeof(level_text), "R%u", (unsigned)info->right_level);
-    lv_label_set_text(ctx->right_level, level_text);
-    lv_obj_align(ctx->right_level, LV_ALIGN_TOP_LEFT, PUMP_SEAL_LEAK_PAUSE_RIGHT_LEVEL_X,
-        PUMP_SEAL_LEAK_PAUSE_RIGHT_LEVEL_Y);
 }
 
 static void pump_seal_leak_page_content_build(pump_seal_leak_ui_info_t *info, lv_obj_t *page,
@@ -570,12 +645,50 @@ static void pump_seal_leak_page_content_build(pump_seal_leak_ui_info_t *info, lv
     EXCEPTION_CHECK_VOID(ctx);
     ctx->page_index = page_index;
     lv_obj_set_user_data(page, ctx);
+    pump_seal_leak_check_page_build(info, page, page_index);
+}
 
-    if (pump_seal_leak_is_check_page(page_index)) {
-        pump_seal_leak_check_page_build(info, page, page_index);
-    } else {
-        pump_seal_leak_pause_page_build(info, page);
+static void pump_seal_leak_anim_tick(pump_seal_leak_ui_info_t *info, lv_obj_t *page)
+{
+    pump_seal_leak_page_ctx_t *ctx = pump_seal_leak_page_ctx_get(page);
+    uint32_t now;
+
+    if (info == NULL || ctx == NULL || ctx->anim == NULL || !lv_obj_is_valid(ctx->anim)) {
+        return;
     }
+    now = get_timestamp();
+
+    /// 尾帧停留：第一页不停顿，二/三页 2s，第四页 1s，再从首帧重播
+    if (ctx->anim_resting) {
+        if ((now - ctx->anim_rest_start_ms) < pump_seal_leak_anim_rest_ms_get(ctx->page_index)) {
+            return;
+        }
+        ctx->anim_resting = 0;
+        ctx->frame_id = ctx->anim_start;
+        ctx->last_frame_tick_ms = now;
+        pump_seal_leak_anim_frame_show(info, ctx, ctx->frame_id);
+        if (ctx->frame_id < ctx->anim_end) {
+            ctx->frame_id++;
+        }
+        return;
+    }
+
+    if (ctx->last_frame_tick_ms != 0 &&
+        (now - ctx->last_frame_tick_ms) < PUMP_SEAL_LEAK_ANIM_FRAME_INTERVAL_MS) {
+        return;
+    }
+    ctx->last_frame_tick_ms = now;
+    pump_seal_leak_anim_frame_show(info, ctx, ctx->frame_id);
+    if (ctx->frame_id >= ctx->anim_end) {
+        if (pump_seal_leak_anim_rest_ms_get(ctx->page_index) == 0) {
+            ctx->frame_id = ctx->anim_start;
+            return;
+        }
+        ctx->anim_resting = 1;
+        ctx->anim_rest_start_ms = now;
+        return;
+    }
+    ctx->frame_id++;
 }
 
 static void pump_seal_leak_page_transform_apply(lv_obj_t *page, int16_t offset_x, lv_opa_t opa)
@@ -609,6 +722,7 @@ static void pump_seal_leak_dots_update(pump_seal_leak_ui_info_t *info, uint8_t s
         lv_obj_set_style_bg_color(info->dots[i],
             lv_color_hex(i == selected ? PUMP_SEAL_LEAK_DOT_COLOR_ACTIVE :
                 PUMP_SEAL_LEAK_DOT_COLOR_INACTIVE), 0);
+        /* 只在 leak root 内置顶，不触及 lv_layer_top 顶层弹窗 */
         lv_obj_move_foreground(info->dots[i]);
         pump_seal_leak_obj_flag_set(info->dots[i], true);
     }
@@ -652,11 +766,11 @@ static void pump_seal_leak_page_switch_instant(pump_seal_leak_ui_info_t *info, u
 {
     EXCEPTION_CHECK_VOID(info);
     if (info->page != NULL && lv_obj_is_valid(info->page)) {
-        pump_seal_leak_page_content_remove(info->page);
+        pump_seal_leak_page_content_remove(info, info->page);
         LVGL_OBJ_DELETE(info->page);
     }
     if (info->peer_page != NULL && lv_obj_is_valid(info->peer_page)) {
-        pump_seal_leak_page_content_remove(info->peer_page);
+        pump_seal_leak_page_content_remove(info, info->peer_page);
         LVGL_OBJ_DELETE(info->peer_page);
     }
     info->page = pump_seal_leak_page_container_create(info);
@@ -674,7 +788,7 @@ static void pump_seal_leak_page_transition_finish(pump_seal_leak_ui_info_t *info
 {
     const uint8_t new_index = info->page_index;
 
-    pump_seal_leak_page_content_remove(info->page);
+    pump_seal_leak_page_content_remove(info, info->page);
     LVGL_OBJ_DELETE(info->page);
     info->page = info->peer_page;
     info->peer_page = NULL;
@@ -737,18 +851,6 @@ static void pump_seal_leak_page_goto(pump_seal_leak_ui_info_t *info, uint8_t pag
     pump_seal_leak_dots_update(info, page_index);
 }
 
-static void pump_seal_leak_pause_shine_anim_update(lv_obj_t *page)
-{
-    pump_seal_leak_page_ctx_t *ctx = pump_seal_leak_page_ctx_get(page);
-    ui_shine_style_t style;
-
-    if (ctx == NULL || ctx->page_index != PUMP_SEAL_LEAK_PAGE_PAUSE) {
-        return;
-    }
-    pump_seal_leak_pause_hint_style_get(&style);
-    ui_shine_anim_update(&ctx->hint_shine, &style, ctx->hint_text, 0);
-}
-
 static void pump_seal_leak_root_init(void)
 {
     if (s_leak_info->root == NULL || !lv_obj_is_valid(s_leak_info->root)) {
@@ -766,43 +868,26 @@ static void pump_seal_leak_root_init(void)
 
 static void pump_seal_leak_runtime_sync(pump_seal_leak_ui_info_t *info, ui_proc_pump_t *proc)
 {
-    pump_setting_t setting;
-    int time_index = 0;
-    int pump_mode = 0;
-
-    EXCEPTION_CHECK_VOID(info && proc && proc->pump);
-    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
-    READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
-    info->left_level = setting.level[0];
-    info->right_level = setting.level[1];
-    info->speed = setting.speed;
-    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
-    info->pump_mode = (uint8_t)pump_mode;
-    if (proc->motor && proc->motor->get_runtime_mode_type) {
-        info->mode_type = proc->motor->get_runtime_mode_type(false);
-    }
-    if (info->st) {
-        info->st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
-            sizeof(info->custom_id_str), info->custom_id_str);
-    }
+    EXCEPTION_CHECK_VOID(info && proc);
+    memcpy(info->leak_channel, proc->leak_channel, sizeof(info->leak_channel));
 }
 
 #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
 static void pump_seal_leak_wear_result_update(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
-    if (proc->wear_result[0] == s_leak_info->wear_result[0] && 
+    if (proc->wear_result[0] == s_leak_info->wear_result[0] &&
         proc->wear_result[1] == s_leak_info->wear_result[1] &&
         proc->seal_result    == s_leak_info->seal_result) {
         return;
     }
-    
+
     if (s_leak_info->wear_result_text == NULL || !lv_obj_is_valid(s_leak_info->wear_result_text)) {
         s_leak_info->wear_result_text = lv_label_create(s_leak_info->root);
         lv_obj_set_style_text_color(s_leak_info->wear_result_text, lv_color_white(), 0);
-        lv_obj_set_style_text_font(s_leak_info->wear_result_text, UI_FONT_TITLE, 0);  /// 设置字体
-        lv_obj_set_style_text_line_space(s_leak_info->wear_result_text, 2, 0);  /// 设置行间距（像素）
-        lv_obj_set_style_text_align(s_leak_info->wear_result_text, LV_TEXT_ALIGN_CENTER, 0);  /// 设置文本居中对齐
+        lv_obj_set_style_text_font(s_leak_info->wear_result_text, UI_FONT_TITLE, 0);
+        lv_obj_set_style_text_line_space(s_leak_info->wear_result_text, 2, 0);
+        lv_obj_set_style_text_align(s_leak_info->wear_result_text, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(s_leak_info->wear_result_text, LV_ALIGN_TOP_MID, 0, 325);
     }
     char wear_result_text[32];
@@ -833,7 +918,6 @@ void ui_display_pump_seal_leak_prepare(ui_manager_context_t *thiz)
     s_leak_info->force_update = true;
     s_leak_info->enter_instant = 1;
     s_leak_info->shown_page_index = PUMP_SEAL_LEAK_PAGE_INDEX_INVALID;
-    s_leak_info->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc);
     pump_seal_leak_runtime_sync(s_leak_info, proc);
@@ -850,11 +934,11 @@ void ui_display_pump_seal_leak_remove(ui_manager_context_t *thiz)
 
     EXCEPTION_CHECK_VOID(thiz && s_leak_info && s_leak_info->root);
     if (s_leak_info->page != NULL && lv_obj_is_valid(s_leak_info->page)) {
-        pump_seal_leak_page_content_remove(s_leak_info->page);
+        pump_seal_leak_page_content_remove(s_leak_info, s_leak_info->page);
         LVGL_OBJ_DELETE(s_leak_info->page);
     }
     if (s_leak_info->peer_page != NULL && lv_obj_is_valid(s_leak_info->peer_page)) {
-        pump_seal_leak_page_content_remove(s_leak_info->peer_page);
+        pump_seal_leak_page_content_remove(s_leak_info, s_leak_info->peer_page);
         LVGL_OBJ_DELETE(s_leak_info->peer_page);
     }
     for (i = 0; i < PUMP_SEAL_LEAK_DOT_COUNT; i++) {
@@ -877,7 +961,7 @@ int ui_display_pump_seal_leak_process(ui_manager_context_t *thiz)
 
     target_index = (uint8_t)proc->seal_leak_page_index;
     if (target_index >= PUMP_SEAL_LEAK_PAGE_MAX) {
-        target_index = PUMP_SEAL_LEAK_PAGE_CHECK_FIT;
+        target_index = PUMP_SEAL_LEAK_PAGE_CHECK_TUBING;
     }
 
     if (s_leak_info->shown_page_index == PUMP_SEAL_LEAK_PAGE_INDEX_INVALID ||
@@ -892,8 +976,10 @@ int ui_display_pump_seal_leak_process(ui_manager_context_t *thiz)
     }
 
     pump_seal_leak_page_transition_tick(s_leak_info);
-    pump_seal_leak_pause_shine_anim_update(s_leak_info->page);
-    pump_seal_leak_pause_shine_anim_update(s_leak_info->peer_page);
+    pump_seal_leak_anim_tick(s_leak_info, s_leak_info->page);
+    pump_seal_leak_anim_tick(s_leak_info, s_leak_info->peer_page);
+    pump_seal_leak_complete_tip_tick(s_leak_info->page);
+    pump_seal_leak_complete_tip_tick(s_leak_info->peer_page);
     pump_seal_leak_dots_update(s_leak_info, s_leak_info->page_index);
     #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     pump_seal_leak_wear_result_update(proc);

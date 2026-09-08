@@ -45,6 +45,37 @@ static void set_led_blink(uint8_t led_index, uint16_t period, uint16_t blink_tim
     thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
 }
 
+static void set_led_breath(uint8_t led_index, uint16_t period, uint32_t continue_time)
+{
+    uint16_t step_period;
+
+    EXCEPTION_CHECK_VOID(thiz);
+    EXCEPTION_CHECK_VOID(thiz->priv.led_dev);
+    if (period == 0) {
+        period = LED_BREATH_CYCLE_TIME;
+    }
+    /// 0→MAX→0 共 2*LED_LEVEL_MAX 步，把完整周期折成步进间隔
+    step_period = period / (2 * LED_LEVEL_MAX);
+    if (step_period == 0) {
+        step_period = 10;
+    }
+    led_status_msg_t msg = {
+        .led_index = led_index,
+        .led_status = {
+            .mode = LED_MODE_BREATH,
+            .un.breath = {
+                .polarity = 0,
+                .direction = 1,
+                .step = 1,
+                .pluse_max = 0,
+                .period = step_period,
+                .continue_time = continue_time,
+            },
+        },
+    };
+    thiz->priv.led_dev->ioctl(thiz->priv.led_dev, OP_CODE_LED_STATUS_SET, (void *)&msg);
+}
+
 static void set_led_level(uint8_t led_index, uint8_t level)
 {
     EXCEPTION_CHECK_VOID(thiz);
@@ -170,6 +201,7 @@ void *register_module_for_led_manager_new(list_head_t *list_head)
     MUTEX_INIT(&ptr->priv.m_lock, led_state_mutex);
     USE_INIT_LIST_HEAD(&ptr->priv.client_list);
     ptr->set_led_blink = set_led_blink;
+    ptr->set_led_breath = set_led_breath;
     ptr->set_led_level = set_led_level;
     ptr->set_led_onoff = set_led_onoff;
     ptr->add_led_state_cb = add_led_state_cb;

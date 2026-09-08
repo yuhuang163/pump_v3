@@ -44,6 +44,7 @@ do { \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_LOW_POWER_COMPLETE_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_LEAK_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_FIT_NOT_DETECTED_TASK_NAME); \
 } while (0)
 
 /*
@@ -539,6 +540,34 @@ static int on_pump_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t k
         }
         LOG_WM("pump low power ui key exit, type:%d code:%d", keytype, keycode);
         pump_low_power_ui_dismiss(proc);
+    }
+
+    if (proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
+        if (!((keycode == KEY_CODE_POWER || keycode == KEY_CODE_START) &&
+            (keytype == KEY_EVENT_CLICK || keytype == KEY_EVENT_LONG_2S ||
+             keytype == KEY_EVENT_UP))) {
+            LOG_WM("fit not detected ui, ignore key event. type:%d code:%d",
+                keytype, keycode);
+            return 0;
+        }
+    }
+
+    if (pump_seal_leak_restrict_keys(proc)) {
+        bool leak_key_ok = false;
+
+        if ((keycode == KEY_CODE_POWER || keycode == KEY_CODE_START) &&
+            (keytype == KEY_EVENT_CLICK || keytype == KEY_EVENT_LONG_2S ||
+             keytype == KEY_EVENT_UP)) {
+            leak_key_ok = true;
+        } else if ((keycode == KEY_CODE_KNOB_LEFT || keycode == KEY_CODE_KNOB_RIGHT) &&
+            keytype == KEY_EVENT_CLICK) {
+            leak_key_ok = true;
+        }
+        if (!leak_key_ok) {
+            LOG_WM("seal leak ui, ignore key event. type:%d code:%d",
+                keytype, keycode);
+            return 0;
+        }
     }
 
     if (keycode == KEY_CODE_TRAVEL_LOCK && keytype == KEY_EVENT_LONG_2S) {

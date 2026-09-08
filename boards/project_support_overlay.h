@@ -253,6 +253,10 @@ extern "C" {
 
 /// 支持漏气调试结果展示
 #define IS_SUPPORT_PUMP_SEAL_RESULT_TIP                  (0)
+/// 罩杯未贴合 / 漏气页 Start 键灯：1 呼吸，0 沿用 0.5Hz 闪烁
+#ifndef IS_SUPPORT_PUMP_START_LED_BREATH
+#define IS_SUPPORT_PUMP_START_LED_BREATH                 (1)
+#endif
 #ifdef __cplusplus
 }
 #endif

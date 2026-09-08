@@ -103,6 +103,8 @@ typedef enum {
     PUMP_HOME_BASE_ANIM_PROGRAM_STIMULATION_WAVE,
     PUMP_HOME_BASE_ANIM_PROGRAM_EXPRESSION_WAVE,
     PUMP_HOME_BASE_ANIM_PROGRAM_RELAX_WAVE,
+    PUMP_HOME_BASE_ANIM_CHECKING_SEAL,
+    PUMP_HOME_BASE_ANIM_CHECK_PASSED,
     PUMP_HOME_BASE_ANIM_MAX,
 } pump_home_base_anim_res_type_e;
 
@@ -115,9 +117,10 @@ typedef struct {
     uint16_t current_anim_start; /// 当前动画起始ID
     uint16_t shown_frame_res_id; /// 已显示帧资源ID
     uint8_t anim_play_state; /// 动画播放状态: 0: 播放, 1: 暂停.
+    uint8_t anim_loop; /// 1: 循环播放, 0: 只播一遍停在末帧
     uint8_t paused_by_transition; /// 过渡期间暂停波形动画
     uint8_t hidden_by_mode_switch; /// 子模式切换提醒期间隐藏并停止波形
-    uint8_t hidden_by_seal_check; /// 漏气检测/结果文案期间隐藏并停止波形
+    uint8_t seal_tip; /// 漏气检测提示 pump_seal_tip_e，非 NONE 时播检测/通过动画
     uint32_t last_frame_tick_ms; /// 上次切帧时间
 } pump_home_base_animation_info_t;
 

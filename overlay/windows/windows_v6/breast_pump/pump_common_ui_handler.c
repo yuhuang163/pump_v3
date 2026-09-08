@@ -54,7 +54,8 @@ static void switch_pump_status_handler(ui_proc_pump_t *proc)
 static void pump_ui_nav_restore_frame(ui_proc_pump_t *proc, const pump_ui_nav_frame_t *frame)
 {
     EXCEPTION_CHECK_VOID(proc && frame);
-    if (frame->ui_type != PUMP_UI_TYPE_SEAL_LEAK) {
+    if (frame->ui_type != PUMP_UI_TYPE_SEAL_LEAK &&
+        frame->ui_type != PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         proc->ui_mode_page_index = frame->page_index;
     }
     proc->ui_nav.restoring = 1;
@@ -72,6 +73,9 @@ static void pump_ui_nav_restore_frame(ui_proc_pump_t *proc, const pump_ui_nav_fr
         case PUMP_UI_TYPE_SEAL_LEAK:
             proc->seal_leak_page_index = frame->page_index;
             show_pump_seal_leak_ui(proc);
+            break;
+        case PUMP_UI_TYPE_FIT_NOT_DETECTED:
+            show_pump_fit_not_detected_ui(proc);
             break;
         case PUMP_UI_TYPE_HOME:
         default:
@@ -182,6 +186,7 @@ void stop_pump_ui_animation(ui_proc_pump_t *proc)
 #endif
     pump_will_finish_ui_exit(proc);
     pump_seal_leak_ui_exit(proc);
+    pump_fit_not_detected_ui_exit(proc);
     pump_low_power_ui_exit(proc);
     pump_level_adjust_ui_exit(proc);
     pump_both_level_adjust_ui_exit(proc);
@@ -226,6 +231,9 @@ void pump_ui_change_hdr_remove(ui_proc_pump_t *proc)
             break;
         case PUMP_UI_TYPE_SEAL_LEAK:
             pump_seal_leak_ui_exit(proc);
+            break;
+        case PUMP_UI_TYPE_FIT_NOT_DETECTED:
+            pump_fit_not_detected_ui_exit(proc);
             break;
         case PUMP_UI_TYPE_LOW_POWER:
             pump_low_power_ui_exit(proc);
@@ -277,7 +285,9 @@ static bool pump_pause_led_needs_update(const ui_proc_pump_t *proc)
     /* 结束类弹窗/结算页由窗口侧关灯，此处不抢控 */
     if (proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT ||
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
-        proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR) {
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR ||
+        proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED ||
+        proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
         return false;
     }
 
@@ -296,7 +306,9 @@ static void pump_pause_led_update(ui_proc_pump_t *proc)
 
     if (proc->current_ui_type == PUMP_UI_TYPE_PAUSE_TIMEOUT ||
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
-        proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR) {
+        proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR ||
+        proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED ||
+        proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
         return;
     }
 
@@ -392,11 +404,12 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
     }
 
     if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
-        if (pump_seal_leak_restrict_keys(proc)) {
-            LOG_WM("seal leak guide page, ignore power start.");
-            return;
-        }
-        pump_seal_leak_resume(proc);
+        pump_seal_leak_power_start_click(proc);
+        return;
+    }
+
+    if (proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
+        pump_fit_not_detected_resume(proc);
         return;
     }
     LOG_WM("ignore power key event.");
@@ -405,6 +418,14 @@ void pump_power_key_event_handler(ui_proc_pump_t *proc)
 void pump_start_key_event_handler(ui_proc_pump_t *proc)
 {
     if (proc->current_ui_type == PUMP_UI_TYPE_POWER_OFF_HOLD) {
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
+        pump_fit_not_detected_resume(proc);
+        return;
+    }
+    if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
+        pump_seal_leak_power_start_click(proc);
         return;
     }
     if (proc->current_ui_type == PUMP_UI_TYPE_RHYTHM_CONFIRM) {
@@ -519,6 +540,7 @@ void pump_seal_check_start(ui_proc_pump_t *proc)
     proc->seal_result_time = 0;
     proc->seal_tip = PUMP_SEAL_TIP_CHECKING;
     proc->seal_result = PUMP_SEAL_RESULT_NONE;
+    pump_fit_not_detected_reset(proc);
     LOG_WM("seal check start.");
 #else
     proc->seal_check_time = 0;
@@ -535,6 +557,7 @@ void pump_seal_check_stop(ui_proc_pump_t *proc)
     proc->seal_check_time = 0;
 #if IS_SUPPORT_DEVICE_AIR_PRESSURE
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
+    pump_fit_not_detected_reset(proc);
 #endif
 }
 
