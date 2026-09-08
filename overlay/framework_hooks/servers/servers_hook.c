@@ -109,6 +109,17 @@ static void on_battery_low_power_run_report(servers_manager_context_t *ctx, int 
     };
     app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
 }
+static void on_battery_low_bat_cannot_start_report(servers_manager_context_t *ctx, int active)
+{
+    EXCEPTION_CHECK_VOID(ctx);
+    servers_publish_data_args_t args_temp = {
+        .arg1 = OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START,
+        .arg2 = active ? OLD_PUBLISH_ABNORMAL_STATE_ACTIVE : OLD_PUBLISH_ABNORMAL_STATE_CLEARED,
+        .val = NULL,
+    };
+    app_old_protocol_server_data_publish(APP_OLD_COMM_CID_NOTIFY_V3_DEV_ABNORMAL, &args_temp);
+}
+
 static void on_charge_error_report(servers_manager_context_t *ctx, int state)
 {
     EXCEPTION_CHECK_VOID(ctx);
@@ -362,11 +373,20 @@ static int servers_work_thread_route(servers_manager_context_t *ctx, servers_pub
         case SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_SHUTDOWN_REPORT:
             on_battery_low_power_shutdown_report(ctx, 1);
             break;
+        case SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_SHUTDOWN_RELEASE:
+            on_battery_low_power_shutdown_report(ctx, 0);
+            break;
         case SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_REPORT:
             on_battery_low_power_run_report(ctx, 1);
             break;
         case SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_RELEASE:
             on_battery_low_power_run_report(ctx, 0);
+            break;
+        case SERVERS_PUBLISH_DATA_BATTERY_LOW_BAT_CANNOT_START_REPORT:
+            on_battery_low_bat_cannot_start_report(ctx, 1);
+            break;
+        case SERVERS_PUBLISH_DATA_BATTERY_LOW_BAT_CANNOT_START_RELEASE:
+            on_battery_low_bat_cannot_start_report(ctx, 0);
             break;
         case SERVERS_PUBLISH_DATA_BATTERY_CHARGE_ERROR_REPORT:
             on_charge_error_report(ctx, servers_sys_info->battery.charge_status == CHARGE_STATE_ERROR);
@@ -506,21 +526,42 @@ static void on_servers_battery_state_cb(void *user_data, battery_state_info_t *i
     EXCEPTION_CHECK_VOID(ctx && ctx->dispatch_servers_event_wrapper);
     EXCEPTION_CHECK_VOID(servers_sys_info && info);
     battery_state_info_t *battery = &servers_sys_info->battery;
+    /// 上次上报的低电异常：0=无/已解除，1=LOW_BATTERY，2=LOW_BAT_SHUTDOWN_SOON，3=LOW_BAT_CANNOT_START
+    static uint8_t s_low_battery_abnormal_reported = 0;
+
     if (info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
-        info->battery_state == BATTERY_STATE_EMPTY || info->battery_state == BATTERY_STATE_LOW_POWER_RUN) {
-        if (info->charge_status != CHARGE_STATE_CHARGING && info->charge_status != CHARGE_STATE_FULL) {
-            ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_RELEASE);
-        } else  {
-            if (battery->battery_state != info->battery_state) {
-                if (info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN || info->battery_state == BATTERY_STATE_EMPTY) {
-                    ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_SHUTDOWN_REPORT);
-                } else {
-                    ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_REPORT);
-                }
-                battery->battery_state = info->battery_state;
+        info->battery_state == BATTERY_STATE_EMPTY ||
+        info->battery_state == BATTERY_STATE_FORBID_START ||
+        info->battery_state == BATTERY_STATE_LOW_POWER_RUN) {
+        /// 低电（battery_state 已隐含未充电）：上报低电异常激活（仅异常状态变化时上报一次，避免重复）
+        uint8_t cur_abnormal;
+        if (info->battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+            info->battery_state == BATTERY_STATE_EMPTY) {
+            cur_abnormal = 2;
+        } else if (info->battery_state == BATTERY_STATE_FORBID_START) {
+            cur_abnormal = 3;
+        } else {
+            cur_abnormal = 1;
+        }
+        if (cur_abnormal != s_low_battery_abnormal_reported) {
+            if (cur_abnormal == 2) {
+                ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_SHUTDOWN_REPORT);
+            } else if (cur_abnormal == 3) {
+                ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_BAT_CANNOT_START_REPORT);
+            } else {
+                ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_REPORT);
             }
-        } 
-        return;
+            s_low_battery_abnormal_reported = cur_abnormal;
+        }
+    } else {
+        /// 非低电状态（充电/恢复）：解除所有低电异常
+        if (s_low_battery_abnormal_reported != 0) {
+            ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_RUN_RELEASE);
+            ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_BAT_CANNOT_START_RELEASE);
+            ///这个不需要，出现了会关机
+            ///ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_BATTERY_LOW_POWER_SHUTDOWN_RELEASE);
+            s_low_battery_abnormal_reported = 0;
+        }
     }
 
     if (battery->charge_status != info->charge_status) {

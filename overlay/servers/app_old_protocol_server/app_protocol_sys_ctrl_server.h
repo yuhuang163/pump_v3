@@ -61,7 +61,7 @@ typedef struct __attribute__((packed)) {
 /// 0xEC ACK 异常状态快照
 typedef struct __attribute__((packed)) {
     uint8_t cannot_start;     /// 电量不足无法启动
-    uint8_t low_battery;      /// 设备低电
+    uint8_t low_battery;      /// 设备低电运行
     uint8_t shutdown_soon;    /// 低电即将关机
     uint8_t micro_air_leak;   /// 设备微漏气提醒
     uint8_t travel_lock;      /// 进入旅行锁

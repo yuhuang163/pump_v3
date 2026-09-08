@@ -1311,7 +1311,7 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
         return false;
     }
     ///低电不足运行一次不允许启动
-    if ((app_old_comm_get_battery_percent() < FORBID_START_BAT_PERCENTAGE) && !batt_ctx->is_vbus_plug_in) {
+    if (batt_ctx->get_battery_state() == BATTERY_STATE_FORBID_START) {
         LOG_SRV("battery percent low, return false");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START);
     }
@@ -1337,7 +1337,7 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
     }
     //设备低电,运行启动，但是需要上报低电异常
-    if (app_old_comm_get_battery_percent() < LOW_POWER_RUN_PERCENTAGE) {
+    if (batt_ctx->get_battery_state() == BATTERY_STATE_LOW_POWER_RUN) {
         LOG_SRV("battery percent low, report low battery abnormal");
         app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_LOW_BATTERY);
     }
