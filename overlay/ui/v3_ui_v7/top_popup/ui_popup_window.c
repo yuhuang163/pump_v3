@@ -96,6 +96,9 @@ void popup_window_ui_remove(ui_manager_context_t *thiz)
         return;
     }
     ui_img_baj_release_decoded_buf(popup_info->icon.obj);
+    ui_img_baj_release_decoded_buf(popup_info->combo_key.left);
+    ui_img_baj_release_decoded_buf(popup_info->combo_key.add);
+    ui_img_baj_release_decoded_buf(popup_info->combo_key.right);
 #if IS_SUPPORT_POPUP_WINDOW_COMP_BG
     ui_img_png_release_decoded_buf(popup_info->root.comp_bg);
 #endif

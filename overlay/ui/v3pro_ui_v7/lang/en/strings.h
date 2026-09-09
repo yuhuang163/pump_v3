@@ -66,7 +66,7 @@ extern "C" {
 #define PUMP_WILL_FINISH_TITLE1_TEXT                    "Your pumping program is\nabout to end."
 #define PUMP_WILL_FINISH_TITLE2_TEXT                    "Press the knob to\ncontinue pumping."
 #define PUMP_FINISH_TITLE_TEXT                          "Pumping complete."
-#define PUMP_FINISH_CONTENT_TEXT                        "Open the Momcozy App\nto log your milk output."
+#define PUMP_FINISH_CONTENT_TEXT                        "Open the App to log your\nmilk output."
 #define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT            "Incompatible adapter"
 #define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT            "Ending automatically"
 #define PUMP_RUNING_30M_TIP_TEXT                        "Pumping over 30 min.\nTake a short break."
@@ -84,39 +84,39 @@ extern "C" {
 /*******************************************************************************
  * Power / lock / airplane
  ******************************************************************************/
-#define POWER_OFF_HOLD_TITLE_TEXT                       "Press and hold to\npower off."
+#define POWER_OFF_HOLD_TITLE_TEXT                       "Press & hold"
 #define POWER_OFF_TEXT_POWERING_OFF_STR                 "Powering off..."
 #define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "Auto Powering Off..."
 #define POWER_OFF_TEXT_LOW_POWER_STR                    "Battery to low to\npower off..."
 #define RESTARTING_TEXT                                 "Restarting..."
 #define POWER_OFF_CHARGE_TEXT                           "Charging..."
 #define LOW_POWER_PAGE_TEXT                             "Battery too low\nConnect to a charger"
-#define POWER_ON_HOLD_LINE1_TEXT                        "Press and hold for"
-#define POWER_ON_HOLD_LINE2_TEXT                        "#E2637E 2s# to power on"
+#define POWER_ON_HOLD_LINE1_TEXT                        "Press & hold the"
+#define POWER_ON_HOLD_LINE2_TEXT                        "knob to power on"
 #define AIRPLANE_MODE_TITLE_TEXT                        "Device locked"
-#define AIRPLANE_MODE_HINT_TEXT                         "Press and hold for 5\nseconds to unlock"
-#define TRAVEL_LOCK_TITLE_TEXT                          "Press and hold for 5s\nto lock device"
+#define AIRPLANE_MODE_HINT_TEXT                         "Press & hold to unlock"
+#define TRAVEL_LOCK_TITLE_TEXT                          "Press & hold\nto lock device"
 #define LOW_POWER_POPUP_TITLE_TEXT                      "Powering off in"
 
 /*******************************************************************************
  * Charge / OTA / factory
  ******************************************************************************/
 #define CHARGE_ADAPTER_TITLE_TEXT                       "Incompatible adapter"
-#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "Unable to charge."
+#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "Unable to charge"
 #define OTA_RES_UPGRADING_TEXT                          "Resource upgrading"
 #define OTA_FW_UPGRADING_TEXT                           "Firmware upgrading"
 #define OTA_HW_UPGRADING_TEXT                           "Hardware upgrading"
 #define OTA_UPGRADE_FAILED_TEXT                         "Upgrade failed"
 #define OTA_UPGRADE_COMPLETED_TEXT                      "Upgrade completed"
 #define FACTORY_RESET_CONFIRM_TITLE_TEXT                "Reset settings"
-#define FACTORY_RESET_CONFIRM_HINT_TEXT                 "Press and hold knob\nfor 3s"
+#define FACTORY_RESET_CONFIRM_HINT_TEXT                 "Press & hold knob"
 #define FACTORY_RESET_PROGRESS_TEXT                     "Reset settings..."
 
 /*******************************************************************************
  * System / BLE popup
  ******************************************************************************/
 #define SYS_ERROR_TITLE_TEXT                            "System error"
-#define SYS_ERROR_REPLUG_TEXT                           "Press and hold knob\n10s to restart"
+#define SYS_ERROR_REPLUG_TEXT                           "Press & hold knob 10s\nto restart"
 #define TEMP_ERROR_TITLE_TEXT                           "High battery\ntemperature"
 #define TEMP_ERROR_CONTENT_TEXT                         "Device suspended"
 #define BLE_CONNECT_TEXT                                "Device Connected"
@@ -138,8 +138,7 @@ extern "C" {
 #define GUIDE_INTRO_TITLE_TEXT                          "Let's get started!"
 #define GUIDE_QRCODE_DESC_TEXT                          "Scan the QR code to\ndownload the app and\nconnect your pump."
 #define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
-#define GUIDE_FINISH_DESC_TEXT \
-    "Tutorial complete. Scan the\nQR code anytime to view it\nagain."
+#define GUIDE_FINISH_DESC_TEXT                          "Tutorial complete. Scan the\nQR code anytime to view it\nagain."
 #define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT              "Turn the knob to\nexplore more options."
 #define GUIDE_PUMP_START_GUIDE_TITLE_TEXT               "Press the knob to\nstart."
 #define GUIDE_PUMP_PAUSE_GUIDE_TITLE_TEXT               "Press the knob to\npause."
@@ -166,19 +165,16 @@ extern "C" {
 /*******************************************************************************
  * Seal leak (Pro)
  ******************************************************************************/
-#define PUMP_SEAL_LEAK_TITLE_AIR_SEAL                    "Check Air Seal"
+#define PUMP_SEAL_LEAK_TITLE_AIR_SEAL                   "Check Air Seal"
 #define PUMP_SEAL_LEAK_TITLE_FIT                        "Check Fit"
 #define PUMP_SEAL_LEAK_TITLE_CUP                        "Check Cup"
-#define PUMP_SEAL_LEAK_TITLE_COMPLETE                    "Self-Check\nComplete"
+#define PUMP_SEAL_LEAK_TITLE_COMPLETE                   "Self-Check\nComplete"
 #define PUMP_SEAL_LEAK_DESC_TUBING                      "Reinsert tubing firmly"
-#define PUMP_SEAL_LEAK_DESC_FLANGE \
-    "Center the nipple\nSeal flange firmly"
-#define PUMP_SEAL_LEAK_DESC_CUP \
-    "Snap rim shut\nSeat duckbill valve"
-#define PUMP_SEAL_LEAK_DESC_COMPLETE                     "Press to resume"
-#define PUMP_FIT_NOT_DETECTED_TITLE                      "Fit Not Detected"
-#define PUMP_FIT_NOT_DETECTED_DESC \
-    "Check cup placement\nPress to resume"
+#define PUMP_SEAL_LEAK_DESC_FLANGE                      "Center the nipple\nSeal flange firmly"
+#define PUMP_SEAL_LEAK_DESC_CUP                         "Snap rim shut\nSeat duckbill valve"
+#define PUMP_SEAL_LEAK_DESC_COMPLETE                    "Press to resume"
+#define PUMP_FIT_NOT_DETECTED_TITLE                     "Fit Not Detected"
+#define PUMP_FIT_NOT_DETECTED_DESC                      "Check cup placement\nPress to resume"
 
 /*******************************************************************************
  * Product tests

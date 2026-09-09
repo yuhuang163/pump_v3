@@ -22,13 +22,13 @@ extern "C" {
 #define UI_STR_SWITCH_TO_FMT                            "切换到%s"
 #define UI_STR_DURATION_APPROX_MIN_FMT                  "约 %d 分钟"
 #define UI_STR_COUNTDOWN_SEC_FMT                        "%d 秒"
-#define UI_STR_LEVEL_OVER_LIMIT                         "为了安全使用\n每次最多调节3档"
+#define UI_STR_LEVEL_OVER_LIMIT                         "确保安全\n每次最多调节3档"
 
 /*******************************************************************************
  * Home
  ******************************************************************************/
 #define HOME_MAIN_HINT_TEXT                             "按下旋钮启动吸乳"
-#define HOME_SAVER_HINT_TEXT                            "任意按钮唤醒设备"
+#define HOME_SAVER_HINT_TEXT                            "短按任意键唤醒"
 #define HOME_LEVEL_DIR_LEFT_TEXT                        "左侧吸力档位"
 #define HOME_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力档位"
 #define HOME_LEVEL_OVER_LIMIT_TEXT                      UI_STR_LEVEL_OVER_LIMIT

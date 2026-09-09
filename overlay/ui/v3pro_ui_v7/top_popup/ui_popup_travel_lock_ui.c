@@ -42,6 +42,7 @@ void popup_window_travel_lock_ui_update(ui_manager_context_t *thiz, popup_ui_id_
             ui_progress_arc_time_update(&info->progress_arc, info->root.obj, &style,
                 info->runtime.start_time, target_time,
                 TRAVEL_LOCK_COUNTDOWN_TOTAL_SEC, info->runtime.force_update);
+            popup_window_combo_key_icons_update(thiz);
             popup_window_display_complete(thiz, popup_type);
             break;
         default:
