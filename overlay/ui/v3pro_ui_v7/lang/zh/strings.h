@@ -8,12 +8,17 @@ extern "C" {
 /*******************************************************************************
  * Shared
  ******************************************************************************/
-#define UI_STR_MODE_STIMULATION                         "刺激模式"
+#define UI_STR_MODE_STIMULATION                         "按摩模式"
 #define UI_STR_MODE_EXPRESSION                          "吸乳模式"
 #define UI_STR_MODE_MIXED                               "混合模式"
 #define UI_STR_MODE_MILK_BOOST                          "循环深吸"
 #define UI_STR_MODE_POWER_PUMPING                       "PP追奶"
 #define UI_STR_MODE_CUSTOM                              "自定义模式"
+#define UI_STR_MODE_COZY_FLOW                           "自然韵律"
+#define UI_STR_MODE_DENSE_MILK                          "密集追奶"
+#define UI_STR_MODE_HIGH_EFFICIENCY                     "高效吸乳"
+#define UI_STR_MODE_LACTATION_STARTER                   "开奶模式"
+#define UI_STR_MODE_DEEP_EMPTYING                       "追加排空"
 #define UI_STR_MODE_PROGRAM                             "专家模式"
 #define UI_STR_MODE_RELAX                               "休息模式"
 #define UI_STR_SIDE_L                                   "L"
@@ -22,17 +27,17 @@ extern "C" {
 #define UI_STR_SWITCH_TO_FMT                            "切换到%s"
 #define UI_STR_DURATION_APPROX_MIN_FMT                  "约 %d 分钟"
 #define UI_STR_COUNTDOWN_SEC_FMT                        "%d 秒"
-#define UI_STR_LEVEL_OVER_LIMIT                         "为了安全使用\n每次最多调节3档"
+#define UI_STR_LEVEL_OVER_LIMIT                         "确保安全\n每次最多调节3档"
 
 /*******************************************************************************
  * Home
  ******************************************************************************/
 #define HOME_MAIN_HINT_TEXT                             "按下旋钮启动吸乳"
-#define HOME_MAIN_HINT_TEXT_LOW_BAT                     "电量低，请充电"
-#define HOME_MAIN_HINT_TEXT_FORBID_START                "电量过低，无法吸乳"
-#define HOME_SAVER_HINT_TEXT                            "任意按钮唤醒设备"
-#define HOME_LEVEL_DIR_LEFT_TEXT                        "左侧吸力档位"
-#define HOME_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力档位"
+#define HOME_MAIN_HINT_TEXT_LOW_BAT                     "电量不足，请充电"
+#define HOME_MAIN_HINT_TEXT_FORBID_START                "电量过低，无法吸奶"
+#define HOME_SAVER_HINT_TEXT                            "短按任意键唤醒"
+#define HOME_LEVEL_DIR_LEFT_TEXT                        "左侧吸力"
+#define HOME_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力"
 #define HOME_LEVEL_OVER_LIMIT_TEXT                      UI_STR_LEVEL_OVER_LIMIT
 #define HOME_LEVEL_MODE_SWITCH_TEXT_FMT                 UI_STR_SWITCH_TO_FMT
 #define HOME_BOTH_LEVEL_DIR_LEFT_TEXT                   UI_STR_SIDE_L
@@ -49,9 +54,9 @@ extern "C" {
 #define PUMP_HOME_MAIN_HINT_TEXT                        "按下旋钮恢复吸奶"
 #define PUMP_HOME_MAIN_SEAL_CHECKING_TEXT               "正在检测密封..."
 #define PUMP_HOME_MAIN_SEAL_RESULT_TEXT                 "密封检测通过"
-#define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT             "已切换到%s\n吸力档位和频率可能会变化"
-#define PUMP_LEVEL_DIR_LEFT_TEXT                        "左侧吸力档位"
-#define PUMP_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力档位"
+#define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT             "已切换到%s\n吸力和速度可能会变化"
+#define PUMP_LEVEL_DIR_LEFT_TEXT                        "左侧吸力"
+#define PUMP_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力"
 #define PUMP_LEVEL_OVER_LIMIT_TEXT                      UI_STR_LEVEL_OVER_LIMIT
 #define PUMP_LEVEL_MODE_SWITCH_TEXT_FMT                 UI_STR_SWITCH_TO_FMT
 #define PUMP_BOTH_LEVEL_DIR_LEFT_TEXT                   UI_STR_SIDE_L
@@ -66,44 +71,44 @@ extern "C" {
 #define PUMP_FINISH_TIMEOUT_TITLE1_TEXT                 "结束吸乳"
 #define PUMP_FINISH_TIMEOUT_TITLE2_TEXT                 "自动结束中..."
 #define PUMP_WILL_FINISH_TITLE1_TEXT                    "吸乳即将结束"
-#define PUMP_WILL_FINISH_TITLE2_TEXT                    "按下旋钮继续吸乳"
-#define PUMP_FINISH_TITLE_TEXT                          "吸乳已完成"
-#define PUMP_FINISH_CONTENT_TEXT                        "打开 Momcozy App 记录\n奶量吧"
-#define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT            "充电器不兼容"
-#define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT            "即将自动结束"
+#define PUMP_WILL_FINISH_TITLE2_TEXT                    "如需继续请按下旋钮"
+#define PUMP_FINISH_TITLE_TEXT                          "完成吸乳"
+#define PUMP_FINISH_CONTENT_TEXT                        "打开 App 记录奶量吧"
+#define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT            "适配器不匹配"
+#define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT            "启动结束中..."
 #define PUMP_RUNING_30M_TIP_TEXT                        "已吸乳 30 分钟\n休息一下吧"
 #define PUMP_REST_MODE_ADJUST_TIP_TEXT                  "正在运行休息模式\n暂时无法调节"
 
 /*******************************************************************************
  * Rhythm / settings
  ******************************************************************************/
-#define RHYTHM_CONFIRM_TITLE_TEXT                       "确定切换追奶程序吗？"
+#define RHYTHM_CONFIRM_TITLE_TEXT                       "确定切换韵律吗？"
 #define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "切换后将重新计时"
-#define SETTINGS_SUCCESS_TITLE_TEXT                     "模式切换成功"
+#define SETTINGS_SUCCESS_TITLE_TEXT                     "成功"
 #define SETTINGS_SUCCESS_PROGRAM_TITLE_TEXT             "切换成功"
 #define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_TEXT          "即将重新计时"
 
 /*******************************************************************************
  * Power / lock / airplane
  ******************************************************************************/
-#define POWER_OFF_HOLD_TITLE_TEXT                       "按住旋钮3秒\n设备即将关机"
-#define POWER_OFF_TEXT_POWERING_OFF_STR                 "设备正在关机"
-#define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "长时间没有操作\n设备即将自动关机"
+#define POWER_OFF_HOLD_TITLE_TEXT                       "长按关机"
+#define POWER_OFF_TEXT_POWERING_OFF_STR                 "正在关机"
+#define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "自动关机中..."
 #define POWER_OFF_TEXT_LOW_POWER_STR                    "电量过低\n正在关机..."
-#define RESTARTING_TEXT                                 "正在重新启动\n请稍候..."
+#define RESTARTING_TEXT                                 "重启中..."
 #define POWER_OFF_CHARGE_TEXT                           "充电中..."
-#define LOW_POWER_PAGE_TEXT                             "电量过低\n请连接充电器"
-#define POWER_ON_HOLD_LINE1_TEXT                        "按住 2 秒开机"
+#define LOW_POWER_PAGE_TEXT                             "电量过低\n请充电"
+#define POWER_ON_HOLD_LINE1_TEXT                        "长按旋钮开机"
 #define POWER_ON_HOLD_LINE2_TEXT                        ""
 #define AIRPLANE_MODE_TITLE_TEXT                        "设备已锁定"
-#define AIRPLANE_MODE_HINT_TEXT                         "长按 5 秒解锁"
-#define TRAVEL_LOCK_TITLE_TEXT                          "长按 5 秒锁定设备"
+#define AIRPLANE_MODE_HINT_TEXT                         "长按解锁"
+#define TRAVEL_LOCK_TITLE_TEXT                          "长按锁定设备"
 #define LOW_POWER_POPUP_TITLE_TEXT                      "即将关机"
 
 /*******************************************************************************
  * Charge / OTA / factory
  ******************************************************************************/
-#define CHARGE_ADAPTER_TITLE_TEXT                       "电源功率不匹配"
+#define CHARGE_ADAPTER_TITLE_TEXT                       "适配器不匹配"
 #define CHARGE_ADAPTER_SUBTITLE_TEXT                    "无法充电"
 #define OTA_RES_UPGRADING_TEXT                          "资源升级中..."
 #define OTA_FW_UPGRADING_TEXT                           "固件升级中..."
@@ -111,8 +116,8 @@ extern "C" {
 #define OTA_UPGRADE_FAILED_TEXT                         "升级失败"
 #define OTA_UPGRADE_COMPLETED_TEXT                      "升级完成"
 #define FACTORY_RESET_CONFIRM_TITLE_TEXT                "恢复出厂设置"
-#define FACTORY_RESET_CONFIRM_HINT_TEXT                 "长按旋钮3秒"
-#define FACTORY_RESET_PROGRESS_TEXT                     "正在恢复出厂设置..."
+#define FACTORY_RESET_CONFIRM_HINT_TEXT                 "长按旋钮"
+#define FACTORY_RESET_PROGRESS_TEXT                     "恢复出厂设置中..."
 
 /*******************************************************************************
  * System / BLE popup
@@ -123,7 +128,7 @@ extern "C" {
 #define TEMP_ERROR_CONTENT_TEXT                         "设备已暂停"
 #define BLE_CONNECT_TEXT                                "设备连接成功"
 #define BLE_DISCONNECT_TEXT                             "设备断开连接"
-#define BLE_CONNECTING_TEXT                             "设备正在连接..."
+#define BLE_CONNECTING_TEXT                             "设备连接中..."
 
 /*******************************************************************************
  * Theme guide
@@ -137,10 +142,10 @@ extern "C" {
 /*******************************************************************************
  * Guide
  ******************************************************************************/
-#define GUIDE_INTRO_TITLE_TEXT                          "准备好了吗？\n开始你的吸乳之旅吧"
-#define GUIDE_QRCODE_DESC_TEXT                          "扫码下载 Momcozy App\n连接设备，开启贴心吸乳体验"
+#define GUIDE_INTRO_TITLE_TEXT                          "开始你的吸乳之旅吧！"
+#define GUIDE_QRCODE_DESC_TEXT                          "扫码下载并连接 App\n智能吸奶，奶量记录，轻松遥\n控"
 #define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
-#define GUIDE_FINISH_DESC_TEXT                          "新手引导已完成\n可扫码查看操作视频"
+#define GUIDE_FINISH_DESC_TEXT                          "完成新手引导"
 #define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT              "转动旋钮\n查看更多选择"
 #define GUIDE_PUMP_START_GUIDE_TITLE_TEXT               "按下旋钮开始"
 #define GUIDE_PUMP_PAUSE_GUIDE_TITLE_TEXT               "按下旋钮暂停"
@@ -153,12 +158,12 @@ extern "C" {
 #define GUIDE_SPEED_GUIDE_ADJUST_TEXT                   "调节吸乳速度"
 #define GUIDE_LEVEL_SIDE_GUIDE_PRESS_TEXT               "按下"
 #define GUIDE_LEVEL_SIDE_GUIDE_OR_TEXT                  "或"
-#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_TEXT              "分开调节左/右侧档\n位"
+#define GUIDE_LEVEL_SIDE_GUIDE_ADJUST_TEXT              "分开调节左/右吸力"
 #define GUIDE_LEVEL_BOTH_GUIDE_PRESS_TEXT               "同时按下"
 #define GUIDE_LEVEL_BOTH_GUIDE_AND_TEXT                 "和"
 #define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_TEXT              "一起调节两侧吸力"
-#define GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT                  "左侧吸力档位"
-#define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "右侧吸力档位"
+#define GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT                  "左侧吸力"
+#define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "右侧吸力"
 #define GUIDE_LEVEL_SIDE_OVER_LIMIT_TEXT                UI_STR_LEVEL_OVER_LIMIT
 #define GUIDE_BOTH_LEVEL_DIR_LEFT_TEXT                  UI_STR_SIDE_L
 #define GUIDE_BOTH_LEVEL_DIR_RIGHT_TEXT                 UI_STR_SIDE_R
@@ -167,17 +172,16 @@ extern "C" {
 /*******************************************************************************
  * Seal leak (Pro)
  ******************************************************************************/
-#define PUMP_SEAL_LEAK_TITLE_AIR_SEAL                    "检查气密"
+#define PUMP_SEAL_LEAK_TITLE_AIR_SEAL                   "检查气密"
 #define PUMP_SEAL_LEAK_TITLE_FIT                        "检查贴合"
 #define PUMP_SEAL_LEAK_TITLE_CUP                        "检查奶杯"
-#define PUMP_SEAL_LEAK_TITLE_COMPLETE                    "自检完成"
+#define PUMP_SEAL_LEAK_TITLE_COMPLETE                   "自检完成"
 #define PUMP_SEAL_LEAK_DESC_TUBING                      "请将导管插紧"
 #define PUMP_SEAL_LEAK_DESC_FLANGE                      "对准乳头\n压紧法兰"
 #define PUMP_SEAL_LEAK_DESC_CUP                         "扣紧杯缘\n装好鸭嘴阀"
-#define PUMP_SEAL_LEAK_DESC_COMPLETE                     "按下继续"
-#define PUMP_FIT_NOT_DETECTED_TITLE                      "未检测到贴合"
-#define PUMP_FIT_NOT_DETECTED_DESC \
-    "请检查奶杯佩戴\n按下继续"
+#define PUMP_SEAL_LEAK_DESC_COMPLETE                    "按下继续"
+#define PUMP_FIT_NOT_DETECTED_TITLE                     "未检测到贴合"
+#define PUMP_FIT_NOT_DETECTED_DESC                      "请检查奶杯佩戴\n按下继续"
 
 /*******************************************************************************
  * Product tests

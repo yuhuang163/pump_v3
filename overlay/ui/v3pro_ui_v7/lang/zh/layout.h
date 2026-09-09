@@ -263,7 +263,9 @@ extern "C" {
 #define GUIDE_LEVEL_BOTH_GUIDE_AND_LINE_SPACE           (4)
 #define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_Y                 (191)
 #define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_LINE_SPACE        (8)
+#define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_X              (165)
 #define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y              (137)
+#define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_X             (263)
 #define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y             (137)
 
 #ifdef __cplusplus

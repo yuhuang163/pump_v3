@@ -13,11 +13,7 @@ static PSRAM_NC_DATA_LOC uint8_t s_mode_select_tip_png[] = {
 };
 
 static PSRAM_NC_DATA_LOC uint8_t s_level_adjust_tip_png[] = {
-#if (PRODUCT_LANGUAGE_USED == PRODUCT_LANGUAGE_EN)
     #include "font_img/txt/level_adjust_tip_232x63.txt"
-#else
-    #include "font_img/txt/level_adjust_tip_220x63.txt"
-#endif
 };
 
 static PSRAM_NC_DATA_LOC uint8_t s_pump_break_tip_png[] = {

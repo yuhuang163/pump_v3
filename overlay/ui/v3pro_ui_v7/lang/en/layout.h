@@ -203,8 +203,8 @@ extern "C" {
 #define GUIDE_QRCODE_ALIGN_Y                            (41)
 #define GUIDE_QRCODE_DESC_Y                             (190)
 #define GUIDE_QRCODE_DESC_LINE_SPACE                    (8)
-#define GUIDE_FINISH_QRCODE_ALIGN_Y                     (56)
-#define GUIDE_FINISH_DESC_Y                             (198)
+#define GUIDE_FINISH_QRCODE_ALIGN_Y                     (83)
+#define GUIDE_FINISH_DESC_Y                             (225)
 #define GUIDE_FINISH_DESC_LINE_SPACE                    (8)
 #define GUIDE_MODE_HOME_MODE_TITLE_Y                    (62 + 4)
 #define GUIDE_MODE_SWITCH_ICON_Y                        (100)
@@ -252,7 +252,9 @@ extern "C" {
 #define GUIDE_LEVEL_BOTH_GUIDE_AND_LINE_SPACE           (4)
 #define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_Y                 (176)
 #define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_LINE_SPACE        (8)
+#define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_X              (138)
 #define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y              (121)
+#define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_X             (255)
 #define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y             (121)
 
 #ifdef __cplusplus

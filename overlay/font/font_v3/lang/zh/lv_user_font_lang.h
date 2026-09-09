@@ -13,8 +13,14 @@ extern "C" {
  *   font_noto_sans_zh_29/lv_font_noto_sans_zh_29_medium.c → lv_font_noto_sans_zh_29_medium
  *   font_noto_sans_zh_33/lv_font_noto_sans_zh_33_medium.c → lv_font_noto_sans_zh_33_medium
  *
- * 汉字/标点/未翻译 ASCII 均在 charset_19.txt 等文件（空格在汉字与数字之间）。
- * 生成时整份丢进 --symbols，不要再用 -r 0x20-0x7E。
+ * 汉字/标点/数字/字母均在 charset_19.txt 等文件，按行拆开便于核对：
+ *   1 当前已用汉字
+ *   2 暂未使用仍保留汉字（可无此行）
+ *   3 空格（U+0020，行首一个空格）+ 标点（33px 该行仅空格）
+ *   4 数字
+ *   5 A-Z
+ *   6 a-z
+ * 生成时整份丢进 --symbols，不要再用 -r 0x20-0x7E。标点行开头的空格不要删。
  * 例：
  *   lv_font_conv --bpp 4 --size 26 --no-compress --stride 1 --align 1 \
  *     --font NotoSansSC-Medium.ttf --symbols "$(cat charset_26.txt)" \
