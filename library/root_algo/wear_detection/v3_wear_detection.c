@@ -1445,7 +1445,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		}
 		else if ((uCount_Max >= 4) && tFeatureInfoTemp->iPwmOffset > 0 && (tFeatureInfoTemp->uDataBaselineCnt[0] > 10) && (tFeatureInfoTemp->uDataBaselineCnt[2] < 2) && (6 <= uLevel && uLevel <= 8 && uMode == MODE_EXPRESSION))
 		{
-			/* hot fix: 对于突然变大的情况*/
+			/* hot fix: 对于漏气后突然变大的情况 */
 			/* 该情况下pwm补偿清0 */
 			tFeatureInfoTemp->uCompsStatus = 0;
 			if (error > 0.0f)
@@ -1463,7 +1463,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				tFeatureInfoTemp->iPwmOffset = 0;
 			}
 		}
-		else if ((uCount_Max >= 4) && (tFeatureInfoTemp->uDataBaselineCnt[0] > 10) && (tFeatureInfoTemp->uDataBaselineCnt[2] < 2) && uMode == MODE_EXPRESSION)
+		else if ((uCount_Max >= 4) && (tFeatureInfoTemp->uDataBaselineCnt[0] > 10) && (tFeatureInfoTemp->uDataBaselineCnt[2] < 2) && uMode == MODE_EXPRESSION && uLevel >= 3)
 		{
 			/* 分析补偿效果 --- 如果正向补偿后负压 */
 
@@ -1503,6 +1503,54 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 
 				/* 输出正向饱和时冻结积分 */
 				if (!(newPwmOffset >= 5000 && error > 0.0f))
+				{
+					tFeatureInfoTemp->fCompErrSum = err_sum_candidate;
+				}
+
+				tFeatureInfoTemp->iPwmOffset = CLAMP(newPwmOffset, -5000, 5000);
+				tFeatureInfoTemp->fCompPrevErr = error;
+			}
+		}
+		else if ((uCount_Max >= 4) && (tFeatureInfoTemp->uDataBaselineCnt[0] > 10) && (tFeatureInfoTemp->uDataBaselineCnt[2] < 2) && uMode == MODE_EXPRESSION && uLevel < 3)
+		{
+			/* 漏气后密封突然出现大漏气特征，泌乳低档位时，应该负向补偿 */
+			tFeatureInfoTemp->uCompsStatus = 2;
+
+			if (error > 0.0f)
+			{
+				error = 0.0f;
+				tFeatureInfoTemp->uCompsStatus = 0;
+			}
+
+			/* 如果偏差过大，则不输出 PWM 补偿，且重新置零，以防过冲 */
+			step_limit = 100;
+			if (fabs(error) > 10.0f)
+			{
+				tFeatureInfoTemp->iDelta_pwm = 0;
+				tFeatureInfoTemp->fCompErrSum = 0.0f;
+				tFeatureInfoTemp->fCompPrevErr = 0.0f;
+				tFeatureInfoTemp->iPwmOffset -= 100;
+			}
+			else
+			{
+				if (fabs(error) < deadband)
+				{
+					error = 0.0f;
+				}
+
+				/* PI 控制：偏深时 error 应为负，输出负补偿 */
+				err_sum_candidate = tFeatureInfoTemp->fCompErrSum + error;
+				err_sum_candidate = CLAMP(err_sum_candidate, -i_limit, i_limit);
+
+				tFeatureInfoTemp->iDelta_pwm =
+					(int)(kp * error + ki * err_sum_candidate);
+				tFeatureInfoTemp->iDelta_pwm = CLAMP(tFeatureInfoTemp->iDelta_pwm, -step_limit, 0);
+				//tFeatureInfoTemp->iDelta_pwm = -tFeatureInfoTemp->iDelta_pwm < step_limit ? -step_limit : tFeatureInfoTemp->iDelta_pwm;
+
+				newPwmOffset = tFeatureInfoTemp->iPwmOffset + tFeatureInfoTemp->iDelta_pwm;
+
+				/* 输出负向饱和时冻结积分 */
+				if (!(newPwmOffset <= -5000 && error < 0.0f))
 				{
 					tFeatureInfoTemp->fCompErrSum = err_sum_candidate;
 				}
