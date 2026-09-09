@@ -23,6 +23,11 @@
 #define GUIDE_PAGE_IS_STOP_HOLD_CONFLICT(page) \
     ((page) == GUIDE_PAGE_PUMP_FINISH_GUIDE || (page) == GUIDE_PAGE_PUMP_FINISH_HOLD)
 
+/// 引导页 Start/pause 键指示灯常亮页（其余页面指示灯熄灭）
+#define GUIDE_PAGE_IS_START_LED_ON(page) \
+    ((page) == GUIDE_PAGE_QRCODE || (page) == GUIDE_PAGE_WELCOME_ANIM || \
+     (page) == GUIDE_PAGE_FINISH)
+
 #define REMOVE_ALL_HANDER_TASK() \
 do { \
     LOG_WM("==>REMOVE_ALL_HANDER_TASK"); \
@@ -68,6 +73,9 @@ static int on_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t 
         (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
         if (keycode == KEY_CODE_POWER && GUIDE_PAGE_IS_STOP_HOLD_CONFLICT(proc->page_index)) {
             guide_stop_hold_key_long_2s_handler(proc);
+        } else if (keycode == KEY_CODE_START && !GUIDE_PAGE_IS_START_LED_ON(proc->page_index)) {
+            /// Start/pause 键指示灯熄灭时，长按 start 不进入关机流程
+            LOG_WM("guide start led off, ignore start long 2s shutdown.");
         } else {
             guide_power_off_hold_key_long_2s_handler(proc);
         }
