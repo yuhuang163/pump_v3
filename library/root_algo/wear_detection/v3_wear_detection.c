@@ -90,7 +90,7 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 		tFeatureInfo[j].uNoiseLevel = 0;
 		tFeatureInfo[j].uWaveSpikes = 0;
 		tFeatureInfo[j].uPVIndex = 0;
-		tFeatureInfo[j].uWearStatus = 0;
+		tFeatureInfo[j].uWearStatus = WEAR_STATE_0;
 		tFeatureInfo[j].uNormalWaveform = 0;
 		tFeatureInfo[j].pumping_time = 0;
 		tFeatureInfo[j].fMinDataBuffMin = 0;
@@ -206,7 +206,7 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 	tFeatureInfo[uChannelIdx].uWaveSpikes = 0;
 
 	tFeatureInfo[uChannelIdx].uPVIndex = 0;
-	tFeatureInfo[uChannelIdx].uWearStatus = 0;
+	tFeatureInfo[uChannelIdx].uWearStatus = WEAR_STATE_0;
 	tFeatureInfo[uChannelIdx].uNormalWaveform = 0;
 	tFeatureInfo[uChannelIdx].fMinDataBuffMin = 0;
 	tFeatureInfo[uChannelIdx].uCompsStatus = 0;
@@ -1031,7 +1031,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 1. 当前处于“未佩戴”状态时，判断是否进入“已佩戴”状态
 	 * ========================================================= */
-	if (tFeatureInfoTemp->uWearStatus == 0)
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF || tFeatureInfoTemp->uWearStatus == WEAR_STATE_0)
 	{
 		/* -------------------------
 		 * 1.1 吸乳模式
@@ -1041,7 +1041,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			if (tFeatureInfo->uDataBaselineCnt[2] > 10 && tFeatureInfoTemp->fRawSegMinPressure < -10)
 			{
 				tFeatureInfo->uLeakStatus = 0;
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 			}
 
 			if ((uLevel < 3) && (((double)tFeatureInfoTemp->fRawSegMinPressure - (double)tFeatureInfoTemp->fThreshold) > .25) && tFeatureInfoTemp->fRawSegMinPressure < -3 && tFeatureInfoTemp->uWaveSpikes <= 2)
@@ -1053,19 +1053,19 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* L1 ~ L15 的基础进入条件 */
 			if (uLevel >= 5 && tFeatureInfoTemp->fThreshold - 0.25 < tFeatureInfoTemp->fRawSegMinPressure && tFeatureInfoTemp->uWaveSpikes <= 2)
 			{
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
 			}
 			else if ((uLevel < 3) && (tFeatureInfoTemp->fThreshold - 0.25 > tFeatureInfoTemp->fRawSegMinPressure) || (tFeatureInfoTemp->fThreshold + 0.25 > tFeatureInfoTemp->fRawSegMinPressure))
 			{
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
 			}
 			else if (((uLevel >= 3 && uLevel <= 4) || uLevel == 5) && tFeatureInfoTemp->uNoiseLevel < 10)
 			{
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
 			}
@@ -1076,12 +1076,12 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 					tFeatureInfoTemp->uNormalWaveform >= 1 &&
 					tFeatureInfoTemp->uNormalWaveform <= 10)
 				{
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 				else if (tFeatureInfoTemp->uWaveSpikes <= 2 && uLevel >= 8)
 				{
 					/* 漏气情况，高档位可能存在高频噪声 */
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 			}
 		}
@@ -1099,26 +1099,26 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 
 			if (uLevel <= 3 && (tFeatureInfoTemp->fThreshold + 0.25 > tFeatureInfoTemp->fRawSegMinPressure))
 			{
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
 			}
 			else if (uLevel > 3 && (tFeatureInfoTemp->fThreshold + 0.25) > (tFeatureInfoTemp->fRawSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 			{
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
 			}
 
 			else if (tFeatureInfoTemp->uWaveSpikes == 0 && tFeatureInfoTemp->fRawSegMinPressure < -3.0)
 			{
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
 			}
 			else if (tFeatureInfoTemp->uWaveSpikes <= 1 && uLevel == 4 && tFeatureInfoTemp->fRawSegMinPressure < -3.0)
 			{
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
 			}
@@ -1129,18 +1129,18 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 2. 当前处于“已佩戴”状态时，判断是否退出为“未佩戴”状态
 	 * ========================================================= */
-	else if (tFeatureInfoTemp->uWearStatus == 1)
+	else if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uWearStatus == WEAR_STATE_0)
 	{
 		/* 条件1：
 		 * 当前最小负压已经不够深，直接判定退出佩戴
 		 */
 		if (tFeatureInfoTemp->fMinData > -1)
 		{
-			uCandidateWearStatus = 0;
+			uCandidateWearStatus = WEAR_STATE_OFF;
 		}
 
 		/* 只有在前面没有已经直接判成 0 的情况下，再继续按模式和档位判定 */
-		if (uCandidateWearStatus == 1)
+		if (uCandidateWearStatus == WEAR_STATE_ON)
 		{
 			/* -------------------------
 			 * 2.1 吸乳模式
@@ -1150,29 +1150,29 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				/* 对于泵侧无吸力的情况 */
 				if (tFeatureInfoTemp->fRawSegMinPressure > -3)
 				{
-					uCandidateWearStatus = 0;
+					uCandidateWearStatus = WEAR_STATE_OFF;
 				}
 				if (uLevel >= 7 && (tFeatureInfoTemp->fThreshold - 0.25) < tFeatureInfoTemp->fRawSegMinPressure && tFeatureInfoTemp->uWaveSpikes > 4)
 				{
-					uCandidateWearStatus = 0;		
+					uCandidateWearStatus = WEAR_STATE_OFF;
 				}
 				else if (uLevel <= 1)
 				{
 					if (tFeatureInfoTemp->uNormalWaveform < 4 &&
 						(tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fRawSegMinPressure)
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 				}
 				else
 				{
 					if (tFeatureInfoTemp->uNormalWaveform > 10)
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 					else if (tFeatureInfoTemp->uWaveSpikes > 4)
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 					else if (tFeatureInfoTemp->fMinData > -.1
 						|| (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData && uLevel >= 6))
@@ -1189,15 +1189,15 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			{
 				if (tFeatureInfoTemp->fRawSegMinPressure > -3)
 				{
-					uCandidateWearStatus = 0;
+					uCandidateWearStatus = WEAR_STATE_OFF;
 				}
 				if (uLevel <= 3 && (tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fFilteredSegMinPressure && tFeatureInfoTemp->uWaveSpikes > 4)
 				{
-					uCandidateWearStatus = 0;
+					uCandidateWearStatus = WEAR_STATE_OFF;
 				}
 				else if (uLevel > 3 && (tFeatureInfoTemp->fThreshold + 0.25) < (tFeatureInfoTemp->fFilteredSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3) && (float)tFeatureInfoTemp->uWaveSpikes > 1)
 				{
-					uCandidateWearStatus = 0;
+					uCandidateWearStatus = WEAR_STATE_OFF;
 				}
 			}
 		}
@@ -1208,7 +1208,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	if (uCandidateWearStatus != tFeatureInfoTemp->uWearStatus)
 	{
 		/* 目标是从 0 -> 1 */
-		if (uCandidateWearStatus == 1)
+		if (uCandidateWearStatus == WEAR_STATE_ON)
 		{
 			/* 进入佩戴计数加一，退出计数清零 */
 			tFeatureInfoTemp->uWearOnCount++;
@@ -1217,7 +1217,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* 连续 n 次满足进入条件，才真正切换为佩戴 */
 			if (tFeatureInfoTemp->uWearOnCount >= 6)
 			{
-				tFeatureInfoTemp->uWearStatus = 1;
+				tFeatureInfoTemp->uWearStatus = WEAR_STATE_ON;
 				tFeatureInfoTemp->uWearOnCount = 0;
 			}
 		}
@@ -1232,7 +1232,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* 连续 n 次满足退出条件，才真正切换为未佩戴 */
 			if (tFeatureInfoTemp->uWearOffCount >= 3)
 			{
-				tFeatureInfoTemp->uWearStatus = 0;
+				tFeatureInfoTemp->uWearStatus = WEAR_STATE_OFF;
 				tFeatureInfoTemp->uWearOffCount = 0;
 			}
 		}
@@ -1324,16 +1324,16 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 4. 只有在“已佩戴”时，才进行补偿状态计算
 	 * ========================================================= */
-	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uLeakStatus == 0)
+	if ((tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF || tFeatureInfoTemp->uWearStatus == WEAR_STATE_0) && tFeatureInfoTemp->uLeakStatus == 0)
 	{
 		tFeatureInfoTemp->uLeakStatus = 0;
 		if (tFeatureInfoTemp->uMinPressureCnt >= 6)
 		{
-			/* 如果纯负压值偏小 */
+			/* 如果纯负压值偏小，也判为微漏气 */
 			tFeatureInfoTemp->uLeakStatus = 2;
 		}
 	}
-	if (tFeatureInfoTemp->uWearStatus == 1)
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON)
 	{
 		/* 没检测出漏气等级，但是wearStatus是1，则认为是佩戴 */
 		if (tFeatureInfoTemp->uLeakStatus == 0)
@@ -1347,7 +1347,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		}
 	}
 	/*
-	if (tFeatureInfoTemp->uWearStatus == 0 && tFeatureInfoTemp->uLeakStatus == 3)
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus == 3)
 	{
 		return;
 	}
@@ -1355,8 +1355,8 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 
 
 	/* 优化：区分漏气状态时，负压变大的情况，同时，对非密封/大漏时不进行补偿 */
-	if (tFeatureInfoTemp->uWearStatus == 1 || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2 || tFeatureInfoTemp->uLeakStatus == 3)
-	//if (tFeatureInfoTemp->uWearStatus != 0 && tFeatureInfoTemp->uLeakStatus != 3)
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2 || tFeatureInfoTemp->uLeakStatus == 3)
+	//if (tFeatureInfoTemp->uWearStatus != WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus != 3)
 	{
 		unsigned int uCount_Min = 0;
 		unsigned int uCount_Max = 0;
@@ -1364,7 +1364,6 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		/* 遍历最近缓存的 6 个最小负压点，判断当前是否偏离 loaded 阈值 */
 		for (unsigned int i = 0; i < 5; i++)
 		{
-
 			if ((tFeatureInfoTemp->fMinDataBuff[i]) > tFeatureInfoTemp->fLoadedThresholdBuff[i] + 0.5f &&
 				(tFeatureInfoTemp->fMinDataBuff[i]) < -3.4)
 			{
@@ -1589,7 +1588,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 1. 当前处于“未佩戴”状态时，判断是否进入“已佩戴”状态
 	 * ========================================================= */
-	if (tFeatureInfoTemp->uWearStatus == 0)
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF)
 	{
 		/* -------------------------
 		 * 1.1 吸乳模式
@@ -1604,14 +1603,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 					if((tFeatureInfoTemp->fThreshold - 0.25) < (tFeatureInfoTemp->fMinData - ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3)
 						&& (tFeatureInfoTemp->fMinData < -33.25))
 					{
-						uCandidateWearStatus = 1;
+						uCandidateWearStatus = WEAR_STATE_ON;
 					}
 				}
 				else 
 				{
 					if((((tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure)) && (tFeatureInfoTemp->uWaveSpikes <= 1))
 					{
-						uCandidateWearStatus = 1;
+						uCandidateWearStatus = WEAR_STATE_ON;
 					}
 				}
 			}
@@ -1619,7 +1618,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			{
 				if((tFeatureInfoTemp->fThreshold - 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
 				{
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 			}
 			else
@@ -1629,7 +1628,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 					tFeatureInfoTemp->uNormalWaveform >= 1 &&
 					tFeatureInfoTemp->uNormalWaveform <= 10)
 				{
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 			}
 		}
@@ -1641,7 +1640,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		{
 			if((tFeatureInfoTemp->fThreshold + 0.25) > (tFeatureInfoTemp->fFilteredSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 			{
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 			}
 		}
 
@@ -1654,14 +1653,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			{
 				if((tFeatureInfoTemp->fRawSegThresholdAtMinPressure + 0.25) > tFeatureInfoTemp->fRawSegMinPressure && (tFeatureInfoTemp->uWaveSpikes <= 1))
 				{
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 			}
 			else if(uLevel <= 6)
 			{
 				if((tFeatureInfoTemp->fRawSegThresholdAtMinPressure + 0.25) > tFeatureInfoTemp->fRawSegMinPressure)
 				{
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 			}
 			else
@@ -1674,7 +1673,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 						tFeatureInfoTemp->uNormalWaveform >= 1) &&
 						(tFeatureInfoTemp->uNormalWaveform <= 10))
 					{
-						uCandidateWearStatus = 1;
+						uCandidateWearStatus = WEAR_STATE_ON;
 					}
 				}
 
@@ -1686,7 +1685,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 						(uLevel >= 9) &&
 						tFeatureInfoTemp->uWaveSpikes < 5)
 					{
-						uCandidateWearStatus = 1;
+						uCandidateWearStatus = WEAR_STATE_ON;
 					}
 				}
 			}
@@ -1696,18 +1695,18 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 2. 当前处于“已佩戴”状态时，判断是否退出为“未佩戴”状态
 	 * ========================================================= */
-	else if (tFeatureInfoTemp->uWearStatus == 1)
+	else if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON)
 	{
 		/* 条件1：
 		 * 当前最小负压已经不够深，直接判定退出佩戴
 		 */
 		if (tFeatureInfoTemp->fMinData > -1)
 		{
-			uCandidateWearStatus = 0;
+			uCandidateWearStatus = WEAR_STATE_OFF;
 		}
 
 		/* 只有在前面没有已经直接判成 0 的情况下，再继续按模式和档位判定 */
-		if (uCandidateWearStatus == 1)
+		if (uCandidateWearStatus == WEAR_STATE_ON)
 		{
 			/* -------------------------
 			 * 2.1 吸乳模式
@@ -1722,14 +1721,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 						if((tFeatureInfoTemp->fThreshold + 0.25) > (tFeatureInfoTemp->fMinData + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3)
 							|| (tFeatureInfoTemp->fMinData > -32.75))
 						{
-							uCandidateWearStatus = 0;
+							uCandidateWearStatus = WEAR_STATE_OFF;
 						}
 					}
 					else
 					{
 						if (((tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fRawSegMinPressure) || (tFeatureInfoTemp->uWaveSpikes >= 2))
 						{
-							uCandidateWearStatus = 0;
+							uCandidateWearStatus = WEAR_STATE_OFF;
 						}
 					}
 				}
@@ -1738,7 +1737,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 					if(tFeatureInfoTemp->uNormalWaveform < 4 &&
 					(tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fRawSegMinPressure)
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 				}
 				/* L13 ~ L15 */
@@ -1746,11 +1745,11 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				{
 					if (tFeatureInfoTemp->uNormalWaveform > 10)
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 					else if (tFeatureInfoTemp->uWaveSpikes > 2)
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 					else if (tFeatureInfoTemp->fMinData > -.1
 						|| (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData && uLevel >= 6))
@@ -1767,7 +1766,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			{
 				if((tFeatureInfoTemp->fThreshold + 0.25) < (tFeatureInfoTemp->fFilteredSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 				{
-					uCandidateWearStatus = 0;
+					uCandidateWearStatus = WEAR_STATE_OFF;
 				}
 			}
 
@@ -1780,14 +1779,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				{
 					if((tFeatureInfoTemp->fRawSegThresholdAtMinPressure + 0.25) < tFeatureInfoTemp->fRawSegMinPressure || (tFeatureInfoTemp->uWaveSpikes >= 2))
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 				}
 				else if(uLevel <= 6)
 				{
 					if((tFeatureInfoTemp->fRawSegThresholdAtMinPressure + 0.25) < tFeatureInfoTemp->fRawSegMinPressure)
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 				}
 				else
@@ -1798,7 +1797,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 						if ((tFeatureInfoTemp->fThreshold < tFeatureInfoTemp->fMinDataBuffMin) &&
 							tFeatureInfoTemp->uWaveSpikes >= 5)
 						{
-							uCandidateWearStatus = 0;
+							uCandidateWearStatus = WEAR_STATE_OFF;
 						}
 					}
 					/* L7 及以上 */
@@ -1806,12 +1805,12 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 					{
 						if (tFeatureInfoTemp->uWaveSpikes > 5)
 						{
-							uCandidateWearStatus = 0;
+							uCandidateWearStatus = WEAR_STATE_OFF;
 						}
 					}
 
 					/* 噪声/边界保持逻辑 */
-					if (uCandidateWearStatus == 1)
+					if (uCandidateWearStatus == WEAR_STATE_ON)
 					{
 						if (tFeatureInfoTemp->fMinData > -.1
 							|| (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData && uLevel >= 6))
@@ -1830,7 +1829,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	if (uCandidateWearStatus != tFeatureInfoTemp->uWearStatus)
 	{
 		/* 目标是从 0 -> 1 */
-		if (uCandidateWearStatus == 1)
+		if (uCandidateWearStatus == WEAR_STATE_ON)
 		{
 			/* 进入佩戴计数加一，退出计数清零 */
 			tFeatureInfoTemp->uWearOnCount++;
@@ -1839,7 +1838,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* 连续 n 次满足进入条件，才真正切换为佩戴 */
 			if (tFeatureInfoTemp->uWearOnCount >= 6)
 			{
-				tFeatureInfoTemp->uWearStatus = 1;
+				tFeatureInfoTemp->uWearStatus = WEAR_STATE_ON;
 				tFeatureInfoTemp->uWearOnCount = 0;
 			}
 		}
@@ -1854,7 +1853,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* 连续 n 次满足退出条件，才真正切换为未佩戴 */
 			if (tFeatureInfoTemp->uWearOffCount >= 3)
 			{
-				tFeatureInfoTemp->uWearStatus = 0;
+				tFeatureInfoTemp->uWearStatus = WEAR_STATE_OFF;
 				tFeatureInfoTemp->uWearOffCount = 0;
 			}
 		}
@@ -1872,7 +1871,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 4. 只有在“已佩戴”时，才进行补偿状态计算
 	 * ========================================================= */
-	if ((tFeatureInfoTemp->uWearStatus == 1) && uLevel < 10) 
+	if ((tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON) && uLevel < 10)
 	{
 		unsigned int uCount_Min = 0;
 		unsigned int uCount_Max = 0;
@@ -2036,7 +2035,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 1. 当前处于“未佩戴”状态时，判断是否进入“已佩戴”状态
 	 * ========================================================= */
-	if (tFeatureInfoTemp->uWearStatus == 0)
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF)
 	{
 		/* -------------------------
 		 * 1.1 吸乳模式
@@ -2045,7 +2044,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		{
 			if(tFeatureInfoTemp->uWaveSpikes <= 1)
 			{
-				uCandidateWearStatus = 1;
+				uCandidateWearStatus = WEAR_STATE_ON;
 			}
 		}
 		/* -------------------------
@@ -2057,14 +2056,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			{
 				if(tFeatureInfoTemp->uWaveSpikes == 0)
 				{
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 			}
 			else
 			{
 				if((tFeatureInfoTemp->fThreshold + 0.25) > (tFeatureInfoTemp->fRawSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 				{
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 			}
 		}
@@ -2078,14 +2077,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			{
 				if(tFeatureInfoTemp->uWaveSpikes == 0)
 				{
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 			}
 			else
 			{
 				if((tFeatureInfoTemp->fThreshold + 0.25) > (tFeatureInfoTemp->fRawSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 				{
-					uCandidateWearStatus = 1;
+					uCandidateWearStatus = WEAR_STATE_ON;
 				}
 			}
 		}
@@ -2094,18 +2093,18 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 2. 当前处于“已佩戴”状态时，判断是否退出为“未佩戴”状态
 	 * ========================================================= */
-	else if (tFeatureInfoTemp->uWearStatus == 1)
+	else if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON)
 	{
 		/* 条件1：
 		 * 当前最小负压已经不够深，直接判定退出佩戴
 		 */
 		if (tFeatureInfoTemp->fMinData > -1)
 		{
-			uCandidateWearStatus = 0;
+			uCandidateWearStatus = WEAR_STATE_OFF;
 		}
 
 		/* 只有在前面没有已经直接判成 0 的情况下，再继续按模式和档位判定 */
-		if (uCandidateWearStatus == 1)
+		if (uCandidateWearStatus == WEAR_STATE_ON)
 		{
 			/* -------------------------
 			 * 2.1 吸乳模式
@@ -2114,7 +2113,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			{
 				if(tFeatureInfoTemp->uWaveSpikes >= 2)
 				{
-					uCandidateWearStatus = 0;
+					uCandidateWearStatus = WEAR_STATE_OFF;
 				}
 			}
 
@@ -2127,14 +2126,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				{
 					if(tFeatureInfoTemp->uWaveSpikes >= 1)
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 				}
 				else
 				{
 					if((tFeatureInfoTemp->fThreshold + 0.25) < (tFeatureInfoTemp->fFilteredSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 				}
 			}
@@ -2148,14 +2147,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				{
 					if(tFeatureInfoTemp->uWaveSpikes >= 1)
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 				}
 				else
 				{
 					if((tFeatureInfoTemp->fThreshold + 0.25) < (tFeatureInfoTemp->fFilteredSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 					{
-						uCandidateWearStatus = 0;
+						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
 				}
 			}
@@ -2168,7 +2167,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	if (uCandidateWearStatus != tFeatureInfoTemp->uWearStatus)
 	{
 		/* 目标是从 0 -> 1 */
-		if (uCandidateWearStatus == 1)
+		if (uCandidateWearStatus == WEAR_STATE_ON)
 		{
 			/* 进入佩戴计数加一，退出计数清零 */
 			tFeatureInfoTemp->uWearOnCount++;
@@ -2177,7 +2176,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* 连续 n 次满足进入条件，才真正切换为佩戴 */
 			if (tFeatureInfoTemp->uWearOnCount >= 6)
 			{
-				tFeatureInfoTemp->uWearStatus = 1;
+				tFeatureInfoTemp->uWearStatus = WEAR_STATE_ON;
 				tFeatureInfoTemp->uWearOnCount = 0;
 			}
 		}
@@ -2192,7 +2191,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			/* 连续 n 次满足退出条件，才真正切换为未佩戴 */
 			if (tFeatureInfoTemp->uWearOffCount >= 3)
 			{
-				tFeatureInfoTemp->uWearStatus = 0;
+				tFeatureInfoTemp->uWearStatus = WEAR_STATE_OFF;
 				tFeatureInfoTemp->uWearOffCount = 0;
 			}
 		}
@@ -2210,7 +2209,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 4. 只有在“已佩戴”时，才进行补偿状态计算
 	 * ========================================================= */
-	if (tFeatureInfoTemp->uWearStatus == 1) 
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON)
 	{
 		unsigned int uCount_Min = 0;
 		unsigned int uCount_Max = 0;
@@ -2469,7 +2468,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		}
 
 
-		if (tFeatureInfo[i].uLeakStatus == 0 && tFeatureInfo[i].uWearStatus == 0)
+		if (tFeatureInfo[i].uWearStatus == WEAR_STATE_0 && tFeatureInfo[i].uLeakStatus == 0)
 		{
 			/* 初始 -> 佩戴检测(包括漏气) 时间 */
 			tFeatureInfo[i].uWearDetectTime++;
@@ -2481,6 +2480,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		}
 		if (tFeatureInfo[i].uWearDetectTime >= 1000)
 		{
+			tFeatureInfo[i].uWearStatus = WEAR_STATE_OFF;
 			tFeatureInfo[i].uDetectOverTime = 1;
 		}
 	}
@@ -2546,7 +2546,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			tFeatureInfo[i].uDataBaselineCnt[2] = 0;
 		}
 
-		if (tFeatureInfo[i].uLeakStatus == 0 && tFeatureInfo[i].uWearStatus == 0)
+		if (tFeatureInfo[i].uWearStatus == WEAR_STATE_0 && tFeatureInfo[i].uLeakStatus == 0)
 		{
 			/* 初始 -> 佩戴检测(包括漏气) 时间 */
 			tFeatureInfo[i].uWearDetectTime++;
@@ -2558,6 +2558,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		}
 		if (tFeatureInfo[i].uWearDetectTime >= 1000)
 		{
+			tFeatureInfo[i].uWearStatus = WEAR_STATE_OFF;
 			tFeatureInfo[i].uDetectOverTime = 1;
 		}
 

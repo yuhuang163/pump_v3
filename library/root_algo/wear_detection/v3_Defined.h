@@ -132,12 +132,20 @@ typedef enum {
 /* pump_pressure_compensation */
 
 
+/* 佩戴状态 */
+typedef enum {
+	WEAR_STATE_0 = 0,
+	WEAR_STATE_ON,
+	WEAR_STATE_OFF,
+} wear_status_e;
+
+
+
 /* 漏气分级 */
 typedef enum {
 	LEAKAGE_0 = 0,
 	LEAKAGE_PUMP,
 	LEAKAGE_SMALL,
-	LEAKAGE_MEDIUM,
 	LEAKAGE_LARGE,
 } leakage_status_e;
 
