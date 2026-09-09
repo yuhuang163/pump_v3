@@ -31,6 +31,7 @@ void popup_window_travel_lock_ui_update(ui_manager_context_t *thiz, popup_ui_id_
         case ID_POPUP_UI_TRAVEL_LOCK_COUNTDOWN:
             popup_window_progress_arc_countdown_ui_update(thiz, popup_type,
                 travel_lock_infos, TRAVEL_LOCK_ARC_DONE_COLOR);
+            popup_window_combo_key_icons_update(thiz);
             break;
         default:
             break;

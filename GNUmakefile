@@ -1559,6 +1559,7 @@ extra: $(EXTRA_LIB)
 
 $(EXTRA_LIB): $(EXTRA_OBJS)
 	@mkdir -p $(dir $@)
+	@rm -f $@
 	$(AR) rcs $@ $(EXTRA_OBJS)
 
 $(O)/extra/%.o: $(PROJECT_ROOT)/%.c

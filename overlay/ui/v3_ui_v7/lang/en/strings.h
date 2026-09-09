@@ -62,7 +62,7 @@ extern "C" {
 #define PUMP_WILL_FINISH_TITLE1_TEXT                    "Your pumping program is\nabout to end."
 #define PUMP_WILL_FINISH_TITLE2_TEXT                    "Press the knob to\ncontinue pumping."
 #define PUMP_FINISH_TITLE_TEXT                          "Pumping complete."
-#define PUMP_FINISH_CONTENT_TEXT                        "Open the Momcozy App\nto log your milk output." // ？
+#define PUMP_FINISH_CONTENT_TEXT                        "Open the App to log your\nmilk output."
 #define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT            "Incompatible adapter"
 #define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT            "Ending automatically"
 #define PUMP_RUNING_30M_TIP_TEXT                        "Pumping over 30 min.\nTake a short break."
@@ -80,15 +80,15 @@ extern "C" {
 /*******************************************************************************
  * Power / lock / airplane
  ******************************************************************************/
-#define POWER_OFF_HOLD_TITLE_TEXT                       "Press and hold to\npower off."
+#define POWER_OFF_HOLD_TITLE_TEXT                       "Press & hold"
 #define POWER_OFF_TEXT_POWERING_OFF_STR                 "Powering off..."
 #define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "Auto Powering Off..."
 #define RESTARTING_TEXT                                 "Restarting..."
-#define POWER_ON_HOLD_LINE1_TEXT                        "Press and hold for"
-#define POWER_ON_HOLD_LINE2_TEXT                        "#E2637E 2s# to power on"
+#define POWER_ON_HOLD_LINE1_TEXT                        "Press & hold the"
+#define POWER_ON_HOLD_LINE2_TEXT                        "knob to power on"
 #define AIRPLANE_MODE_TITLE_TEXT                        "Device locked"
-#define AIRPLANE_MODE_HINT_TEXT                         "Press and hold for 5\nseconds to unlock"
-#define TRAVEL_LOCK_TITLE_TEXT                          "Press and hold for 5s\nto lock device"
+#define AIRPLANE_MODE_HINT_TEXT                         "Press & hold to unlock"
+#define TRAVEL_LOCK_TITLE_TEXT                          "Press & hold\nto lock device"
 #define LOW_POWER_POPUP_TITLE_TEXT                      "Powering off in"
 
 /*******************************************************************************
@@ -102,7 +102,7 @@ extern "C" {
 #define OTA_UPGRADE_FAILED_TEXT                         "Upgrade failed"
 #define OTA_UPGRADE_COMPLETED_TEXT                      "Upgrade completed"
 #define FACTORY_RESET_CONFIRM_TITLE_TEXT                "Reset settings"
-#define FACTORY_RESET_CONFIRM_HINT_TEXT                 "Press and hold knob\nfor 3s"
+#define FACTORY_RESET_CONFIRM_HINT_TEXT                 "Press & hold knob"
 #define FACTORY_RESET_PROGRESS_TEXT                     "Reset settings..."
 
 /*******************************************************************************

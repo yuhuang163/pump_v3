@@ -156,6 +156,13 @@ static lv_coord_t guide_level_both_guide_icon_x_from_label(lv_obj_t *label, lv_c
         GUIDE_LEVEL_BOTH_GUIDE_ICON_TEXT_GAP;
 }
 
+static lv_coord_t guide_level_both_guide_left_icon_x_get(guide_base_ui_info_t *info)
+{
+    return guide_level_both_guide_icon_x_from_label(
+        info != NULL ? info->level_both_guide.and_text : NULL,
+        GUIDE_LEVEL_BOTH_GUIDE_AND_X);
+}
+
 static lv_coord_t guide_level_both_guide_right_icon_x_get(guide_base_ui_info_t *info)
 {
     return guide_level_both_guide_icon_x_from_label(
@@ -275,11 +282,10 @@ void guide_level_both_guide_ui_build(guide_base_ui_info_t *info)
     guide_level_both_guide_texts_create(info);
     guide_level_both_guide_icon_create(info, &info->level_both_guide.left_icon,
         &info->level_both_guide.left_icon_buf, GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_RES_ID,
-        guide_level_both_guide_right_icon_x_get(info), GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y);
+        guide_level_both_guide_left_icon_x_get(info), GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y);
     guide_level_both_guide_icon_create(info, &info->level_both_guide.right_icon,
         &info->level_both_guide.right_icon_buf, GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_RES_ID,
-        guide_level_both_guide_icon_x_from_label(info->level_both_guide.and_text,
-            GUIDE_LEVEL_BOTH_GUIDE_AND_X), GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y);
+        guide_level_both_guide_right_icon_x_get(info), GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y);
     guide_level_both_guide_tip_rebuild(info);
 }
 

@@ -125,8 +125,14 @@ extern "C" {
 #define AIRPLANE_MODE_ADD_ICON_Y                        (271)
 #define AIRPLANE_MODE_EXPR_KEY_ICON_X                   (201)
 #define AIRPLANE_MODE_EXPR_KEY_ICON_Y                   (248)
-#define TRAVEL_LOCK_TITLE_Y                             (165)
+#define TRAVEL_LOCK_TITLE_Y                             (112)
 #define TRAVEL_LOCK_TITLE_LINE_SPACE                    (4)
+#define TRAVEL_LOCK_STIM_KEY_ICON_X                     AIRPLANE_MODE_STIM_KEY_ICON_X
+#define TRAVEL_LOCK_STIM_KEY_ICON_Y                     (186)
+#define TRAVEL_LOCK_ADD_ICON_X                          AIRPLANE_MODE_ADD_ICON_X
+#define TRAVEL_LOCK_ADD_ICON_Y                          (209)
+#define TRAVEL_LOCK_EXPR_KEY_ICON_X                     AIRPLANE_MODE_EXPR_KEY_ICON_X
+#define TRAVEL_LOCK_EXPR_KEY_ICON_Y                     (186)
 #define LOW_POWER_TITLE_Y                               (111)
 #define POWER_OFF_TEXT_LOW_POWER_SHIFT_Y                (19)
 #define POWER_OFF_CHARGE_TEXT_Y                         (217)

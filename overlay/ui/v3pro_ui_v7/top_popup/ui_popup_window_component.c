@@ -42,6 +42,25 @@ static void popup_window_icon_hide(void)
     }
 }
 
+static void popup_window_combo_key_icon_hide(lv_obj_t *icon)
+{
+    if (icon != NULL && lv_obj_is_valid(icon)) {
+        lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void popup_window_combo_key_icons_hide(void)
+{
+    popup_window_disp_info_t *info = popup_window_info_get();
+
+    if (info == NULL) {
+        return;
+    }
+    popup_window_combo_key_icon_hide(info->combo_key.left);
+    popup_window_combo_key_icon_hide(info->combo_key.add);
+    popup_window_combo_key_icon_hide(info->combo_key.right);
+}
+
 static void popup_window_arc_hide(void)
 {
     popup_window_disp_info_t *info = popup_window_info_get();
@@ -116,6 +135,7 @@ void popup_window_components_hide_all(void)
     popup_window_number_hide();
     popup_window_progress_arc_hide();
     popup_window_icon_hide();
+    popup_window_combo_key_icons_hide();
     for (uint8_t i = 0; i < POPUP_WINDOW_TEXT_COUNT; i++) {
         popup_window_text_hide(i);
     }
@@ -170,6 +190,42 @@ void popup_window_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint1
         RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
     lv_obj_align(info->icon.obj, LV_ALIGN_TOP_MID, 0, y_offset);
     lv_obj_clear_flag(info->icon.obj, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void popup_window_combo_key_icon_update(ui_manager_context_t *thiz,
+    lv_obj_t **icon, uint16_t img_id, int16_t x, int16_t y)
+{
+    popup_window_disp_info_t *info = popup_window_info_get();
+
+    EXCEPTION_CHECK_VOID(info && icon);
+    if (*icon == NULL || !lv_obj_is_valid(*icon)) {
+        *icon = lv_image_create(info->root.obj);
+        EXCEPTION_CHECK_VOID(*icon);
+    }
+    ui_img_baj_theme_set_src(thiz, *icon, img_id,
+        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+    lv_obj_align(*icon, LV_ALIGN_TOP_LEFT, x, y);
+    lv_obj_clear_flag(*icon, LV_OBJ_FLAG_HIDDEN);
+}
+
+void popup_window_combo_key_icons_update(ui_manager_context_t *thiz)
+{
+    popup_window_disp_info_t *info = popup_window_info_get();
+
+    EXCEPTION_CHECK_VOID(info);
+    if (info->runtime.force_update == false) {
+        return;
+    }
+
+    popup_window_combo_key_icon_update(thiz, &info->combo_key.left,
+        BASE_RES_ID_STIMULATION_KEY_ICON,
+        TRAVEL_LOCK_STIM_KEY_ICON_X, TRAVEL_LOCK_STIM_KEY_ICON_Y);
+    popup_window_combo_key_icon_update(thiz, &info->combo_key.add,
+        BASE_RES_ID_ADD_ICON,
+        TRAVEL_LOCK_ADD_ICON_X, TRAVEL_LOCK_ADD_ICON_Y);
+    popup_window_combo_key_icon_update(thiz, &info->combo_key.right,
+        BASE_RES_ID_GUIDE_RIGHT_KEY_ICON,
+        TRAVEL_LOCK_EXPR_KEY_ICON_X, TRAVEL_LOCK_EXPR_KEY_ICON_Y);
 }
 
 static void popup_window_mask_layer_style_update(ui_manager_context_t *thiz, lv_opa_t opa)

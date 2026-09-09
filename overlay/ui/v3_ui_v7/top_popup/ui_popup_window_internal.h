@@ -45,6 +45,12 @@ typedef struct {
 } popup_window_icon_info_t;
 
 typedef struct {
+    lv_obj_t *left;
+    lv_obj_t *add;
+    lv_obj_t *right;
+} popup_window_combo_key_info_t;
+
+typedef struct {
     lv_obj_t *layer;
 } popup_window_mask_info_t;
 
@@ -70,6 +76,7 @@ typedef struct {
     popup_window_root_info_t root;
     popup_window_label_info_t label;
     popup_window_icon_info_t icon;
+    popup_window_combo_key_info_t combo_key;
     popup_window_mask_info_t mask;
     popup_window_arc_info_t arc;
     popup_window_countdown_info_t countdown;
@@ -100,6 +107,7 @@ void popup_window_comp_bg_update(ui_manager_context_t *thiz);
 void popup_window_components_hide_all(void);
 void popup_window_text_update(ui_manager_context_t *thiz, const popup_window_text_info_t *text_info);
 void popup_window_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint16_t y_offset);
+void popup_window_combo_key_icons_update(ui_manager_context_t *thiz);
 void popup_window_mask_layer_update(ui_manager_context_t *thiz);
 void popup_window_mask_layer_opaque_update(ui_manager_context_t *thiz);
 void popup_window_arc_update(ui_manager_context_t *thiz);
