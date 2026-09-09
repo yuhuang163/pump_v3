@@ -100,7 +100,7 @@ typedef enum {
     BASE_RES_ID_CHECK_PASSED_ANIM_START = 1520, /// 气密检测通过动画-开始
     BASE_RES_ID_CHECK_PASSED_ANIM_END = 1539, /// 气密检测通过动画-结束
     BASE_RES_ID_CHECK_COMPLETE_ANIM_START = 1600, /// 自检完成动画-开始
-    BASE_RES_ID_CHECK_COMPLETE_ANIM_END = 1718, /// 自检完成动画-结束
+    BASE_RES_ID_CHECK_COMPLETE_ANIM_END = 1678, /// 自检完成动画-结束
     BASE_RES_ID_CHECK_FIT_ANIM_START = 1800, /// 检查贴合动画-开始
     BASE_RES_ID_CHECK_FIT_ANIM_END = 1899, /// 检查贴合动画-结束
     BASE_RES_ID_CHECK_TUBING_BOTH_ANIM_START = 2000, /// 检查管路双侧动画-开始

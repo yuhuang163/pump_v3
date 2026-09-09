@@ -157,8 +157,13 @@ void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared)
     if (weared == NULL || proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         return;
     }
+
     if (!pump_fit_not_detected_can_jump(proc)) {
         return;
+    }
+
+    if (get_timestamp_ms(proc->seal_log_time) > 1000) {
+        LOG_WM("wear result: %d/%d", weared[0], weared[1]);
     }
 
     /// weared_status: 0 无效, 1 佩戴, 2 未佩戴
@@ -168,10 +173,12 @@ void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared)
             break;
         }
     }
+
     if (!not_worn) {
         return;
     }
-    LOG_WM("weared status: %d/%d, jump fit not detected.", weared[0], weared[1]);
+    // LOG_WM("weared status: %d/%d, jump fit not detected.", weared[0], weared[1]);
+    
     pump_fit_not_detected_do_jump(proc);
 }
 
