@@ -89,6 +89,9 @@ static void pump_both_level_adjust_ui_after_policy(ui_manager_context_t *ui, int
     (void)index;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
     pump_sub_mode_sync_tick(proc, PUMP_SUB_MODE_SYNC_BOTH_LEVEL);
+    if (pump_adjust_exit_if_rest_mode(proc)) {
+        return;
+    }
     pump_both_level_over_limit_tick(proc);
     pump_sub_mode_switch_tick(proc);
     pump_both_level_adjust_idle_timeout_tick(proc);
@@ -195,6 +198,9 @@ int pump_both_level_adjust_handler(ui_proc_pump_t *proc, bool is_increase)
 
     EXCEPTION_CHECK_INT(proc && proc->pump);
     if (proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST) {
+        return -1;
+    }
+    if (pump_adjust_exit_if_rest_mode(proc)) {
         return -1;
     }
 

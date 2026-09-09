@@ -358,6 +358,11 @@ void pump_sub_mode_switch_clear(ui_proc_pump_t *proc);
 void pump_sub_mode_switch_tick(ui_proc_pump_t *proc);
 void pump_sub_mode_state_init(ui_proc_pump_t *proc, uint8_t clamp_level);
 void pump_sub_mode_sync_tick(ui_proc_pump_t *proc, pump_sub_mode_sync_e sync);
+/// 韵律休息阶段（PUMP_MODE_IDLE，含暂停）：禁止进入/停留力度或速度调节页
+bool pump_rest_mode_blocks_adjust(ui_proc_pump_t *proc);
+void pump_show_rest_mode_adjust_tip(ui_proc_pump_t *proc);
+/// 调节页检测到休息模式：退出当前页并弹不可调节提示；返回 true 表示已切换 UI
+bool pump_adjust_exit_if_rest_mode(ui_proc_pump_t *proc);
 /// 漏气检测：每次启动展示检测中，由算法结果切换文案 / 跳转
 void pump_seal_check_start(ui_proc_pump_t *proc);
 void pump_seal_check_stop(ui_proc_pump_t *proc);
