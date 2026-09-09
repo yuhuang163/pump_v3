@@ -561,6 +561,48 @@ void pump_seal_check_stop(ui_proc_pump_t *proc)
 #endif
 }
 
+bool pump_rest_mode_blocks_adjust(ui_proc_pump_t *proc)
+{
+    int pump_mode = 0;
+    uint8_t mode_type;
+
+    EXCEPTION_CHECK_INT(proc && proc->pump);
+    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
+    mode_type = home_level_adjust_mode_type_resolve((uint8_t)pump_mode,
+        pump_sub_mode_type_get(proc));
+    return mode_type == PUMP_MODE_IDLE;
+}
+
+void pump_show_rest_mode_adjust_tip(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(proc);
+    if (proc->current_ui_type != PUMP_UI_TYPE_HOME) {
+        pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_KEEP_PAGE);
+    }
+    if (proc->popup_ui_type == ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP) {
+        ui_popup_hold_countdown_start(proc->ui);
+    } else {
+        pump_popup_ui_type_update(proc, ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP);
+    }
+    LOG_WM("rest mode, show cannot adjust tip.");
+}
+
+bool pump_adjust_exit_if_rest_mode(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_INT(proc);
+    if (proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
+        proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST &&
+        proc->current_ui_type != PUMP_UI_TYPE_SPEED_ADJUST) {
+        return false;
+    }
+    if (!pump_rest_mode_blocks_adjust(proc)) {
+        return false;
+    }
+    LOG_WM("rest mode, exit adjust ui type=%d", proc->current_ui_type);
+    pump_show_rest_mode_adjust_tip(proc);
+    return true;
+}
+
 void pump_sub_mode_sync_tick(ui_proc_pump_t *proc, pump_sub_mode_sync_e sync)
 {
     int pump_mode = 0;
