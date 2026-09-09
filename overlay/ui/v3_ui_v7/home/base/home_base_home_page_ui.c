@@ -5,6 +5,7 @@
 #include "home_base_ui_internal.h" // IWYU pragma: keep
 #include "window_screen_home.h" // IWYU pragma: keep
 #include "ui_snapshot.h" // IWYU pragma: keep
+#include "ui_custom_mode_name.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -159,7 +160,7 @@ static void home_main_mode_title_get(home_base_ui_info_t *info, uint8_t mode, ch
             snprintf(buf, buf_len, "%s", UI_STR_MODE_POWER_PUMPING);
             break;
         case BREAST_PUMP_CUSTOM_MODE:
-            snprintf(buf, buf_len, "%s", info->mode.custom_id_str);
+            ui_custom_mode_name_localize(info->mode.custom_id_str, buf, buf_len);
             break;
         default:
             snprintf(buf, buf_len, "");

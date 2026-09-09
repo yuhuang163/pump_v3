@@ -8,12 +8,17 @@ extern "C" {
 /*******************************************************************************
  * Shared
  ******************************************************************************/
-#define UI_STR_MODE_STIMULATION                         "刺激模式"
+#define UI_STR_MODE_STIMULATION                         "按摩模式"
 #define UI_STR_MODE_EXPRESSION                          "吸乳模式"
 #define UI_STR_MODE_MIXED                               "混合模式"
 #define UI_STR_MODE_MILK_BOOST                          "循环深吸"
 #define UI_STR_MODE_POWER_PUMPING                       "PP追奶"
 #define UI_STR_MODE_CUSTOM                              "自定义模式"
+#define UI_STR_MODE_COZY_FLOW                           "自然韵律"
+#define UI_STR_MODE_DENSE_MILK                          "密集追奶"
+#define UI_STR_MODE_HIGH_EFFICIENCY                     "高效吸乳"
+#define UI_STR_MODE_LACTATION_STARTER                   "开奶模式"
+#define UI_STR_MODE_DEEP_EMPTYING                       "追加排空"
 #define UI_STR_MODE_PROGRAM                             "专家模式"
 #define UI_STR_MODE_RELAX                               "休息模式"
 #define UI_STR_SIDE_L                                   "L"
@@ -21,7 +26,7 @@ extern "C" {
 #define UI_STR_SPEED                                    "吸乳速度"
 #define UI_STR_SWITCH_TO_FMT                            "切换到%s"
 #define UI_STR_DURATION_APPROX_MIN_FMT                  "约 %d 分钟"
-#define UI_STR_COUNTDOWN_SEC_FMT                        "%d 秒"
+#define UI_STR_COUNTDOWN_SEC_FMT                        "%d 秒" 
 #define UI_STR_LEVEL_OVER_LIMIT                         "确保安全\n每次最多调节3档"
 
 /*******************************************************************************
@@ -29,8 +34,8 @@ extern "C" {
  ******************************************************************************/
 #define HOME_MAIN_HINT_TEXT                             "按下旋钮启动吸乳"
 #define HOME_SAVER_HINT_TEXT                            "短按任意键唤醒"
-#define HOME_LEVEL_DIR_LEFT_TEXT                        "左侧吸力档位"
-#define HOME_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力档位"
+#define HOME_LEVEL_DIR_LEFT_TEXT                        "左侧吸力"
+#define HOME_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力"
 #define HOME_LEVEL_OVER_LIMIT_TEXT                      UI_STR_LEVEL_OVER_LIMIT
 #define HOME_LEVEL_MODE_SWITCH_TEXT_FMT                 UI_STR_SWITCH_TO_FMT
 #define HOME_BOTH_LEVEL_DIR_LEFT_TEXT                   UI_STR_SIDE_L
@@ -45,9 +50,9 @@ extern "C" {
  * Pump home / adjust
  ******************************************************************************/
 #define PUMP_HOME_MAIN_HINT_TEXT                        "按下旋钮恢复吸奶"
-#define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT             "已切换到%s\n吸力档位和频率可能会变化"
-#define PUMP_LEVEL_DIR_LEFT_TEXT                        "左侧吸力档位"
-#define PUMP_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力档位"
+#define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT             "已切换到%s\n吸力和速度可能会变化"
+#define PUMP_LEVEL_DIR_LEFT_TEXT                        "左侧吸力"
+#define PUMP_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力"
 #define PUMP_LEVEL_OVER_LIMIT_TEXT                      UI_STR_LEVEL_OVER_LIMIT
 #define PUMP_LEVEL_MODE_SWITCH_TEXT_FMT                 UI_STR_SWITCH_TO_FMT
 #define PUMP_BOTH_LEVEL_DIR_LEFT_TEXT                   UI_STR_SIDE_L
@@ -63,17 +68,17 @@ extern "C" {
 #define PUMP_FINISH_TIMEOUT_TITLE2_TEXT                 "自动结束中..."
 #define PUMP_WILL_FINISH_TITLE1_TEXT                    "吸乳即将结束"
 #define PUMP_WILL_FINISH_TITLE2_TEXT                    "如需继续请按下旋钮"
-#define PUMP_FINISH_TITLE_TEXT                          "吸乳已完成"
-#define PUMP_FINISH_CONTENT_TEXT                        "打开 Momcozy App 记录\n奶量吧"
-#define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT            "充电器不兼容"
-#define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT            "即将自动结束"
+#define PUMP_FINISH_TITLE_TEXT                          "完成吸乳"
+#define PUMP_FINISH_CONTENT_TEXT                        "打开 App 记录奶量吧"
+#define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT            "适配器不匹配"
+#define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT            "启动结束中..."
 #define PUMP_RUNING_30M_TIP_TEXT                        "已吸乳 30 分钟\n休息一下吧"
-#define PUMP_REST_MODE_ADJUST_TIP_TEXT                  "休息模式中\n无法调节"
+#define PUMP_REST_MODE_ADJUST_TIP_TEXT                  "正在运行休息模式\n暂时无法调节"
 
 /*******************************************************************************
  * Rhythm / settings
  ******************************************************************************/
-#define RHYTHM_CONFIRM_TITLE_TEXT                       "确定切换吸乳程序吗？"
+#define RHYTHM_CONFIRM_TITLE_TEXT                       "确定切换韵律吗？"
 #define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "切换后将重新计时"
 #define SETTINGS_SUCCESS_TITLE_TEXT                     "成功"
 #define SETTINGS_SUCCESS_PROGRAM_TITLE_TEXT             "切换成功"
@@ -84,39 +89,39 @@ extern "C" {
  ******************************************************************************/
 #define POWER_OFF_HOLD_TITLE_TEXT                       "长按关机"
 #define POWER_OFF_TEXT_POWERING_OFF_STR                 "正在关机"
-#define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "长时间没有操作\n设备即将自动关机"
-#define RESTARTING_TEXT                                 "正在重新启动\n请稍候..."
-#define POWER_ON_HOLD_LINE1_TEXT                        "按住 2 秒开机"
+#define POWER_OFF_TEXT_AUTO_SHUT_OFF_STR                "自动关机中..."
+#define RESTARTING_TEXT                                 "重启中..."
+#define POWER_ON_HOLD_LINE1_TEXT                        "长按旋钮开机"
 #define POWER_ON_HOLD_LINE2_TEXT                        ""
 #define AIRPLANE_MODE_TITLE_TEXT                        "设备已锁定"
-#define AIRPLANE_MODE_HINT_TEXT                         "长按 5 秒解锁"
-#define TRAVEL_LOCK_TITLE_TEXT                          "长按 5 秒锁定设备"
-#define LOW_POWER_POPUP_TITLE_TEXT                      "即将关机"
+#define AIRPLANE_MODE_HINT_TEXT                         "长按解锁"
+#define TRAVEL_LOCK_TITLE_TEXT                          "长按锁定设备"
+#define LOW_POWER_POPUP_TITLE_TEXT                      "即将关机" // ？
 
 /*******************************************************************************
  * Charge / OTA / factory
  ******************************************************************************/
-#define CHARGE_ADAPTER_TITLE_TEXT                       "电源功率不匹配"
-#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "请更换电源"
+#define CHARGE_ADAPTER_TITLE_TEXT                       "适配器不匹配"
+#define CHARGE_ADAPTER_SUBTITLE_TEXT                    "暂时无法使用"
 #define OTA_RES_UPGRADING_TEXT                          "资源升级中..."
 #define OTA_FW_UPGRADING_TEXT                           "固件升级中..."
 #define OTA_HW_UPGRADING_TEXT                           "设备升级中..."
 #define OTA_UPGRADE_FAILED_TEXT                         "升级失败"
 #define OTA_UPGRADE_COMPLETED_TEXT                      "升级完成"
 #define FACTORY_RESET_CONFIRM_TITLE_TEXT                "恢复出厂设置"
-#define FACTORY_RESET_CONFIRM_HINT_TEXT                 "长按旋钮3秒"
-#define FACTORY_RESET_PROGRESS_TEXT                     "正在恢复出厂设置..."
+#define FACTORY_RESET_CONFIRM_HINT_TEXT                 "长按旋钮"
+#define FACTORY_RESET_PROGRESS_TEXT                     "恢复出厂设置中..."
 
 /*******************************************************************************
  * System / BLE popup
  ******************************************************************************/
 #define SYS_ERROR_TITLE_TEXT                            "设备出现异常"
-#define SYS_ERROR_REPLUG_TEXT                           "请重新插拔电源并重启"
+#define SYS_ERROR_REPLUG_TEXT                           "请断电重启"
 #define TEMP_ERROR_TITLE_TEXT                           "电池温度过高"
 #define TEMP_ERROR_CONTENT_TEXT                         "设备已暂停"
 #define BLE_CONNECT_TEXT                                "设备连接成功"
 #define BLE_DISCONNECT_TEXT                             "设备断开连接"
-#define BLE_CONNECTING_TEXT                             "设备正在连接..."
+#define BLE_CONNECTING_TEXT                             "设备连接中..."
 
 /*******************************************************************************
  * Theme guide
@@ -150,8 +155,8 @@ extern "C" {
 #define GUIDE_LEVEL_BOTH_GUIDE_PRESS_TEXT               "同时按下"
 #define GUIDE_LEVEL_BOTH_GUIDE_AND_TEXT                 "和"
 #define GUIDE_LEVEL_BOTH_GUIDE_ADJUST_TEXT              "一起调节两侧吸力"
-#define GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT                  "左侧吸力档位"
-#define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "右侧吸力档位"
+#define GUIDE_LEVEL_SIDE_DIR_LEFT_TEXT                  "左侧吸力"
+#define GUIDE_LEVEL_SIDE_DIR_RIGHT_TEXT                 "右侧吸力"
 #define GUIDE_LEVEL_SIDE_OVER_LIMIT_TEXT                UI_STR_LEVEL_OVER_LIMIT
 #define GUIDE_BOTH_LEVEL_DIR_LEFT_TEXT                  UI_STR_SIDE_L
 #define GUIDE_BOTH_LEVEL_DIR_RIGHT_TEXT                 UI_STR_SIDE_R
