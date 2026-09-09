@@ -182,9 +182,7 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
     }
 
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-    if (keytype == KEY_EVENT_CLICK &&
-        (proc->current_ui_type == POWER_OFF_UI_TYPE_CHARGING ||
-         proc->current_ui_type == POWER_OFF_UI_TYPE_CHARGE_ERROR)) {
+    if (keytype == KEY_EVENT_CLICK && proc->current_ui_type == POWER_OFF_UI_TYPE_CHARGING) {
         multi_func_msg_data_t msg = {0};
         msg.union_body.extra.window_id = ID_WINDOW_POWER_ON_GUIDE;
         LOG_WM("short press, goto power on guide");
