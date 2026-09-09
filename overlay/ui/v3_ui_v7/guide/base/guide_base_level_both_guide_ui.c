@@ -16,9 +16,10 @@
 
 #define GUIDE_LEVEL_BOTH_GUIDE_TEXT_COLOR                   (0xFFFFFF)
 
-#define GUIDE_LEVEL_BOTH_GUIDE_ICON_TEXT_GAP                (12)
-
+#define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_X                  (138)
 #define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_RES_ID             (BASE_RES_ID_GUIDE_LEFT_KEY_MIN_ICON)
+
+#define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_X                 (255)
 #define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_RES_ID            (BASE_RES_ID_GUIDE_RIGHT_KEY_MIN_ICON)
 
 #define GUIDE_LEVEL_BOTH_GUIDE_TIP_H                        (63)
@@ -146,30 +147,6 @@ static void guide_level_both_guide_label_create(lv_obj_t **label, lv_obj_t *pare
     lv_obj_move_foreground(*label);
 }
 
-static lv_coord_t guide_level_both_guide_icon_x_from_label(lv_obj_t *label, lv_coord_t fallback_x)
-{
-    if (label == NULL || !lv_obj_is_valid(label)) {
-        return fallback_x + GUIDE_LEVEL_BOTH_GUIDE_ICON_TEXT_GAP;
-    }
-    lv_obj_update_layout(label);
-    return lv_obj_get_x(label) + lv_obj_get_width(label) +
-        GUIDE_LEVEL_BOTH_GUIDE_ICON_TEXT_GAP;
-}
-
-static lv_coord_t guide_level_both_guide_left_icon_x_get(guide_base_ui_info_t *info)
-{
-    return guide_level_both_guide_icon_x_from_label(
-        info != NULL ? info->level_both_guide.and_text : NULL,
-        GUIDE_LEVEL_BOTH_GUIDE_AND_X);
-}
-
-static lv_coord_t guide_level_both_guide_right_icon_x_get(guide_base_ui_info_t *info)
-{
-    return guide_level_both_guide_icon_x_from_label(
-        info != NULL ? info->level_both_guide.press : NULL,
-        GUIDE_LEVEL_BOTH_GUIDE_PRESS_X);
-}
-
 static void guide_level_both_guide_texts_create(guide_base_ui_info_t *info)
 {
     lv_obj_t *parent = guide_page_parent_get(info);
@@ -277,15 +254,15 @@ void guide_level_both_guide_ui_build(guide_base_ui_info_t *info)
 {
     EXCEPTION_CHECK_VOID(info);
     guide_level_both_guide_bg_create(info);
+    guide_level_both_guide_icon_create(info, &info->level_both_guide.right_icon,
+        &info->level_both_guide.right_icon_buf, GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_RES_ID,
+        GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_X, GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y);
+    guide_level_both_guide_icon_create(info, &info->level_both_guide.left_icon,
+        &info->level_both_guide.left_icon_buf, GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_RES_ID,
+        GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_X, GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y);
     guide_page_num_ui_build(&info->page_num, guide_page_parent_get(info),
         GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_CURRENT, GUIDE_LEVEL_BOTH_GUIDE_PAGE_NUM_TOTAL);
     guide_level_both_guide_texts_create(info);
-    guide_level_both_guide_icon_create(info, &info->level_both_guide.left_icon,
-        &info->level_both_guide.left_icon_buf, GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_RES_ID,
-        guide_level_both_guide_left_icon_x_get(info), GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y);
-    guide_level_both_guide_icon_create(info, &info->level_both_guide.right_icon,
-        &info->level_both_guide.right_icon_buf, GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_RES_ID,
-        guide_level_both_guide_right_icon_x_get(info), GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y);
     guide_level_both_guide_tip_rebuild(info);
 }
 
