@@ -92,9 +92,6 @@ static void power_on_hold_complete_cb(hdr_post_args_t *args)
         return;
     }
     proc->power_on_hold_holding = 0;
-    if (power_on_hold_exit_by_charge_state(proc)) {
-        return;
-    }
     LOG_WM("power on hold complete, goto logo.");
     multi_func_msg_data_t msg = {0};
     msg.union_body.extra.window_id = ID_WINDOW_LOGO;

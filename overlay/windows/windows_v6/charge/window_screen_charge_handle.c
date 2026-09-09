@@ -200,15 +200,6 @@ static int on_charge_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t ke
     /// 适配器不匹配页
     if (proc->current_ui_type == CHARGE_UI_TYPE_ADAPTER ||
         (proc->battery && proc->battery->get_charge_status() == CHARGE_STATE_ERROR)) {
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-        if (keytype == KEY_EVENT_CLICK) {
-            multi_func_msg_data_t msg = {0};
-            msg.union_body.extra.window_id = ID_WINDOW_POWER_ON_GUIDE;
-            LOG_WM("adapter mismatch short press, goto power on guide");
-            proc->wm->dispatch_new_window_args(proc->wm, &msg);
-            return 0;
-        }
-#endif
         if (keytype == KEY_EVENT_LONG_2S && 
             proc->wm && proc->wm->is_window_factory_test_deployed() == 0) {
             LOG_WM("factory test mode, goto logo screen");
