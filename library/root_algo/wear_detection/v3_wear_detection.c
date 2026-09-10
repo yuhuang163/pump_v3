@@ -2519,7 +2519,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			tFeatureInfo[i].uDataBaselineCnt[2] = 0;
 		}
 
-
+		/* 仅在每次开始工作后检查 */
 		if (tFeatureInfo[i].uWearStatus == WEAR_STATE_0 && tFeatureInfo[i].uLeakStatus == 0)
 		{
 			/* 初始 -> 佩戴检测(包括漏气) 时间 */
@@ -2532,7 +2532,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		}
 		if (tFeatureInfo[i].uWearDetectTime >= 1000)
 		{
-			tFeatureInfo[i].uWearStatus = WEAR_STATE_OFF;
+			tFeatureInfo[i].uWearStatusOutput = WEAR_STATE_OVERTIME;
 			tFeatureInfo[i].uDetectOverTime = 1;
 		}
 	}
