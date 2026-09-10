@@ -15,7 +15,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.0.1"
+#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.1.5"
 
 /* hardware parameters */
 #define SAMPLE_RATE			(50)
@@ -233,7 +233,8 @@ typedef struct _FEATURE_INFO_
 	unsigned short	uUpdateFlag;
 	float			fThreshold;
 	float			fLoadedThreshold;
-	unsigned char	uWearStatus;	/* result */
+	unsigned char	uWearStatus;		/* result */
+	unsigned char   uWearStatusOutput;	/* 对外输出 */
 	unsigned char	uDetectOverTime;	/* 检测超时 */
 	unsigned short	uPump_flag;
 	unsigned char	pumping_time;

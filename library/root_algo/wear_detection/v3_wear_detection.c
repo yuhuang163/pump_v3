@@ -91,6 +91,8 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 		tFeatureInfo[j].uWaveSpikes = 0;
 		tFeatureInfo[j].uPVIndex = 0;
 		tFeatureInfo[j].uWearStatus = WEAR_STATE_0;
+		tFeatureInfo[j].uLeakStatus = 0;
+		tFeatureInfo[j].uWearStatusOutput = WEAR_STATE_0;
 		tFeatureInfo[j].uNormalWaveform = 0;
 		tFeatureInfo[j].pumping_time = 0;
 		tFeatureInfo[j].fMinDataBuffMin = 0;
@@ -207,6 +209,8 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 
 	tFeatureInfo[uChannelIdx].uPVIndex = 0;
 	tFeatureInfo[uChannelIdx].uWearStatus = WEAR_STATE_0;
+	tFeatureInfo[uChannelIdx].uLeakStatus = 0;
+	tFeatureInfo[uChannelIdx].uWearStatusOutput = WEAR_STATE_0;
 	tFeatureInfo[uChannelIdx].uNormalWaveform = 0;
 	tFeatureInfo[uChannelIdx].fMinDataBuffMin = 0;
 	tFeatureInfo[uChannelIdx].uCompsStatus = 0;
@@ -2627,12 +2631,26 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 */
 void GetWearDetectionResult(unsigned char* uWearStatus, unsigned char* uLeakStatus, unsigned char *DetectOverTime)
 {
-	uWearStatus[0] = tFeatureInfo[0].uWearStatus;
-	uWearStatus[1] = tFeatureInfo[1].uWearStatus;
-	uLeakStatus[0] = tFeatureInfo[0].uLeakStatus;
-	uLeakStatus[1] = tFeatureInfo[1].uLeakStatus;
-	DetectOverTime[0] = tFeatureInfo[0].uDetectOverTime;
-	DetectOverTime[1] = tFeatureInfo[1].uDetectOverTime;
+
+
+	for (unsigned char i = 0; i < CHANNEL_NUM; i++)
+	{
+		if ((tFeatureInfo[i].uWearStatus == WEAR_STATE_OFF && tFeatureInfo[i].uLeakStatus == 0) || tFeatureInfo[i].uLeakStatus == 3)
+		{
+			tFeatureInfo[i].uWearStatusOutput = WEAR_STATE_OFF;
+		}
+		else if (tFeatureInfo[i].uWearStatus == WEAR_STATE_ON || tFeatureInfo[i].uLeakStatus == 1 || tFeatureInfo[i].uLeakStatus == 2)
+		{
+			tFeatureInfo[i].uWearStatusOutput = WEAR_STATE_ON;
+		}
+
+		uWearStatus[i] = tFeatureInfo[i].uWearStatusOutput;
+		uLeakStatus[i] = tFeatureInfo[i].uLeakStatus;
+		DetectOverTime[i] = tFeatureInfo[i].uDetectOverTime;
+	}
+
+
+
 }
 
 

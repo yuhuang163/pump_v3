@@ -187,7 +187,7 @@ int algo_fusion_lib_init(algo_fusion_sensor_attr_type_e sensor_flag, algo_fusion
         // just for initialization - not the final parameters
         
         //v3_pressure_algo_get_version();
-        ALGO_LOG_INFO("v 3.0.0.4");
+        ALGO_LOG_INFO("v 3.0.1.5");
         V3WearDetectionInit(1, 1, 0, 0);
     }
     return ALGO_FUSION_INIT_SUCCESS;
