@@ -27,7 +27,7 @@ extern "C" {
 #define IS_SUPPORT_BASE_TIME_3SEG_TEST                   (0)
 
 /** App 个性化模式名称缓冲长度（含 '\0'，UI 侧略大于存储上限） */
-#define PUMP_HOME_BASE_CUSTOM_MODE_NAME_LEN              (24)
+#define PUMP_HOME_BASE_CUSTOM_MODE_NAME_LEN              (32)
 
 /** 离 page0 进入模式选择：时间胶囊淡入 + 上移；默认开启 */
 #ifndef IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM

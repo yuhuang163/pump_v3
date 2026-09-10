@@ -49,11 +49,10 @@ static inline void ui_custom_mode_name_localize(const char *src, char *dst, size
         { "Milk Boost", UI_STR_MODE_HIGH_EFFICIENCY },
         { "Lactation Starter", UI_STR_MODE_LACTATION_STARTER },
         { "Deep Emptying", UI_STR_MODE_DEEP_EMPTYING },
-        { "循环深吸", UI_STR_MODE_MILK_BOOST },
-        { "PP追奶", UI_STR_MODE_POWER_PUMPING },
-        { "密集追奶", UI_STR_MODE_DENSE_MILK },
-        { "高效吸乳", UI_STR_MODE_HIGH_EFFICIENCY },
-        { "自然韵律", UI_STR_MODE_COZY_FLOW },
+        { "Let-down Response", UI_STR_MODE_LET_DOWN_RESPONSE },
+        { "Before Bed", UI_STR_MODE_BEFORE_BED },
+        { "Quick Refill Relief", UI_STR_MODE_QUICK_REFILL },
+        { "Post-Nursing", UI_STR_MODE_POST_NURSING },
         { NULL, NULL },
     };
     size_t i;
