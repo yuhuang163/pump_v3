@@ -137,6 +137,7 @@ typedef enum {
 	WEAR_STATE_0 = 0,
 	WEAR_STATE_ON,
 	WEAR_STATE_OFF,
+	WEAR_STATE_OVERTIME,
 } wear_status_e;
 
 
