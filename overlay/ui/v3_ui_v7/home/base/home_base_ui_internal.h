@@ -23,7 +23,7 @@ extern "C" {
 */
 #define IS_SUPPORT_BASE_HOME_COMP_BG                 (0)
 /** App 个性化模式名称缓冲长度（含 '\0'，UI 侧略大于存储上限） */
-#define HOME_BASE_CUSTOM_MODE_NAME_LEN               (24)
+#define HOME_BASE_CUSTOM_MODE_NAME_LEN               (32)
 #define HOME_BASE_MAIN_TIME_DIGIT_COUNT              (2)
 #define HOME_BASE_MAIN_TIME_COLON_COUNT              (2)
 /** 主页提示扫光宽度（像素，CPU 软边剖面） */
