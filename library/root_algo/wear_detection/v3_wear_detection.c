@@ -1067,7 +1067,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
 			}
-			else if (((uLevel >= 3 && uLevel <= 4) || uLevel == 5) && tFeatureInfoTemp->uNoiseLevel < 10)
+			else if ((uLevel >= 3 && uLevel <= 5) && tFeatureInfoTemp->uNoiseLevel < 10)
 			{
 				uCandidateWearStatus = WEAR_STATE_ON;
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
@@ -1337,9 +1337,10 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			tFeatureInfoTemp->uLeakStatus = 2;
 		}
 	}
+	
+	/* 没检测出漏气等级，但是wearStatus是1，则认为是佩戴 */
 	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON)
 	{
-		/* 没检测出漏气等级，但是wearStatus是1，则认为是佩戴 */
 		if (tFeatureInfoTemp->uLeakStatus == 0)
 		{
 			tFeatureInfoTemp->uLeakStatus = 1;
@@ -1350,12 +1351,12 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			tFeatureInfoTemp->uLeakStatus = 1;
 		}
 	}
-	/*
-	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus == 3)
+	
+	/* 检测出未佩戴, 但是没检测出漏气状态，则输出为大漏3  --- 管道没接上 */
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus == 0)
 	{
-		return;
+		tFeatureInfoTemp->uLeakStatus = 3;
 	}
-	*/
 
 
 	/* 优化：区分漏气状态时，负压变大的情况，同时，对非密封/大漏时不进行补偿 */
@@ -1392,7 +1393,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		float i_limit = 30.0f;
 		int step_limit = 100;
 
-		/* 先用最近3次 valley 计算一个统一误差，注意方向要和旧逻辑一致：
+		/* 先用最近3次 valley 计算一个统一误差，注意方向要和旧逻辑一致---法兰侧目标负压进行对比：
 		* 偏浅 -> error > 0 -> 输出正补偿
 		* 偏深 -> error < 0 -> 输出负补偿
 		*/
