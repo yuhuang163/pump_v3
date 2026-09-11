@@ -46,8 +46,8 @@ extern "C" {
 #define ROOT_FIRMWARE_VERSION                          316
 #define ROOT_FW_VERSION_STR                            "316"
 #else
-#define ROOT_FIRMWARE_VERSION                          358
-#define ROOT_FW_VERSION_STR                            "358"
+#define ROOT_FIRMWARE_VERSION                          402
+#define ROOT_FW_VERSION_STR                            "402"
 #endif
 
 /**
@@ -105,7 +105,7 @@ extern "C" {
 #define PRODUCT_LANGUAGE_EN                             0x00
 #define PRODUCT_LANGUAGE_ZH                             0x01
 #ifndef PRODUCT_LANGUAGE_USED
-#define PRODUCT_LANGUAGE_USED                           PRODUCT_LANGUAGE_EN
+#define PRODUCT_LANGUAGE_USED                           PRODUCT_LANGUAGE_ZH
 #endif
 
 /**
