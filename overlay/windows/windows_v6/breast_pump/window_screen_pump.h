@@ -131,6 +131,7 @@ typedef enum {
     PUMP_LIGHT_STATUS_PAUSE,            /// 暂停：start 灯闪烁
     PUMP_LIGHT_STATUS_FIT_NOT_DETECTED, /// 未佩戴弹窗：其它灯灭，start 0.5Hz 闪
     PUMP_LIGHT_STATUS_SEAL_LEAK,        /// 重度漏气：其它灯灭，start 0.5Hz 闪
+    PUMP_LIGHT_STATUS_WILL_FINISH,      /// 韵律即将结束：按键灯全灭
     PUMP_LIGHT_STATUS_MAX
 } pump_light_status_e;
 
@@ -456,7 +457,7 @@ void pump_pause_idle_touch(ui_proc_pump_t *proc);
 void pump_pause_idle_stop(ui_proc_pump_t *proc);
 #endif
 
-/// 韵律即将结束提示页（短按 power 切吸吮并回首页；5s 超时仅回首页不切模式；其它按键不响应）
+/// 韵律即将结束提示页（按键灯全灭；短按 power 切吸吮并回首页；5s 超时仅回首页不切模式；其它按键不响应；退出后恢复按键灯）
 void show_pump_will_finish_ui(ui_proc_pump_t *proc);
 void pump_will_finish_ui_exit(ui_proc_pump_t *proc);
 void pump_will_finish_ui_dismiss(ui_proc_pump_t *proc);

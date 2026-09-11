@@ -4,6 +4,7 @@
 */
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_pump.h"
+#include "hal_led.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -61,6 +62,44 @@ static void pump_will_finish_animation_progress_cb(void *user_data, int index,
     }
 }
 
+static void pump_will_finish_led_all_off(ui_proc_pump_t *proc)
+{
+    uint8_t i;
+
+    EXCEPTION_CHECK_VOID(proc && proc->led);
+    if (proc->led->hook && proc->led->hook->set_key_backlight) {
+        proc->led->hook->set_key_backlight(proc->led, 0);
+    } else if (proc->led->set_led_level) {
+        for (i = 0; i < PUMP_LED_INDEX_MAX; i++) {
+            proc->led->set_led_level(i, 0);
+        }
+    }
+    proc->pump_light_status = PUMP_LIGHT_STATUS_WILL_FINISH;
+}
+
+static void pump_will_finish_led_restore(ui_proc_pump_t *proc)
+{
+    uint8_t i;
+
+    EXCEPTION_CHECK_VOID(proc && proc->led);
+    if (proc->pump_light_status != PUMP_LIGHT_STATUS_WILL_FINISH) {
+        return;
+    }
+    if (proc->led->hook && proc->led->hook->set_key_backlight) {
+        proc->led->hook->set_key_backlight(proc->led, LED_LEVEL_MAX);
+    } else if (proc->led->set_led_level) {
+        for (i = 0; i < PUMP_LED_INDEX_MAX; i++) {
+            proc->led->set_led_level(i, LED_LEVEL_MAX);
+        }
+    }
+#if !IS_SUPPORT_PUMP_IN_MODE_SWITCH_RHYTHM
+    if (proc->led->set_led_level) {
+        proc->led->set_led_level(PUMP_BREASTFEEDING_BL, 0);
+    }
+#endif
+    proc->pump_light_status = PUMP_LIGHT_STATUS_DEFAULT;
+}
+
 static void pump_will_finish_ui_display_prepare(void *user_data)
 {
     ui_manager_context_t *ui = user_data;
@@ -102,12 +141,13 @@ void show_pump_will_finish_ui(ui_proc_pump_t *proc)
     };
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_WILL_FINISH;
+    pump_will_finish_led_all_off(proc);
 }
 
 void pump_will_finish_ui_exit(ui_proc_pump_t *proc)
 {
-    (void)proc;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_WILL_FINISH_DISPLAY_TASK_NAME);
+    pump_will_finish_led_restore(proc);
 }
 
 void pump_will_finish_ui_dismiss(ui_proc_pump_t *proc)
