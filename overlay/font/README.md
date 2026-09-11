@@ -14,7 +14,7 @@ overlay/font/
 │       ├── bin/              # LVGL .bin 字库
 │       └── font_img/         # 提示图 png / txt
 └── bin/                      # 打包产物
-    └── font_v3/<zh|en>/
+    └── font_v3/<v3|v3pro>/<zh|en>/
 ```
 
 ## 打包语言包
@@ -29,8 +29,8 @@ cd overlay/font/packaging_tools
 
 产物（烧录目录只保留一份）：
 
-- `overlay/font/bin/font_v3/<lang>/<PREFIX>_<日期>_Vxx.xx_<MD5>_LFS.bin`（1.5MB littlefs）
-- `overlay/font/bin/font_v3/<lang>/<PREFIX>_<日期>_Vxx.xx_<MD5>_PACK.bin`（OTA 整包容器）
+- `overlay/font/bin/font_v3/<v3|v3pro>/<lang>/<PREFIX>_<日期>_Vxx.xx_<MD5>_LFS.bin`（1.5MB littlefs）
+- `overlay/font/bin/font_v3/<v3|v3pro>/<lang>/<PREFIX>_<日期>_Vxx.xx_<MD5>_OTA.bin`（OTA 整包容器）
 - 烧 LFS 到外部 Flash `0xE00000`，长度 `0x180000`
 
 需要 `python3 -m pip install --user littlefs-python`（也可用 `./preview.sh --install`）。
@@ -41,7 +41,7 @@ cd overlay/font/packaging_tools
 cd overlay/font/packaging_tools
 ./preview.sh --install                 # 安装 littlefs-python
 ./preview.sh --open                    # 预览 bin/ 下最新 *_LFS.bin
-./preview.sh --open ../bin/font_v3/zh/V3PRO_*_LFS.bin
+./preview.sh --open ../bin/font_v3/v3pro/zh/V3PRO_*_LFS.bin
 ```
 
 会列出 FDS key / CRC，并在同目录生成 `*.preview.html`（圆屏上的文案坐标、字库、图片文字）。

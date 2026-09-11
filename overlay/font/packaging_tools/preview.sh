@@ -25,12 +25,12 @@ show_usage() {
     echo "      --no-html          只打印 key 列表"
     echo "  -h, --help             显示帮助"
     echo ""
-    echo "不传镜像时，使用 overlay/font/bin/font_v3/ 下最新的 *_LFS.bin。"
+    echo "不传镜像时，使用 overlay/font/bin/font_v3/<v3|v3pro>/<lang>/ 下最新的 *_LFS.bin。"
     echo ""
     echo "示例:"
     echo "  ./preview.sh --install"
     echo "  ./preview.sh --open"
-    echo "  ./preview.sh --open ../bin/font_v3/zh/V3PRO_*_LFS.bin"
+    echo "  ./preview.sh --open ../bin/font_v3/v3pro/zh/V3PRO_*_LFS.bin"
 }
 
 need_python() {

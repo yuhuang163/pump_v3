@@ -2,8 +2,8 @@
 """Preview a language-pack littlefs image or OTA container.
 
 Usage:
-  python3 preview_lang_lfs.py overlay/font/bin/font_v3/zh/V3PRO_..._LFS.bin
-  python3 preview_lang_lfs.py ..._PACK.bin --json
+  python3 preview_lang_lfs.py overlay/font/bin/font_v3/v3pro/zh/V3PRO_..._LFS.bin
+  python3 preview_lang_lfs.py ..._OTA.bin --json
   python3 preview_lang_lfs.py ..._LFS.bin -o /tmp/lang.html --open
 """
 
@@ -601,8 +601,8 @@ def print_summary(model: dict, src: Path) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Preview language-pack LFS / PACK images")
-    parser.add_argument("image", type=Path, help="*_LFS.bin or *_PACK.bin")
+    parser = argparse.ArgumentParser(description="Preview language-pack LFS / OTA images")
+    parser.add_argument("image", type=Path, help="*_LFS.bin or *_OTA.bin")
     parser.add_argument("--ui", choices=("v3", "v3pro"), default="v3pro")
     parser.add_argument("-o", "--output", type=Path, help="HTML output path")
     parser.add_argument("--json", action="store_true", help="print JSON instead of HTML")
