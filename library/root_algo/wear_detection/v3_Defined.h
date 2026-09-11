@@ -15,7 +15,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.1.5"
+#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.1.6"
 
 /* hardware parameters */
 #define SAMPLE_RATE			(50)
