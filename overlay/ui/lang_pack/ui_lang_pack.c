@@ -583,7 +583,7 @@ static int lang_pack_lang_is_container(const lang_pack_header_t *hdr)
     if (!hdr || hdr->manifest_size < sizeof(*hdr)) {
         return 0;
     }
-    /* PACK.bin keeps object blobs after the manifest. Slim LANG (LFS burn) does
+    /* OTA.bin keeps object blobs after the manifest. Slim LANG (LFS burn) does
      * not; payload_size still includes those blobs so size comparison is useless. */
     return ui_lang_pack_read_at(hdr->manifest_size, &probe, 1) == 0 ? 1 : 0;
 }

@@ -2,8 +2,8 @@
 """Pack UI language objects into FDS_EXT keys + a whole-pack container.
 
 Each font role, page-string table, page-widget table and font_img is one
-littlefs integer key. English Latin fonts stay in firmware (common) and
-are not packed. A LANG container still supports whole-pack OTA.
+littlefs integer key. NUM (56/69) stay in firmware common. A LANG container
+still supports whole-pack OTA.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ IMG_PUMP_BREAK = 2
 IMG_GUIDE_SKIP = 3
 IMG_PUMP_RESUME = 4
 
-# Language-specific fonts only. Latin/Aeonik and NUM live in firmware common.
+# Language-specific UI fonts. NUM 56/69 stay in firmware common.
 FONT_FILES = {
     "zh": {
         ROLE_HINT: "lv_font_noto_sans_zh_19_medium.bin",
@@ -68,7 +68,13 @@ FONT_FILES = {
         ROLE_TITLE_MD: "lv_font_noto_sans_zh_29_medium.bin",
         ROLE_TITLE_LG: "lv_font_noto_sans_zh_33_medium.bin",
     },
-    "en": {},
+    "en": {
+        ROLE_HINT: "lv_font_aeonik_soft_19_medium.bin",
+        ROLE_BODY_SM: "lv_font_aeonik_soft_22_medium.bin",
+        ROLE_TITLE: "lv_font_aeonik_soft_26_medium.bin",
+        ROLE_TITLE_MD: "lv_font_aeonik_soft_29_medium.bin",
+        ROLE_TITLE_LG: "lv_font_aeonik_soft_33_medium.bin",
+    },
 }
 
 IMG_FILES = {
@@ -398,15 +404,17 @@ def main() -> int:
     ver_str = format_file_version(args.file_version)
     stem = f"{name_prefix}_{date_str}_{ver_str}_{md5_short}"
 
-    out_dir = args.out_dir or (repo / "overlay" / "font" / "bin" / font_root.name / args.lang)
+    out_dir = args.out_dir or (
+        repo / "overlay" / "font" / "bin" / font_root.name / args.ui / args.lang
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
-    for pat in ("*_LANG.bin", "*_RDY.bin", "*_LFS.bin", "*_PACK.bin",
+    for pat in ("*_LANG.bin", "*_RDY.bin", "*_LFS.bin", "*_PACK.bin", "*_OTA.bin",
                 "lang_pack.bin", "lang_ready.bin", "lang_pack_lfs.bin"):
         for stale in out_dir.glob(pat):
             stale.unlink()
 
     if not args.no_pack_bin:
-        pack_named = out_dir / f"{stem}_PACK.bin"
+        pack_named = out_dir / f"{stem}_OTA.bin"
         pack_named.write_bytes(container)
         print(f"wrote {pack_named} (OTA TYPE=0x04 container, {len(container)} bytes)")
 

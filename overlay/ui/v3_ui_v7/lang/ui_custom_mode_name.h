@@ -25,23 +25,20 @@ typedef struct {
 } ui_custom_mode_name_map_t;
 
 /**
- * 将 App 下发的自定义模式名转为当前固件语言展示文案。
- * - 英文固件：原样输出
- * - 非英文：按前缀表替换（可带后缀）；未匹配则回退为原文
+ * 将 App 下发的自定义模式名转为当前展示语言。
+ * 有外部语言包时跟包的 lang_id；否则跟编译期 PRODUCT_LANGUAGE。
+ * 英文：原样输出。非英文：按英文前缀表替换（可带后缀）；未匹配则回退原文。
  */
+static inline int ui_custom_mode_name_need_localize(void)
+{
+    if (ui_lang_pack_is_active()) {
+        return ui_lang_pack_lang_id() != (uint16_t)PRODUCT_LANGUAGE_EN;
+    }
+    return PRODUCT_LANGUAGE_USED != PRODUCT_LANGUAGE_EN;
+}
+
 static inline void ui_custom_mode_name_localize(const char *src, char *dst, size_t dst_len)
 {
-    if (dst == NULL || dst_len == 0U) {
-        return;
-    }
-    dst[0] = '\0';
-    if (src == NULL) {
-        return;
-    }
-
-#if (PRODUCT_LANGUAGE_USED == PRODUCT_LANGUAGE_EN)
-    snprintf(dst, dst_len, "%s", src);
-#else
     static const ui_custom_mode_name_map_t k_map[] = {
         { "Customize", UI_STR_ID_MODE_CUSTOM },
         { "Cozy Flow", UI_STR_ID_MODE_COZY_FLOW },
@@ -59,6 +56,18 @@ static inline void ui_custom_mode_name_localize(const char *src, char *dst, size
     size_t best_len = 0;
     const char *best_local = NULL;
     const char *rest = NULL;
+
+    if (dst == NULL || dst_len == 0U) {
+        return;
+    }
+    dst[0] = '\0';
+    if (src == NULL) {
+        return;
+    }
+    if (!ui_custom_mode_name_need_localize()) {
+        snprintf(dst, dst_len, "%s", src);
+        return;
+    }
 
     for (i = 0; k_map[i].en_prefix != NULL; i++) {
         size_t prefix_len = strlen(k_map[i].en_prefix);
@@ -90,7 +99,6 @@ static inline void ui_custom_mode_name_localize(const char *src, char *dst, size
     }
 
     snprintf(dst, dst_len, "%s", src);
-#endif
 }
 
 #ifdef __cplusplus

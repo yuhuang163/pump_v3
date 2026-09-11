@@ -35,19 +35,20 @@ show_usage() {
     echo "  ./pack.sh --ui v3 -l zh           # V3 中文包（product-id 0x08）"
     echo ""
     echo "字库与图片文字目录:"
-    echo "  overlay/font/font_v3/lang/zh/bin/   # 仅中文 Noto；Aeonik 在 font_v3/common"
+    echo "  overlay/font/font_v3/lang/zh/bin/   # 中文 Noto 19/22/26/29/33"
+    echo "  overlay/font/font_v3/lang/en/bin/   # 英文 Aeonik 19/22/26/29/33"
     echo "  overlay/font/font_v3/lang/<zh|en>/font_img/"
     echo ""
     echo "默认输出:"
-    echo "  overlay/font/bin/font_v3/<lang>/<PREFIX>_<YYYYMMDD>_VXX.XX_<MD5>_LFS.bin"
+    echo "  overlay/font/bin/font_v3/<v3|v3pro>/<lang>/<PREFIX>_<YYYYMMDD>_VXX.XX_<MD5>_LFS.bin"
     echo "      烧录: 外部 Flash 0xE00000，长度 0x180000（整段 FDS_EXT littlefs）"
     echo "      镜像内含 LANG 清单 + 各页面/字号/图片 key + RDY1"
-    echo "  overlay/font/bin/font_v3/<lang>/<PREFIX>_<YYYYMMDD>_VXX.XX_<MD5>_PACK.bin"
+    echo "  overlay/font/bin/font_v3/<v3|v3pro>/<lang>/<PREFIX>_<YYYYMMDD>_VXX.XX_<MD5>_OTA.bin"
     echo "      给 OTA TYPE=0x04 整包升级"
     echo ""
     echo "预览:"
     echo "  ./preview.sh --install"
-    echo "  ./preview.sh --open [LFS|PACK.bin]"
+    echo "  ./preview.sh --open [LFS|OTA.bin]"
 }
 
 resolve_root_product_family_from_makefile() {
@@ -143,7 +144,7 @@ pack_one() {
     echo "product:  $product_id"
     echo "ui_ver:   $ui_version"
     echo "字库根:   $FONT_DIR/font_v3/lang/$lang"
-    echo "输出目录: $BIN_DIR/font_v3/$lang"
+    echo "输出目录: $BIN_DIR/font_v3/$ui/$lang"
 
     set +e
     pack_log="$(python3 "$PACKER" \
@@ -288,8 +289,8 @@ echo ""
 echo "=================================================="
 echo "✅ 语言包打包成功！"
 echo "=================================================="
-echo "产物目录: $BIN_DIR/font_v3/$LANG_SEL"
-ls -lh "$BIN_DIR/font_v3/$LANG_SEL"/*_LFS.bin 2>/dev/null || true
+echo "产物目录: $BIN_DIR/font_v3/$UI_SEL/$LANG_SEL"
+ls -lh "$BIN_DIR/font_v3/$UI_SEL/$LANG_SEL"/*_LFS.bin 2>/dev/null || true
 echo ""
 echo "镜像烧录: *_LFS.bin -> 外部 Flash 0xE00000 (1.5MB)"
 }

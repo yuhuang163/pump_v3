@@ -38,7 +38,7 @@ Aeonik 19/22/26/29/33/56/69 在 `overlay/font/font_v3/common/`，编进固件，
 
 `pack_lang.py` 产出：
 
-1. **容器** `*_PACK.bin`：清单 + 各对象拼接（OTA `TYPE=0x04`）
+1. **容器** `*_OTA.bin`：清单 + 各对象拼接（OTA `TYPE=0x04`）
 2. **LFS 镜像**：已拆好的各 key + 精简 `LANG` 清单 + `RDY1`
 
 OTA 仍把容器写到 `LANG`；`END` 后 `ui_lang_pack_install_container()` 拆到各 key，再把 `LANG` 收成清单并写 `RDY1`。下次开机 `probe` 按清单分别加载。烧录 `*_LFS.bin` 时 `LANG` 已是精简清单，`probe` 用「能否在 `manifest_size` 之后再读 1 字节」判断是否还要 explode，不要用 `payload_size` 比较（精简清单里 `payload_size` 仍含对象总长）。也可只改某一个 `FNT*` / `PS*` / `PW*` 文件（改完需同步清单 CRC 与 `RDY1`）。
