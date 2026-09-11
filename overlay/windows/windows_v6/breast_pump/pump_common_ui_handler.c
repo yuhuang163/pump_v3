@@ -287,7 +287,8 @@ static bool pump_pause_led_needs_update(const ui_proc_pump_t *proc)
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR ||
         proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED ||
-        proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
+        proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK ||
+        proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
         return false;
     }
 
@@ -308,7 +309,8 @@ static void pump_pause_led_update(ui_proc_pump_t *proc)
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_TIMEOUT ||
         proc->current_ui_type == PUMP_UI_TYPE_FINISH_CHARGE_ERROR ||
         proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED ||
-        proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
+        proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK ||
+        proc->current_ui_type == PUMP_UI_TYPE_WILL_FINISH) {
         return;
     }
 
