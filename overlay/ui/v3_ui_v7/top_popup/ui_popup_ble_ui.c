@@ -26,31 +26,25 @@ static void popup_window_ble_mask_opaque(void)
 }
 
 /*
-* LOCAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-const static popup_window_text_info_t ble_connect_infos[POPUP_WINDOW_TEXT_COUNT] = {
-    {BLE_CONNECT_TEXT, 0, POPUP_WINDOW_BLE_CONNECT_TEXT_Y,
-        UI_FONT_TITLE_MD, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
-};
-
-const static popup_window_text_info_t ble_disconnect_infos[POPUP_WINDOW_TEXT_COUNT] = {
-    {BLE_DISCONNECT_TEXT, 0, POPUP_WINDOW_BLE_DISCONNECT_TEXT_Y,
-        UI_FONT_TITLE_MD, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR,
-        POPUP_WINDOW_BLE_DISCONNECT_LINE_SPACE},
-};
-
-const static popup_window_text_info_t ble_connecting_infos[POPUP_WINDOW_TEXT_COUNT] = {
-    {BLE_CONNECTING_TEXT, 0, POPUP_WINDOW_BLE_CONNECTING_TEXT_Y,
-        UI_FONT_TITLE_MD, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
-};
-
-/*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
 void popup_window_ble_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type)
 {
+    const popup_window_text_info_t ble_connect_infos[POPUP_WINDOW_TEXT_COUNT] = {
+        {BLE_CONNECT_TEXT, 0, POPUP_WINDOW_BLE_CONNECT_TEXT_Y,
+            UI_FONT_TITLE_MD, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
+    };
+    const popup_window_text_info_t ble_disconnect_infos[POPUP_WINDOW_TEXT_COUNT] = {
+        {BLE_DISCONNECT_TEXT, 0, POPUP_WINDOW_BLE_DISCONNECT_TEXT_Y,
+            UI_FONT_TITLE_MD, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR,
+            POPUP_WINDOW_BLE_DISCONNECT_LINE_SPACE},
+    };
+    const popup_window_text_info_t ble_connecting_infos[POPUP_WINDOW_TEXT_COUNT] = {
+        {BLE_CONNECTING_TEXT, 0, POPUP_WINDOW_BLE_CONNECTING_TEXT_Y,
+            UI_FONT_TITLE_MD, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
+    };
+
     switch (popup_type) {
         case ID_POPUP_UI_BT_CONNECT:
             popup_window_tip_ui_update(thiz, popup_type, ble_connecting_infos,

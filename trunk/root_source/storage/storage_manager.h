@@ -55,6 +55,7 @@ typedef enum {
     PERSIST_KEY_THEME_PACKET_DATA,
     PERSIST_KEY_BATTERY_HEALTH_COEFF,
     PERSIST_KEY_IMG_RES_OTA_INFO,
+    PERSIST_KEY_LANG_PACK_OTA_INFO,
 
     PERSIST_KEY_UTC_TIMESTEMP = 150,             /// 系统时间戳
     PERSIST_KEY_SYS_REBOOT_REASON,               /// 系统重启原因
@@ -173,6 +174,8 @@ typedef struct {
     img_res_ota_info_t res_ota_info;
     uint16_t crc;
 } img_res_ota_storage_t;
+
+typedef img_res_ota_storage_t lang_pack_ota_storage_t;
 
 #ifdef __cplusplus
 }

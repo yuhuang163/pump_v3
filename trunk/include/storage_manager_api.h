@@ -86,6 +86,7 @@ typedef enum {
     STORE_ID_USER_BIND_INFO = 600,          /// 用户绑定信息
     STORE_ID_SYS_BIND_STATUS,               /// 绑定状态
     STORE_ID_IMG_RES_OTA_INFO = 700,        /// 图片资源OTA信息
+    STORE_ID_LANG_PACK_OTA_INFO,            /// 语言包OTA断点信息
     STORE_ID_MAX
 } persist_store_id_e;
 
@@ -97,6 +98,7 @@ typedef enum {
     STORE_CRC_TYPE_PUMP_BURY_INFO,
     STORE_CRC_TYPE_PUMP_USER_DATA_HEAD,
     STORE_CRC_TYPE_IMG_RES_OTA_INFO,
+    STORE_CRC_TYPE_LANG_PACK_OTA_INFO,
     STORE_CRC_TYPE_MAX
 } store_crc_type_id_e;
 
@@ -215,6 +217,7 @@ typedef struct storage_manager_context {
         data_bury_info_t data_bury_info;
         //资源ota信息
         img_res_ota_info_t img_res_ota_info;
+        img_res_ota_info_t lang_pack_ota_info;
 
         /// 存储处理列表.
         const put_store_process_handle_t *put_store_process_list;

@@ -86,19 +86,6 @@ static PSRAM_NC_DATA_LOC uint8_t theme_guide_bg_data[] = {
 
 static theme_guide_ui_info_t *theme_info = NULL;
 
-static const theme_guide_text_cfg_t theme_guide_title_cfg = {
-    .text = THEME_GUIDE_TITLE_TEXT,
-    .font = UI_FONT_HINT,
-    .color = THEME_GUIDE_TITLE_COLOR,
-    .y = THEME_GUIDE_TITLE_Y,
-    .line_space = 0,
-};
-
-static const char *theme_guide_option_labels[THEME_GUIDE_OPTION_NUM] = {
-    THEME_GUIDE_OPTION_MINIMAL_TEXT,
-    THEME_GUIDE_OPTION_IP_TEXT,
-};
-
 static const uint16_t theme_guide_preview_res_ids[THEME_GUIDE_OPTION_NUM] = {
     // BASE_RES_ID_MINIMAL_THEME_IMG,
     0,
@@ -150,10 +137,18 @@ static void theme_guide_label_update(lv_obj_t **label, const theme_guide_text_cf
 
 static void theme_guide_title_update(void)
 {
+    theme_guide_text_cfg_t title_cfg = {
+        .text = THEME_GUIDE_TITLE_TEXT,
+        .font = UI_FONT_HINT,
+        .color = THEME_GUIDE_TITLE_COLOR,
+        .y = THEME_GUIDE_TITLE_Y,
+        .line_space = 0,
+    };
+
     if (theme_info->force_update == false) {
         return;
     }
-    theme_guide_label_update(&theme_info->title, &theme_guide_title_cfg);
+    theme_guide_label_update(&theme_info->title, &title_cfg);
 }
 
 static void theme_guide_confirm_icon_update(ui_manager_context_t *thiz)
@@ -249,7 +244,12 @@ static void theme_guide_option_label_update(uint8_t index)
     if (theme_info->label[index] == NULL || !lv_obj_is_valid(theme_info->label[index])) {
         theme_info->label[index] = lv_label_create(theme_info->root);
         EXCEPTION_CHECK_VOID(theme_info->label[index]);
-        lv_label_set_text(theme_info->label[index], theme_guide_option_labels[index]);
+        const char *option_labels[THEME_GUIDE_OPTION_NUM] = {
+            THEME_GUIDE_OPTION_MINIMAL_TEXT,
+            THEME_GUIDE_OPTION_IP_TEXT,
+        };
+
+        lv_label_set_text(theme_info->label[index], option_labels[index]);
         lv_obj_set_style_text_font(theme_info->label[index], UI_FONT_HINT, 0);
         lv_obj_set_style_text_align(theme_info->label[index], LV_TEXT_ALIGN_LEFT, 0);
     }

@@ -12,15 +12,6 @@
 #define PUMP_REST_MODE_ADJUST_TIP_COUNTDOWN_Y                  (324)
 #define PUMP_REST_MODE_ADJUST_TIP_COUNTDOWN_COLOR              (0x999999)
 
-/*
-* LOCAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-const static ui_popup_text_info_t pump_rest_mode_adjust_tip_infos[UI_POPUP_TEXT_COUNT] = {
-    { PUMP_REST_MODE_ADJUST_TIP_TEXT, 0, PUMP_REST_MODE_ADJUST_TIP_TITLE_Y,
-        UI_FONT_TITLE, LV_OPA_100, PUMP_REST_MODE_ADJUST_TIP_TITLE_COLOR,
-        PUMP_REST_MODE_ADJUST_TIP_TITLE_LINE_SPACE},
-};
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -65,6 +56,12 @@ static void ui_popup_pump_rest_mode_adjust_tip_countdown_update(ui_manager_conte
 */
 void ui_popup_pump_rest_mode_adjust_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type)
 {
+    const ui_popup_text_info_t pump_rest_mode_adjust_tip_infos[UI_POPUP_TEXT_COUNT] = {
+        { PUMP_REST_MODE_ADJUST_TIP_TEXT, 0, PUMP_REST_MODE_ADJUST_TIP_TITLE_Y,
+            UI_FONT_TITLE, LV_OPA_100, PUMP_REST_MODE_ADJUST_TIP_TITLE_COLOR,
+            PUMP_REST_MODE_ADJUST_TIP_TITLE_LINE_SPACE},
+    };
+
     if (popup_type != ID_POPUP_UI_PUMP_REST_MODE_ADJUST_TIP) {
         return;
     }

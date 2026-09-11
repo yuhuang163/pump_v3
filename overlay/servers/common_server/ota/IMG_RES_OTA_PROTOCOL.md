@@ -187,8 +187,9 @@ for each byte b in [Header + Payload]:
 |----|------|------|
 | `0x00` | OTA_OBJECT_TYPE_NONE | 无效 |
 | `0x01` | OTA_OBJECT_MAIN_FIRMWARE | 主固件（本协议不使用） |
-| `0x02` | OTA_OBJECT_IMAGE_RESOURCE | **图片资源（必须使用此值）** |
+| `0x02` | OTA_OBJECT_IMAGE_RESOURCE | **图片资源** |
 | `0x03` | OTA_OBJECT_TOUCH_KEY_FIRMWARE | 触摸按键固件（本协议不使用） |
+| `0x04` | OTA_OBJECT_LANGUAGE_PACK | **语言包**（写入 `FDS_EXT`，key `LANG`） |
 
 ### 4.4 升级状态码（ota_upgrade_status_code_e）
 
@@ -255,12 +256,20 @@ for each byte b in [Header + Payload]:
 | `0x0002` VERSION | uint32 小端 | 资源版本号 |
 | `0x0003` CRC32 | uint32 小端 | 全量文件 CRC32（算法见 §6） |
 | `0x0004` TOTAL_SIZE | uint32 小端 | 总大小 `1 ~ 7340032`（7MB） |
-| `0x0005` TYPE | uint8 | 固定 `0x02`（图片资源） |
+| `0x0005` TYPE | uint8 | `0x02` 图片资源，或 `0x04` 语言包 |
 | `0x0007` START_UPGRADE_REQUEST | **空**（Length=0） | 触发开始升级 |
 
 **设备行为：**
-- `TYPE != 0x02` 时拒绝，响应 `0xF000 = 0x0001`
-- 读取 Flash 中 `img_res_ota_info_t`（`img_id/total_size/version/crc32/recv_size`）
+- `TYPE` 仅接受 `0x02`（主题图）或 `0x04`（语言包），其它值拒绝，响应 `0xF000 = 0x0001`
+- **语言包（`TYPE=0x04`）额外规则：**
+  - 写入 `FDS_EXT` 整数 key `0x4C414E47`（`LANG`）的**整包容器**（schema 2：清单 + 各对象拼接），断点存 `STORE_ID_LANG_PACK_OTA_INFO`（**不要**复用图片 OTA 的 store）
+  - `TOTAL_SIZE` 上限 **0x160000**（1.375MB）
+  - 收到 `START` **先擦 ready 标志**（key `0x52445931` / `RDY1`）；新会话再删旧 `LANG` 及清单中的对象 key
+  - 结束时对容器做 CRC32；通过后再校验包头（magic / schema major=2 / 产品 / UI 版本），再 `install_container` 拆到 `FNT*` / `PS*` / `PW*` / `FIM*`，最后把 `LANG` 收成清单并写 `ready`
+  - 语言包在**下次开机** `probe` 后生效（END 时不热切换 UI）
+  - 开机只比对清单与 `ready`，不做整包 CRC
+  - 恢复出厂不擦 `FDS_EXT` 语言文件，也不清语言包 OTA 断点所对应的外部包
+- 读取 Flash 中对应对象的断点结构（`img_id/total_size/version/crc32/recv_size`）
 - 若与本次请求元数据**完全一致** → **断点续传**，应答 `IMG_OFFSET_ADDR = recv_size`
 - 否则清零进度，从偏移 `0` 重新开始，并擦除状态按新会话初始化
 - 开始成功后启动 **10ms 周期定时器**，用于块接收超时监测（见 §5.2）

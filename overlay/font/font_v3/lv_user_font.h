@@ -7,15 +7,18 @@ extern "C" {
 
 /*
  * font_v3 目录：
- *   common/              语言无关数字字库（56 / 69）
- *   lang/en/             英文本体 + font_img
- *   lang/zh/             中文本体（noto_sans_zh_*）+ Aeonik 子集 + font_img
- * Makefile 只把 common + lang/$(PRODUCT_LANGUAGE) 加入编译和 include。
+ *   common/                 数字 56/69 + Latin Aeonik 19/22/26/29/33
+ *   lang/$(PRODUCT_LANGUAGE) 当前语言正文（中文 Noto）+ font_img
  * 页面通过 UI_FONT_* 角色宏引用。
  */
 
 #include "lv_font_aeonik_soft_56.h" // IWYU pragma: keep
 #include "lv_font_aeonik_soft_69.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_19.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_22.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_26.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_29.h" // IWYU pragma: keep
+#include "lv_font_aeonik_soft_33.h" // IWYU pragma: keep
 #include "lv_user_font_lang.h" // IWYU pragma: keep
 
 /* 字体包头 */

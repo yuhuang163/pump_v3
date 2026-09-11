@@ -630,6 +630,9 @@ static void ui_thread_init_route(struct ui_manager_context *thiz)
     UI_DBG_SET_STEP(UI_DBG_STEP_THREAD_INIT);
     CREATE_MSG_TYPE_QUEUE(&thiz->priv.ui_hdr_thd.msg_id, UI_LVGL_MSG_QUEUE_NUM, sizeof(ui_lvgl_msg_t));
     thiz->priv.lvgl_initialized = true;
+#if IS_SUPPORT_LVGL
+    ui_lang_pack_load_runtime_fonts();
+#endif
 #if IS_SUPPORT_LVGL && !IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
     ui_snap_shot_perpare(thiz);
 #endif

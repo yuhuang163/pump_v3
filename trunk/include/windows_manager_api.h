@@ -15,8 +15,8 @@ extern "C" {
 
 /// 语言类型，不能随意修改排序，会影响打包脚本
 typedef enum {
-    SYS_LANGUANGE_CHINESE = 0,
-    SYS_LANGUANGE_ENGLISH,
+    SYS_LANGUANGE_ENGLISH = 0,
+    SYS_LANGUANGE_CHINESE,
     SYS_LANGUANGE_JAPANESE,
     SYS_LANGUANGE_KOREAN,
     SYS_LANGUANGE_MAX,

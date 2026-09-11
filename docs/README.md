@@ -23,6 +23,7 @@
 |------|------|
 | [`architecture/breast-pump/motor-policy.md`](architecture/breast-pump/motor-policy.md) | 吸奶泵 + 马达策略引擎：策略数据结构、模式列表、20ms 主循环、反馈闭环 |
 | [`architecture/ui/ui-windows-resource.md`](architecture/ui/ui-windows-resource.md) | UI/窗口/资源三层分工、窗口路由、LVGL 集成、资源分包与版本化 |
+| [`architecture/ui/lang-pack-fds.md`](architecture/ui/lang-pack-fds.md) | 语言包 FDS 多 key：字号/页面文案/页面组件、公共 Latin、整包安装 |
 | [`architecture/ui/windows-v6-business.md`](architecture/ui/windows-v6-business.md) | 窗口层业务实现（windows_v6）：15 窗口入口/生命周期/按键/广播/跳转 |
 | [`architecture/ui/ui-v7-pages-business.md`](architecture/ui/ui-v7-pages-business.md) | UI 页面层业务实现（v3_ui_v7 / v3pro_ui_v7）：页面三件套、组件、V3/V3Pro 差异 |
 | [`architecture/ble/ble-servers.md`](architecture/ble/ble-servers.md) | BLE 服务注册、连接状态机、服务器管理、数据埋点链路 |

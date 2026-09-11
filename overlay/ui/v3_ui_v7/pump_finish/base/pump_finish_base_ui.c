@@ -43,12 +43,6 @@ typedef struct {
 
 static complete_tip_display_info_t *finish_info;
 
-const static complete_tip_text_info_t complete_tip_text_infos[COMPLETE_TIP_TEXT_COUNT] = {
-    { PUMP_FINISH_TITLE_TEXT, PUMP_FINISH_TITLE_Y, UI_FONT_TITLE, 0, FINISH_TIP_TITLE_COLOR},
-    { PUMP_FINISH_CONTENT_TEXT, PUMP_FINISH_CONTENT_Y,
-        UI_FONT_TITLE, 10, FINISH_TIP_CONTENT_COLOR},
-};
-
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -94,6 +88,12 @@ static void pump_complete_icon_update(ui_manager_context_t *thiz)
 
 static void pump_complete_tip_texts_update(void)
 {
+    const complete_tip_text_info_t complete_tip_text_infos[COMPLETE_TIP_TEXT_COUNT] = {
+        { PUMP_FINISH_TITLE_TEXT, PUMP_FINISH_TITLE_Y, UI_FONT_TITLE, 0, FINISH_TIP_TITLE_COLOR},
+        { PUMP_FINISH_CONTENT_TEXT, PUMP_FINISH_CONTENT_Y,
+            UI_FONT_TITLE, 10, FINISH_TIP_CONTENT_COLOR},
+    };
+
     if (finish_info->force_update == false) {
         return;
     }

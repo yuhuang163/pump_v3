@@ -159,6 +159,9 @@ else
 $(error Invalid PRODUCT_LANGUAGE=$(PRODUCT_LANGUAGE), expected en or zh)
 endif
 
+# 外部语言包：make firmware IS_SUPPORT_LANG_PACK=0 可对比固件体积
+IS_SUPPORT_LANG_PACK ?= 0
+
 # V3 UI版本
 V3_UI_V2 ?= 0x02
 V3_UI_V3 ?= 0x03
@@ -305,8 +308,13 @@ $(warning Invalid UI version)
 endif
 ifneq ($(UI_OVERLAY_SUBDIR),)
 UI_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/ui/$(UI_OVERLAY_SUBDIR)
-UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(shell find $(UI_OVERLAY_DIR) -type d))
-UI_LCD_DIRECT_SRCS := $(call rwildcard,$(UI_OVERLAY_DIR))
+UI_LANG_PACK_DIR := $(PROJECT_ROOT)/overlay/ui/lang_pack
+UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(shell find $(UI_OVERLAY_DIR) $(UI_LANG_PACK_DIR) -type d))
+UI_LCD_DIRECT_SRCS := $(call rwildcard,$(UI_OVERLAY_DIR)) $(call rwildcard,$(UI_LANG_PACK_DIR))
+UI_LCD_DIRECT_SRCS := $(filter-out %/lang_pack_factory_blob.c,$(UI_LCD_DIRECT_SRCS))
+ifeq ($(IS_SUPPORT_LANG_PACK),0)
+UI_LCD_DIRECT_SRCS := $(filter-out $(UI_LANG_PACK_DIR)/%,$(UI_LCD_DIRECT_SRCS))
+endif
 endif
 
 # windows overlay：按 V3_UX_VERSION 选定子目录（仅计算当前版本）
@@ -344,7 +352,7 @@ endif
 ifneq ($(FONT_OVERLAY_SUBDIR),)
 FONT_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/font/$(FONT_OVERLAY_SUBDIR)
 ifeq ($(FONT_OVERLAY_SUBDIR),font_v3)
-# font_v3：common 数字字库 + lang/$(PRODUCT_LANGUAGE) 正文/图片文字，不把其他语言编进固件
+# font_v3：common（数字 + Latin 19/22/26/29/33）+ lang/$(PRODUCT_LANGUAGE) 正文/图片文字
 FONT_COMMON_DIR := $(FONT_OVERLAY_DIR)/common
 FONT_LANG_DIR := $(FONT_OVERLAY_DIR)/lang/$(PRODUCT_LANGUAGE)
 ifeq ($(wildcard $(FONT_LANG_DIR)/.),)
@@ -373,6 +381,9 @@ COMMON_SERVERS_INC_FLAGS := $(patsubst %,-I%,$(COMMON_SERVERS_INC_DIRS))
 COMMON_SERVERS_DIR := $(PROJECT_ROOT)/overlay/servers/common_server
 # Servers 源码文件
 COMMON_SERVERS_SRCS := $(call rwildcard,$(COMMON_SERVERS_DIR))
+ifeq ($(IS_SUPPORT_LANG_PACK),0)
+COMMON_SERVERS_SRCS := $(filter-out %/lang_res_ota.c,$(COMMON_SERVERS_SRCS))
+endif
 
 # App old protocol Servers 头文件子目录
 APP_OLD_PROTOCOL_SERVERS_INC_DIRS := $(shell find $(PROJECT_ROOT)/overlay/servers/app_old_protocol_server -type d)
@@ -790,6 +801,7 @@ DATA_BURY_MODULE_INC_FLAGS := \
 # 资源模块头文件
 RESOURCE_INC_FLAGS := \
 	-I$(PROJECT_ROOT)/trunk/root_source/resource \
+	-I$(PROJECT_ROOT)/overlay/framework_hooks/resource \
 	-I$(PROJECT_ROOT)/overlay/resources\
 	-I$(PROJECT_ROOT)/overlay/resources/reference
 
@@ -973,6 +985,7 @@ CPPFLAGS += -DROOT_FONT_V2=$(ROOT_FONT_V2)
 CPPFLAGS += -DROOT_FONT_V3=$(ROOT_FONT_V3)
 
 CPPFLAGS += -DPRODUCT_LANGUAGE_USED=$(PRODUCT_LANGUAGE_USED)
+CPPFLAGS += -DIS_SUPPORT_LANG_PACK=$(IS_SUPPORT_LANG_PACK)
 
 CPPFLAGS += -DV3_UX_VERSION=$(V3_UX_VERSION)
 CPPFLAGS += -DV3_UX_V1=$(V3_UX_V1)
@@ -1391,6 +1404,7 @@ STORAGE_MODULE_SRCS := \
 # 资源模块源码
 RESOURCE_MODULE_SRCS := \
 	$(wildcard $(PROJECT_ROOT)/trunk/root_source/resource/*.c) \
+	$(wildcard $(PROJECT_ROOT)/overlay/framework_hooks/resource/*.c) \
 	$(wildcard $(PROJECT_ROOT)/overlay/resources/*.c)
 
 # 网络模块源码

@@ -17,11 +17,11 @@ extern "C" {
  * 多条同时命中时取最长前缀（避免 "Cozy" 抢掉 "Cozy Flow"）。
  *
  * 新增示例：
- *   { "Cozy Flow", UI_STR_MODE_COZY_FLOW },
+ *   { "Cozy Flow", UI_STR_ID_MODE_COZY_FLOW },
  */
 typedef struct {
     const char *en_prefix;
-    const char *local_name;
+    ui_str_id_e local_id;
 } ui_custom_mode_name_map_t;
 
 /**
@@ -43,17 +43,17 @@ static inline void ui_custom_mode_name_localize(const char *src, char *dst, size
     snprintf(dst, dst_len, "%s", src);
 #else
     static const ui_custom_mode_name_map_t k_map[] = {
-        { "Customize", UI_STR_MODE_CUSTOM },
-        { "Cozy Flow", UI_STR_MODE_COZY_FLOW },
-        { "Power Pumping", UI_STR_MODE_DENSE_MILK },
-        { "Milk Boost", UI_STR_MODE_HIGH_EFFICIENCY },
-        { "Lactation Starter", UI_STR_MODE_LACTATION_STARTER },
-        { "Deep Emptying", UI_STR_MODE_DEEP_EMPTYING },
-        { "Let-down Response", UI_STR_MODE_LET_DOWN_RESPONSE },
-        { "Before Bed", UI_STR_MODE_BEFORE_BED },
-        { "Quick Refill Relief", UI_STR_MODE_QUICK_REFILL },
-        { "Post-Nursing", UI_STR_MODE_POST_NURSING },
-        { NULL, NULL },
+        { "Customize", UI_STR_ID_MODE_CUSTOM },
+        { "Cozy Flow", UI_STR_ID_MODE_COZY_FLOW },
+        { "Power Pumping", UI_STR_ID_MODE_DENSE_MILK },
+        { "Milk Boost", UI_STR_ID_MODE_HIGH_EFFICIENCY },
+        { "Lactation Starter", UI_STR_ID_MODE_LACTATION_STARTER },
+        { "Deep Emptying", UI_STR_ID_MODE_DEEP_EMPTYING },
+        { "Let-down Response", UI_STR_ID_MODE_LET_DOWN_RESPONSE },
+        { "Before Bed", UI_STR_ID_MODE_BEFORE_BED },
+        { "Quick Refill Relief", UI_STR_ID_MODE_QUICK_REFILL },
+        { "Post-Nursing", UI_STR_ID_MODE_POST_NURSING },
+        { NULL, (ui_str_id_e)0 },
     };
     size_t i;
     size_t best_len = 0;
@@ -73,7 +73,7 @@ static inline void ui_custom_mode_name_localize(const char *src, char *dst, size
             continue;
         }
         best_len = prefix_len;
-        best_local = k_map[i].local_name;
+        best_local = ui_str(k_map[i].local_id);
     }
 
     if (best_local != NULL) {

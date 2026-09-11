@@ -14,21 +14,16 @@
 #define TRAVEL_LOCK_COUNTDOWN_TOTAL_SEC                   (5)
 
 /*
-* LOCAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-const static popup_window_text_info_t travel_lock_infos[POPUP_WINDOW_TEXT_COUNT] = {
-    {TRAVEL_LOCK_TITLE_TEXT, 0, TRAVEL_LOCK_TITLE_Y,
-        UI_FONT_TITLE, LV_OPA_100, TRAVEL_LOCK_TITLE_COLOR,
-        TRAVEL_LOCK_TITLE_LINE_SPACE},
-};
-
-/*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
 void popup_window_travel_lock_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type, uint32_t target_time)
 {
+    const popup_window_text_info_t travel_lock_infos[POPUP_WINDOW_TEXT_COUNT] = {
+        {TRAVEL_LOCK_TITLE_TEXT, 0, TRAVEL_LOCK_TITLE_Y,
+            UI_FONT_TITLE, LV_OPA_100, TRAVEL_LOCK_TITLE_COLOR,
+            TRAVEL_LOCK_TITLE_LINE_SPACE},
+    };
     popup_window_disp_info_t *info = popup_window_info_get();
     ui_progress_arc_style_t style;
 

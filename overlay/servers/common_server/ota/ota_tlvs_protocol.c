@@ -5,6 +5,7 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "common_tlvs.h" // IWYU pragma: keep
 #include "img_res_ota.h" // IWYU pragma: keep
+#include "lang_res_ota.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -89,12 +90,20 @@ int ota_tlvs_start_upgrade_request(comm_protocol_builder_t *builder, comm_protoc
     if (data_len != 0) {
         return -1;
     }
-    if (ota_info.type != OTA_OBJECT_IMAGE_RESOURCE) {
-        return -1;
-    }
     ota_info.offset_addr = 0;
     uint32_t resume_offset = 0;
-    int ret = start_img_res_upgrade(ota_info, &resume_offset);
+    int ret = -1;
+    if (ota_info.type == OTA_OBJECT_IMAGE_RESOURCE) {
+        ret = start_img_res_upgrade(ota_info, &resume_offset);
+    } else if (ota_info.type == OTA_OBJECT_LANGUAGE_PACK) {
+#if IS_SUPPORT_LANG_PACK
+        ret = start_lang_pack_upgrade(ota_info, &resume_offset);
+#else
+        return -1;
+#endif
+    } else {
+        return -1;
+    }
     if (ret != 0) {
         return ret;
     }
@@ -133,7 +142,7 @@ int ota_tlvs_write_img_data(comm_protocol_builder_t *builder, comm_protocol_serv
     }
     ota_manager_context_t *ctx = (ota_manager_context_t *)find_module(ID_MODULE_OTA);
     EXCEPTION_CHECK_INT(ctx);
-    int ret = ctx->write_image_data(OTA_OBJECT_IMAGE_RESOURCE, ota_info.offset_addr, data, data_len);
+    int ret = ctx->write_image_data((ota_object_e)ota_info.type, ota_info.offset_addr, data, data_len);
     return ret;
 }
 
@@ -149,7 +158,16 @@ int ota_tlvs_end_upgrade_request(comm_protocol_builder_t *builder, comm_protocol
         protocol_ctx->comm_protocol_assemble_reset();
     }
     /// 添加升级结果
-    uint16_t result = (end_img_res_upgrade(ota_info.img_id) == 0) ? OTA_STATUS_CODE_SUCCESS : OTA_STATUS_CODE_FAIL;
+    uint16_t result;
+    if (ota_info.type == OTA_OBJECT_LANGUAGE_PACK) {
+#if IS_SUPPORT_LANG_PACK
+        result = (end_lang_pack_upgrade(ota_info.img_id) == 0) ? OTA_STATUS_CODE_SUCCESS : OTA_STATUS_CODE_FAIL;
+#else
+        result = OTA_STATUS_CODE_FAIL;
+#endif
+    } else {
+        result = (end_img_res_upgrade(ota_info.img_id) == 0) ? OTA_STATUS_CODE_SUCCESS : OTA_STATUS_CODE_FAIL;
+    }
     int ret = common_tlv_add_u16(builder, service, OTA_TLV_UPGRADE_RESULT, result);
     /// 重置OTA信息
     memset(&ota_info, 0, sizeof(ota_info));

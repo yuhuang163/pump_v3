@@ -52,8 +52,13 @@ static int database_section_init(void)
     return 0;
 }
 
+static uint8_t s_ext_mounted;
+
 static app_fds_t *database_get_ext_fds(const uint32_t *args, uint32_t n_bytes)
 {
+    if (!s_ext_mounted) {
+        return NULL;
+    }
     if (n_bytes >= sizeof(uint32_t) * 4 && args[3] == DB_STORAGE_EXTERNAL) {
         return &s_ext_fds;
     }
@@ -77,11 +82,14 @@ static int database_dev_open(struct rt_device_node *dev)
         LOGE("database init failure!:%d", ret);
         return -1;
     }
-    /// init external littlefs
-    ret = app_fds_mount(&s_ext_fds, PARTITION_FDS_EXT_NAME, (uint32_t)FDS_EXT_START_ADDR, FDS_EXT_SECTOR_NUM);
+    /// init external littlefs (do not format: keep a pre-flashed language pack)
+    ret = app_fds_mount_ex(&s_ext_fds, PARTITION_FDS_EXT_NAME, (uint32_t)FDS_EXT_START_ADDR,
+                           FDS_EXT_SECTOR_NUM, 0);
     if (ret != BSP_OK) {
-        LOGE("database ext init failure!:%d", ret);
-        return -1;
+        LOGW("database ext mount skipped:%d", ret);
+        s_ext_mounted = 0;
+    } else {
+        s_ext_mounted = 1;
     }
     return BSP_OK;
 }
@@ -120,7 +128,25 @@ static int database_dev_ioctl(struct rt_device_node *dev, uint32_t op_code, void
             return app_fds_value_delete(temp[0]);
 
         case OP_CODE_DB_EXT_DELETE:
+            if (!s_ext_mounted) {
+                return -1;
+            }
             return app_fds_value_delete_ex(&s_ext_fds, temp[0]);
+
+        case OP_CODE_DB_EXT_WRITE_AT:
+        case OP_CODE_DB_EXT_READ_AT: {
+            db_ext_rw_args_t *rw = (db_ext_rw_args_t *)args;
+
+            if (!s_ext_mounted || !rw || !rw->buffer || rw->size == 0) {
+                return -1;
+            }
+            if (op_code == OP_CODE_DB_EXT_WRITE_AT) {
+                return app_fds_value_write_at_ex(&s_ext_fds, rw->key, rw->offset,
+                                                 rw->buffer, rw->size);
+            }
+            return app_fds_value_read_at_ex(&s_ext_fds, rw->key, rw->offset,
+                                            rw->buffer, rw->size);
+        }
 
         case OP_CODE_DB_DELETE_ALL:
             return 0;

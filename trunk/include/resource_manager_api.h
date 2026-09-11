@@ -71,7 +71,11 @@ typedef struct resource_manager_context {
     int (*get_img_res_version)(res_theme_type_e theme_type); /// 获取基础资源版本
     int (*get_sys_theme_type)(void); /// 主题类型
     int (*set_sys_theme_type)(res_theme_type_e theme_type); /// 设置主题类型
+    int (*get_lang_res_active)(void); /// 外部语言包是否已生效
 /// private:
+    struct __resource_manager_hook {
+        int (*on_lang_res_init)(struct resource_manager_context *thiz); /// 语言包初始化（overlay）
+    } *hook;
     struct __resource_manager_private {
         int install_result;
         int install_status;
@@ -83,6 +87,7 @@ typedef struct resource_manager_context {
         bool res_init_completed;
         bool theme_res_init_completed;
         bool base_res_init_completed;
+        bool lang_res_init_completed;
         res_theme_type_e theme_type;
         struct storage_manager_context *st;
         struct power_manager_context *pm;

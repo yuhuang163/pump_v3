@@ -57,4 +57,5 @@ typedef enum {
 - BLE 断连即中止 OTA（`ota_hook.c`）。
 - `OTA_EVENT_RESUME_OTA` 在 `RESUME_VERIFY` 后上报，避免 stale progress。
 - 图片资源 OTA 进度存 `img_res_ota_info_t`（`PERSIST_KEY_IMG_RES_OTA_INFO`）。
+- 语言包 OTA 复用同一套 Service 9 原子 TLV，`TYPE=0x04`；进度存独立 `PERSIST_KEY_LANG_PACK_OTA_INFO`；包体是 schema 2 容器，写入 `FDS_EXT` 后拆成字号/页面 key。详见 `docs/architecture/ui/lang-pack-fds.md` 与 `overlay/servers/common_server/ota/IMG_RES_OTA_PROTOCOL.md`。
 - flash 写缓冲 `OTA_CONTROL_NORFLASH_BUFFER_LEN = FLASH_SECTOR_SIZE*2`；`PUYA_FLASH_ERASE_LIMIT` 时限制擦写次数（每擦一次最多 4+1 次写）。

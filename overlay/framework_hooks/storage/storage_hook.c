@@ -47,6 +47,9 @@ const static put_store_process_handle_t put_store_process_list[] = {
     {STORE_ID_DATA_BURY_RING_META, write_data_bury_ring_meta_to_flash},
     {STORE_ID_DATA_BURY_RING_CHUNK, write_data_bury_ring_chunk_to_flash},
     {STORE_ID_IMG_RES_OTA_INFO, write_img_res_ota_info_to_flash},
+#if IS_SUPPORT_LANG_PACK
+    {STORE_ID_LANG_PACK_OTA_INFO, write_lang_pack_ota_info_to_flash},
+#endif
 };
 
 const static get_store_process_handle_t get_store_process_list[] = {
@@ -67,6 +70,9 @@ const static get_store_process_handle_t get_store_process_list[] = {
     {STORE_ID_DATA_BURY_RING_META, read_data_bury_ring_meta_from_flash},
     {STORE_ID_DATA_BURY_RING_CHUNK, read_data_bury_ring_chunk_from_flash},  
     {STORE_ID_IMG_RES_OTA_INFO, read_img_res_ota_info_from_flash},
+#if IS_SUPPORT_LANG_PACK
+    {STORE_ID_LANG_PACK_OTA_INFO, read_lang_pack_ota_info_from_flash},
+#endif
 };
 
 const static del_store_process_handle_t del_store_process_list[] = {
@@ -106,6 +112,9 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_SYS_BIND_STATUS, write_bind_status_to_ram},
     {STORE_ID_PUMP_MODE_ACTIVATE_STATUS, write_pump_mode_activate_to_ram},
     {STORE_ID_IMG_RES_OTA_INFO, write_img_res_ota_info_to_ram},
+#if IS_SUPPORT_LANG_PACK
+    {STORE_ID_LANG_PACK_OTA_INFO, write_lang_pack_ota_info_to_ram},
+#endif
     {STORE_ID_SYS_BATTERY_PERCENT, write_battery_percent_to_ram},
 };
 
@@ -155,6 +164,9 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_DATA_BURY_RING_PENDING_COUNT, read_data_bury_ring_pending_count_from_ram},
     {STORE_ID_DATA_BURY_RING_PEEK_OLDEST, read_data_bury_ring_peek_oldest_from_ram},
     {STORE_ID_IMG_RES_OTA_INFO, read_img_res_ota_info_from_ram},
+#if IS_SUPPORT_LANG_PACK
+    {STORE_ID_LANG_PACK_OTA_INFO, read_lang_pack_ota_info_from_ram},
+#endif
     {STORE_ID_SYS_BATTERY_PERCENT, read_battery_percent_from_ram},
 };
 
@@ -222,6 +234,10 @@ static int init_system_persist_info(storage_manager_context_t *ctx)
     msleep(10);
     args.val = &ctx->priv.img_res_ota_info;
     read_img_res_ota_info_from_flash(args);  /// 读取图片资源OTA信息
+#if IS_SUPPORT_LANG_PACK
+    args.val = &ctx->priv.lang_pack_ota_info;
+    read_lang_pack_ota_info_from_flash(args);  /// 读取语言包OTA断点（不碰 FDS_EXT 语言文件）
+#endif
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_CONFIG] = CRC16(&sys_info->config, sizeof(sys_config_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_SYS_STATE]  = CRC16(&sys_info->state, sizeof(sys_state_info_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_INFO]  = CRC16(&sys_info->pump_info, sizeof(sys_pump_info_t));
@@ -229,6 +245,9 @@ static int init_system_persist_info(storage_manager_context_t *ctx)
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_BURY_INFO]  = CRC16(&sys_info->buried_info_list, sizeof(sys_buried_info_list_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_PUMP_USER_DATA_HEAD]  = CRC16(pump_data_head, sizeof(breast_pump_data_head_t));
     ctx->priv.sys_info_crc[STORE_CRC_TYPE_IMG_RES_OTA_INFO]  = CRC16(&ctx->priv.img_res_ota_info, sizeof(img_res_ota_info_t));
+#if IS_SUPPORT_LANG_PACK
+    ctx->priv.sys_info_crc[STORE_CRC_TYPE_LANG_PACK_OTA_INFO] = CRC16(&ctx->priv.lang_pack_ota_info, sizeof(img_res_ota_info_t));
+#endif
     return 0;
 }
 
@@ -297,6 +316,17 @@ static int system_persist_info_sync_flash(storage_manager_context_t *ctx)
         }
         LOG_STORE("-->img res ota info sync flash");
     }
+#if IS_SUPPORT_LANG_PACK
+    ///  语言包OTA断点
+    info_crc = CRC16(&ctx->priv.lang_pack_ota_info, sizeof(img_res_ota_info_t));
+    if (info_crc != ctx->priv.sys_info_crc[STORE_CRC_TYPE_LANG_PACK_OTA_INFO]) {
+        args.val = &ctx->priv.lang_pack_ota_info;
+        if (write_lang_pack_ota_info_to_flash(args) == 0) {
+            ctx->priv.sys_info_crc[STORE_CRC_TYPE_LANG_PACK_OTA_INFO] = info_crc;
+        }
+        LOG_STORE("-->lang pack ota info sync flash");
+    }
+#endif
     return 0;
 }
 

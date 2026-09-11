@@ -390,7 +390,7 @@ static void home_both_level_value_update(ui_proc_home_t *proc)
 {
     uint8_t i;
     char num_buf[8] = {0};
-    static const lv_coord_t value_x[2] = {
+    const lv_coord_t value_x[2] = {
         HOME_BOTH_LEVEL_VALUE_LEFT_X, HOME_BOTH_LEVEL_VALUE_RIGHT_X
     };
 
@@ -427,10 +427,10 @@ static void home_both_level_dir_update(ui_proc_home_t *proc, uint32_t accent_col
     char switch_buf[32] = {0};
     uint8_t i;
     uint8_t mode_switch = proc->sub_mode_switch;
-    static const lv_coord_t dir_x[2] = {
+    const lv_coord_t dir_x[2] = {
         HOME_BOTH_LEVEL_DIR_LEFT_X, HOME_BOTH_LEVEL_DIR_RIGHT_X
     };
-    static const char *dir_text[2] = {
+    const char *dir_text[2] = {
         HOME_BOTH_LEVEL_DIR_LEFT_TEXT, HOME_BOTH_LEVEL_DIR_RIGHT_TEXT
     };
 
