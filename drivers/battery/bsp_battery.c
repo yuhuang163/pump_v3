@@ -670,10 +670,44 @@ static void charge_full_voltage_handler(uint16_t voltage)
     s_charging_curve_percent = 100;
 }
 
+static int battery_voltage_sample(uint16_t *voltage)
+{
+#if IS_SUPPORT_BATTERY_DIRECT_SAMPLING
+    return battery_adc_single_conversion(voltage);
+#else
+    *voltage = get_charge_battery_voltage();
+    return BSP_OK;
+#endif
+}
+
+static void battery_percent_from_voltage_now(void)
+{
+    uint16_t voltage = 0;
+    uint8_t last_percent = battery.percent;
+    uint16_t last_voltage = battery.voltage;
+
+    if (battery_voltage_sample(&voltage) != BSP_OK) {
+        LOGE("percent from voltage failed");
+        return;
+    }
+
+    battery.voltage = voltage;
+    battery_percent_handler(battery.voltage);
+    s_charging_curve_percent = battery.percent;
+    BSP_LOG("percent update", "percent is 0, convert from voltage:%dmv, percent:%d%% -> %d%%, voltage:%dmv -> %dmv",
+        voltage, last_percent, battery.percent, last_voltage, battery.voltage);
+}
+
 static void battery_percent_update(uint8_t percent)
 {
     if (percent > 100) {
         LOGE("percent error:%d", percent);
+        return;
+    }
+
+    /// 当前电量或落库值为 0：视为未初始化，立即采压查表，不沿用 0、也不走 >10% 跳变保护
+    if (battery.percent == 0 || percent == 0) {
+        battery_percent_from_voltage_now();
         return;
     }
 

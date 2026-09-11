@@ -4,7 +4,6 @@
 */
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "window_screen_pump.h"
-#include "hal_led.h" // IWYU pragma: keep
 
 /*
 * DEFINES
