@@ -59,6 +59,11 @@ void framework_extra_hook(void)
     CHECK_IF_VALID(airplane_ctx, {
         register_airplane_mode_hook(airplane_ctx);
     });
+    /// 注册资源钩子（图片资源在 res post_init 中初始化，语言包挂同一模块）.
+    resource_manager_context_t *res_ctx = (resource_manager_context_t *)find_module(ID_MODULE_RES);
+    CHECK_IF_VALID(res_ctx, {
+        register_resource_hook(res_ctx);
+    });
     /// 注册UI管理钩子.
     ui_manager_context_t *ui_ctx = (ui_manager_context_t *)find_module(ID_MODULE_UI);
     CHECK_IF_VALID(ui_ctx, {

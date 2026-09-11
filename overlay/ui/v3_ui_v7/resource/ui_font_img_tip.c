@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "ui_font_img_tip.h" // IWYU pragma: keep
+#include "ui_lang_pack.h"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -50,20 +51,28 @@ static const ui_img_data_t s_guide_skip_tip = {
 */
 const ui_img_data_t *ui_font_img_mode_select_tip_get(void)
 {
-    return &s_mode_select_tip;
+    const ui_img_data_t *pack = ui_lang_pack_font_img(UI_FONT_IMG_MODE_SELECT_TIP);
+
+    return pack ? pack : &s_mode_select_tip;
 }
 
 const ui_img_data_t *ui_font_img_level_adjust_tip_get(void)
 {
-    return &s_level_adjust_tip;
+    const ui_img_data_t *pack = ui_lang_pack_font_img(UI_FONT_IMG_LEVEL_ADJUST_TIP);
+
+    return pack ? pack : &s_level_adjust_tip;
 }
 
 const ui_img_data_t *ui_font_img_pump_break_tip_get(void)
 {
-    return &s_pump_break_tip;
+    const ui_img_data_t *pack = ui_lang_pack_font_img(UI_FONT_IMG_PUMP_BREAK_TIP);
+
+    return pack ? pack : &s_pump_break_tip;
 }
 
 const ui_img_data_t *ui_font_img_guide_skip_tip_get(void)
 {
-    return &s_guide_skip_tip;
+    const ui_img_data_t *pack = ui_lang_pack_font_img(UI_FONT_IMG_GUIDE_SKIP_TIP);
+
+    return pack ? pack : &s_guide_skip_tip;
 }

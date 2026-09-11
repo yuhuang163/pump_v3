@@ -155,6 +155,14 @@ int app_fds_init(const char *partition_name, uint32_t fds_start_addr, uint32_t f
 int app_fds_mount(app_fds_t *p_fds, const char *partition_name, uint32_t fds_start_addr, uint32_t fds_4k_block_cnt);
 
 /**
+ * @param[in] allow_format: 1 = format then remount if lfs_mount fails;
+ *                          0 = fail without erasing (for pre-flashed language packs).
+ */
+int app_fds_mount_ex(app_fds_t *p_fds, const char *partition_name,
+                     uint32_t fds_start_addr, uint32_t fds_4k_block_cnt,
+                     int allow_format);
+
+/**
 *****************************************************************************************
 * @brief Key-value fds write.
 *
@@ -183,6 +191,28 @@ int app_fds_value_write_ex(
 #endif
                               const void *p_value,
                               uint32_t length);
+
+int app_fds_value_write_at_ex(
+                              app_fds_t *p_fds,
+#if  APP_FDS_KEY_STRING_TYPE
+                              char *p_key,
+#else
+                              uint32_t key,
+#endif
+                              uint32_t offset,
+                              const void *p_value,
+                              uint32_t length);
+
+int app_fds_value_read_at_ex(
+                             app_fds_t *p_fds,
+#if  APP_FDS_KEY_STRING_TYPE
+                             char *p_key,
+#else
+                             uint32_t key,
+#endif
+                             uint32_t offset,
+                             void *p_buffer,
+                             uint32_t length);
 
 /**
 *****************************************************************************************

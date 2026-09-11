@@ -49,6 +49,8 @@ static const char *get_ota_object_name(ota_object_e object)
             return "img";
         case OTA_OBJECT_TOUCH_KEY_FIRMWARE:
             return "touch-key";
+        case OTA_OBJECT_LANGUAGE_PACK:
+            return "lang-pack";
     }
 }
 

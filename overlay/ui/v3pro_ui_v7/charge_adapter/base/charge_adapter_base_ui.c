@@ -46,13 +46,6 @@ static PSRAM_DATA_LOC uint8_t charge_adapter_bg_data[] = {
 
 static charge_adapter_display_info_t *adapter_info;
 
-static const charge_adapter_text_info_t charge_adapter_text_infos[CHARGE_ADAPTER_TEXT_COUNT] = {
-    { CHARGE_ADAPTER_TITLE_TEXT, CHARGE_ADAPTER_TITLE_Y,
-        UI_FONT_TITLE, CHARGE_ADAPTER_TITLE_COLOR, 0 },
-    { CHARGE_ADAPTER_SUBTITLE_TEXT, CHARGE_ADAPTER_SUBTITLE_Y,
-        UI_FONT_TITLE, CHARGE_ADAPTER_SUBTITLE_COLOR, 0 },
-};
-
 /*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -133,6 +126,13 @@ static void charge_adapter_icon_update(ui_manager_context_t *thiz)
 
 static void charge_adapter_texts_update(void)
 {
+    const charge_adapter_text_info_t charge_adapter_text_infos[CHARGE_ADAPTER_TEXT_COUNT] = {
+        { CHARGE_ADAPTER_TITLE_TEXT, CHARGE_ADAPTER_TITLE_Y,
+            UI_FONT_TITLE, CHARGE_ADAPTER_TITLE_COLOR, 0 },
+        { CHARGE_ADAPTER_SUBTITLE_TEXT, CHARGE_ADAPTER_SUBTITLE_Y,
+            UI_FONT_TITLE, CHARGE_ADAPTER_SUBTITLE_COLOR, 0 },
+    };
+
     for (uint8_t i = 0; i < CHARGE_ADAPTER_TEXT_COUNT; i++) {
         charge_adapter_text_label_update(&adapter_info->texts[i], &charge_adapter_text_infos[i]);
     }

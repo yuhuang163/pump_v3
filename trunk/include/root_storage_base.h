@@ -135,6 +135,10 @@ extern "C" {
 #define STORAGE_IMG_RES_OTA_MAGIC_NUM                                          (0xAFFA5896)
 #endif
 
+#ifndef STORAGE_LANG_PACK_OTA_MAGIC_NUM
+#define STORAGE_LANG_PACK_OTA_MAGIC_NUM                                        (0xAFFA5897)
+#endif
+
 /*
  * GLOBAL FUNCTION DECLARATION
  *****************************************************************************************

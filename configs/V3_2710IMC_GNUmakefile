@@ -282,8 +282,9 @@ $(warning Invalid UI version)
 endif
 ifneq ($(UI_OVERLAY_SUBDIR),)
 UI_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/ui/$(UI_OVERLAY_SUBDIR)
-UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(shell find $(UI_OVERLAY_DIR) -type d))
-UI_LCD_DIRECT_SRCS := $(call rwildcard,$(UI_OVERLAY_DIR))
+UI_LANG_PACK_DIR := $(PROJECT_ROOT)/overlay/ui/lang_pack
+UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(shell find $(UI_OVERLAY_DIR) $(UI_LANG_PACK_DIR) -type d))
+UI_LCD_DIRECT_SRCS := $(call rwildcard,$(UI_OVERLAY_DIR)) $(call rwildcard,$(UI_LANG_PACK_DIR))
 endif
 
 # windows overlay：按 V3_UX_VERSION 选定子目录（仅计算当前版本）

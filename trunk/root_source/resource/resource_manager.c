@@ -38,9 +38,24 @@ static void res_data_unload(res_img_info_t *img)
     memset(img, 0, sizeof(*img));
 }
 
+static int get_lang_res_active(void)
+{
+    return thiz && thiz->priv.lang_res_init_completed ? 1 : 0;
+}
+
 static void on_res_init_cb(resource_manager_context_t *ctx)
 {
     int ret = img_res_init(ctx);
+
+    MUTEX_LOCK_FS(ctx->priv.m_fs_rw_lock, "lang_res_init");
+    if (ctx->hook && ctx->hook->on_lang_res_init) {
+        ret = ctx->hook->on_lang_res_init(ctx);
+        ctx->priv.lang_res_init_completed = (ret > 0) ? true : false;
+    } else {
+        ctx->priv.lang_res_init_completed = false;
+    }
+    MUTEX_UNLOCK_FS(ctx->priv.m_fs_rw_lock, "lang_res_init");
+
     if (!ctx->priv.res_init_completed) {
         ctx->priv.res_init_completed = true;
     }
@@ -165,6 +180,7 @@ void *register_module_for_res_manager_new(list_head_t *list_head)
     ptr->get_img_res_version = get_img_res_version;
     ptr->get_sys_theme_type = get_sys_theme_type;
     ptr->set_sys_theme_type = set_sys_theme_type;
+    ptr->get_lang_res_active = get_lang_res_active;
     MUTEX_INIT(&ptr->priv.m_fs_rw_lock, fs_rw_lock);
     thiz = ptr;
 

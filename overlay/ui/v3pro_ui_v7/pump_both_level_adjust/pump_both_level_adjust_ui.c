@@ -425,7 +425,7 @@ static void pump_both_level_value_update(ui_proc_pump_t *proc)
 {
     uint8_t i;
     char num_buf[8] = {0};
-    static const lv_coord_t value_x[2] = {
+    const lv_coord_t value_x[2] = {
         PUMP_BOTH_LEVEL_VALUE_LEFT_X, PUMP_BOTH_LEVEL_VALUE_RIGHT_X
     };
 
@@ -461,10 +461,10 @@ static void pump_both_level_dir_update(void)
 {
     uint8_t i;
     bool need_style = (pump_both_info->force_update != 0);
-    static const lv_coord_t dir_x[2] = {
+    const lv_coord_t dir_x[2] = {
         PUMP_BOTH_LEVEL_DIR_LEFT_X, PUMP_BOTH_LEVEL_DIR_RIGHT_X
     };
-    static const char *dir_text[2] = {
+    const char *dir_text[2] = {
         PUMP_BOTH_LEVEL_DIR_LEFT_TEXT, PUMP_BOTH_LEVEL_DIR_RIGHT_TEXT
     };
 

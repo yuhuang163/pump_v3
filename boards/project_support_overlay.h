@@ -257,6 +257,11 @@ extern "C" {
 #ifndef IS_SUPPORT_PUMP_START_LED_BREATH
 #define IS_SUPPORT_PUMP_START_LED_BREATH                 (1)
 #endif
+
+/// 外部 Flash 语言包（FDS 多 key + OTA）。无 ready 时走固件 default 表，不内置 seed
+#ifndef IS_SUPPORT_LANG_PACK
+#define IS_SUPPORT_LANG_PACK                             (1)
+#endif
 #ifdef __cplusplus
 }
 #endif

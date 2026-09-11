@@ -12,6 +12,7 @@ extern "C" {
 #include "ui_lang.h" // IWYU pragma: keep
 #include "ui_manager_api.h" // IWYU pragma: keepin
 #if IS_SUPPORT_LVGL
+#include "ui_lang_apply.h" // IWYU pragma: keep
 #include "home_ui.h" // IWYU pragma: keepin
 #include "home_screen_saver_ui.h" // IWYU pragma: keepin
 #include "home_level_adjust_ui.h" // IWYU pragma: keepin

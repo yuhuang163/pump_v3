@@ -20,6 +20,13 @@ int read_img_res_ota_info_from_flash(store_func_args_t args);
 int write_img_res_ota_info_to_ram(store_func_args_t args);
 int read_img_res_ota_info_from_ram(store_func_args_t args);
 void reset_img_res_ota_info(storage_manager_context_t *ctx, img_res_ota_info_t *img_res_ota_info);
+#if IS_SUPPORT_LANG_PACK
+int write_lang_pack_ota_info_to_flash(store_func_args_t args);
+int read_lang_pack_ota_info_from_flash(store_func_args_t args);
+int write_lang_pack_ota_info_to_ram(store_func_args_t args);
+int read_lang_pack_ota_info_from_ram(store_func_args_t args);
+void reset_lang_pack_ota_info(storage_manager_context_t *ctx, img_res_ota_info_t *lang_pack_ota_info);
+#endif
 
 #ifdef __cplusplus
 }

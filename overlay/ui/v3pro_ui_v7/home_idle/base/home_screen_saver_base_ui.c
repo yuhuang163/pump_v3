@@ -136,13 +136,13 @@ static void home_screen_saver_hint_text_update(void)
     if (saver_info->hint_text == NULL || !lv_obj_is_valid(saver_info->hint_text)) {
         saver_info->hint_text = lv_label_create(saver_info->root);
         EXCEPTION_CHECK_VOID(saver_info->hint_text);
-        lv_obj_set_style_text_font(saver_info->hint_text, UI_FONT_HINT, 0);
+        lv_obj_set_style_text_font(saver_info->hint_text, ui_font(UI_FONT_ROLE_HINT), 0);
         lv_obj_set_style_text_align(saver_info->hint_text, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(saver_info->hint_text, 0, 0);
     }
     lv_obj_set_style_text_color(saver_info->hint_text, lv_color_hex(HOME_SAVER_HINT_COLOR), 0);
-    lv_label_set_text(saver_info->hint_text, HOME_SAVER_HINT_TEXT);
-    lv_obj_align(saver_info->hint_text, LV_ALIGN_TOP_MID, 0, HOME_SAVER_HINT_Y);
+    lv_label_set_text(saver_info->hint_text, ui_str(UI_STR_ID_HOME_SAVER_HINT_TEXT));
+    ui_widget_apply_pos(saver_info->hint_text, UI_W_HOME_SAVER_HINT);
 }
 
 /** 裁剪窗内亮色扫光：字库栅格 + TEXT_SHINE_MASK 剖面烘焙软边 */

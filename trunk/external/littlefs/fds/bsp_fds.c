@@ -171,6 +171,13 @@ int app_fds_init(const char *partition_name, uint32_t fds_start_addr, uint32_t f
 
 int app_fds_mount(app_fds_t *p_fds, const char *partition_name, uint32_t fds_start_addr, uint32_t fds_block_cnt)
 {
+    return app_fds_mount_ex(p_fds, partition_name, fds_start_addr, fds_block_cnt, 1);
+}
+
+int app_fds_mount_ex(app_fds_t *p_fds, const char *partition_name,
+                     uint32_t fds_start_addr, uint32_t fds_block_cnt,
+                     int allow_format)
+{
     int ret;
 
     if (!p_fds || !partition_name || fds_start_addr % 0x1000 || !fds_block_cnt)
@@ -202,8 +209,13 @@ int app_fds_mount(app_fds_t *p_fds, const char *partition_name, uint32_t fds_sta
     p_fds->lfs_cfg.block_count        = fds_block_cnt;
     p_fds->lfs_cfg.block_size         = 0x1000;
 
-    if (lfs_mount(&p_fds->lfs, &p_fds->lfs_cfg))
+    ret = lfs_mount(&p_fds->lfs, &p_fds->lfs_cfg);
+    if (ret)
     {
+        PRINT_LOG("lfs_mount ret: %d, allow_format=%d\r\n", ret, allow_format);
+        if (!allow_format) {
+            return ret;
+        }
         ret = lfs_format(&p_fds->lfs, &p_fds->lfs_cfg);
         PRINT_LOG("lfs_format ret: %d\r\n", ret);
         APP_FDS_VERIFY(ret);
@@ -211,7 +223,9 @@ int app_fds_mount(app_fds_t *p_fds, const char *partition_name, uint32_t fds_sta
         PRINT_LOG("lfs_mount ret: %d\r\n", ret);
         APP_FDS_VERIFY(ret);
     }
-    lfs_fs_gc(&p_fds->lfs);
+    if (allow_format) {
+        lfs_fs_gc(&p_fds->lfs);
+    }
     return APP_FDS_ERR_OK;
 }
 
@@ -277,6 +291,104 @@ int app_fds_value_write_ex(
     ret = lfs_file_close(&p_fds->lfs, &file_id);
     APP_FDS_VERIFY(ret);
 
+    return 0;
+}
+
+int app_fds_value_write_at_ex(
+                              app_fds_t *p_fds,
+#if  APP_FDS_KEY_STRING_TYPE
+                              char *p_key,
+#else
+                              uint32_t key,
+#endif
+                              uint32_t offset,
+                              const void *p_value,
+                              uint32_t length)
+{
+    int ret;
+    lfs_file_t file_id;
+    struct lfs_file_config file_config = {0};
+
+    if (!p_fds || !p_value || length == 0) {
+        return APP_FDS_ERR_INVAL;
+    }
+
+    file_config.buffer = p_fds->file_buffer;
+#if  APP_FDS_KEY_STRING_TYPE
+    ret = lfs_file_opencfg(&p_fds->lfs, &file_id, p_key, LFS_O_RDWR | LFS_O_CREAT, &file_config);
+#else
+    ret = lfs_file_opencfg(&p_fds->lfs, &file_id, app_fds_int_key_convert(p_fds, key),
+                           LFS_O_RDWR | LFS_O_CREAT, &file_config);
+#endif
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = lfs_file_seek(&p_fds->lfs, &file_id, (lfs_soff_t)offset, LFS_SEEK_SET);
+    if (ret < 0) {
+        lfs_file_close(&p_fds->lfs, &file_id);
+        return ret;
+    }
+
+    ret = lfs_file_write(&p_fds->lfs, &file_id, p_value, length);
+    if (ret < 0 || (uint32_t)ret != length) {
+        lfs_file_close(&p_fds->lfs, &file_id);
+        return (ret < 0) ? ret : APP_FDS_ERR_IO;
+    }
+
+    ret = lfs_file_close(&p_fds->lfs, &file_id);
+    if (ret < 0) {
+        return ret;
+    }
+    return 0;
+}
+
+int app_fds_value_read_at_ex(
+                             app_fds_t *p_fds,
+#if  APP_FDS_KEY_STRING_TYPE
+                             char *p_key,
+#else
+                             uint32_t key,
+#endif
+                             uint32_t offset,
+                             void *p_buffer,
+                             uint32_t length)
+{
+    int ret;
+    lfs_file_t file_id;
+    struct lfs_file_config file_config = {0};
+
+    if (!p_fds || !p_buffer || length == 0) {
+        return APP_FDS_ERR_INVAL;
+    }
+
+    file_config.buffer = p_fds->file_buffer;
+#if  APP_FDS_KEY_STRING_TYPE
+    ret = lfs_file_opencfg(&p_fds->lfs, &file_id, p_key, LFS_O_RDONLY, &file_config);
+#else
+    ret = lfs_file_opencfg(&p_fds->lfs, &file_id, app_fds_int_key_convert(p_fds, key),
+                           LFS_O_RDONLY, &file_config);
+#endif
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = lfs_file_seek(&p_fds->lfs, &file_id, (lfs_soff_t)offset, LFS_SEEK_SET);
+    if (ret < 0) {
+        lfs_file_close(&p_fds->lfs, &file_id);
+        return ret;
+    }
+
+    ret = lfs_file_read(&p_fds->lfs, &file_id, p_buffer, length);
+    if (ret < 0 || (uint32_t)ret != length) {
+        lfs_file_close(&p_fds->lfs, &file_id);
+        return (ret < 0) ? ret : APP_FDS_ERR_IO;
+    }
+
+    ret = lfs_file_close(&p_fds->lfs, &file_id);
+    if (ret < 0) {
+        return ret;
+    }
     return 0;
 }
 

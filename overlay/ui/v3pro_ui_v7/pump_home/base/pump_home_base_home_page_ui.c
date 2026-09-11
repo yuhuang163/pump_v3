@@ -391,7 +391,7 @@ static void pump_home_main_time_colon_release(pump_home_base_ui_info_t *info)
 
 static void pump_home_main_time_colon_3seg_update(pump_home_base_ui_info_t *info)
 {
-    static const lv_coord_t colon_x[PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT] = {
+    const lv_coord_t colon_x[PUMP_HOME_BASE_MAIN_TIME_COLON_COUNT] = {
         PUMP_HOME_MAIN_TIME_COLON_HM_X,
         PUMP_HOME_MAIN_TIME_COLON_MS_X,
     };

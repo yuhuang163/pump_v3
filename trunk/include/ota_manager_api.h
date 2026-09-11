@@ -43,6 +43,7 @@ typedef enum {
     OTA_OBJECT_MAIN_FIRMWARE, /// 主固件
     OTA_OBJECT_IMAGE_RESOURCE, /// 图片资源
     OTA_OBJECT_TOUCH_KEY_FIRMWARE, /// 触摸按键固件
+    OTA_OBJECT_LANGUAGE_PACK, /// 语言包
 } ota_object_e;
 
 typedef struct {

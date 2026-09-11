@@ -347,7 +347,7 @@ static void home_main_time_colon_release(home_base_ui_info_t *info)
 
 static void home_main_time_colon_3seg_update(home_base_ui_info_t *info)
 {
-    static const lv_coord_t colon_x[HOME_BASE_MAIN_TIME_COLON_COUNT] = {
+    const lv_coord_t colon_x[HOME_BASE_MAIN_TIME_COLON_COUNT] = {
         HOME_MAIN_TIME_COLON_HM_X,
         HOME_MAIN_TIME_COLON_MS_X,
     };

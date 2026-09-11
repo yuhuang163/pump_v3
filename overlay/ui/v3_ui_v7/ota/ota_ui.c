@@ -80,41 +80,6 @@ static PSRAM_DATA_LOC uint8_t factory_reset_confirm_bg_data[] = {
 };
 #endif
 
-const static ota_text_info_t ota_res_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
-    {OTA_RES_UPGRADING_TEXT,
-        UI_FONT_TITLE, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
-    {"",
-        UI_FONT_TITLE, 0, 0, 0}
-};
-
-const static ota_text_info_t ota_app_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
-    {OTA_FW_UPGRADING_TEXT,
-        UI_FONT_TITLE, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
-    {"",
-        UI_FONT_TITLE, 0, 0, 0}
-};
-
-const static ota_text_info_t ota_hw_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
-    {OTA_HW_UPGRADING_TEXT,
-        UI_FONT_TITLE, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
-    {"",
-        UI_FONT_TITLE, 0, 0, 0}
-};
-
-const static ota_text_info_t ota_error_text_infos[OTA_DESC_TEXT_NUM] = {
-    {OTA_UPGRADE_FAILED_TEXT,
-        UI_FONT_TITLE_LG, OTA_TITLE_TEXT_COLOR, OTA_ERROR_TITLE_Y, OTA_ERROR_LINE_SPACE},
-    {"",
-        UI_FONT_TITLE_LG, 0, 0, 0}
-};
-
-const static ota_text_info_t ota_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
-    {OTA_UPGRADE_COMPLETED_TEXT,
-        UI_FONT_TITLE_LG, OTA_TITLE_TEXT_COLOR, OTA_SUCCESS_TITLE_Y, OTA_SUCCESS_LINE_SPACE},
-    {"",
-        UI_FONT_TITLE_LG, 0, 0, 0}
-};
-
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -374,6 +339,37 @@ static void ui_ota_size_update(ui_manager_context_t *thiz, uint32_t total_size, 
 
 static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, uint8_t ota_status)
 {
+    const ota_text_info_t ota_res_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
+        {OTA_RES_UPGRADING_TEXT,
+            UI_FONT_TITLE, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
+        {"",
+            UI_FONT_TITLE, 0, 0, 0}
+    };
+    const ota_text_info_t ota_app_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
+        {OTA_FW_UPGRADING_TEXT,
+            UI_FONT_TITLE, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
+        {"",
+            UI_FONT_TITLE, 0, 0, 0}
+    };
+    const ota_text_info_t ota_hw_downloading_text_infos[OTA_DESC_TEXT_NUM] = {
+        {OTA_HW_UPGRADING_TEXT,
+            UI_FONT_TITLE, OTA_TITLE_TEXT_COLOR, OTA_DOWNLOAD_TITLE_Y, 0},
+        {"",
+            UI_FONT_TITLE, 0, 0, 0}
+    };
+    const ota_text_info_t ota_error_text_infos[OTA_DESC_TEXT_NUM] = {
+        {OTA_UPGRADE_FAILED_TEXT,
+            UI_FONT_TITLE_LG, OTA_TITLE_TEXT_COLOR, OTA_ERROR_TITLE_Y, OTA_ERROR_LINE_SPACE},
+        {"",
+            UI_FONT_TITLE_LG, 0, 0, 0}
+    };
+    const ota_text_info_t ota_suceess_text_infos[OTA_DESC_TEXT_NUM] = {
+        {OTA_UPGRADE_COMPLETED_TEXT,
+            UI_FONT_TITLE_LG, OTA_TITLE_TEXT_COLOR, OTA_SUCCESS_TITLE_Y, OTA_SUCCESS_LINE_SPACE},
+        {"",
+            UI_FONT_TITLE_LG, 0, 0, 0}
+    };
+
     if (ota_info->status != ota_status || ota_info->object != info.object) {
         ota_info->status = ota_status;
         ota_info->object = info.object;
@@ -386,7 +382,8 @@ static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, ui
             ui_ota_icon_update(thiz, BASE_RES_ID_DOWNLOAD_ICON, OTA_DOWNLOAD_ICON_Y, true);
             if (info.object == OTA_OBJECT_MAIN_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_app_downloading_text_infos);
-            } else if (info.object == OTA_OBJECT_IMAGE_RESOURCE) {
+            } else if (info.object == OTA_OBJECT_IMAGE_RESOURCE ||
+                       info.object == OTA_OBJECT_LANGUAGE_PACK) {
                 ui_ota_desc_update(thiz, ota_res_downloading_text_infos);
             } else if (info.object == OTA_OBJECT_TOUCH_KEY_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_hw_downloading_text_infos);

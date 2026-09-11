@@ -60,22 +60,6 @@ typedef struct {
 */
 static sys_abnormal_disp_info_t *s_abnormal_info;
 
-/// 系统错误文本 — 存储故障 / 通信丢失
-const static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
-    { SYS_ERROR_TITLE_TEXT, SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
-        UI_FONT_TITLE, SYS_ABNORMAL_TITLE_COLOR, 0 },
-    { SYS_ERROR_REPLUG_TEXT, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
-        UI_FONT_TITLE, SYS_ABNORMAL_CONTENT_COLOR, 8},
-};
-
-/// 电池温度过高文本
-const static sys_abnormal_text_info_t temp_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT] = {
-    { TEMP_ERROR_TITLE_TEXT, SYS_ABNORMAL_TITLE_Y_TEMP_ERROR,
-        UI_FONT_TITLE, SYS_ABNORMAL_TITLE_COLOR, 8 },
-    { TEMP_ERROR_CONTENT_TEXT, SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR,
-        UI_FONT_TITLE, SYS_ABNORMAL_CONTENT_COLOR, 0 },
-};
-
 /*
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -120,6 +104,26 @@ static uint16_t system_abnormal_ui_get_icon_y(uint16_t system_abnormal_type)
 
 static const sys_abnormal_text_info_t *system_abnormal_ui_get_text_info(uint16_t system_abnormal_type)
 {
+    static sys_abnormal_text_info_t sys_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT];
+    static sys_abnormal_text_info_t temp_error_texts[SYS_ABNORMAL_TIP_TEXT_COUNT];
+
+    sys_error_texts[0] = (sys_abnormal_text_info_t){
+        SYS_ERROR_TITLE_TEXT, SYS_ABNORMAL_TITLE_Y_SYS_ERROR,
+        UI_FONT_TITLE, SYS_ABNORMAL_TITLE_COLOR, 0
+    };
+    sys_error_texts[1] = (sys_abnormal_text_info_t){
+        SYS_ERROR_REPLUG_TEXT, SYS_ABNORMAL_CONTENT_Y_SYS_ERROR,
+        UI_FONT_TITLE, SYS_ABNORMAL_CONTENT_COLOR, 8
+    };
+    temp_error_texts[0] = (sys_abnormal_text_info_t){
+        TEMP_ERROR_TITLE_TEXT, SYS_ABNORMAL_TITLE_Y_TEMP_ERROR,
+        UI_FONT_TITLE, SYS_ABNORMAL_TITLE_COLOR, 8
+    };
+    temp_error_texts[1] = (sys_abnormal_text_info_t){
+        TEMP_ERROR_CONTENT_TEXT, SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR,
+        UI_FONT_TITLE, SYS_ABNORMAL_CONTENT_COLOR, 0
+    };
+
     switch (system_abnormal_type) {
         case SYS_ABNORMAL_BATTERY_TEMP_HIGH:
             return temp_error_texts;

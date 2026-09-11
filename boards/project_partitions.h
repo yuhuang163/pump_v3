@@ -48,7 +48,7 @@ extern uint32_t __lute_picture_resources_end[];
 #define THEME_IMG_RES_SECTOR_NUM              (THEME_IMG_RES_SIZE / EXTERNAL_FLASH_SECTOR_SIZE) /// 4096 bytes per sector
 
 // littlefs external flash language resources
-#define FDS_IMG_RES_SIZE                      (0x100000) /// 1MB
+#define FDS_IMG_RES_SIZE                      (0x180000) /// 1.5MB
 #define FDS_EXT_START_ADDR                    (THEME_IMG_RES_START_ADDR + THEME_IMG_RES_SIZE)
 #define FDS_EXT_END_ADDR                      (FDS_EXT_START_ADDR + FDS_IMG_RES_SIZE)
 #define FDS_EXT_SECTOR_NUM                    (FDS_IMG_RES_SIZE / EXTERNAL_FLASH_SECTOR_SIZE)

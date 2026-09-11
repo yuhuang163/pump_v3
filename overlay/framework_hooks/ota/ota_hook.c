@@ -93,6 +93,11 @@ static int on_broadcast_receiver_route(broadcast_mask_id_t id, void *context, in
                 } else if (ctx->priv.ota_info.object == OTA_OBJECT_IMAGE_RESOURCE) {
                     ctx->end_ota_upgrade(OTA_OBJECT_IMAGE_RESOURCE, false);
                 }
+#if IS_SUPPORT_LANG_PACK
+                else if (ctx->priv.ota_info.object == OTA_OBJECT_LANGUAGE_PACK) {
+                    ctx->end_ota_upgrade(OTA_OBJECT_LANGUAGE_PACK, false);
+                }
+#endif
             }
             break;
         }

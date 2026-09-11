@@ -5,20 +5,33 @@
 extern "C" {
 #endif
 
+#include "ui_lang_runtime.h"
+
 /*******************************************************************************
- * Font roles. Pages use these; language packs map them to concrete faces.
- * Concrete lv_font_t symbols come from lv_user_font.h (via ui_img_define.h).
+ * *_FW：固件默认字库（默认表 / 静态初始化用）
+ * UI_FONT_*：运行时角色，外部语言包有 bin 则走包，否则回退 *_FW
  ******************************************************************************/
-#define UI_FONT_HINT                                    (&lv_font_aeonik_soft_en_19_medium)
-#define UI_FONT_BODY_SM                                 (&lv_font_aeonik_soft_en_22_medium)
-#define UI_FONT_TITLE                                   (&lv_font_aeonik_soft_en_26_medium)
-#define UI_FONT_TITLE_MD                                (&lv_font_aeonik_soft_en_29_medium)
-#define UI_FONT_TITLE_LG                                (&lv_font_aeonik_soft_en_33_medium)
-#define UI_FONT_AEONIK                                  (&lv_font_aeonik_soft_en_26_medium)
-#define UI_FONT_AEONIK_19                               (&lv_font_aeonik_soft_en_19_medium)
-#define UI_FONT_AEONIK_29                               (&lv_font_aeonik_soft_en_29_medium)
-#define UI_FONT_NUM_MD                                  (&lv_font_aeonik_soft_56_semibold)
-#define UI_FONT_NUM_LG                                  (&lv_font_aeonik_soft_69_semibold)
+#define UI_FONT_HINT_FW                                 (&lv_font_aeonik_soft_19_medium)
+#define UI_FONT_BODY_SM_FW                              (&lv_font_aeonik_soft_22_medium)
+#define UI_FONT_TITLE_FW                                (&lv_font_aeonik_soft_26_medium)
+#define UI_FONT_TITLE_MD_FW                             (&lv_font_aeonik_soft_29_medium)
+#define UI_FONT_TITLE_LG_FW                             (&lv_font_aeonik_soft_33_medium)
+#define UI_FONT_AEONIK_FW                               (&lv_font_aeonik_soft_26_medium)
+#define UI_FONT_AEONIK_19_FW                            (&lv_font_aeonik_soft_19_medium)
+#define UI_FONT_AEONIK_29_FW                            (&lv_font_aeonik_soft_29_medium)
+#define UI_FONT_NUM_MD_FW                               (&lv_font_aeonik_soft_56_semibold)
+#define UI_FONT_NUM_LG_FW                               (&lv_font_aeonik_soft_69_semibold)
+
+#define UI_FONT_HINT                                    ui_font(UI_FONT_ROLE_HINT)
+#define UI_FONT_BODY_SM                                 ui_font(UI_FONT_ROLE_BODY_SM)
+#define UI_FONT_TITLE                                   ui_font(UI_FONT_ROLE_TITLE)
+#define UI_FONT_TITLE_MD                                ui_font(UI_FONT_ROLE_TITLE_MD)
+#define UI_FONT_TITLE_LG                                ui_font(UI_FONT_ROLE_TITLE_LG)
+#define UI_FONT_AEONIK                                  ui_font(UI_FONT_ROLE_LATIN_26)
+#define UI_FONT_AEONIK_19                               ui_font(UI_FONT_ROLE_LATIN_19)
+#define UI_FONT_AEONIK_29                               ui_font(UI_FONT_ROLE_LATIN_29)
+#define UI_FONT_NUM_MD                                  ui_font(UI_FONT_ROLE_NUM_MD)
+#define UI_FONT_NUM_LG                                  ui_font(UI_FONT_ROLE_NUM_LG)
 
 #ifdef __cplusplus
 }

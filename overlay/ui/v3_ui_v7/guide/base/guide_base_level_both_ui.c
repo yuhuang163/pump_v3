@@ -278,7 +278,7 @@ static void guide_both_level_value_update(guide_base_ui_info_t *info, ui_proc_gu
     lv_obj_t *parent = guide_page_parent_get(info);
     uint8_t i;
     char num_buf[8] = {0};
-    static const lv_coord_t value_x[2] = {
+    const lv_coord_t value_x[2] = {
         GUIDE_BOTH_LEVEL_VALUE_LEFT_X, GUIDE_BOTH_LEVEL_VALUE_RIGHT_X
     };
 
@@ -313,10 +313,10 @@ static void guide_both_level_dir_update(guide_base_ui_info_t *info)
     guide_base_level_both_info_t *page = &info->level_both;
     lv_obj_t *parent = guide_page_parent_get(info);
     uint8_t i;
-    static const lv_coord_t dir_x[2] = {
+    const lv_coord_t dir_x[2] = {
         GUIDE_BOTH_LEVEL_DIR_LEFT_X, GUIDE_BOTH_LEVEL_DIR_RIGHT_X
     };
-    static const char *dir_text[2] = {
+    const char *dir_text[2] = {
         GUIDE_BOTH_LEVEL_DIR_LEFT_TEXT, GUIDE_BOTH_LEVEL_DIR_RIGHT_TEXT
     };
 
