@@ -63,7 +63,9 @@ FIRMWARE_V3/
 │   │   ├── mode/                    ← 工作模式定义（7 种标准模式）
 │   │   └── table/                   ← 参数表配置
 │   ├── data_bury/                   ← 数据埋点事件处理
-│   ├── font/                        ← 字体资源
+│   ├── font/                        ← 字体与语言包（打包工具 + font_v3）
+│   │   ├── packaging_tools/         ← 语言包 pack.sh / preview.sh
+│   │   └── font_v3/                 ← 公共 Latin 字库 + 分语言 bin/font_img
 │   ├── framework_hooks/             ← 框架钩子（任务/事件/日志等注入点）
 │   │   ├── abnormal/                ← 异常检测钩子
 │   │   ├── airplane_mode/           ← 飞行模式钩子
@@ -79,13 +81,14 @@ FIRMWARE_V3/
 │   │   ├── product_tests/           ← 产测与自检钩子
 │   │   ├── sensor/                  ← 传感器处理钩子
 │   │   ├── servers/                 ← 服务器框架钩子
+│   │   ├── resource/                ← 资源初始化钩子（语言包 probe）
 │   │   ├── storage/                 ← 存储配置钩子
 │   │   └── ui/                      ← UI 初始化与事件钩子
 │   ├── input_key/                   ← 输入按键码定义与映射
 │   ├── night_light/                 ← 小夜灯策略控制
 │   ├── product_tests/               ← 产品测试（工厂测试/硬件自检/通信）
 │   ├── protocol/                    ← 协议处理（应用协议/通用协议）
-│   ├── resources/                   ← 图片/语言包/二进制资源（版本化）
+│   ├── resources/                   ← 图片/主题二进制资源（版本化）
 │   │   ├── v3_res_v2~v7/            ← V3 产品资源（v2-v7 版本）
 │   │   └── v3pro_res_v2~v7/        ← V3 Pro 产品资源（v2-v7 版本）
 │   ├── sensor/                      ← 传感器配置与校准参数
@@ -107,8 +110,9 @@ FIRMWARE_V3/
 │   │   ├── resource/                ← 资源存储配置
 │   │   └── system/                  ← 系统配置存储
 │   ├── ui/                          ← UI 实现（版本化、多产品）
-│   │   ├── v3_ui_v2~v7/             ← V3 产品 UI（v2-v7 版本）
-│   │   └── v3pro_ui_v2~v7/         ← V3 Pro 产品 UI（v2-v7 版本）
+│   │   ├── lang_pack/               ← 外部语言包加载/安装（v3 / v3pro 共用）
+│   │   ├── v3_ui_v2~v7/             ← V3 产品 UI（v7 含 lang/ 文案与坐标源）
+│   │   └── v3pro_ui_v2~v7/         ← V3 Pro 产品 UI（v7 含 lang/）
 │   └── windows/                     ← UI 窗口/页面资源（版本化）
 │       ├── windows_v1~v6/           ← 窗口定义 v1-v6（每版含完整的窗口集）
 │       │   ├── airplane_mode/       ← 飞行模式窗口
@@ -294,7 +298,7 @@ FIRMWARE_V3/
 ### 9. UI 管理系统
 - **文件**: `trunk/include/ui_manager_api.h`
 - **实现**: `trunk/root_source/ui/`
-- **配置**: `overlay/ui/`（版本化：v3_ui_v2~v7、v3pro_ui_v2~v7）
+- **配置**: `overlay/ui/`（版本化：v3_ui_v2~v7、v3pro_ui_v2~v7）、`overlay/ui/lang_pack/`
 - **功能**: UI 界面整体管理与控制
 - **特性**:
   - UI 任务调度
@@ -302,6 +306,7 @@ FIRMWARE_V3/
   - 触摸事件分发
   - 与 LVGL 集成
   - 多产品多版本 UI 支持
+  - 文案/控件坐标/字库运行时查表（`ui_str` / `ui_widget` / `ui_font`），优先外部语言包，无包时回退固件 default
 
 ### 10. 马达管理系统
 - **文件**: `trunk/include/motor_manager_api.h`
@@ -406,11 +411,25 @@ FIRMWARE_V3/
 - **文件**: `trunk/include/resource_manager_api.h`
 - **实现**: `trunk/root_source/resource/`
 - **配置**: `overlay/resources/`（版本化：V3 res v2-v7、V3 Pro res v2-v7）
-- **功能**: 统一管理图片、字体、语言包等资源的加载、解压与缓存
+- **功能**: 统一管理图片主题包的加载、解压与缓存（与语言包分区分离）
 - **特性**:
   - 资源分包管理（Base/Custom）
   - 版本化资源发布
   - 图片缓存与解压
+  - 资源初始化钩子中触发语言包 `probe`（`overlay/framework_hooks/resource/`）
+
+### 19a. 外部语言包（FDS schema 2）
+- **加载器**: `overlay/ui/lang_pack/`（v3 / v3pro 共用）
+- **文案/坐标源**: `overlay/ui/<v3|v3pro>_ui_v7/lang/<zh|en>/`（`strings.h`、`layout.h`）
+- **字库与打包**: `overlay/font/font_v3/`、`overlay/font/packaging_tools/`
+- **开关**: `IS_SUPPORT_LANG_PACK`（`boards/project_support_overlay.h`；`make firmware IS_SUPPORT_LANG_PACK=0` 可关闭加载器与语言包 OTA）
+- **功能**: 文案、控件坐标、语言相关字库、图片文字存外部 Flash `FDS_EXT`（littlefs，约 1.5MB @ `0xE00000`），可独立烧录/OTA，固件不内置 `lang_pack.bin`
+- **特性**:
+  - 开机有 `RDY1` 则按清单加载各 FDS key；无 ready 时走编译期 default 表
+  - 公共 Aeonik Latin / 数字字库编进固件，不进语言包；中文包带 Noto 五档字号，英文包主要是页面表 + `font_img`
+  - 整包容器 `*_PACK.bin` 供 OTA（`TYPE=0x04`），`*_LFS.bin` 供产线烧录；安装后拆成字号/页面文案/页面组件等多 key
+  - 只改已有宏的字符串或坐标时，一般只需重打包并烧语言包，不必重编固件；新增宏需跑 gen 并重编（新 ID）
+- **文档**: [`docs/architecture/ui/lang-pack-fds.md`](docs/architecture/ui/lang-pack-fds.md)、[`docs/architecture/ui/lang-edit.md`](docs/architecture/ui/lang-edit.md)、[`overlay/font/README.md`](overlay/font/README.md)
 
 ### 20. 协议管理系统
 - **文件**: `trunk/include/protocol_manager_api.h`
@@ -443,6 +462,7 @@ FIRMWARE_V3/
   - 压缩 OTA 包支持
   - 升级状态管理
   - 断点续传
+  - 语言包 OTA 复用 Service 9 原子 TLV，`TYPE=0x04`，进度存独立 `STORE_ID_LANG_PACK_OTA_INFO`；包体为 schema 2 容器，写入 `FDS_EXT` 后拆 key
 
 ### 24. 异常检测管理系统 (Abnormal Manager)
 - **文件**: `trunk/include/abnormal_manager_api.h`
@@ -588,6 +608,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 
 #### 1. `overlay/ui/` - UI 实现（版本化）
 - **结构**: `v3_ui_v2` ~ `v3_ui_v7`（V3 产品）、`v3pro_ui_v2` ~ `v3pro_ui_v7`（V3 Pro 产品）
+- **公共加载器**: `overlay/ui/lang_pack/`（外部语言包 probe / 安装 / 运行时查表）
 - **每个版本包含**:
   - 业务页面实现：`pump_home/`、`home/`、`charge/`、`power_off/`、`ota/`、`guide/`、`setting/` 等
   - 弹窗与提示：`page_popup/`、`top_popup/`、`popup_windows/`
@@ -595,24 +616,33 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
   - UI 特性：`home_night_light/`（小夜灯）、`home_idle/`（空闲态）、`charge_adapter/`（适配器检测）
   - 控件组件：`progress_arc/`（进度弧）、`snapshot/`（快照）、`wave/`（波形动画）
   - `ui_img_define.h` / `ui_page_define.h` - 图片与页面定义
+  - v7 `lang/`：`zh|en/strings.h`、`layout.h` 为源宏；`gen_ui_lang_tables.py` 生成 ID 表；页面用 `ui_str` / `ui_widget` / `ui_layout_i16`，不要手改生成头
 
 #### 2. `overlay/windows/` - UI 窗口资源（版本化）
 - **结构**: `windows_v1` ~ `windows_v6`
 - **每个版本包含**: `airplane_mode/`、`battery/`、`breast_pump/`、`charge/`、`factory_reset/`、`guide/`、`home/`、`logo/`、`ota/`、`popup_windows/`、`power_off/`、`product_test_window/`、`setting/`、`system_abnormal/`、`theme_guide/`
 - **窗口注册**: 通过 `windows_map_define.c/h` 管理窗口映射与路由
 
-#### 3. `overlay/resources/` - 多媒体资源（版本化）
+#### 3. `overlay/resources/` - 图片主题资源（版本化）
 - **结构**: `v3_res_v2` ~ `v3_res_v7`（V3 产品）、`v3pro_res_v2` ~ `v3pro_res_v7`（V3 Pro 产品）
 - **每个版本包含**:
   - `base/` - 基础资源包（baj 图片 + png 源文件）
   - `custom/` - 定制资源包
   - `resource_id_define.h` / `resource_info.h` - 资源 ID 与信息定义
+- **说明**: 图片主题包与语言包分开；语言文案/字库走 `overlay/font/` + `FDS_EXT`
+
+#### 3a. `overlay/font/` - 字体与语言包
+- **packaging_tools/**: `pack.sh` 产出 `*_LFS.bin`（烧录）与 `*_PACK.bin`（OTA）；`preview.sh --open` 圆屏预览
+- **font_v3/common/**: Aeonik 19/22/26/29/33/56/69，编进固件
+- **font_v3/lang/<zh|en>/**: 语言相关 LVGL `.bin` 字库与 `font_img`
+- **产物**: `overlay/font/bin/font_v3/<lang>/`；烧 LFS 到外部 Flash `0xE00000`，长度 `0x180000`
+- **依赖**: `python3 -m pip install --user littlefs-python`（或 `./preview.sh --install`）
 
 #### 4. `overlay/breast_pump/` - 吸奶泵业务配置
 - **mode/**: 工作模式定义，支持 7 种标准模式
 - **table/**: 参数表配置（压力曲线、频率表、时间配置、定时策略等）
 
-#### 5. `overlay/framework_hooks/` - 框架钩子（16 个模块）
+#### 5. `overlay/framework_hooks/` - 框架钩子（17 个模块）
 - `abnormal/` - 异常检测钩子
 - `airplane_mode/` - 飞行模式状态切换钩子
 - `algo/` - 算法模块初始化与回调钩子
@@ -627,6 +657,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - `product_tests/` - 产测与自检流程钩子
 - `sensor/` - 传感器数据处理钩子
 - `servers/` - 服务器生命周期与路由钩子
+- `resource/` - 资源初始化钩子（`on_lang_res_init` → `ui_lang_pack_probe`）
 - `storage/` - 存储初始化与配置钩子
 - `ui/` - UI 初始化、事件转发与页面联动钩子
 
@@ -654,7 +685,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 
 #### 12. `overlay/storage/` - 存储分区配置
 - `breast_pump/`、`factory/`、`resource/`、`system/`
-- **用途**: 定义各类数据的存储结构和分区布局
+- **用途**: 定义各类数据的存储结构和分区布局；语言包 OTA 断点为独立 persist（`STORE_ID_LANG_PACK_OTA_INFO`），不要复用图片资源 OTA store
 
 #### 13. `overlay/algo/` - 算法处理实现
 - `root_algo_acq_proc.c/h`、`root_algo_core.c/h`、`root_algo_post_proc.c/h`
@@ -677,7 +708,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 2. **版本化资源管理**: UI、窗口、资源均按版本号组织（v1-v7），支持多版本共存与独立发布
 3. **配置优先覆盖**: `overlay/` 中的配置会覆盖框架默认配置
 4. **钩子注入逻辑**: 通过 `framework_hooks/` 注入产品特定的业务逻辑
-5. **资源分离管理**: UI 资源、字体、图片等与代码分离，便于独立更新
+5. **资源分离管理**: UI 图片主题、字体、语言包与代码分离；语言包可独立烧录/OTA，不必每次改文案都发整包固件
 6. **多产品支持**: 不同产品（V3、V3 Pro）使用各自的 UI 和资源版本，实现一套框架支持多产品线
 
 ## 驱动支持
@@ -781,20 +812,21 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 # 首次克隆（推荐）
 git clone --recurse-submodules <repo-url>
 
-# 已克隆但未初始化子仓库
+# 已克隆但未初始化子仓库（检出主仓锁定的 SDK commit，不是分支最新）
 git submodule update --init --recursive
 
 # 当主仓更新了 SDK 指针后，同步到主仓锁定版本
 git submodule sync --recursive
 git submodule update --init --recursive trunk/platform_chip/bes
 
-# 主动拉取 SDK 子仓库远端最新 master
-git submodule update --remote trunk/platform_chip/bes
+# 主动拉取 .gitmodules 中 branch（当前为 develop）的远端最新提交
+git submodule update --remote --recursive trunk/platform_chip/bes
 git add trunk/platform_chip/bes
 ```
 
-- `git submodule update --init --recursive trunk/platform_chip/bes` 适用于跟随当前主仓记录的 SDK 版本。
-- `git submodule update --remote trunk/platform_chip/bes` 适用于需要主动升级 SDK 子仓库版本的场景；执行后请检查差异并提交主仓中的子仓库指针变更。
+- `git submodule update --init --recursive` 只跟随主仓 gitlink 记录的 commit SHA，**不会**自动切到 `develop` 最新。
+- `.gitmodules` 里 `branch = develop` 只在带 `--remote` 时生效：`git submodule update --remote` 会把子仓更新到 `origin/develop` 尖端。
+- 升级 SDK 后请检查差异，并把主仓中的子仓库指针一并提交，否则其他人执行不带 `--remote` 的 update 仍会回到旧 SHA。
 
 ### 构建入口
 - 在根目录直接使用 `GNUmakefile` 或 `build_helper.sh` 进行编译与打包
@@ -812,9 +844,28 @@ make -f configs/V3_2710IMP_GNUmakefile T=best1306p -j16
 # 清理构建
 make clean
 
+# 关闭外部语言包（对比固件体积 / 仅用固件 default 表）
+make firmware IS_SUPPORT_LANG_PACK=0 -j16
+
 # 查看帮助
 make help
 ```
+
+### 语言包打包与预览
+源宏只改 `overlay/ui/<v3|v3pro>_ui_v7/lang/<zh|en>/` 的 `strings.h` / `layout.h`（en/zh 宏名必须相同；新宏追加在文件末尾）。不要手改 `ui_str_id.h`、`ui_widget_id.h`、`ui_layout_id.h`、`ui_lang_bind.h`、`ui_lang_default.c`。
+
+```bash
+# 新增宏后生成 ID 表（只改正文/坐标不必跑）
+python3 overlay/ui/v3_ui_v7/lang/tools/gen_ui_lang_tables.py
+
+# 打包（按 GNUmakefile 产品族，默认中文）
+cd overlay/font/packaging_tools
+./pack.sh
+./pack.sh --ui v3pro -l zh
+./preview.sh --open
+```
+
+对照表：`overlay/ui/<ui>_ui_v7/lang/ui_lang_id_map.html`。详细约定见 [`docs/architecture/ui/lang-edit.md`](docs/architecture/ui/lang-edit.md)。
 
 ### build_helper.sh 使用与功能
 
@@ -880,7 +931,8 @@ make help
 
 - 版本号遵循 `${PRODUCT}_V${MAJOR}.${MINOR}` 格式
 - 外部 API 使用 `*_manager_api.h` 统一命名
-- UI 与资源采用版本化目录管理（v1-v7），支持多代产品并行维护
+- UI 与图片资源采用版本化目录管理（v1-v7），支持多代产品并行维护
+- 语言包 schema major = 2；与图片主题 OTA 分区、store 键分离
 - 新增接口遵循现有命名规范，保持一致性
 
 ---
