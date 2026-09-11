@@ -643,6 +643,7 @@ int bsp_charge_init(void)
     if (ret == BSP_OK) {
         msleep(50);
         ret = charge_status_poll(&s_charge_status);
+        LOG_PBUS("charge vbat:%dmV, ibat:%dmA, temp:%.1f", s_charge_status.vbat, s_charge_status.ibat, s_charge_status.temp);
     }
     s_charge_is_ready = (ret == BSP_OK);
 #endif

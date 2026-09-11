@@ -18,8 +18,11 @@
 ### 常用命令
 
 ```bash
-# 首次初始化 BES SDK 子仓库
+# 首次初始化 BES SDK 子仓库（主仓锁定的 commit）
 git submodule update --init --recursive trunk/platform_chip/bes
+
+# 跟随 .gitmodules 的 develop 拉取远端最新（会改主仓 gitlink，需另行提交）
+git submodule update --remote --recursive trunk/platform_chip/bes
 
 # 交互式构建
 ./build_helper.sh

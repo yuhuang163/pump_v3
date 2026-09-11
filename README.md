@@ -427,7 +427,7 @@ FIRMWARE_V3/
 - **特性**:
   - 开机有 `RDY1` 则按清单加载各 FDS key；无 ready 时走编译期 default 表
   - 公共 Aeonik Latin / 数字字库编进固件，不进语言包；中文包带 Noto 五档字号，英文包主要是页面表 + `font_img`
-  - 整包容器 `*_PACK.bin` 供 OTA（`TYPE=0x04`），`*_LFS.bin` 供产线烧录；安装后拆成字号/页面文案/页面组件等多 key
+  - 整包容器 `*_OTA.bin` 供 OTA（`TYPE=0x04`），`*_LFS.bin` 供产线烧录；安装后拆成字号/页面文案/页面组件等多 key
   - 只改已有宏的字符串或坐标时，一般只需重打包并烧语言包，不必重编固件；新增宏需跑 gen 并重编（新 ID）
 - **文档**: [`docs/architecture/ui/lang-pack-fds.md`](docs/architecture/ui/lang-pack-fds.md)、[`docs/architecture/ui/lang-edit.md`](docs/architecture/ui/lang-edit.md)、[`overlay/font/README.md`](overlay/font/README.md)
 
@@ -632,10 +632,10 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - **说明**: 图片主题包与语言包分开；语言文案/字库走 `overlay/font/` + `FDS_EXT`
 
 #### 3a. `overlay/font/` - 字体与语言包
-- **packaging_tools/**: `pack.sh` 产出 `*_LFS.bin`（烧录）与 `*_PACK.bin`（OTA）；`preview.sh --open` 圆屏预览
+- **packaging_tools/**: `pack.sh` 产出 `*_LFS.bin`（烧录）与 `*_OTA.bin`（OTA）；`preview.sh --open` 圆屏预览
 - **font_v3/common/**: Aeonik 19/22/26/29/33/56/69，编进固件
 - **font_v3/lang/<zh|en>/**: 语言相关 LVGL `.bin` 字库与 `font_img`
-- **产物**: `overlay/font/bin/font_v3/<lang>/`；烧 LFS 到外部 Flash `0xE00000`，长度 `0x180000`
+- **产物**: `overlay/font/bin/font_v3/<v3|v3pro>/<lang>/`；烧 LFS 到外部 Flash `0xE00000`，长度 `0x180000`
 - **依赖**: `python3 -m pip install --user littlefs-python`（或 `./preview.sh --install`）
 
 #### 4. `overlay/breast_pump/` - 吸奶泵业务配置
