@@ -1035,7 +1035,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 1. 当前处于“未佩戴”状态时，判断是否进入“已佩戴”状态
 	 * ========================================================= */
-	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF || tFeatureInfoTemp->uWearStatus == WEAR_STATE_0)
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF)
 	{
 		/* -------------------------
 		 * 1.1 吸乳模式
@@ -1133,7 +1133,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	/* =========================================================
 	 * 2. 当前处于“已佩戴”状态时，判断是否退出为“未佩戴”状态
 	 * ========================================================= */
-	else if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uWearStatus == WEAR_STATE_0)
+	else if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON)
 	{
 		/* 条件1：
 		 * 当前最小负压已经不够深，直接判定退出佩戴
@@ -1144,7 +1144,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		}
 
 		/* 只有在前面没有已经直接判成 0 的情况下，再继续按模式和档位判定 */
-		if (uCandidateWearStatus == WEAR_STATE_ON)
+		if (uCandidateWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uWearStatus == WEAR_STATE_0)
 		{
 			/* -------------------------
 			 * 2.1 吸乳模式
@@ -1206,6 +1206,193 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			}
 		}
 	}
+	
+	
+	
+	/* =========================================================
+	 * 当前处于初始状态时，看一下先进入哪个状态
+	 * ========================================================= */
+	 if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_0)
+	 {
+		 /* -------------------------
+		  * 1.1 吸乳模式
+		  * ------------------------- */
+		 if (uMode == MODE_EXPRESSION)
+		 {
+			 if (tFeatureInfo->uDataBaselineCnt[2] > 10 && tFeatureInfoTemp->fRawSegMinPressure < -10)
+			 {
+				 tFeatureInfo->uLeakStatus = 0;
+				 uCandidateWearStatus = WEAR_STATE_ON;
+			 }
+
+			 if ((uLevel < 3) && (((double)tFeatureInfoTemp->fRawSegMinPressure - (double)tFeatureInfoTemp->fThreshold) > .25) && tFeatureInfoTemp->fRawSegMinPressure < -3 && tFeatureInfoTemp->uWaveSpikes <= 2)
+			 {
+				 /* 负压偏小 -- 特征计数（负压和泵休眠状态的平台期都无法进入佩戴/微漏气状态，因此需要分析负压偏小的状态） */
+				 tFeatureInfo->uMinPressureCnt++;
+			 }
+
+			 /* L1 ~ L15 的基础进入条件 */
+			 if (uLevel >= 5 && tFeatureInfoTemp->fThreshold - 0.25 < tFeatureInfoTemp->fRawSegMinPressure && tFeatureInfoTemp->uWaveSpikes <= 2)
+			 {
+				 uCandidateWearStatus = WEAR_STATE_ON;
+				 /* 如果进入了佩戴状态，负压偏低的特征置零 */
+				 tFeatureInfoTemp->uMinPressureCnt = 0;
+			 }
+			 else if ((uLevel < 3) && (tFeatureInfoTemp->fThreshold - 0.25 > tFeatureInfoTemp->fRawSegMinPressure) || (tFeatureInfoTemp->fThreshold + 0.25 > tFeatureInfoTemp->fRawSegMinPressure))
+			 {
+				 uCandidateWearStatus = WEAR_STATE_ON;
+				 /* 如果进入了佩戴状态，负压偏低的特征置零 */
+				 tFeatureInfoTemp->uMinPressureCnt = 0;
+			 }
+			 else if ((uLevel >= 3 && uLevel <= 5) && tFeatureInfoTemp->uNoiseLevel < 10)
+			 {
+				 uCandidateWearStatus = WEAR_STATE_ON;
+				 /* 如果进入了佩戴状态，负压偏低的特征置零 */
+				 tFeatureInfoTemp->uMinPressureCnt = 0;
+			 }
+			 else
+			 {
+				 if (tFeatureInfoTemp->uWaveSpikes <= 1 &&
+					 tFeatureInfoTemp->uNoiseLevel == 0 &&
+					 tFeatureInfoTemp->uNormalWaveform >= 1 &&
+					 tFeatureInfoTemp->uNormalWaveform <= 10)
+				 {
+					 uCandidateWearStatus = WEAR_STATE_ON;
+				 }
+				 else if (tFeatureInfoTemp->uWaveSpikes <= 2 && uLevel >= 8)
+				 {
+					 /* 漏气情况，高档位可能存在高频噪声 */
+					 uCandidateWearStatus = WEAR_STATE_ON;
+				 }
+			 }
+		 }
+
+		 /* -------------------------
+		  * 1.2 刺激模式
+		  * ------------------------- */
+		 else if (uMode == MODE_STIMULATION)
+		 {
+			 if ((uLevel < 3) && (((double)tFeatureInfoTemp->fRawSegMinPressure - (double)tFeatureInfoTemp->fThreshold) > .25) && tFeatureInfoTemp->fRawSegMinPressure < -3)
+			 {
+				 /* 负压偏小 -- 特征计数（负压和泵休眠状态的平台期都无法进入佩戴/微漏气状态，因此需要分析负压偏小的状态） */
+				 tFeatureInfo->uMinPressureCnt++;
+			 }
+
+			 if (uLevel <= 3 && (tFeatureInfoTemp->fThreshold + 0.25 > tFeatureInfoTemp->fRawSegMinPressure))
+			 {
+				 uCandidateWearStatus = WEAR_STATE_ON;
+				 /* 如果进入了佩戴状态，负压偏低的特征置零 */
+				 tFeatureInfoTemp->uMinPressureCnt = 0;
+			 }
+			 else if (uLevel > 3 && (tFeatureInfoTemp->fThreshold + 0.25) > (tFeatureInfoTemp->fRawSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
+			 {
+				 uCandidateWearStatus = WEAR_STATE_ON;
+				 /* 如果进入了佩戴状态，负压偏低的特征置零 */
+				 tFeatureInfoTemp->uMinPressureCnt = 0;
+			 }
+
+			 else if (tFeatureInfoTemp->uWaveSpikes == 0 && tFeatureInfoTemp->fRawSegMinPressure < -3.0)
+			 {
+				 uCandidateWearStatus = WEAR_STATE_ON;
+				 /* 如果进入了佩戴状态，负压偏低的特征置零 */
+				 tFeatureInfoTemp->uMinPressureCnt = 0;
+			 }
+			 else if (tFeatureInfoTemp->uWaveSpikes <= 1 && uLevel == 4 && tFeatureInfoTemp->fRawSegMinPressure < -3.0)
+			 {
+				 uCandidateWearStatus = WEAR_STATE_ON;
+				 /* 如果进入了佩戴状态，负压偏低的特征置零 */
+				 tFeatureInfoTemp->uMinPressureCnt = 0;
+			 }
+		 }
+
+	 }
+
+	 /* =========================================================
+	  * 当前处于初始状态时，看一下先进入哪个状态
+	  * ========================================================= */
+	 if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_0)
+	 {
+		 /* 条件1：
+		  * 当前最小负压已经不够深，直接判定退出佩戴
+		  */
+		 if (tFeatureInfoTemp->fMinData > -1)
+		 {
+			 uCandidateWearStatus = WEAR_STATE_OFF;
+		 }
+
+		 /* 只有在前面没有已经直接判成 0 的情况下，再继续按模式和档位判定 */
+		 if (uCandidateWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uWearStatus == WEAR_STATE_0)
+		 {
+			 /* -------------------------
+			  * 2.1 吸乳模式
+			  * ------------------------- */
+			 if (uMode == MODE_EXPRESSION)
+			 {
+				 /* 对于泵侧无吸力的情况 */
+				 if (tFeatureInfoTemp->fRawSegMinPressure > -3)
+				 {
+					 uCandidateWearStatus = WEAR_STATE_OFF;
+				 }
+
+				 /* 对于泵侧漏气的情况 */
+				 /*
+				 if ((tFeatureInfoTemp->fRawSegMinPressure - tFeatureInfoTemp->fThreshold) > 5)
+				 {
+
+				 }
+				 */
+				 if (uLevel >= 7 && (tFeatureInfoTemp->fThreshold - 0.25) < tFeatureInfoTemp->fRawSegMinPressure && tFeatureInfoTemp->uWaveSpikes > 4)
+				 {
+					 uCandidateWearStatus = WEAR_STATE_OFF;
+				 }
+				 else if (uLevel <= 1)
+				 {
+					 if (tFeatureInfoTemp->uNormalWaveform < 4 &&
+						 (tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fRawSegMinPressure)
+					 {
+						 uCandidateWearStatus = WEAR_STATE_OFF;
+					 }
+				 }
+				 else
+				 {
+					 if (tFeatureInfoTemp->uNormalWaveform > 10)
+					 {
+						 uCandidateWearStatus = WEAR_STATE_OFF;
+					 }
+					 else if (tFeatureInfoTemp->uWaveSpikes > 4)
+					 {
+						 uCandidateWearStatus = WEAR_STATE_OFF;
+					 }
+					 else if (tFeatureInfoTemp->fMinData > -.1
+						 || (tFeatureInfoTemp->fThreshold > tFeatureInfoTemp->fMinData && uLevel >= 6))
+					 {
+						 uCandidateWearStatus = tFeatureInfoTemp->uPrevWearStatus;
+					 }
+				 }
+			 }
+
+			 /* -------------------------
+			  * 2.2 刺激模式
+			  * ------------------------- */
+			 else if (uMode == MODE_STIMULATION)
+			 {
+				 if (tFeatureInfoTemp->fRawSegMinPressure > -3)
+				 {
+					 uCandidateWearStatus = WEAR_STATE_OFF;
+				 }
+				 if (uLevel <= 3 && (tFeatureInfoTemp->fThreshold + 0.25) < tFeatureInfoTemp->fFilteredSegMinPressure && tFeatureInfoTemp->uWaveSpikes > 4)
+				 {
+					 uCandidateWearStatus = WEAR_STATE_OFF;
+				 }
+				 else if (uLevel > 3 && (tFeatureInfoTemp->fThreshold + 0.25) < (tFeatureInfoTemp->fFilteredSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3) && (float)tFeatureInfoTemp->uWaveSpikes > 1)
+				 {
+					 uCandidateWearStatus = WEAR_STATE_OFF;
+				 }
+			 }
+		 }
+	 }
+
+	
 	/* =========================================================
 	 * 3. 根据候选状态和当前状态的差异，做抗抖切换
 	 * ========================================================= */
@@ -1351,13 +1538,6 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			tFeatureInfoTemp->uLeakStatus = 1;
 		}
 	}
-	
-	/* 检测出未佩戴, 但是没检测出漏气状态，则输出为大漏3  --- 管道没接上 */
-	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus == 0)
-	{
-		tFeatureInfoTemp->uLeakStatus = 3;
-	}
-
 
 	/* 优化：区分漏气状态时，负压变大的情况，同时，对非密封/大漏时不进行补偿 */
 	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2 || tFeatureInfoTemp->uLeakStatus == 3)
@@ -1624,6 +1804,13 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			// tFeatureInfoTemp->iPwmOffset = 0;
 		}
 	}
+
+	/* 检测出未佩戴, 但是没检测出漏气状态，则输出为大漏3  --- 管道没接上 */
+	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus == 0)
+	{
+		tFeatureInfoTemp->uLeakStatus = 3;
+	}
+
 }
 
 #elif LONGYI_OR_SHIGUANG == 1
