@@ -11,7 +11,7 @@
 */
 #define PAGE_STATIC_NAME                        airplane_mode
 #define PAGE_NAME_STR                           "airplane_mode"
-#define AIRPLANE_MODE_UI_KEY_CODE               (KEY_CODE_TRAVEL_LOCK | KEY_CODE_POWER | KEY_CODE_START)
+#define AIRPLANE_MODE_UI_KEY_CODE               (KEY_CODE_TRAVEL_LOCK | KEY_CODE_POWER)
 #define AIRPLANE_MODE_UI_KEY_TYPE               (KEY_EVENT_UP | KEY_EVENT_LONG_2S | KEY_EVENT_CLICK)
 #define AIRPLANE_POWER_OFF_HOLD_COMPLETE_TASK_NAME "airplane_power_off_hold_complete"
 
