@@ -46,7 +46,7 @@ extern "C" {
 /// 死锁检测线程深度
 #define HG_DETECT_THREAD_STACKSIZE                     (TASK_SIZE_DEFAULT * 2 + 0)
 /// 杂项线程深度
-#define MISC_THREAD_STACKSIZE                          (TASK_SIZE_DEFAULT * 2 + 0)
+#define MISC_THREAD_STACKSIZE                          (TASK_SIZE_DEFAULT * 4 + 0)
 /// 挂起线程深度
 #define PM_SUSPEND_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 4 + 0)
 /// 冻结线程深度 
