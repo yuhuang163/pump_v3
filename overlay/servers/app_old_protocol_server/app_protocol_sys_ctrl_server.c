@@ -143,9 +143,9 @@ static uint8_t app_old_comm_apply_light_subcmd(uint8_t subcmd, uint8_t value)
             LOG_SRV("light subcmd: night_onoff=%u adaptive=%u", value, cur_adaptive);
             ///自适应打开情况设置夜灯开关
             if (cur_adaptive && value) {
-                /* 自适应开：开灯抬 L2 并点亮，不立刻再开夜灯 ALS */
-                if (led->hook->set_night_light_gear) {
-                    led->hook->set_night_light_gear(led, 2);
+                /* 自适应开：开灯前显式补开夜灯 ALS，亮度按自适应控制 */
+                if (led->hook->set_night_light_adaptive_dimming_switch) {
+                    led->hook->set_night_light_adaptive_dimming_switch(led, 1);
                 }
                 if (led->hook->set_night_light_onoff) {
                     led->hook->set_night_light_onoff(led, 1);
