@@ -592,11 +592,12 @@ static void ui_animation_play_init(struct ui_manager_context *thiz, ui_play_info
 static void ui_animation_play_deinit(struct ui_manager_context *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
-    thiz->play_animation_lock(NULL);
+    /* 不在调用线程抢 ui_draw_lock：UI 若卡在 change_images_cb 持锁，
+     * WM 切窗 pause 路径会与之死锁，画面停在上一页且按键无法切窗。
+     * 字段清理由 UI 线程 ANIM_DEINIT 完成；此处只停回调并投递清理。 */
     thiz->priv.is_playing_ui_animation = false;
     thiz->priv.play_info.progress_cb = NULL;
     thiz->priv.play_info.user_data = NULL;
-    thiz->play_animation_unlock(NULL);
 
     ui_lvgl_msg_t msg = {0};
     msg.cmd = UI_LVGL_MSG_CMD_ANIM_DEINIT;
