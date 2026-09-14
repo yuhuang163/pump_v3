@@ -405,9 +405,7 @@ void show_pump_seal_leak_ui(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
         return;
     }
-    if (proc->seal_leak_page_index >= PUMP_SEAL_LEAK_PAGE_MAX) {
-        proc->seal_leak_page_index = PUMP_SEAL_LEAK_PAGE_CHECK_TUBING;
-    }
+    proc->seal_leak_page_index = PUMP_SEAL_LEAK_PAGE_CHECK_TUBING;
     pump_ui_nav_push(proc);
     pump_ui_change_hdr_remove(proc);
 
