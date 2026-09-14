@@ -120,6 +120,8 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 		tFeatureInfo[j].uWearDetectTime = 0;
 		tFeatureInfo[j].uLeakSwitchTime = 0;
 		tFeatureInfo[j].uDetectOverTime = 0;
+		tFeatureInfo[j].uUnloadedINcmpstStatusCnt = 0;
+		tFeatureInfo[j].uLeakValleyCount = 0;
 
 		//LeakDetectReset(&tFeatureInfo[j]);
 
@@ -236,6 +238,8 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 	tFeatureInfo[uChannelIdx].uWearDetectTime = 0;
 	tFeatureInfo[uChannelIdx].uLeakSwitchTime = 0;
 	tFeatureInfo[uChannelIdx].uDetectOverTime = 0;
+	tFeatureInfo[uChannelIdx].uUnloadedINcmpstStatusCnt = 0;
+	tFeatureInfo[uChannelIdx].uLeakValleyCount = 0;
 
 	//LeakDetectReset(&tFeatureInfo[uChannelIdx]);
 
@@ -1061,8 +1065,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
 			}
-			else if ((uLevel < 3) && (tFeatureInfoTemp->fThreshold - 0.25 > tFeatureInfoTemp->fRawSegMinPressure) || (tFeatureInfoTemp->fThreshold + 0.25 > tFeatureInfoTemp->fRawSegMinPressure))
+			else if ((uLevel < 3) 
+				&& ((tFeatureInfoTemp->fThreshold - 0.25 > tFeatureInfoTemp->fRawSegMinPressure) 
+					|| (tFeatureInfoTemp->fThreshold + 0.25 > tFeatureInfoTemp->fRawSegMinPressure)) )
 			{
+				/* 之前(uLevel < 3) && (tFeatureInfoTemp->fThreshold - 0.25 > tFeatureInfoTemp->fRawSegMinPressure)
+					|| (tFeatureInfoTemp->fThreshold + 0.25 > tFeatureInfoTemp->fRawSegMinPressure)
+					修改：后面两个“或”需要在同一级  2026/09/14
+				*/
 				uCandidateWearStatus = WEAR_STATE_ON;
 				/* 如果进入了佩戴状态，负压偏低的特征置零 */
 				tFeatureInfoTemp->uMinPressureCnt = 0;
@@ -1540,8 +1550,9 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	}
 
 	/* 优化：区分漏气状态时，负压变大的情况，同时，对非密封/大漏时不进行补偿 */
-	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2 || tFeatureInfoTemp->uLeakStatus == 3)
-	//if (tFeatureInfoTemp->uWearStatus != WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus != 3)
+	if ((tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2 || tFeatureInfoTemp->uLeakStatus == 3) 
+		&& tFeatureInfoTemp->uLeakValleyCount >= 10)
+		//if (tFeatureInfoTemp->uWearStatus != WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus != 3)
 	{
 		unsigned int uCount_Min = 0;
 		unsigned int uCount_Max = 0;
@@ -2703,8 +2714,15 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			&tDeviceInfo[i]);
 		if (tFeatureInfo[i].uWearDetSegMinCommitted)
 		{
+			tFeatureInfo[i].uLeakValleyCount++;
 			WearDetectionDetermination(&tFeatureInfo[i], &tDeviceInfo[i]);
 			tFeatureInfo[i].uDataBaselineCnt[2] = 0;
+			if (tFeatureInfo[i].uLeakValleyCount >= 10)
+			{
+				tFeatureInfo[i].uLeakValleyCount = 10;
+			}
+			printf("%d, %d\n", i, tFeatureInfo[i].uLeakValleyCount);
+
 		}
 
 		/* 仅在每次开始工作后检查 */
@@ -2782,8 +2800,13 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			&tDeviceInfo[i]);
 		if (tFeatureInfo[i].uWearDetSegMinCommitted)
 		{
+			tFeatureInfo[i].uLeakValleyCount++;
 			WearDetectionDetermination(&tFeatureInfo[i], &tDeviceInfo[i]);
 			tFeatureInfo[i].uDataBaselineCnt[2] = 0;
+			if (tFeatureInfo[i].uLeakValleyCount >= 10)
+			{
+				tFeatureInfo[i].uLeakValleyCount = 10;
+			}
 		}
 
 		/* 仅在每次开始工作后检查 */

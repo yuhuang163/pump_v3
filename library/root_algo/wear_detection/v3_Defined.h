@@ -15,7 +15,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.1.6"
+#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.1.7"
 
 /* hardware parameters */
 #define SAMPLE_RATE			(50)
@@ -190,12 +190,12 @@ typedef struct _PUMP_FEATURE_INFO
 /* 目标压力曲线项 */
 typedef struct _TARGET_CURVE_ITEM
 {
-    unsigned char target_pressure;
-    unsigned short target_pump_time;
-	float target_pump_pressure;
-	float target_load_pressure;
-    unsigned short curve_len;
-    const float *p1_curve;
+	unsigned char	target_pressure;
+	unsigned short	target_pump_time;
+	float			target_pump_pressure;
+	float			target_load_pressure;
+	unsigned short	curve_len;
+	const float*	p1_curve;
 } STARGET_CURVE_ITEM;
 
 /* tightness_detection */
@@ -223,24 +223,29 @@ typedef struct _WAVE_INFO
 
 typedef struct _FEATURE_INFO_
 {
+	unsigned int	uDataIdx;		/* data index */
+	unsigned short	uUpdateFlag;
 	unsigned int	uPVIndex;
 	unsigned int	uWaveSpikes;
+	unsigned int	uNoiseLevel;
+	unsigned int	uNormalWaveform;
+	float			fThreshold;
+	float			fLoadedThreshold;
+
 	float			fMinData;
 	float			fMinDataBuff[6];
 	float			fLoadedThresholdBuff[6];
 	float			fMinDataBuffMin;
-	unsigned int	uNoiseLevel;
-	unsigned int	uDataIdx;		/* data index */
-	unsigned short	uUpdateFlag;
-	float			fThreshold;
-	float			fLoadedThreshold;
-	unsigned char	uWearStatus;		/* result */
-	unsigned char   uWearStatusOutput;	/* 对外输出 */
-	unsigned char	uDetectOverTime;	/* 检测超时 */
+
 	unsigned short	uPump_flag;
 	unsigned char	pumping_time;
 	unsigned char	uPumpState;
 	unsigned char	uCompsStatus;
+
+	unsigned char	uWearStatus;		/* result */
+	unsigned char   uWearStatusOutput;	/* 对外输出 */
+	unsigned char	uDetectOverTime;	/* 检测超时 */
+
 	int				iDelta_pwm;
 	int 			iPwmOffset;   	/* 累计补偿量 */
 	float 			fCompErrSum;      /* PI积分项 */
@@ -248,29 +253,30 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uWearOnCount;
 	unsigned char	uWearOffCount;
 	unsigned char	uPrevWearStatus;
-	unsigned int	uNormalWaveform;
-
+	
+	unsigned char	uPrevPumpState;
+	unsigned char	uPrevActive;
+	unsigned char	uCurrActive;
+	unsigned char	uRawTailRemain;				/* 新段时置 POST_TAIL；段末起每写入一个尾随点减 1，到 0 表示本段采集结束 */
+	unsigned char	uWearDetSegMinCommitted;    /* RawSegCommitMinIfAny 提交段 min 后置 1，PressureDataFeature 后消费 */
+	unsigned short	uRawSegLen;
 	float			fRawSegMinPressure;
 	float			fRawSegThresholdAtMinPressure;
 	float			fRawSegRunningMin; /* 当前段内 raw 最小（仅用于求 fRawSegMinPressure） */
 	float			fFilteredSegMinPressure; /* 与 fRawSegMinPressure 同泵段、同拍滤波的段内最小 */
 	float			fFilteredSegRunningMin; /* 段内滤波最小（内部） */
-	unsigned char	uPrevPumpState;
-	unsigned char	uPrevActive;
-	unsigned char	uCurrActive;
-	unsigned char	uRawTailRemain; /* 新段时置 POST_TAIL；段末起每写入一个尾随点减 1，到 0 表示本段采集结束 */
-	unsigned short	uRawSegLen;
-	unsigned char	uWearDetSegMinCommitted;    /* RawSegCommitMinIfAny 提交段 min 后置 1，PressureDataFeature 后消费 */
 	float			fLeakValleyBuff[6];         /* 泵周期 raw 段最小，左移 6 槽，不复用 fMinDataBuff */
+
 	unsigned char	uLeakValleyCount;           /* 0~6 */
 	unsigned char	uLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
-	unsigned char	uPrevLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
+	unsigned char	uPrevLeakStatus;            /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
 	unsigned short  uWearDetectTime;			/* 检测佩戴状态的时长 */
 	unsigned short  uLeakDetectTime;			/* 检测完全漏气状态的时长 */
 	unsigned short  uLeakSwitchTime;			/* 切换状态时长 */
 
 	unsigned short	uDataBaselineCnt[3];		/* 休眠状态下, 基线平台>1200Pa (大漏), >700Pa (小漏), <100Pa (正常) 计数 */
 	unsigned short  uMinPressureCnt;			/* 最小负压低于目标负压 */
+	unsigned short  uUnloadedINcmpstStatusCnt;	/* 持续出现大漏特征的计时 --- 在补偿阶段，可能会出现大漏/脱落的情况，这个时候需要判断 */
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_
