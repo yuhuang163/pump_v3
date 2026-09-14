@@ -151,7 +151,7 @@ void pump_fit_not_detected_reset(ui_proc_pump_t *proc)
 void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared)
 {
     uint8_t i;
-    uint8_t not_worn = 0;
+    uint8_t worn_ovt = 0;
 
     EXCEPTION_CHECK_VOID(proc);
     if (weared == NULL || proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
@@ -166,15 +166,15 @@ void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared)
         LOG_WM("wear result: %d/%d", weared[0], weared[1]);
     }
 
-    /// weared_status: 0 无效, 1 佩戴, 2 未佩戴
+    /// weared_status: 3 佩戴检测超时
     for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-        if (weared[i] == ALGO_WEARED_STATUS_NOT_WORN) {
-            not_worn = 1;
+        if (weared[i] == ALGO_WEARED_STATUS_WORN_OVT) {
+            worn_ovt = 1;
             break;
         }
     }
 
-    if (!not_worn) {
+    if (!worn_ovt) {
         return;
     }
     // LOG_WM("weared status: %d/%d, jump fit not detected.", weared[0], weared[1]);

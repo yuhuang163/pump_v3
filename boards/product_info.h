@@ -105,7 +105,7 @@ extern "C" {
 #define PRODUCT_LANGUAGE_EN                             0x00
 #define PRODUCT_LANGUAGE_ZH                             0x01
 #ifndef PRODUCT_LANGUAGE_USED
-#define PRODUCT_LANGUAGE_USED                           PRODUCT_LANGUAGE_ZH
+#define PRODUCT_LANGUAGE_USED                           PRODUCT_LANGUAGE_EN
 #endif
 
 /**

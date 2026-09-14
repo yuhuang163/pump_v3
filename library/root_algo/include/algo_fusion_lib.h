@@ -50,7 +50,7 @@ typedef struct {
 
 typedef struct {
     uint8_t leakage_status[2];   /// 泵奶未启动结果无效状态:0,佩戴正常无漏气：1,佩戴微小漏气:2，佩戴强漏气:3
-    uint8_t weared_status[2];    /// 检测未启动无效状态：0，佩戴：1，未佩戴：2 
+    uint8_t weared_status[2];    /// 检测未启动无效状态：0，佩戴：1，未佩戴：2  ,佩戴检测超时：3
     uint8_t detection_overtime[2];    /// 未超时：0，超时：1，
     uint8_t compensation_status[2];     // 0: 不补偿, 1: 减小气压; 2:加大气压
     int compensation_delta_pwm[2];               // 0: 不补偿, -10000~-1:PWM减小, 1~10000: PWM增加
