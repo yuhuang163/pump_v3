@@ -500,40 +500,62 @@ static int charge_chip_init(void)
 #if IS_SUPPORT_CHARGE_CURRENT_ADJUST
 static charging_temp_status_e charging_temp_policy_target(float temp)
 {
-    if (temp <= CHARGE_DERATED_TEMP_MIN || temp >= CHARGE_DERATED_TEMP_MAX) {
+    if (temp < CHARGE_TEMP_ENABLE_MIN || temp >= CHARGE_TEMP_ENABLE_MAX) {
         return CHARGE_TEMP_DISABLE;
     }
-    if (temp >= CHARGE_NORMAL_TEMP_MIN && temp <= CHARGE_NORMAL_TEMP_MAX) {
-        return CHARGE_TEMP_NORMAL;
+
+    if (temp < CHARGE_TEMP_BAND_10_MIN) {
+        return CHARGE_TEMP_BAND_5_10;
     }
-    return CHARGE_TEMP_DERATED;
+
+    if (temp < CHARGE_TEMP_BAND_15_MIN) {
+        return CHARGE_TEMP_BAND_10_15;
+    }
+
+    if (temp < CHARGE_TEMP_BAND_20_MIN) {
+        return CHARGE_TEMP_BAND_15_20;
+    }
+    
+    return CHARGE_TEMP_BAND_20_50;
 }
 
 static uint16_t charging_temp_policy_ibat(charging_temp_status_e status)
 {
-    if (status == CHARGE_TEMP_NORMAL) {
+    uint16_t limit = 0;
+
+    switch (status) {
+    case CHARGE_TEMP_BAND_5_10:
+        limit = CHARGE_TEMP_IBAT_5_10;
+        break;
+    case CHARGE_TEMP_BAND_10_15:
+        limit = CHARGE_TEMP_IBAT_10_15;
+        break;
+    case CHARGE_TEMP_BAND_15_20:
+        limit = CHARGE_TEMP_IBAT_15_20;
+        break;
+    case CHARGE_TEMP_BAND_20_50:
+        limit = CHARGE_TEMP_IBAT_20_50;
+        break;
+    default:
+        return 0;
+    }
+
+    if (limit > s_charging_current_max) {
         return s_charging_current_max;
     }
     
-    if (status == CHARGE_TEMP_DERATED) {
-        if (s_charging_current_max < TEMP_ABNORMAL_CHARGING_CURRENT) {
-            return s_charging_current_max;
-        }
-        return TEMP_ABNORMAL_CHARGING_CURRENT;
-    }
-    return 0;
+    return limit;
 }
 
 static void charging_temp_policy_apply(charging_temp_status_e target)
 {
+    uint16_t expect = charging_temp_policy_ibat(target);
+
     if (s_charge_temp_status == target) {
         if (target == CHARGE_TEMP_DISABLE) {
             charge_power_control(false);
-        } else {
-            uint16_t expect = charging_temp_policy_ibat(target);
-            if (s_charging_current != expect || s_charge_status.ibat > expect) {
-                charge_ibat_config_impl(expect, s_charge_status.ibat > expect);
-            }
+        } else if (s_charging_current != expect || s_charge_status.ibat > expect) {
+            charge_ibat_config_impl(expect, s_charge_status.ibat > expect);
         }
         s_charge_temp_count = 0;
         return;
@@ -544,32 +566,20 @@ static void charging_temp_policy_apply(charging_temp_status_e target)
         return;
     }
     s_charge_temp_count = 0;
-    uint16_t expect = charging_temp_policy_ibat(target);
-    switch (target) {
-        case CHARGE_TEMP_DISABLE:
-            charge_power_control(false);
-            s_charge_temp_status = CHARGE_TEMP_DISABLE;
-            LOG_PBUS("temp abnormal disable charing, expect: %dmA", expect);
-            break;
-        case CHARGE_TEMP_NORMAL:
-            charge_ibat_config(expect);
-            if (s_charge_status.plug_in && s_charge_adapter_mismatch == false) {
-                charge_power_control(true);
-            }
-            s_charge_temp_status = CHARGE_TEMP_NORMAL;
-            LOG_PBUS("goto normal charging, expect: %dmA", expect);
-            break;
-        case CHARGE_TEMP_DERATED:
-            charge_ibat_config(expect);
-            if (s_charge_status.plug_in && s_charge_adapter_mismatch == false) {
-                charge_power_control(true);
-            }
-            s_charge_temp_status = CHARGE_TEMP_DERATED;
-            LOG_PBUS("goto temp derated charging, expect: %dmA", expect);
-            break;
-        default:
-            break;
+
+    if (target == CHARGE_TEMP_DISABLE) {
+        charge_power_control(false);
+        s_charge_temp_status = CHARGE_TEMP_DISABLE;
+        LOG_PBUS("temp abnormal disable charing");
+        return;
     }
+
+    charge_ibat_config(expect);
+    if (s_charge_status.plug_in && s_charge_adapter_mismatch == false) {
+        charge_power_control(true);
+    }
+    s_charge_temp_status = target;
+    LOG_PBUS("goto temp band %d, expect: %dmA", target, expect);
 }
 
 static void charging_temp_policy_handler(float temp)
@@ -578,13 +588,12 @@ static void charging_temp_policy_handler(float temp)
 }
 
 #if CHARGE_TEMP_POLICY_SIM_TEST
-/// 覆盖停充 / 600mA / 协议电流，以及 0/15/45/60 端点
+/// 覆盖停充及各电流档端点
 static const float s_charge_temp_sim_pool[CHARGE_TEMP_SIM_POOL_LEN] = {
-    -10.0f, -0.1f,  0.0f,
-      0.1f,  8.0f, 14.9f,
-     15.0f, 25.0f, 45.0f,
-     45.1f, 50.0f, 59.9f,
-     60.0f, 62.0f,
+     0.0f,  4.9f,  5.0f,  9.9f,
+    10.0f, 14.9f, 15.0f, 19.9f,
+    20.0f, 25.0f, 49.9f, 50.0f,
+    55.0f, 62.0f,
 };
 static float s_charge_temp_sim_order[CHARGE_TEMP_SIM_POOL_LEN];
 static uint8_t s_charge_temp_sim_idx;

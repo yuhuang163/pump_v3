@@ -39,7 +39,7 @@
 | 单节电压 | `VCELL_4_2V` | 4.2V/节，满电约 12.6V |
 | 内阻补偿 | `IRCOMP_0MOHM` | 0Ω |
 | 默认充电电流 | `BATT_INPUT_CURRENT_LIMIT` = **2000mA** | 可被 PD/温度策略覆盖 |
-| 降额充电电流 | `TEMP_ABNORMAL_CHARGING_CURRENT` = **600mA** | 温度异常区间使用 |
+| 温度分段电流 | 310 / 930 / 1550 / 2000 mA | 亿纬方案，2.1A 档上限改为 2A |
 | 放电电流限制 | `BATT_OUTPUT_CURRENT_LIMIT` = **3000mA** | |
 | 输入电流限制 | `CHARGE_INPUT_CURRENT_LIMIT` = **3000mA** | IIN 寄存器 |
 | 输入电压限制 | `CHARGE_INPUT_VOLTAGE_LIMIT` = **4200mV** | VINDPM |
@@ -130,36 +130,39 @@ PD_INT 高电平（拔出）
 
 ### 6.1 温度分区
 
-比较使用 float，无回差。端点归属：
+比较使用 float，无回差。端点归属与亿纬表一致（左闭右开，停充为 T<5 或 T≥50）：
 
-- **15°C、45°C**：走协议最大电流（NORMAL）
-- **0°C、60°C**：停充（DISABLE）
-- **(0, 15) 与 (45, 60)**：最大 600mA（DERATED）
-
-| 温度范围 | 状态枚举 | 充电电流 | 充电使能 |
+| 温度范围 | 状态枚举 | 充电电流（再与 PD 上限取 min） | 充电使能 |
 |---------|---------|---------|---------|
-| 15°C ~ 45°C（含端点） | `CHARGE_TEMP_NORMAL` | `s_charging_current_max`（PD 协商，最高 2000mA） | 开启 |
-| (0, 15)°C 或 (45, 60)°C | `CHARGE_TEMP_DERATED` | **最大 600mA** | 开启 |
-| ≤0°C 或 ≥60°C | `CHARGE_TEMP_DISABLE` | 寄存器不变 | **关闭** |
+| T < 5°C 或 T ≥ 50°C | `CHARGE_TEMP_DISABLE` | 不改电流寄存器 | **关闭** |
+| 5°C ≤ T < 10°C | `CHARGE_TEMP_BAND_5_10` | **310mA**（0.1C，寄存器步进后约 300mA） | 开启 |
+| 10°C ≤ T < 15°C | `CHARGE_TEMP_BAND_10_15` | **930mA**（0.3C，步进后约 900mA） | 开启 |
+| 15°C ≤ T < 20°C | `CHARGE_TEMP_BAND_15_20` | **1550mA**（0.5C） | 开启 |
+| 20°C ≤ T < 50°C | `CHARGE_TEMP_BAND_20_50` | **2000mA**（表 0.7C=2.1A，产品上限 2A） | 开启 |
 
 边界示例：
 
 | 温度 | 判定 |
 |------|------|
-| 0.0°C | DISABLE（停充） |
-| 0.1°C / 14.9°C | DERATED（最大 600mA） |
-| 15.0°C / 45.0°C | NORMAL（协议最大电流） |
-| 45.3°C / 59.9°C | DERATED（最大 600mA） |
-| 60.0°C | DISABLE（停充） |
+| 4.9°C | DISABLE（停充） |
+| 5.0°C / 9.9°C | 310mA |
+| 10.0°C / 14.9°C | 930mA |
+| 15.0°C / 19.9°C | 1550mA |
+| 20.0°C / 49.9°C | 2000mA（或 PD 更小值） |
+| 50.0°C | DISABLE（停充） |
 
 宏定义（`bsp_charge.h`）：
 
 ```c
-#define CHARGE_NORMAL_TEMP_MIN         15.0f
-#define CHARGE_NORMAL_TEMP_MAX         45.0f
-#define CHARGE_DERATED_TEMP_MIN        0.0f
-#define CHARGE_DERATED_TEMP_MAX        60.0f
-#define TEMP_ABNORMAL_CHARGING_CURRENT 600
+#define CHARGE_TEMP_ENABLE_MIN     5.0f
+#define CHARGE_TEMP_BAND_10_MIN    10.0f
+#define CHARGE_TEMP_BAND_15_MIN    15.0f
+#define CHARGE_TEMP_BAND_20_MIN    20.0f
+#define CHARGE_TEMP_ENABLE_MAX     50.0f
+#define CHARGE_TEMP_IBAT_5_10      310
+#define CHARGE_TEMP_IBAT_10_15     930
+#define CHARGE_TEMP_IBAT_15_20     1550
+#define CHARGE_TEMP_IBAT_20_50     2000
 ```
 
 ### 6.2 状态机
@@ -168,24 +171,22 @@ PD_INT 高电平（拔出）
                     ┌─────────────────────────────────────┐
                     │         CHARGE_TEMP_UNKNOW          │
                     │    (初始化 / resume / 插枪)          │
-                    └──────────────┬──────────────────────┘
-                                   │
-          ┌────────────────────────┼────────────────────────┐
-          │                        │                        │
-          ▼                        ▼                        ▼
-   15~45°C (>300ms)        (0,15) 或 (45,60)°C (>300ms)  ≤0 或 ≥60°C (>300ms)
-          │                        │                        │
-          ▼                        ▼                        ▼
-   CHARGE_TEMP_NORMAL       CHARGE_TEMP_DERATED       CHARGE_TEMP_DISABLE
-   ibat = max, 开充          ibat = 600mA, 开充          关充 (GPIO)
+                    └──────────────────┬──────────────────┘
+                                       │
+     ┌──────────┬──────────┬───────────┼───────────┬──────────┐
+     ▼          ▼          ▼           ▼           ▼
+   T<5或≥50   5≤T<10    10≤T<15    15≤T<20    20≤T<50
+     │          │          │           │           │
+     ▼          ▼          ▼           ▼           ▼
+  DISABLE    310mA      930mA       1550mA      2000mA
+   关充       开充       开充        开充        开充
 ```
 
 ### 6.3 状态切换动作
 
 | 进入状态 | 动作 |
 |---------|------|
-| `CHARGE_TEMP_NORMAL` | 进入时写协议最大电流；已在 NORMAL 时：软件设定值不一致，或芯片实测 `ibat` 大于目标，才补写 |
-| `CHARGE_TEMP_DERATED` | 进入时写 `min(600mA, 协议最大电流)`；已在 DERATED 时同样仅在设定值不一致或实测超标时补写 |
+| 各充电档 | `charge_ibat_config(min(档位电流, PD上限))` + 条件满足时开充；已在该档时仅当设定值不一致或实测 `ibat` 超标才补写 |
 | `CHARGE_TEMP_DISABLE` | `charge_power_control(false)`，不改电流寄存器；已在 DISABLE 时每轮重申关充 |
 
 **恢复充电前提条件：**
@@ -210,8 +211,7 @@ PD_INT 高电平（拔出）
 
 | 日志 | 含义 |
 |------|------|
-| `goto normal charging` | 进入正常充电（max 电流） |
-| `goto temp derated charging` | 进入降额充电（600mA） |
+| `goto temp band n, expect: xxxmA` | 进入对应温区充电档 |
 | `temp abnormal disable charing` | 温度异常，停止充电 |
 | `charge_ibat_config: xxxmA` | 写入充电电流寄存器 |
 | `charge_power_control: 0/1` | GPIO 关/开充电 |
@@ -258,7 +258,7 @@ plug_in && is_charging       → CHARGE_STATE_CHARGING（含硬件已满、去�
 | BLE 工厂命令 | `BLE_CHARGE_CURRENT_ADJUST_SHELL_CMD` | 调试/产测 |
 | PD 插入 | `charge_event_internal_cb(PLUG_IN)` | 自动设置 max |
 
-**注意：** 温度策略会在状态切换时覆盖外部设置的电流（NORMAL 写 max，DERATED 写 600mA）。
+**注意：** 温度策略会在状态切换时覆盖外部设置的电流（写成该温区电流与 PD 上限的较小值）。
 
 ### 8.1 `charge_ibat_config` 缓存机制
 
@@ -306,19 +306,18 @@ if (ret == BSP_OK) {
 2. PD 协商成功 → PLUG_IN
 3. 读取 PD 电流（如 1500mA）→ s_charging_current_max = 1500
 4. 记录 PD 电流上限，温度状态复位 UNKNOW，不开充
-5. 约 400ms 去抖后：15~45°C → 协议最大电流；边界温区 → 600mA；≤0 或 ≥60 → 关充
+5. 约 400ms 去抖后按温区套电流：T<5 或 ≥50 关充；5~10→310mA；10~15→930mA；15~20→1550mA；20~50→min(2000, PD上限)
 6. 电池满 → BAT_FULL → CHARGE_STATE_FULL
 ```
 
 ### 11.2 高温降额 → 停充 → 恢复（正常物理过程）
 
-策略阈值 15 / 45 / 60，无回差；**正常降温路径必须逐级过渡，不会跳过 DERATED**：
+策略按亿纬分段，无回差；高温停充阈值为 **50°C**：
 
 ```
-1. (45, 60)°C → DERATED，charge_ibat_config(600mA)
-2. ≥60°C      → DISABLE，charge_power_control(false)，ibat=0
-3. (45, 60)°C → DERATED，charge_ibat_config(600mA)，恢复 600mA 充电
-4. 15~45°C    → NORMAL，charge_ibat_config(max)，恢复协议最大电流
+1. 20≤T<50°C → 2000mA（或 PD 更小值）
+2. T≥50°C    → DISABLE，charge_power_control(false)
+3. 回落到 20≤T<50 → 恢复 2000mA 档
 ```
 
 ### 11.2.1 日志异常案例（62.5°C → 33.5°C 跳变）
@@ -327,12 +326,12 @@ if (ret == BSP_OK) {
 
 | 时刻 | NTC 电阻 | 温度 | 说明 |
 |------|---------|------|------|
-| 停充期间 | 2.80 KΩ | 62.5°C | ≥60，DISABLE，ibat=0 |
+| 停充期间 | 2.80 KΩ | 62.5°C | ≥50，DISABLE，ibat=0 |
 | 跳变后 | 7.33 KΩ | 33.5°C | 物理上 2s 内不可能完成此降温 |
 
 NTC 查表（`bsp_ntc_map.h`）验证：62°C ↔ 2.842 KΩ，33°C ↔ 7.453 KΩ，读数与温度自洽，但**跳变本身不合理**。
 
-后果：代码将 33.5°C 判为 NORMAL（15~45），误触发 `goto normal charging`。
+后果：代码将 33.5°C 判为 `CHARGE_TEMP_BAND_20_50`（20~50），按 2A 档开充。
 
 > **结论：62 和 33 是日志采样值，不是策略配置值；该跳变属于 NTC 采样异常，不应作为正常恢复流程参考。**
 
@@ -355,9 +354,9 @@ NTC 查表（`bsp_ntc_map.h`）验证：62°C ↔ 2.842 KΩ，33°C ↔ 7.453 K�
 | 温度事件未上报 | `CHARGE_EVENT_TEMPERATURE_ERROR` 已定义但未触发，仅 GPIO 关充 |
 | DISABLE 不改电流 | 停充时不写寄存器，恢复时依赖 `charge_ibat_config` 重新配置 |
 | 采样电阻假设 | 手册基于 10mΩ，若硬件使用其他阻值会有系统性偏差 |
-| 电流步进 | 50mA 步进，600mA 可精确设置，非 50 整数倍会向下取整 |
-| NTC 读数跳变 | 可能出现 62→33 等不合理跳变，直接触发 NORMAL，缺少变化率校验 |
-| 15/45 边界抖动 | 无回差，温度在端点附近波动时可能在 600mA 与协议最大电流间切换（约 300ms 去抖） |
+| 电流步进 | 50mA 步进，310/930mA 会向下取整为 300/900mA |
+| NTC 读数跳变 | 可能出现不合理跳变，直接切到对应温区电流档，缺少变化率校验 |
+| 温区边界抖动 | 无回差，5/10/15/20/50°C 附近可能在相邻档间切换（约 400ms 去抖） |
 | 插枪无条件开充 | 已修复：插枪走温度策略；DISABLE 期间每轮重申关充 |
 | 温度截断 | 已修复：策略使用 float，不再截成 int8_t |
 
