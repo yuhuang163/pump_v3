@@ -101,6 +101,7 @@ void home_base_ui_prepare(ui_manager_context_t *thiz)
     }
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
+    LOG_UI("home v7 prepare start t=%ld", get_timestamp());
     home_root_init();
     ble_ui_init(thiz);
     battery_ui_init(thiz);
@@ -111,6 +112,7 @@ void home_base_ui_prepare(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     home_info->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     home_page_ui_prepare(home_info);
+    LOG_UI("home v7 prepare done t=%ld", get_timestamp());
 }
 
 void home_base_ui_remove(ui_manager_context_t *thiz)
@@ -127,9 +129,14 @@ void home_base_ui_remove(ui_manager_context_t *thiz)
 
 int home_base_ui_process(ui_manager_context_t *thiz)
 {
+    const uint8_t first_frame = home_info->force_update;
+
     EXCEPTION_CHECK_INT(thiz && home_info && home_info->root);
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->ble && proc->battery && proc->pump);
+    if (first_frame) {
+        LOG_UI("home v7 first frame: enter t=%ld", get_timestamp());
+    }
     pump_setting_t setting;
     READ_PUMP_SETTING_INFO(proc->pump, 0, setting);
     home_info->level.left = setting.level[0];
@@ -137,6 +144,9 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     int pump_mode = 0;
     READ_PUMP_WORK_MODE(proc->pump, pump_mode);
     home_info->mode.new_index = pump_mode;
+    if (first_frame) {
+        LOG_UI("home v7 first frame: pump read mode=%d", pump_mode);
+    }
     /// 个性化模式：同步 ID/名称，并决定是否允许切到第三韵律页
     if (home_info->st) {
         int custom_mode_id = 0;
@@ -153,12 +163,21 @@ int home_base_ui_process(ui_manager_context_t *thiz)
                 sizeof(home_info->mode.custom_id_str), home_info->mode.custom_id_str);
         }
     }
+    if (first_frame) {
+        LOG_UI("home v7 first frame: store done");
+    }
     home_root_bg_update(thiz);
+    if (first_frame) {
+        LOG_UI("home v7 first frame: bg done");
+    }
     #if IS_SUPPORT_HOME_UI_TEST
     // proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_CONFIRM;
     proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN;
     #else
     home_page_ui_update(home_info, proc);
+    if (first_frame) {
+        LOG_UI("home v7 first frame: page done");
+    }
     if (home_info->page.shown_page_index == HOME_PAGE_MAIN &&
         !home_page_ui_is_transitioning(home_info)) {
         battery_ui_update(thiz, home_info->root, proc->battery, true,
@@ -170,10 +189,16 @@ int home_base_ui_process(ui_manager_context_t *thiz)
         battery_ui_update(thiz, home_info->root, proc->battery, false, 1);
         ble_ui_hide();
     }
+    if (first_frame) {
+        LOG_UI("home v7 first frame: ble done");
+    }
     #endif
     ui_popup_update(thiz, proc->popup_ui_type, home_info->root, &home_info->popup_ui_index);
     home_info->force_update = false;
     thiz->priv.fps_count++;
+    if (first_frame) {
+        LOG_UI("home v7 first frame: done t=%ld", get_timestamp());
+    }
     if (get_timestamp() - thiz->priv.fps_start_time >= 1000) {
         thiz->priv.fps_start_time = get_timestamp();
         LOG_UI("===> home fps: %d, page:%d", thiz->priv.fps_count, proc->ui_mode_page_index);
