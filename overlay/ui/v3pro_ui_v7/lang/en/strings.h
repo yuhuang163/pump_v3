@@ -81,7 +81,7 @@ extern "C" {
 #define PUMP_FINISH_TITLE_TEXT                          "Pumping complete."
 #define PUMP_FINISH_CONTENT_TEXT                        "Open the App to log your\nmilk output."
 #define PUMP_FINISH_CHARGE_ERROR_TITLE1_TEXT            "Incompatible adapter"
-#define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT            "Ending automatically"
+#define PUMP_FINISH_CHARGE_ERROR_TITLE2_TEXT            "Automatically ending"
 #define PUMP_RUNING_30M_TIP_TEXT                        "Pumping over 30 min.\nTake a short break."
 #define PUMP_REST_MODE_ADJUST_TIP_TEXT                  "In rest mode\nCannot adjust."
 
@@ -89,7 +89,7 @@ extern "C" {
  * Rhythm / settings
  ******************************************************************************/
 #define RHYTHM_CONFIRM_TITLE_TEXT                       "Switch program?"
-#define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "The timer will reset"
+#define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "Timer will restart"
 #define SETTINGS_SUCCESS_TITLE_TEXT                     "Success"
 #define SETTINGS_SUCCESS_PROGRAM_TITLE_TEXT             "Program switched"
 #define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_TEXT          "Timer reset"
