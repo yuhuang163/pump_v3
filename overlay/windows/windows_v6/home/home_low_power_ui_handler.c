@@ -86,6 +86,9 @@ void show_home_low_power_ui(ui_proc_home_t *proc)
         return;
     }
     home_ui_change_hdr_remove(proc);
+    /// 清导航栈，3s 超时后回首页，避免再 restore 到力度/速度页
+    proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
+    home_ui_nav_clear(proc);
 
     proc->current_ui_type = HOME_UI_TYPE_LOW_POWER;
     ui_play_info_t play_info = {
