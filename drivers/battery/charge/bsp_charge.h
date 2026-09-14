@@ -765,7 +765,11 @@ typedef struct {
 #define IBAT_SCALE_SEL                      IBAT_SCALE_12_5MA
 #define BATT_INPUT_CURRENT_LIMIT            2000
 #define BATT_OUTPUT_CURRENT_LIMIT           3000
-#define TEMP_ABNORMAL_CHARGING_CURRENT      600
+/// 亿纬温度分段充电电流（寄存器 50mA 步进，写入时向下取整）
+#define CHARGE_TEMP_IBAT_5_10               310   /// 0.1C ≈ 0.31A
+#define CHARGE_TEMP_IBAT_10_15              930   /// 0.3C ≈ 0.93A
+#define CHARGE_TEMP_IBAT_15_20              1550  /// 0.5C ≈ 1.55A
+#define CHARGE_TEMP_IBAT_20_50              2000  /// 表 0.7C=2.1A，产品上限 2A
 #if IBAT_SCALE_SEL == IBAT_SCALE_12_5MA
 #define IBAT_SCALE_CFG                      IBAT_SCALE_2
 #define BATT_CURRENT_LIMIT_SCALE            50
@@ -793,16 +797,19 @@ typedef struct {
 /// ntc电流系数
 #define NTC_CURRENT_COEFF                   30.0f
 
-#define CHARGE_NORMAL_TEMP_MIN              15.0f
-#define CHARGE_NORMAL_TEMP_MAX              45.0f
-#define CHARGE_DERATED_TEMP_MIN             0.0f
-#define CHARGE_DERATED_TEMP_MAX             60.0f
+#define CHARGE_TEMP_ENABLE_MIN              5.0f
+#define CHARGE_TEMP_BAND_10_MIN             10.0f
+#define CHARGE_TEMP_BAND_15_MIN             15.0f
+#define CHARGE_TEMP_BAND_20_MIN             20.0f
+#define CHARGE_TEMP_ENABLE_MAX              50.0f
 
 typedef enum {
     CHARGE_TEMP_UNKNOW,
-    CHARGE_TEMP_NORMAL,   /// 正常电流充电
-    CHARGE_TEMP_DERATED,  /// 降低电流充电
-    CHARGE_TEMP_DISABLE,  /// 禁止充电
+    CHARGE_TEMP_DISABLE,     /// T<5°C 或 T≥50°C，禁止充电
+    CHARGE_TEMP_BAND_5_10,   /// 5≤T<10，0.31A
+    CHARGE_TEMP_BAND_10_15,  /// 10≤T<15，0.93A
+    CHARGE_TEMP_BAND_15_20,  /// 15≤T<20，1.55A
+    CHARGE_TEMP_BAND_20_50,  /// 20≤T<50，2A（受 PD 上限钳位）
 } charging_temp_status_e;
 
 /*
