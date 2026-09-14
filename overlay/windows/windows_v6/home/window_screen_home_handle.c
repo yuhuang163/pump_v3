@@ -228,13 +228,35 @@ static bool home_mode_key_start_pump_allowed(const ui_proc_home_t *proc)
     }
 }
 
+static bool home_is_adjust_ui(const ui_proc_home_t *proc)
+{
+    return proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST ||
+           proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST ||
+           proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST;
+}
+
+/** 与 home_start_pump_with_sub_ui 禁启动弹窗条件一致 */
+static bool home_battery_forbid_start_ui(const ui_proc_home_t *proc)
+{
+    uint8_t battery_state = BATTERY_STATE_NONE;
+
+    if (proc->battery && proc->battery->get_battery_state) {
+        battery_state = proc->battery->get_battery_state();
+    }
+    return battery_state == BATTERY_STATE_EMPTY ||
+           battery_state == BATTERY_STATE_FORBID_START;
+}
+
 static void home_mode_key_event_cb(ui_proc_home_t *proc, uint8_t mode_index)
 {
     const bool start_pump = home_mode_key_start_pump_allowed(proc);
 
     if (proc->current_ui_type != HOME_UI_TYPE_HOME) {
         proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
-        start_home_ui_animation(proc);
+        /// 即将启动或禁启动弹窗时不要先刷首页，避免闪一下再切页
+        if (!start_pump) {
+            start_home_ui_animation(proc);
+        }
     } else {
         proc->ui_mode_page_index = HOME_MODE_PAGE_INDEX_NONE;
     }
@@ -251,17 +273,20 @@ static void home_power_key_event_cb(ui_proc_home_t *proc)
         return;
     }
 
-    if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
-        home_level_adjust_ui_dismiss(proc);
-        return;
-    }
-
-    if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
-        home_both_level_adjust_ui_dismiss(proc);
-        return;
-    }
-
-    if (proc->current_ui_type == HOME_UI_TYPE_SPEED_ADJUST) {
+    if (home_is_adjust_ui(proc)) {
+        if (home_battery_forbid_start_ui(proc)) {
+            /// 禁启动：直接弹低电页，超时后再回首页，避免 dismiss 先刷首页
+            home_start_pump_handler(proc);
+            return;
+        }
+        if (proc->current_ui_type == HOME_UI_TYPE_LEVEL_ADJUST) {
+            home_level_adjust_ui_dismiss(proc);
+            return;
+        }
+        if (proc->current_ui_type == HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
+            home_both_level_adjust_ui_dismiss(proc);
+            return;
+        }
         home_speed_adjust_ui_dismiss(proc);
         return;
     }
