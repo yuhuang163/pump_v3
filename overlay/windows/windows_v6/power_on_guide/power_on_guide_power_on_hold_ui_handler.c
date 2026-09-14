@@ -213,6 +213,7 @@ void show_power_on_guide_power_on_hold_ui(ui_proc_power_on_guide_t *proc)
 void stop_power_on_guide_ui_animation(ui_proc_power_on_guide_t *proc)
 {
     power_on_guide_power_on_hold_ui_hdr_remove();
+    power_on_guide_low_power_ui_hdr_remove();
     EXCEPTION_CHECK_VOID(proc);
     ui_manager_context_t *ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui && ui->hook && ui->hook->ui_animation_play_deinit);

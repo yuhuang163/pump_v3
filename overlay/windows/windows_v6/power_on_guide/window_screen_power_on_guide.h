@@ -32,11 +32,14 @@ typedef enum {
     POWER_ON_GUIDE_HDR_ACTION_MAX
 } power_on_guide_ui_hdr_action_e;
 
+#define POWER_ON_GUIDE_LOW_POWER_TASK_NAME      "power_on_guide_low_power"
+
 /// 开机引导 UI类型枚举
 typedef enum {
     POWER_ON_GUIDE_UI_TYPE_NONE = 0,
     POWER_ON_GUIDE_UI_TYPE_HOME,
     POWER_ON_GUIDE_UI_TYPE_POWER_ON_HOLD, /// V3 插电/短按未满足开机时长：长按开机引导
+    POWER_ON_GUIDE_UI_TYPE_LOW_POWER,     /// 低电/空电提醒充电，不可长按开机
     POWER_ON_GUIDE_UI_TYPE_MAX
 } power_on_guide_ui_type_e;
 
@@ -70,8 +73,10 @@ typedef struct {
 */
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
 void show_power_on_guide_power_on_hold_ui(ui_proc_power_on_guide_t *proc);
+void show_power_on_guide_low_power_ui(ui_proc_power_on_guide_t *proc);
 void stop_power_on_guide_ui_animation(ui_proc_power_on_guide_t *proc);
 void power_on_guide_power_on_hold_ui_hdr_remove(void);
+void power_on_guide_low_power_ui_hdr_remove(void);
 #endif
 
 #ifdef __cplusplus
