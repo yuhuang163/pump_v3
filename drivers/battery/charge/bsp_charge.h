@@ -793,10 +793,10 @@ typedef struct {
 /// ntc电流系数
 #define NTC_CURRENT_COEFF                   30.0f
 
-#define CHARGE_NORMAL_TEMP_MIN              15
-#define CHARGE_NORMAL_TEMP_MAX              45
-#define CHARGE_DERATED_TEMP_MIN             0
-#define CHARGE_DERATED_TEMP_MAX             60
+#define CHARGE_NORMAL_TEMP_MIN              15.0f
+#define CHARGE_NORMAL_TEMP_MAX              45.0f
+#define CHARGE_DERATED_TEMP_MIN             0.0f
+#define CHARGE_DERATED_TEMP_MAX             60.0f
 
 typedef enum {
     CHARGE_TEMP_UNKNOW,

@@ -1,7 +1,7 @@
 # 充电策略文档
 
 > 基于 `bsp_charge.c` / `bsp_charge.h` / `bsp_charge_pd.c` / `bsp_battery.c` 代码整理  
-> 更新日期：2026-07-03
+> 更新日期：2026-09-14
 
 ---
 
@@ -109,9 +109,11 @@ PD_INT 高电平（拔出）
 
 1. 读取 PD 协商电流：`charge_pd_current_get()` → `reg × 50mA`
 2. 上限钳位：`min(PD电流, BATT_INPUT_CURRENT_LIMIT)`，读失败则按 2000mA
-3. 更新 `s_charging_current_max`
-4. 调用 `charge_ibat_config(current)` 写入寄存器
-5. `charge_power_control(true)` 开启充电
+3. 更新 `s_charging_current_max`（只记上限，不直接开充）
+4. 刷新 NTC 滑动平均温度，温度状态回到 `UNKNOW`，**不开充**
+5. 充电线程连续确认约 300ms 后，按平均温度套用策略再开充或停充
+
+`CHARGE_EVENT_FORCE_PLUG_IN` 同样走温度策略，不会无条件满电流开充。
 
 ### 5.3 适配器不匹配
 
@@ -123,37 +125,41 @@ PD_INT 高电平（拔出）
 
 ## 6. 温度充电策略（核心）
 
-入口：`charging_temp_policy_handler(temp)`  
+入口：`charging_temp_policy_handler(float temp)`  
 使能条件：`IS_SUPPORT_CHARGE_CURRENT_ADJUST = 1`
 
 ### 6.1 温度分区
 
-> **注意：策略阈值是 15 / 45 / 60，不是日志里出现的任意温度值（如 62、33）。**  
-> 62°C 停充是因为 **≥60**；33°C 正常充是因为落在 **15~45** 区间内，这两个数本身没有特殊含义。
+比较使用 float，无回差。端点归属：
+
+- **15°C、45°C**：走协议最大电流（NORMAL）
+- **0°C、60°C**：停充（DISABLE）
+- **(0, 15) 与 (45, 60)**：最大 600mA（DERATED）
 
 | 温度范围 | 状态枚举 | 充电电流 | 充电使能 |
 |---------|---------|---------|---------|
-| 15°C ~ 45°C | `CHARGE_TEMP_NORMAL` | `s_charging_current_max`（PD 协商，最高 2000mA） | 开启 |
-| 0~15°C 或 45~60°C（不含 60） | `CHARGE_TEMP_DERATED` | **600mA** | 开启 |
-| ≤0°C 或 **≥60°C** | `CHARGE_TEMP_DISABLE` | 寄存器不变 | **关闭** |
+| 15°C ~ 45°C（含端点） | `CHARGE_TEMP_NORMAL` | `s_charging_current_max`（PD 协商，最高 2000mA） | 开启 |
+| (0, 15)°C 或 (45, 60)°C | `CHARGE_TEMP_DERATED` | **最大 600mA** | 开启 |
+| ≤0°C 或 ≥60°C | `CHARGE_TEMP_DISABLE` | 寄存器不变 | **关闭** |
 
-边界说明（代码 `temp >= CHARGE_DERATED_TEMP_MAX` 即 ≥60 停充）：
+边界示例：
 
 | 温度 | 判定 |
 |------|------|
-| 59°C | DERATED（600mA） |
-| 60°C | DISABLE（停充） |
-| 45°C | NORMAL（满电流） |
-| 46°C | DERATED（600mA） |
+| 0.0°C | DISABLE（停充） |
+| 0.1°C / 14.9°C | DERATED（最大 600mA） |
+| 15.0°C / 45.0°C | NORMAL（协议最大电流） |
+| 45.3°C / 59.9°C | DERATED（最大 600mA） |
+| 60.0°C | DISABLE（停充） |
 
 宏定义（`bsp_charge.h`）：
 
 ```c
-#define CHARGE_NORMAL_TEMP_MIN    15
-#define CHARGE_NORMAL_TEMP_MAX    45
-#define CHARGE_DERATED_TEMP_MIN   0
-#define CHARGE_DERATED_TEMP_MAX   60
-#define TEMP_ABNORMAL_CHARGING_CURRENT  600
+#define CHARGE_NORMAL_TEMP_MIN         15.0f
+#define CHARGE_NORMAL_TEMP_MAX         45.0f
+#define CHARGE_DERATED_TEMP_MIN        0.0f
+#define CHARGE_DERATED_TEMP_MAX        60.0f
+#define TEMP_ABNORMAL_CHARGING_CURRENT 600
 ```
 
 ### 6.2 状态机
@@ -161,13 +167,13 @@ PD_INT 高电平（拔出）
 ```
                     ┌─────────────────────────────────────┐
                     │         CHARGE_TEMP_UNKNOW          │
-                    │    (初始化 / bsp_charge_resume)      │
+                    │    (初始化 / resume / 插枪)          │
                     └──────────────┬──────────────────────┘
                                    │
           ┌────────────────────────┼────────────────────────┐
           │                        │                        │
           ▼                        ▼                        ▼
-   15~45°C (>300ms)        0~15 或 45~60°C (>300ms)   ≤0 或 ≥60°C (>300ms)
+   15~45°C (>300ms)        (0,15) 或 (45,60)°C (>300ms)  ≤0 或 ≥60°C (>300ms)
           │                        │                        │
           ▼                        ▼                        ▼
    CHARGE_TEMP_NORMAL       CHARGE_TEMP_DERATED       CHARGE_TEMP_DISABLE
@@ -178,34 +184,29 @@ PD_INT 高电平（拔出）
 
 | 进入状态 | 动作 |
 |---------|------|
-| `CHARGE_TEMP_NORMAL` | `charge_ibat_config(s_charging_current_max)` + 条件满足时 `charge_power_control(true)` |
-| `CHARGE_TEMP_DERATED` | `charge_ibat_config(600mA)` + 条件满足时 `charge_power_control(true)` |
-| `CHARGE_TEMP_DISABLE` | `charge_power_control(false)`，**不修改电流寄存器** |
+| `CHARGE_TEMP_NORMAL` | 进入时写协议最大电流；已在 NORMAL 时：软件设定值不一致，或芯片实测 `ibat` 大于目标，才补写 |
+| `CHARGE_TEMP_DERATED` | 进入时写 `min(600mA, 协议最大电流)`；已在 DERATED 时同样仅在设定值不一致或实测超标时补写 |
+| `CHARGE_TEMP_DISABLE` | `charge_power_control(false)`，不改电流寄存器；已在 DISABLE 时每轮重申关充 |
 
 **恢复充电前提条件：**
 
 - `s_charge_status.plug_in == true`
 - `s_charge_adapter_mismatch == false`
 
-### 6.4 去抖机制
+### 6.4 温度平均与去抖
+
+策略输入是 NTC **滑动平均温度** `s_charge_status.temp`（窗口 20 点 × 100ms ≈ 2s），不是瞬时 raw。
+
+状态切换另有去抖：目标状态需连续满足才落地。
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
-| `CHARGE_TEMP_POLICY_POLL_INTERVAL` | 3 | 连续满足条件 >3 次才切换 |
-| 轮询周期 | 100ms | 实际去抖约 **300ms** |
+| `CHARGE_TEMP_AVG_WINDOW` | 20 | 温度滑动平均窗口 |
+| `CHARGE_TEMP_POLICY_POLL_INTERVAL` | 3 | 连续满足 >3 次才切换 |
+| 轮询周期 | 100ms | 策略去抖约 **400ms** |
+| 插枪 | 复位为 UNKNOW | 不开充，等平均温度 + 去抖后再套用 |
 
-### 6.5 温度传参精度
-
-`charging_temp_policy_handler(int8_t temp)` 接收 **int8_t 整数**，调用处传入 float 会被截断：
-
-```c
-s_charge_status.temp = charge_ntc_temperature_get(...);  // float，如 62.5 / 33.5
-charging_temp_policy_handler(s_charge_status.temp);      // 截断为 62 / 33
-```
-
-影响：45.9°C → 45（仍 NORMAL）；59.9°C → 59（仍 DERATED）；60.0°C → 60（DISABLE）。
-
-### 6.6 日志关键字
+### 6.5 日志关键字
 
 | 日志 | 含义 |
 |------|------|
@@ -223,7 +224,8 @@ charging_temp_policy_handler(s_charge_status.temp);      // 截断为 62 / 33
 
 | 事件 | 行为 |
 |------|------|
-| `CHARGE_EVENT_PLUG_IN` | PD 协商电流 → 设电流 → 开充 |
+| `CHARGE_EVENT_PLUG_IN` | 记录 PD 电流上限 → 刷新平均温度 → 复位 UNKNOW，等去抖后套策略 |
+| `CHARGE_EVENT_FORCE_PLUG_IN` | 同上（强制插入也走温度策略） |
 | `CHARGE_EVENT_PLUG_OUT` | 关充，清除 plug_in / mismatch / full |
 | `CHARGE_EVENT_ADAPTER_MISMATCH` | 关充，标记 mismatch |
 
@@ -303,20 +305,20 @@ if (ret == BSP_OK) {
 1. 插入 PD 适配器
 2. PD 协商成功 → PLUG_IN
 3. 读取 PD 电流（如 1500mA）→ s_charging_current_max = 1500
-4. charge_ibat_config(1500) + charge_power_control(true)
-5. 温度 15~45°C → NORMAL，维持 max 电流
+4. 记录 PD 电流上限，温度状态复位 UNKNOW，不开充
+5. 约 400ms 去抖后：15~45°C → 协议最大电流；边界温区 → 600mA；≤0 或 ≥60 → 关充
 6. 电池满 → BAT_FULL → CHARGE_STATE_FULL
 ```
 
 ### 11.2 高温降额 → 停充 → 恢复（正常物理过程）
 
-策略阈值 15 / 45 / 60，**正常降温路径必须逐级过渡，不会跳过 DERATED**：
+策略阈值 15 / 45 / 60，无回差；**正常降温路径必须逐级过渡，不会跳过 DERATED**：
 
 ```
-1. 46~59°C  → DERATED，charge_ibat_config(600mA)
-2. ≥60°C    → DISABLE，charge_power_control(false)，ibat=0
-3. 59°C     → DERATED，charge_ibat_config(600mA)，恢复 600mA 充电
-4. 15~45°C  → NORMAL，charge_ibat_config(max)，恢复满电流
+1. (45, 60)°C → DERATED，charge_ibat_config(600mA)
+2. ≥60°C      → DISABLE，charge_power_control(false)，ibat=0
+3. (45, 60)°C → DERATED，charge_ibat_config(600mA)，恢复 600mA 充电
+4. 15~45°C    → NORMAL，charge_ibat_config(max)，恢复协议最大电流
 ```
 
 ### 11.2.1 日志异常案例（62.5°C → 33.5°C 跳变）
@@ -330,7 +332,7 @@ if (ret == BSP_OK) {
 
 NTC 查表（`bsp_ntc_map.h`）验证：62°C ↔ 2.842 KΩ，33°C ↔ 7.453 KΩ，读数与温度自洽，但**跳变本身不合理**。
 
-后果：代码将 33（截断后）判为 NORMAL，误触发 `goto normal charging`；若此前处于 DERATED/DISABLE，还可能因 `s_charging_current` 缓存问题未正确恢复满电流。
+后果：代码将 33.5°C 判为 NORMAL（15~45），误触发 `goto normal charging`。
 
 > **结论：62 和 33 是日志采样值，不是策略配置值；该跳变属于 NTC 采样异常，不应作为正常恢复流程参考。**
 
@@ -355,7 +357,9 @@ NTC 查表（`bsp_ntc_map.h`）验证：62°C ↔ 2.842 KΩ，33°C ↔ 7.453 K�
 | 采样电阻假设 | 手册基于 10mΩ，若硬件使用其他阻值会有系统性偏差 |
 | 电流步进 | 50mA 步进，600mA 可精确设置，非 50 整数倍会向下取整 |
 | NTC 读数跳变 | 可能出现 62→33 等不合理跳变，直接触发 NORMAL，缺少变化率校验 |
-| 温度截断 | float 温度传 int8_t 处理，边界附近（45.x / 59.x / 60.x）有 ±1°C 误差 |
+| 15/45 边界抖动 | 无回差，温度在端点附近波动时可能在 600mA 与协议最大电流间切换（约 300ms 去抖） |
+| 插枪无条件开充 | 已修复：插枪走温度策略；DISABLE 期间每轮重申关充 |
+| 温度截断 | 已修复：策略使用 float，不再截成 int8_t |
 
 ---
 
