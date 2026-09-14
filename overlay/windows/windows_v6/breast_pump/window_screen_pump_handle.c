@@ -15,7 +15,7 @@
 #define PAGE_STATIC_NAME                    pump
 #define PAGE_NAME_STR                       "pump"
 /** 含 L+R 组合键（KEY_CODE_BOTH_CONTROL）：短按/长按(2~10s)均可进入或退出双边力度调节 */
-#define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL | KEY_CODE_TRAVEL_LOCK)
+#define PUMP_UI_KEY_CODE                    (ALL_KEY_CODE_NO_COMBINE | KEY_CODE_BOTH_CONTROL)
 #define PUMP_UI_KEY_TYPE                    (KEY_EVENT_CLICK | KEY_EVENT_DOWN | KEY_EVENT_UP | \
                                              KEY_EVENT_LONG_2S | KEY_EVENT_LONG_3S | KEY_EVENT_LONG_4S | \
                                              KEY_EVENT_LONG_5S | KEY_EVENT_LONG_6S | KEY_EVENT_LONG_7S | \
@@ -854,6 +854,10 @@ static int entry_event_cb(window_lift_cycle_e new_state,
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         proc->current_ui_type = PUMP_UI_TYPE_NONE;
+        if (proc->pump) {
+            WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
+            proc->pump->add_breast_pump_result_listener(proc, on_breast_pump_result_cb);
+        }
         int mode_index = 0;
         READ_PUMP_WORK_MODE(proc->pump, mode_index);
         if (proc->led && proc->led->hook && proc->led->hook->set_key_backlight) {
@@ -940,12 +944,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->receiver.id.code |= ID_BROADCAST_BREAST_PUMP_STATE_CHANGE;
     proc->receiver.receiver_cb = on_pump_ui_broadcast_receive_cb;
     register_broadcast_receiver(&proc->receiver);
-    /// 配置泵奶管理器.
-    if (proc->pump) {
-        WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
-        proc->pump->add_breast_pump_result_listener(proc, on_breast_pump_result_cb);
-    }
-    
+
     /// 设置窗口上下文.
     window_context_t *w_ctx = &proc->w_ctx;
     w_ctx->new_window_id = window_id;
