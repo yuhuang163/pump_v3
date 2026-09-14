@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "root_common_api.h" // IWYU pragma: keep
+#include "stdint.h"
 #include "windows_manager.h"
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "window_screen_power_on_guide.h" // IWYU pragma: keep
@@ -26,7 +27,10 @@ do { \
 
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
 #define IF_SUPPORT_POWER_ON_GUIDE_UI_HDR_REMOVE() \
-    power_on_guide_power_on_hold_ui_hdr_remove()
+    do { \
+        power_on_guide_power_on_hold_ui_hdr_remove(); \
+        power_on_guide_low_power_ui_hdr_remove(); \
+    } while (0)
 #define POWER_ON_GUIDE_HOLD_KEY_CODE            (KEY_CODE_POWER)
 #define POWER_ON_GUIDE_HOLD_KEY_TYPE            (KEY_EVENT_DOWN | KEY_EVENT_UP)
 #else
@@ -221,6 +225,33 @@ static int on_power_on_guide_keyevent_hdr(void *user_data, uint16_t keycode, uin
     return 0;
 }
 
+#if IS_SUPPORT_POWER_ON_GUIDE_UI
+/// 开机瞬间 cached battery_state 可能尚未轮询更新，用实时 percent/charge 对齐 manager 阈值
+static int power_on_guide_need_low_power_ui(ui_proc_power_on_guide_t *proc)
+{
+    uint8_t percent;
+    uint8_t charge_status;
+    uint8_t battery_state;
+
+    if (proc->battery == NULL) {
+        return 0;
+    }
+    percent = proc->battery->get_battery_percent();
+    charge_status = proc->battery->get_charge_status();
+    battery_state = proc->battery->get_battery_state();
+    LOG_WM("battery_state: %d, battery_percent: %d, charge_status: %d",
+        battery_state, percent, charge_status);
+    if (charge_status == CHARGE_STATE_CHARGING || charge_status == CHARGE_STATE_FULL) {
+        return 0;
+    }
+    if (battery_state == BATTERY_STATE_LOW_POWER_SHUTDOWN ||
+        battery_state == BATTERY_STATE_EMPTY) {
+        return 1;
+    }
+    return (percent <= LOW_BAT_PERCENTAGE);
+}
+#endif
+
 static int entry_event_cb(window_lift_cycle_e new_state,
     const struct window_context *thiz, const struct window_context *old_scr)
 {
@@ -257,7 +288,13 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             return 0;
         }
 #endif
-        show_power_on_guide_power_on_hold_ui(proc);
+        if (power_on_guide_need_low_power_ui(proc)) {
+            LOG_WM("low/empty battery on create, show charge reminder.");
+            show_power_on_guide_low_power_ui(proc);
+        } else {
+            LOG_WM("show power on hold ui.");
+            show_power_on_guide_power_on_hold_ui(proc);
+        }
 #else
         POST_WM_TASK_HANDLER_NO_DELAY(power_on_guide_power_off_task_handler, proc, POWER_ON_GUIDE_POWER_OFF_TASK_NAME);
 #endif

@@ -267,6 +267,8 @@ static int on_post_battery_init(void *ptr)
         DEVICE_IOCTL_ARGS_NO_RET(ctx->priv.battery, OP_CODE_BAT_ADD_HEALTH_CHANGE_CALLBACK, battery_health_change_callback);
         DEVICE_IOCTL_NO_RET(thiz->priv.battery, OP_CODE_BAT_POLL_VOLTAGE);
     }
+    /// 先按当前 percent/charge 算出 battery_state，避免开机引导等窗口等到第一次 1.5s 轮询才有状态
+    polling_battery_status(NULL);
     misc_manager_context_t *misc = ctx->priv.misc;
     if (misc) {
 #if IS_SUPPORT_DEVICE_CHARGE
