@@ -188,7 +188,7 @@ int platform_all_key_value(void)
             power_key_forbidden = false;
             BSP_LOG("power key", "forbidden reset");
         }
-        key_value &= 0xFFFE;
+        key_value = 0;
     }
 #endif
     return key_value;
