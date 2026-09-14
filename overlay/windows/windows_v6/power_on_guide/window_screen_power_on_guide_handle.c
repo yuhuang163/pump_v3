@@ -3,7 +3,6 @@
 *****************************************************************************************
 */
 #include "root_common_api.h" // IWYU pragma: keep
-#include "stdint.h"
 #include "windows_manager.h"
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "window_screen_power_on_guide.h" // IWYU pragma: keep
