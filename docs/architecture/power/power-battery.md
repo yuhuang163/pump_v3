@@ -39,7 +39,7 @@ battery_state_e: NONE / EMPTY(1%) / LOW_POWER_SHUTDOWN(5%) /
 ### 充电策略（drivers/battery/charge/bsp_charge.c）
 
 - 3 串电池，充电 IC I2C 0x75，PD 控制器 I2C 0x23。
-- 温度策略状态机：UNKNOW / NORMAL(15~45°C, PD≤2000mA) / DERATED(600mA) / DISABLE(≤0 或 ≥60°C，GPIO 关充电)，300ms 去抖。
+- 温度策略状态机：UNKNOW / NORMAL(15~45°C，PD 协议最大电流≤2000mA) / DERATED((0,15) 或 (45,60)°C，600mA) / DISABLE(≤0 或 ≥60°C，GPIO 关充电)。策略用 NTC 滑动平均温度，状态切换约 400ms 去抖；插枪只记电流上限，等去抖后才开充。
 - 充电状态 `get_charge_state`：mismatch→ERROR；full→FULL；plug_in→CHARGING；否则 UNCHARGE。FULL 需 100 次轮询去抖。
 - PD 匹配（bsp_charge_pd.c）：插入→`charge_pd_power_is_ready`（≥PD2.0）→ `CHARGE_EVENT_PLUG_IN`；版本过低→`ADAPTER_MISMATCH`。
 - 一次读 12 字节 ADC 寄存器（VBUS/IBUS/VBAT/IBAT/NTC/status），VBAT/NTC 各 20 点滑动平均。
@@ -48,6 +48,6 @@ battery_state_e: NONE / EMPTY(1%) / LOW_POWER_SHUTDOWN(5%) /
 
 - 开机超时检测与按键释放有竞态（UP 落在 timeout 窗口内会误关）。
 - 充电/适配器异常强制禁止 PM 休眠。
-- 充电温度 `temp` 是 float，`charging_temp_policy_handler(int8_t)` 截断为 int8。
+- 充电温度策略使用 float 滑动平均，无回差，状态切换约 400ms 去抖；DISABLE 期间每轮重申关充。
 - I2C 异常计数到阈值置 `s_charge_is_ready=false`，成功时不回退计数。
 - `system_power_off` 3 次 ioctl 尝试 + `platform_system_reboot` 兜底。
