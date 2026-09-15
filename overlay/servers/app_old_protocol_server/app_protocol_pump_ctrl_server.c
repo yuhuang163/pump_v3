@@ -1276,6 +1276,19 @@ static bool app_old_comm_report_start_block_abnormal(uint8_t abnormal_id)
     return true;
 }
 
+/// 漏气/未佩戴安全 UI 显示期间：阻断 App 控制
+static bool app_old_comm_check_if_seal_leak_block_abnormal(void)
+{
+    servers_manager_context_t *srv = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
+    uint8_t mask;
+
+    if (srv == NULL || srv->get_app_ctrl_block == NULL) {
+        return false;
+    }
+    mask = srv->get_app_ctrl_block();
+    return mask != 0;
+}
+
 /// 新手指引未完成或处于引导相关窗口：不操作并上报异常
 static bool app_old_comm_check_if_guide_block_abnormal(void)
 {
@@ -1285,6 +1298,10 @@ static bool app_old_comm_check_if_guide_block_abnormal(void)
         || wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_LOGO)) {
         LOG_SRV("guide window block");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
+    }
+    ///漏气/未佩戴安全 UI 显示期间：阻断 App 控制
+    if (app_old_comm_check_if_seal_leak_block_abnormal()) {
+        return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);;
     }
     return false;
 }
@@ -1301,30 +1318,36 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     EXCEPTION_CHECK_UINT(air_ctx);
     READ_PUMP_WORK_STATUS(pump_ctx, pump_status);
 
+    ///漏气/未佩戴安全 UI 显示期间：阻断 App 控制
+    if (app_old_comm_check_if_seal_leak_block_abnormal()) {
+        LOG_SRV("leak or no wear ui, return");
+        return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
+    }
+
     if (ctrl_status != APP_OLD_COMM_PUMP_CTRL_RUN) {
-        LOG_SRV("ctrl_status not run, return false");
+        LOG_SRV("ctrl_status not run, return");
         return false;
     }
 
     if (pump_status != BREAST_PUMP_FINISH && pump_status != BREAST_PUMP_IDLE) {
-        LOG_SRV("pump_status not finish or idle, return false");
+        LOG_SRV("pump_status not finish or idle, return");
         return false;
     }
     ///低电不足运行一次不允许启动
     if (batt_ctx->get_battery_state() == BATTERY_STATE_FORBID_START) {
-        LOG_SRV("battery percent low, return false");
+        LOG_SRV("battery percent low, return");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_LOW_BAT_CANNOT_START);
     }
     
     ///适配器不适配，运行一次不允许启动
     if (batt_ctx->get_charge_status() == CHARGE_STATE_ERROR) {
-        LOG_SRV("adapter error, return false");
+        LOG_SRV("adapter error, return");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_ADAPTER_ERROR);
     }
 
     ///旅行锁
     if (air_ctx->is_on_airplane_mode()) {
-        LOG_SRV("airplane mode, return false");
+        LOG_SRV("airplane mode, return");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_TRAVEL_LOCK);
     }
 
@@ -1333,7 +1356,7 @@ static bool app_old_comm_check_if_start_block_abnormal(uint8_t ctrl_status)
     EXCEPTION_CHECK_UINT(wm);
     if (wm->is_current_window(wm, ID_WINDOW_GUIDE) || wm->is_current_window(wm, ID_WINDOW_POWER_OFF)
         || wm->is_current_window(wm, ID_WINDOW_CHARGE) || wm->is_current_window(wm, ID_WINDOW_LOGO)) {
-        LOG_SRV("guide window, return false");
+        LOG_SRV("guide window, return");
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
     }
     //设备低电,运行启动，但是需要上报低电异常
@@ -1694,6 +1717,13 @@ void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab)
 {
     LOG_SRV(" Handling device reset request\n");
 
+    /// 新手指引未完成或者不可操作界面：不操作，上报异常
+    if (app_old_comm_check_if_guide_block_abnormal()) {
+        uint8_t nack_data = 0x00;
+        app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK,
+            APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
+        return;
+    }
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_VOID(pump_ctx);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_RESET_STATUS, 0, NULL);
@@ -1894,7 +1924,7 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK, APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
         return;
     }
-    /// 新手指引未完成：不操作，上报异常
+    /// 新手指引未完成或者不可操作界面：不操作，上报异常
     if (app_old_comm_check_if_guide_block_abnormal()) {
         uint8_t nack_data = 0x00;
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK,

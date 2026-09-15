@@ -426,6 +426,10 @@ static void on_breast_pump_result_cb(void *user_data, breast_pump_result_t *resu
     if (pump->status != result->status) {
         pump->status = result->status;
         LOG_SRV("on_breast_pump_result_cb: %d", result->status);
+        /// 泵重新启动：开启新的泵奶会话，重置关机同步标志以允许再次上报 D0
+        if (result->status == BREAST_PUMP_START) {
+            s_power_off_sync_d0_done = 0;
+        }
         if (result->status == BREAST_PUMP_FINISH) {
             LOG_SRV("FINISH");
             if (!s_power_off_sync_d0_done) {

@@ -77,6 +77,13 @@ typedef struct {
     void *val;
 } servers_publish_data_args_t;
 
+/// App 控制阻断门控位（由 UI 层在安全 UI 显示期间置位，app 协议层据此阻断控制命令）
+typedef enum {
+    SERVERS_APP_CTRL_BLOCK_NONE             = 0,
+    SERVERS_APP_CTRL_BLOCK_SEAL_LEAK        = (1 << 0), /// 重度漏气 UI
+    SERVERS_APP_CTRL_BLOCK_FIT_NOT_DETECTED = (1 << 1), /// 未佩戴 UI
+} servers_app_ctrl_block_e;
+
 struct rt_device_node;
 struct protocol_manager_context;
 typedef struct servers_manager_context {
@@ -86,10 +93,14 @@ typedef struct servers_manager_context {
         thread_context_t servers_thd; /// 服务器线程
         struct protocol_manager_context *protocol_ctx; /// 协议管理器
         uint8_t encrypt_status;///payload 是否加密
+        uint8_t app_ctrl_block; /// App 控制阻断门控 mask（servers_app_ctrl_block_e）
     } priv;
 
     /// public:
     int (*dispatch_servers_event_wrapper)(struct servers_manager_context *ctx, servers_publish_data_id_e msg_id);
+    void (*set_app_ctrl_block)(uint8_t mask);   /// 置位 App 控制阻断门控
+    void (*clear_app_ctrl_block)(uint8_t mask); /// 清除 App 控制阻断门控
+    uint8_t (*get_app_ctrl_block)(void);        /// 返回当前门控 mask（非 0 = 阻断）
     struct __servers_manager_hook {
         int (*on_perpare_init_route)(struct servers_manager_context *ctx);
         int (*on_post_init_route)(struct servers_manager_context *ctx);

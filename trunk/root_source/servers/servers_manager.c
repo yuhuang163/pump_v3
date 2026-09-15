@@ -47,6 +47,25 @@ static int dispatch_servers_event_wrapper(servers_manager_context_t *ctx, server
     return MSG_QUEUE_SEND(ctx->priv.servers_thd.msg_id, &msg_id, 100);
 }
 
+static void set_app_ctrl_block(uint8_t mask)
+{
+    if (thiz) {
+        thiz->priv.app_ctrl_block |= mask;
+    }
+}
+
+static void clear_app_ctrl_block(uint8_t mask)
+{
+    if (thiz) {
+        thiz->priv.app_ctrl_block &= (uint8_t)~mask;
+    }
+}
+
+static uint8_t get_app_ctrl_block(void)
+{
+    return thiz ? thiz->priv.app_ctrl_block : 0;
+}
+
 static void servers_work_thread(const void *args)
 {
     servers_publish_data_id_e msg = 0;
@@ -91,6 +110,9 @@ void *register_module_for_servers_new(list_head_t *list_head)
     MALLOC_FOR_PTR(ptr, servers_manager_context_t);
     thiz = ptr;
     thiz->dispatch_servers_event_wrapper = dispatch_servers_event_wrapper;
+    thiz->set_app_ctrl_block = set_app_ctrl_block;
+    thiz->clear_app_ctrl_block = clear_app_ctrl_block;
+    thiz->get_app_ctrl_block = get_app_ctrl_block;
     return ADD_MODULE("servers", ID_MODULE_SERVERS, NULL, 
         on_post_servers_init, ptr, list_head, sizeof(servers_manager_context_t));
 }

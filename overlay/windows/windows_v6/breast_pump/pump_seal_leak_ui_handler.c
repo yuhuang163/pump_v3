@@ -398,6 +398,9 @@ void show_pump_seal_leak_ui(ui_proc_pump_t *proc)
     ui_manager_context_t *ui;
 
     EXCEPTION_CHECK_VOID(proc);
+    if (proc->servers && proc->servers->set_app_ctrl_block) {
+        proc->servers->set_app_ctrl_block(SERVERS_APP_CTRL_BLOCK_SEAL_LEAK);
+    }
     ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui && ui->hook && ui->hook->ui_animation_play_init);
     proc->last_progress_ani_time = get_timestamp();
@@ -427,6 +430,9 @@ void show_pump_seal_leak_ui(ui_proc_pump_t *proc)
 
 void pump_seal_leak_ui_exit(ui_proc_pump_t *proc)
 {
+    if (proc && proc->servers && proc->servers->clear_app_ctrl_block) {
+        proc->servers->clear_app_ctrl_block(SERVERS_APP_CTRL_BLOCK_SEAL_LEAK);
+    }
     if (proc != NULL && proc->pump_light_status == PUMP_LIGHT_STATUS_SEAL_LEAK) {
         pump_seal_leak_led_restore(proc);
     }
@@ -517,6 +523,9 @@ void pump_seal_leak_led_tick(ui_proc_pump_t *proc)
 void pump_seal_leak_resume(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
+    if (proc->servers && proc->servers->clear_app_ctrl_block) {
+        proc->servers->clear_app_ctrl_block(SERVERS_APP_CTRL_BLOCK_SEAL_LEAK);
+    }
     if (proc->current_ui_type != PUMP_UI_TYPE_SEAL_LEAK) {
         return;
     }
@@ -549,6 +558,11 @@ void pump_seal_leak_init(ui_proc_pump_t *proc)
 
 void pump_seal_leak_exit(ui_proc_pump_t *proc)
 {
+    /// 窗口销毁时统一清除阻断门控，避免残留导致 App 控制被永久阻断
+    if (proc && proc->servers && proc->servers->clear_app_ctrl_block) {
+        proc->servers->clear_app_ctrl_block(SERVERS_APP_CTRL_BLOCK_SEAL_LEAK
+            | SERVERS_APP_CTRL_BLOCK_FIT_NOT_DETECTED);
+    }
     EXCEPTION_CHECK_VOID(proc && proc->algo && proc->algo->remove_algo_result_listener);
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_LEAK_TASK_NAME);
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);

@@ -224,6 +224,9 @@ void show_pump_fit_not_detected_ui(ui_proc_pump_t *proc)
     ui_manager_context_t *ui;
 
     EXCEPTION_CHECK_VOID(proc);
+    if (proc->servers && proc->servers->set_app_ctrl_block) {
+        proc->servers->set_app_ctrl_block(SERVERS_APP_CTRL_BLOCK_FIT_NOT_DETECTED);
+    }
     ui = proc->ui;
     EXCEPTION_CHECK_VOID(ui && ui->hook && ui->hook->ui_animation_play_init);
     proc->last_progress_ani_time = get_timestamp();
@@ -252,6 +255,9 @@ void show_pump_fit_not_detected_ui(ui_proc_pump_t *proc)
 void pump_fit_not_detected_ui_exit(ui_proc_pump_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_FIT_NOT_DETECTED_TASK_NAME);
+    if (proc && proc->servers && proc->servers->clear_app_ctrl_block) {
+        proc->servers->clear_app_ctrl_block(SERVERS_APP_CTRL_BLOCK_FIT_NOT_DETECTED);
+    }
     if (proc != NULL && proc->pump_light_status == PUMP_LIGHT_STATUS_FIT_NOT_DETECTED) {
         pump_fit_not_detected_led_restore(proc);
     }
@@ -260,6 +266,9 @@ void pump_fit_not_detected_ui_exit(ui_proc_pump_t *proc)
 void pump_fit_not_detected_resume(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
+    if (proc->servers && proc->servers->clear_app_ctrl_block) {
+        proc->servers->clear_app_ctrl_block(SERVERS_APP_CTRL_BLOCK_FIT_NOT_DETECTED);
+    }
     if (proc->current_ui_type != PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         return;
     }
