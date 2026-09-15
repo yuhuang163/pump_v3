@@ -415,6 +415,7 @@ static void window_dispatch_thread(const void *args)
         MSG_QUEUE_RECV(thd->msg_id, msg, OS_WAIT_FOREVER);
         thd->is_running = get_timestamp();
         LOG_WM("recv msg: %d, window_id: %d", msg->msg_type, msg->union_body.extra.window_id);
+        HANG_DETECT_LOCK(wm->priv.window_loop_detect_lock);
         switch (msg->msg_type) {
             case MSG_TYPE_WIN_DISPATCH:
                 WM_LOCK("--switch");
@@ -450,6 +451,7 @@ static void window_dispatch_thread(const void *args)
             default:
                 break;
         }
+        HANG_DETECT_UNLOCK(wm->priv.window_loop_detect_lock);
     }
 }
 
@@ -871,6 +873,8 @@ void *register_module_for_window_manager_new(list_head_t *list_head)
     USE_INIT_LIST_HEAD(&ptr->priv.history_list);
     MUTEX_INIT(&ptr->priv.history_lock, history_stack_lock);
     MUTEX_INIT(&ptr->priv.window_switch_lock, window_switch_lock);
+    HANG_DETECT_LOCK_INIT(&ptr->priv.window_loop_detect_lock, window_loop_detect_lock,
+                          HANG_DETECT_TIMEOUT_S);
     thiz = ptr;
 
     return ADD_MODULE("wm", ID_MODULE_WM, on_perpare_wm_init, 

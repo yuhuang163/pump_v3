@@ -22,7 +22,39 @@ extern "C" {
 #define RT_PRIO_PM_FREEZE_THREAD                       OS_PRIORITY_REALTIME
 #define RT_PRIO_PM_SLEEP_THREAD                        OS_PRIORITY_REALTIME
 #define RT_PRIO_KEY_INPUT_DISPATCH_THREAD              OS_PRIORITY_REALTIME5
-#define RT_PRIO_HANG_DETECT_THREAD                     OS_PRIORITY_REALTIME5
+/// 必须高于 UI(REALTIME6)，否则 UI 忙等时本线程无法采样。
+#define RT_PRIO_HANG_DETECT_THREAD                     OS_PRIORITY_REALTIME8
+
+#ifndef HANG_DETECT_POLL_PERIOD_MS
+#define HANG_DETECT_POLL_PERIOD_MS                     (500)
+#endif
+#ifndef HANG_DETECT_TIMEOUT_S
+#define HANG_DETECT_TIMEOUT_S                          (15)
+#endif
+#ifndef HANG_DETECT_DEFAULT_HOLD_TIME_S
+#define HANG_DETECT_DEFAULT_HOLD_TIME_S                HANG_DETECT_TIMEOUT_S
+#endif
+#ifndef HANG_DETECT_DEFAULT_WAIT_TIME_S
+#define HANG_DETECT_DEFAULT_WAIT_TIME_S                HANG_DETECT_TIMEOUT_S
+#endif
+#ifndef HANG_DETECT_UI_HOLD_TIME_S
+#define HANG_DETECT_UI_HOLD_TIME_S                     HANG_DETECT_TIMEOUT_S
+#endif
+#ifndef HANG_DETECT_UI_WAIT_TIME_S
+#define HANG_DETECT_UI_WAIT_TIME_S                     HANG_DETECT_TIMEOUT_S
+#endif
+#ifndef HANG_DETECT_STARTUP_GRACE_S
+#define HANG_DETECT_STARTUP_GRACE_S                    HANG_DETECT_TIMEOUT_S
+#endif
+#ifndef HANG_DETECT_DUMP_INTERVAL_S
+#define HANG_DETECT_DUMP_INTERVAL_S                    (10)
+#endif
+#ifndef HANG_DETECT_REBOOT_ON_DEADLOCK
+#define HANG_DETECT_REBOOT_ON_DEADLOCK                 (1)
+#endif
+#ifndef HANG_DETECT_REBOOT_DELAY_MS
+#define HANG_DETECT_REBOOT_DELAY_MS                    (300)
+#endif
 
 #ifndef RT_PRIO_WINDOW_DISPATCH_THREAD
 #define RT_PRIO_WINDOW_DISPATCH_THREAD                 OS_PRIORITY_REALTIME1

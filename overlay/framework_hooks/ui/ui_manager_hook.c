@@ -502,7 +502,9 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
         UI_DBG_SET_TIMER_RUNNING(timer_running);
         if (timer_running) {
             UI_DBG_SET_STEP(UI_DBG_STEP_LV_TIMER_HANDLER);
+            HANG_DETECT_LOCK(thiz->priv.ui_loop_detect_lock);
             ms_till_next = lv_timer_handler();
+            HANG_DETECT_UNLOCK(thiz->priv.ui_loop_detect_lock);
             UI_DBG_SET_MS_TILL_NEXT(ms_till_next);
             UI_DBG_SET_STEP(UI_DBG_STEP_LV_TIMER_HANDLER_DONE);
             if (ms_till_next > 10000) {
@@ -535,6 +537,7 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
 
         UI_DBG_SET_LAST_MSG_CMD(msg.cmd);
         UI_DBG_SET_STEP(UI_DBG_STEP_MSG_DISPATCH);
+        HANG_DETECT_LOCK(thiz->priv.ui_loop_detect_lock);
         switch ((ui_lvgl_msg_cmd_t)msg.cmd) {
             case UI_LVGL_MSG_CMD_ANIM_INIT:
                 UI_DBG_SET_STEP(UI_DBG_STEP_MSG_ANIM_INIT);
@@ -571,6 +574,7 @@ static void lvgl_display_handler(struct ui_manager_context *thiz)
             default:
                 break;
         }
+        HANG_DETECT_UNLOCK(thiz->priv.ui_loop_detect_lock);
     }
 }
 #endif
