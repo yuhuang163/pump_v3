@@ -598,7 +598,7 @@ static void pump_home_main_hint_shine_anim_update(pump_home_base_ui_info_t *info
 }
 
 static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, uint8_t mode_type,
-    bool paused, bool seal_showing)
+    bool is_show_mode_switch)
 {
     char tip_buf[64] = {0};
     const uint8_t pump_mode = info->mode.new_index;
@@ -623,8 +623,8 @@ static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, ui
         mode_switch = 0;
     }
     
-    /// 暂停或漏气文案展示时，不显示模式切换提示
-    if (paused || seal_showing) {
+    /// 如果不需要显示模式切换提示，则不显示
+    if (is_show_mode_switch == false) {
         mode_switch = 0;
     }
 
@@ -963,11 +963,13 @@ void pump_home_main_page_ui_update(pump_home_base_ui_info_t *info, ui_proc_pump_
     pump_home_main_bg_update(info, mode);
 #endif
     pump_home_main_mode_title_update(info, mode);
-    pump_home_main_mode_switch_update(info, info->mode.new_mode_type, paused,
-        pump_home_main_seal_check_showing(proc, paused));
+    bool is_show_mode_switch = (hold_time > 5 && paused == false) ? true : false;
+    if (is_show_mode_switch && pump_home_main_seal_check_showing(proc, paused)) {  
+        is_show_mode_switch = false; /// 如果需要显示模式切换提示，但漏气文案展示，则不显示
+    }
+    pump_home_main_mode_switch_update(info, info->mode.new_mode_type, is_show_mode_switch);
     pump_home_main_seal_check_update(info, proc, mode, paused);
-    pump_home_main_seal_check_shine_anim_update(info,
-        pump_home_main_seal_check_showing(proc, paused));
+    pump_home_main_seal_check_shine_anim_update(info, pump_home_main_seal_check_showing(proc, paused));
     pump_home_main_time_update(info, hours, minutes, seconds, paused);
     pump_home_base_animation_ui_update(info);
     pump_home_main_play_icon_update(info, paused);
