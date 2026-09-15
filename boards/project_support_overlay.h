@@ -94,6 +94,10 @@ extern "C" {
 #else
 #define IS_SUPPORT_LVGL                                  (0)
 #endif
+/// 死锁/卡死监测（0：走关闭前逻辑，不加检测锁、不起监测线程）
+#ifndef IS_SUPPORT_HANG_DETECT
+#define IS_SUPPORT_HANG_DETECT                           (0)
+#endif
 
 /// 支持PD充电
 #define IS_SUPPORT_PD_CHARGE                             (1)

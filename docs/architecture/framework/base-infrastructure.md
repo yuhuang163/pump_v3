@@ -9,7 +9,7 @@
 | `device_register.c` | 外设总线 pbus，宿主所有驱动 |
 | `broadcast_manager.c` | 广播 pub/sub |
 | `handler_post.c` | 延迟任务投递引擎 |
-| `hang_detect.c` | 卡死检测（**当前空壳**） |
+| `hang_detect.c` | 互斥锁卡死/死锁检测 + UI/WM 线程忙段看门狗 |
 | `thread_common.c` | 线程运行态软判定 |
 | `time_system.c` | UTC 时间模块 |
 | `reboot.c` | 优雅重启（等队列空闲，最多 5s） |
@@ -72,7 +72,7 @@ typedef struct multi_func_msg_data {
 
 ## 8. 注意事项
 
-- `hang_detect.c` 是空壳：`init_hang_detect_context` / `add_to_hang_detect_list` 均为空函数，锁卡死检测不生效（`MUTEX_INIT_HOLD` 链路断开）。
+- `hang_detect.c` 由 `IS_SUPPORT_HANG_DETECT` 控制。超时统一 **15s**。仅 **等待环** 或 **持锁 ≥15s 未释放** 才 dump 并硬复位；单纯等锁过久只打日志，避免 flash/切窗等合法长操作误重启。
 - `find_module` 静态缓存非线程安全（裸写无锁），register 完成后业务线程起来前多用，风险低。
 - `platform_post_init` 当前为空实现。
 - `root_list.c` 的 `__list_empty` 条件回调返回 NULL 会 LOGE「memery leak」并中断清理。

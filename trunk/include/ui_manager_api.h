@@ -88,6 +88,7 @@ typedef struct ui_manager_context {
             os_timer_id lv_timer; /// LVGL定时器
     #endif
         os_mutex_id ui_draw_lock; /// 显示刷新锁
+        os_mutex_id ui_loop_detect_lock; /// UI 循环忙段检测锁
         broadcast_obj_t m_bcd; /// 广播监听对象
         struct rt_device_node *panel_dev;   /// 显示设备
         struct rt_device_node *led_dev;     /// LED设备

@@ -128,6 +128,7 @@ void *register_module_for_ui_manager_new(list_head_t *list_head)
 {
     MALLOC_FOR_PTR(ptr, ui_manager_context_t);
     MUTEX_INIT(&ptr->priv.ui_draw_lock, ui_draw_lock);
+    HANG_DETECT_LOCK_INIT(&ptr->priv.ui_loop_detect_lock, ui_loop_detect_lock, HANG_DETECT_TIMEOUT_S);
     ptr->play_animation_lock = ui_play_animation_lock;
     ptr->play_animation_unlock = ui_play_animation_unlock;
 #if IS_SUPPORT_LVGL

@@ -91,6 +91,7 @@ typedef struct window_manager_context {
         list_head_t history_list; /// 历史列表
         os_mutex_id history_lock; /// 历史列表锁
         os_mutex_id window_switch_lock; /// 窗口切换锁
+        os_mutex_id window_loop_detect_lock; /// 窗口调度忙段检测锁
         broadcast_obj_t *bcd; /// 广播对象
         sys_language_e language_index; /// 语言索引
         bool system_is_ready; /// 系统启动完成标志
