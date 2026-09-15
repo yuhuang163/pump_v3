@@ -1718,12 +1718,12 @@ void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab)
     LOG_SRV(" Handling device reset request\n");
 
     /// 新手指引未完成或者不可操作界面：不操作，上报异常
-    if (app_old_comm_check_if_guide_block_abnormal()) {
+    /*if (app_old_comm_check_if_guide_block_abnormal()) {
         uint8_t nack_data = 0x00;
         app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_NACK,
             APP_OLD_COMM_CID_SET_BILATERAL_PUMP_PARAM, 1, &nack_data);
         return;
-    }
+    }*/
     breast_pump_manager_context_t *pump_ctx = (breast_pump_manager_context_t *)find_module(ID_MODULE_BREAST_PUMP);
     EXCEPTION_CHECK_VOID(pump_ctx);
     app_old_protocol_hander_frame_builder_send(APP_OLD_COMM_CT_ACK, APP_OLD_COMM_CID_RESET_STATUS, 0, NULL);
