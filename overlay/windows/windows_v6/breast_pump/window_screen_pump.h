@@ -14,6 +14,29 @@ extern "C" {
 #include "windows_map_define.h" // IWYU pragma: keep
 #include "input_key_code.h" // IWYU pragma: keep
 
+/// 个性化模式：窗口投递轮询后写入 ui_proc_pump_t，UI 只读这份缓存
+#define PUMP_CUSTOM_MODE_NAME_LEN              (32)
+
+/// 本窗口内部轮询投递：其它 pump 任务可 pump_poll_add 挂上
+#define PUMP_POLL_TASK_NAME                    "pump_poll_task"
+#define PUMP_POLL_TICK_MS                      (1000)
+#define PUMP_POLL_SLOT_MAX                     (4)
+
+typedef void (*pump_poll_cb_t)(void *user_data);
+
+typedef struct {
+    pump_poll_cb_t cb;
+    const char *name;
+    uint32_t interval_ms;
+    uint32_t last_ms;
+} pump_poll_item_t;
+
+typedef struct {
+    pump_poll_item_t items[PUMP_POLL_SLOT_MAX];
+    uint8_t count;
+    uint8_t started;
+} pump_poll_hub_t;
+
 /// 泵奶动画频率
 #define PUMP_ANIMATION_FREQ                    (20)
 #define PUMP_SPEED_ANIMATION_FREQ              (25)
@@ -270,6 +293,11 @@ typedef struct {
     uint16_t ui_mode_page_index; /// 当前UI模式页面索引（与 home 一致，驱动切页）
     uint32_t mode_select_idle_time; /// 模式选择页无操作计时起点
     uint8_t settings_success_style; /// settings success 文案样式 SETTINGS_SUCCESS_STYLE_*
+    /// 个性化模式（WM 投递轮询写入，UI 绘制只读）
+    uint8_t custom_mode_active;
+    uint32_t custom_mode_id;
+    char custom_mode_name[PUMP_CUSTOM_MODE_NAME_LEN];
+    pump_poll_hub_t poll_hub;
 
     /// 长按停止确认
     uint8_t stop_hold_holding; /// 停止确认页是否处于按住倒计时
@@ -337,6 +365,8 @@ typedef struct {
 pump_ui_persist_t *pump_ui_persist_get(void);
 /// 显示泵奶主界面
 void show_pump_home_ui(ui_proc_pump_t *proc);
+/// 本窗口轮询投递：其它 pump 任务可挂接（同 cb 重复 add 忽略）
+int pump_poll_add(ui_proc_pump_t *proc, pump_poll_cb_t cb, const char *name, uint32_t interval_ms);
 /// 泵奶状态UI相关
 void switch_pump_status_ui(ui_proc_pump_t *proc);
 /// 子页导航：进入子页前 push；退出时按策略 back

@@ -83,6 +83,20 @@ static void pump_home_root_bg_update(ui_manager_context_t *thiz)
 }
 #endif
 
+static void pump_home_base_ui_apply_custom_mode_from_proc(ui_proc_pump_t *proc)
+{
+    EXCEPTION_CHECK_VOID(pump_info && proc);
+    if (pump_info->mode.custom_mode_id != proc->custom_mode_id) {
+        LOG_UI("pump home custom refresh id %u -> %u",
+            pump_info->mode.custom_mode_id, proc->custom_mode_id);
+    }
+    pump_info->mode.custom_mode_active = proc->custom_mode_active;
+    pump_info->mode.custom_mode_id = proc->custom_mode_id;
+    memset(pump_info->mode.custom_id_str, 0, sizeof(pump_info->mode.custom_id_str));
+    strncpy(pump_info->mode.custom_id_str, proc->custom_mode_name,
+        sizeof(pump_info->mode.custom_id_str) - 1);
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -96,6 +110,7 @@ void pump_home_base_ui_prepare(ui_manager_context_t *thiz)
     }
     thiz->priv.fps_count = 0;
     thiz->priv.fps_start_time = get_timestamp();
+    LOG_UI("pump home prepare start t=%ld", get_timestamp());
     pump_home_root_init();
     ble_ui_init(thiz);
     pump_info->ui = thiz;
@@ -104,7 +119,10 @@ void pump_home_base_ui_prepare(ui_manager_context_t *thiz)
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     pump_info->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    pump_home_base_ui_apply_custom_mode_from_proc(proc);
+    LOG_UI("pump home prepare: page begin t=%ld", get_timestamp());
     pump_home_page_ui_prepare(pump_info);
+    LOG_UI("pump home prepare done t=%ld", get_timestamp());
 }
 
 void pump_home_base_ui_remove(ui_manager_context_t *thiz)
@@ -127,6 +145,8 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
     int time_index = 0;
     int pump_mode = 0;
 
+    const uint8_t first_frame = pump_info->force_update;
+
     READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
     READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
     pump_info->level.left = setting.level[0];
@@ -136,21 +156,7 @@ int pump_home_base_ui_process(ui_manager_context_t *thiz)
     pump_info->mode.new_mode_type = proc->motor->get_runtime_mode_type(false);
     pump_info->animation.anim_play_state = (proc->pump_status == BREAST_PUMP_PAUSE) ? 1 : 0;
 
-    if (pump_info->st) {
-        int custom_mode_id = 0;
-        int activate_status = 0;
-
-        pump_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, BREAST_PUMP_CUSTOM_MODE,
-            0, &custom_mode_id);
-        READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
-        pump_info->mode.custom_mode_active = (activate_status > 0) ? 1 : 0;
-        if (custom_mode_id != (int)pump_info->mode.custom_mode_id) {
-            pump_info->mode.custom_mode_id = (uint32_t)custom_mode_id;
-            memset(pump_info->mode.custom_id_str, 0, sizeof(pump_info->mode.custom_id_str));
-            pump_info->st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
-                sizeof(pump_info->mode.custom_id_str), pump_info->mode.custom_id_str);
-        }
-    }
+    pump_home_base_ui_apply_custom_mode_from_proc(proc);
 
     pump_home_root_bg_update(thiz);
 #if IS_SUPPORT_PUMP_HOME_UI_TEST

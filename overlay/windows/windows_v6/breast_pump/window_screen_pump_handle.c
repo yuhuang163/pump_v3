@@ -45,6 +45,7 @@ do { \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_LEAK_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME); \
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_FIT_NOT_DETECTED_TASK_NAME); \
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_POLL_TASK_NAME); \
 } while (0)
 
 /*
@@ -62,6 +63,150 @@ INIT_WINDOW_CONTEXT();
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
+static void pump_custom_mode_info_sync(ui_proc_pump_t *proc, uint8_t verbose)
+{
+    storage_manager_context_t *st;
+    int custom_mode_id = 0;
+    int activate_status = 0;
+    char name[PUMP_CUSTOM_MODE_NAME_LEN];
+    uint8_t changed = 0;
+    uint8_t active;
+
+    EXCEPTION_CHECK_VOID(proc && proc->pump);
+    memset(name, 0, sizeof(name));
+    READ_PUMP_MODE_ACTIVATE(proc->pump, BREAST_PUMP_CUSTOM_MODE, activate_status);
+    active = (activate_status > 0) ? 1 : 0;
+    if (proc->custom_mode_active != active) {
+        proc->custom_mode_active = active;
+        changed = 1;
+    }
+
+    st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (st) {
+        st->get_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO_ID, BREAST_PUMP_CUSTOM_MODE,
+            0, &custom_mode_id);
+        st->get_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE,
+            sizeof(name), name);
+        name[PUMP_CUSTOM_MODE_NAME_LEN - 1] = '\0';
+    }
+    if (proc->custom_mode_id != (uint32_t)custom_mode_id) {
+        proc->custom_mode_id = (uint32_t)custom_mode_id;
+        changed = 1;
+    }
+    if (strncmp(proc->custom_mode_name, name, PUMP_CUSTOM_MODE_NAME_LEN) != 0) {
+        memcpy(proc->custom_mode_name, name, PUMP_CUSTOM_MODE_NAME_LEN);
+        changed = 1;
+    }
+    if (verbose || changed) {
+        LOG_WM("pump custom mode: id=%u active=%d name=%s",
+            proc->custom_mode_id, proc->custom_mode_active, proc->custom_mode_name);
+    }
+}
+
+static void pump_custom_mode_poll_on_tick(void *user_data)
+{
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
+
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        return;
+    }
+    pump_custom_mode_info_sync(proc, 0);
+}
+
+static void pump_poll_tick_cb(hdr_post_args_t *args);
+
+static void pump_poll_post(ui_proc_pump_t *proc)
+{
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_POLL_TASK_NAME);
+    POST_WM_TASK_HANDLER_DELAYED_ARG1(pump_poll_tick_cb, PUMP_POLL_TICK_MS,
+        proc, PUMP_POLL_TASK_NAME);
+}
+
+static void pump_poll_tick_cb(hdr_post_args_t *args)
+{
+    ui_proc_pump_t *proc = (ui_proc_pump_t *)args->user_data;
+    pump_poll_hub_t *hub;
+    uint32_t now;
+    uint8_t i;
+
+    WINDOW_CONTEXT_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    hub = &proc->poll_hub;
+    if (hub->started == 0 || proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        return;
+    }
+    now = get_timestamp();
+    for (i = 0; i < hub->count; i++) {
+        pump_poll_item_t *item = &hub->items[i];
+        uint32_t interval;
+
+        if (item->cb == NULL) {
+            continue;
+        }
+        interval = (item->interval_ms == 0) ? PUMP_POLL_TICK_MS : item->interval_ms;
+        if (item->last_ms != 0 && (now - item->last_ms) < interval) {
+            continue;
+        }
+        item->last_ms = now;
+        item->cb(proc);
+        if (hub->started == 0) {
+            return;
+        }
+    }
+    pump_poll_post(proc);
+}
+
+int pump_poll_add(ui_proc_pump_t *proc, pump_poll_cb_t cb, const char *name, uint32_t interval_ms)
+{
+    pump_poll_hub_t *hub;
+    uint8_t i;
+
+    EXCEPTION_CHECK_INT(proc && cb);
+    hub = &proc->poll_hub;
+    for (i = 0; i < hub->count; i++) {
+        if (hub->items[i].cb == cb) {
+            return 0;
+        }
+    }
+    if (hub->count >= PUMP_POLL_SLOT_MAX) {
+        LOG_WM("pump poll full, drop %s", name ? name : "?");
+        return -1;
+    }
+    hub->items[hub->count].cb = cb;
+    hub->items[hub->count].name = name;
+    hub->items[hub->count].interval_ms = interval_ms;
+    hub->items[hub->count].last_ms = 0;
+    hub->count++;
+    LOG_WM("pump poll add %s interval=%u slots=%d",
+        name ? name : "?", (unsigned)interval_ms, hub->count);
+    return 0;
+}
+
+static void pump_poll_start(ui_proc_pump_t *proc)
+{
+    pump_poll_hub_t *hub;
+    uint8_t i;
+
+    EXCEPTION_CHECK_VOID(proc);
+    hub = &proc->poll_hub;
+    if (hub->started) {
+        return;
+    }
+    for (i = 0; i < hub->count; i++) {
+        hub->items[i].last_ms = 0;
+    }
+    hub->started = 1;
+    pump_poll_post(proc);
+}
+
+static void pump_poll_stop(ui_proc_pump_t *proc)
+{
+    if (proc) {
+        proc->poll_hub.started = 0;
+    }
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_POLL_TASK_NAME);
+}
+
 static void pump_async_level_adjust(ui_proc_pump_t *proc, const window_evt_level_t *data)
 {
     uint8_t level_max;
@@ -851,8 +996,11 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_pump_window_battery_state_change_cb);
         pump_seal_leak_init(proc);
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
+        pump_custom_mode_info_sync(proc, 0);
+        pump_poll_start(proc);
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
+        pump_custom_mode_info_sync(proc, 1);
         proc->current_ui_type = PUMP_UI_TYPE_NONE;
         if (proc->pump) {
             WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
@@ -887,6 +1035,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
         case ID_SCR_STATE_ON_PAUSE:
             proc->window_run_state = WINDOW_RUN_STATE_PAUSED;
             LOG_WM("==>%s window on pause", PAGE_NAME_STR);
+            pump_poll_stop(proc);
             stop_pump_ui_animation(proc); 
             break;
         case ID_SCR_STATE_ON_DESTORY:
@@ -938,6 +1087,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->algo = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->airplane_mode = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
+    pump_poll_add(proc, pump_custom_mode_poll_on_tick, "custom_mode", PUMP_POLL_TICK_MS);
     proc->servers = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
     /// 注册广播监听.
     proc->receiver.context = proc;
