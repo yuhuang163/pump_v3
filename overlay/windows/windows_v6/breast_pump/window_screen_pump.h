@@ -344,7 +344,7 @@ typedef struct {
     uint8_t seal_tip;
     /// 本轮检测窗口内最新结果 pump_seal_result_e
     uint8_t seal_result;
-    uint8_t leak_channel[AIR_PRESSURE_NUM]; /// 1: 该侧重度漏气（左/右）
+    uint8_t leak_channel[AIR_PRESSURE_NUM]; /// 1: 该侧重度漏气（左/右）；IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES 时任一侧漏则两侧均为 1
     #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     uint8_t wear_result[AIR_PRESSURE_NUM]; /// 漏气检测结果
     #endif
@@ -354,6 +354,8 @@ typedef struct {
     /// 重度漏气提醒：本次进入泵奶窗口是否已跳转过；页索引 pump_seal_leak_page_e
     uint8_t seal_leak_shown;
     uint16_t seal_leak_page_index;
+    /// 未佩戴弹窗：本次进入泵奶窗口是否已跳转过
+    uint8_t fit_not_detected_shown;
 
 } ui_proc_pump_t;
 
