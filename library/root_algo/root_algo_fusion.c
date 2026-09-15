@@ -75,7 +75,7 @@ static void wear_detection_process_data(void)
         
         ALGO_LOG_INFO("time_stamp: %d, air pressure: p1: %f, p2: %f", s_air_pressure_data.timestamp, s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
         ALGO_LOG_INFO("pump state: %d, %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state);
-        ALGO_LOG_INFO("v3pro status: %d/%d, delta_pwm: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
+        ALGO_LOG_INFO("compensation status: %d/%d, delta_pwm: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
         ALGO_LOG_INFO("wear state: %d, %d", s_result.leakage_status[0], s_result.leakage_status[1]);
         /*
         //ALGO_LOG_INFO("BaselineCnt: %d, %d", uDataBaselineCnt[0], uDataBaselineCnt[1]);
@@ -187,7 +187,7 @@ int algo_fusion_lib_init(algo_fusion_sensor_attr_type_e sensor_flag, algo_fusion
         // just for initialization - not the final parameters
         
         //v3_pressure_algo_get_version();
-        ALGO_LOG_INFO("v 3.0.1.7");
+        ALGO_LOG_INFO("v 3.0.1.8");
         V3WearDetectionInit(1, 1, 0, 0);
     }
     return ALGO_FUSION_INIT_SUCCESS;
