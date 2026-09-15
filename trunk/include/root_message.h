@@ -88,6 +88,10 @@ typedef enum {
     WINDOW_ASYNC_EVT_SPEED_ADJUST = 2, /// user_data: window_evt_speed_t *（home/pump）
     WINDOW_ASYNC_EVT_PUMP_PAUSE_SETTLE = 3, /// PM 静默超时：泵奶窗口暂停态触发结算后再关机
     WINDOW_ASYNC_EVT_POPUP_UPDATE = 4, /// overlay 弹窗已显示时更新内容；args1=popup_ui_id args2=popup_exit_time
+    WINDOW_ASYNC_EVT_CUSTOM_MODE_UPDATE = 5, /// 自定义模式更新；args1=custom_mode_id args2=custom_mode_name
+    WINDOW_ASYNC_EVT_MODE_SWITCH = 6, /// 模式切换；args1=模式/韵律ID
+    WINDOW_ASYNC_EVT_PUMP_STATUS_CHANGE = 7, /// 泵奶状态变化；args1=pump_status
+    WINDOW_ASYNC_EVT_NIGHT_LIGHT_ONOFF = 8, /// 夜灯开关；args1=onoff
 } window_async_evt_id_e;
 
 /// 窗口事件 flags
