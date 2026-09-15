@@ -15,6 +15,9 @@
 *****************************************************************************************
 */
 #define PUMP_FIT_NOT_DETECTED_BLINK_PERIOD_MS          (1000) /// 半周期 1000ms → 0.5Hz
+#ifndef IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE
+#define IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE          (1) /// 1: 一次吸乳仅触发一次
+#endif
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -113,6 +116,11 @@ static bool pump_fit_not_detected_can_jump(ui_proc_pump_t *proc)
     if (proc == NULL || proc->pump == NULL) {
         return false;
     }
+#if IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE
+    if (proc->fit_not_detected_shown) {
+        return false;
+    }
+#endif
     if (proc->current_ui_type != PUMP_UI_TYPE_HOME &&
         proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
         proc->current_ui_type != PUMP_UI_TYPE_BOTH_LEVEL_ADJUST &&
@@ -247,6 +255,9 @@ void show_pump_fit_not_detected_ui(ui_proc_pump_t *proc)
     };
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = PUMP_UI_TYPE_FIT_NOT_DETECTED;
+#if IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE
+    proc->fit_not_detected_shown = 1;
+#endif
     proc->pump_light_status = PUMP_LIGHT_STATUS_DEFAULT;
     pump_fit_not_detected_led_tick(proc);
     LOG_WM("show pump fit not detected ui.");

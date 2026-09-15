@@ -16,6 +16,9 @@
 #ifndef PUMP_SEAL_LEAK_MOCK_ENABLE
 #define PUMP_SEAL_LEAK_MOCK_ENABLE                      (0) /// 1: 模拟漏气/未佩戴，0: 走算法
 #endif
+#ifndef IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES
+#define IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES         (0) /// 1: 任一侧漏气按双侧展示
+#endif
 #define PUMP_SEAL_LEAK_BLINK_PERIOD_MS                  (1000) /// 半周期 1000ms → 0.5Hz
 #if PUMP_SEAL_LEAK_MOCK_ENABLE
 #define PUMP_SEAL_LEAK_MOCK_INTERVAL_MS                 (5000)
@@ -146,6 +149,12 @@ static uint8_t pump_seal_result_from_wear(ui_proc_pump_t *proc, const uint8_t *w
             worst = wear[i];
         }
     }
+#if IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES
+    /// UI 不区分左右：任一侧重度漏气则按双侧漏气展示
+    if (proc->leak_channel[0] || proc->leak_channel[1]) {
+        memset(proc->leak_channel, 1, sizeof(proc->leak_channel));
+    }
+#endif
     
     #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     memcpy(proc->wear_result, wear, sizeof(proc->wear_result));

@@ -257,6 +257,14 @@ extern "C" {
 
 /// 支持漏气调试结果展示
 #define IS_SUPPORT_PUMP_SEAL_RESULT_TIP                  (0)
+/// 漏气 UI 不区分左右：任一侧重度漏气时按双侧漏气展示
+#ifndef IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES
+#define IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES          (1)
+#endif
+/// 未佩戴弹窗：一次吸乳仅触发一次（参考重度漏气 seal_leak_shown）
+#ifndef IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE
+#define IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE            (1)
+#endif
 /// 罩杯未贴合 / 漏气页 Start 键灯：1 呼吸，0 沿用 0.5Hz 闪烁
 #ifndef IS_SUPPORT_PUMP_START_LED_BREATH
 #define IS_SUPPORT_PUMP_START_LED_BREATH                 (1)
