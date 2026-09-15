@@ -42,6 +42,7 @@ static void home_ui_after_policy(ui_manager_context_t *ui, int index)
         home_mode_select_idle_timeout_handler(proc);
     }
     ui_display_home_process(ui);
+    // msleep(20 * 1000); /// 模拟20秒UI线程轮询锁死锁
 }
 
 static void home_animation_progress_cb(void *user_data, int index, ui_ani_progress_state_e state)

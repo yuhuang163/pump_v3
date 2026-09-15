@@ -20,6 +20,29 @@ extern "C" {
 /// 主界面绑定二维码展示时长
 #define HOME_BIND_QRCODE_DISPLAY_TIMEOUT       (3000) /// 3s
 
+/// 个性化模式：窗口投递轮询后写入 ui_proc_home_t，UI 只读这份缓存
+#define HOME_CUSTOM_MODE_NAME_LEN              (32)
+
+/// 本窗口内部轮询投递：其它 home 任务可 home_poll_add 挂上
+#define HOME_POLL_TASK_NAME                    "home_poll_task"
+#define HOME_POLL_TICK_MS                      (1000)
+#define HOME_POLL_SLOT_MAX                     (4)
+
+typedef void (*home_poll_cb_t)(void *user_data);
+
+typedef struct {
+    home_poll_cb_t cb;
+    const char *name;
+    uint32_t interval_ms;
+    uint32_t last_ms;
+} home_poll_item_t;
+
+typedef struct {
+    home_poll_item_t items[HOME_POLL_SLOT_MAX];
+    uint8_t count;
+    uint8_t started;
+} home_poll_hub_t;
+
 /// 力度调节过大限制与提示（单边/双边共用，默认关闭）
 #ifndef HOME_LEVEL_OVER_LIMIT_ENABLE
 #define HOME_LEVEL_OVER_LIMIT_ENABLE           (0)
@@ -222,6 +245,12 @@ typedef struct {
     /// 电池状态（由电池回调更新，首页提示文案读取，不轮询电量）
     uint8_t hint_low_bat; /// HOME_HINT_TYPE_*：0默认 / 1低电可跑 / 2禁止启动
 
+    /// 个性化模式（WM 投递轮询写入，UI 绘制只读）
+    uint8_t custom_mode_active;
+    uint32_t custom_mode_id;
+    char custom_mode_name[HOME_CUSTOM_MODE_NAME_LEN];
+    home_poll_hub_t poll_hub;
+
     /// 子页导航栈（回历史页 / 回首页）
     home_ui_nav_t ui_nav;
 } ui_proc_home_t;
@@ -231,6 +260,8 @@ typedef struct {
 *****************************************************************************************
 */
 void start_home_ui_animation(ui_proc_home_t *proc);
+/// 本窗口轮询投递：其它 home 任务可挂接（同 cb 重复 add 忽略）
+int home_poll_add(ui_proc_home_t *proc, home_poll_cb_t cb, const char *name, uint32_t interval_ms);
 void start_home_idle_ui_animation(ui_proc_home_t *proc);
 /// 待机页退出回首页（按键灯全亮）；退出触发见 HOME_IDLE_SCHEME
 void home_idle_ui_dismiss(ui_proc_home_t *proc);
