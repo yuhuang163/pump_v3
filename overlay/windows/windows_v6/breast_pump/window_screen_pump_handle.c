@@ -1088,6 +1088,7 @@ window_enter_result_e PAGE_HANDLE_NAME(PAGE_STATIC_NAME)(window_manager_context_
     proc->led = (led_manager_context_t *)find_module(ID_MODULE_LED);
     proc->airplane_mode = (airplane_mode_context_t *)find_module(ID_MODULE_AIRPLANE_MODE);
     pump_poll_add(proc, pump_custom_mode_poll_on_tick, "custom_mode", PUMP_POLL_TICK_MS);
+    proc->servers = (servers_manager_context_t *)find_module(ID_MODULE_SERVERS);
     /// 注册广播监听.
     proc->receiver.context = proc;
     proc->receiver.name = "pump_screen";

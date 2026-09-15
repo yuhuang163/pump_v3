@@ -276,6 +276,7 @@ typedef struct {
     algo_manager_context_t *algo;
     led_manager_context_t *led;
     airplane_mode_context_t *airplane_mode;
+    servers_manager_context_t *servers;
     broadcast_obj_t receiver;
     window_broadcast_args_t broadcast_args; /// 广播投递参数.
     uint32_t margic;
