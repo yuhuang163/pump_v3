@@ -412,6 +412,7 @@ static int charge_status_poll(charge_chip_status_t *status)
     data_ptr += 2;
     status->ntc_resistance  = CHARGE_GET_10BIT_DATA(data_ptr) * NTC_VOLTAGE_SCALE / NTC_CURRENT_COEFF;
     status->status = ((reg_data[10] & 0xFFFF) << 8) | reg_data[11];
+    // BSP_LOG_HEX("charge status", reg_data, 12);
     return BSP_OK;
 }
 
@@ -798,7 +799,12 @@ int bsp_charge_init(void)
     if (ret == BSP_OK) {
         msleep(50);
         ret = charge_status_poll(&s_charge_status);
-        LOG_PBUS("charge vbat:%dmV, ibat:%dmA, temp:%.1f", s_charge_status.vbat, s_charge_status.ibat, s_charge_status.temp);
+        if (ret == BSP_OK) {
+            s_charge_status.temp_raw = charge_ntc_temperature_get(s_charge_status.ntc_resistance);
+            s_charge_status.temp = charge_temp_average(s_charge_status.temp_raw);
+        }
+        LOG_PBUS("charge vbat:%dmV, ibat:%dmA, temp:%.1f/%.1f",
+                s_charge_status.vbat, s_charge_status.ibat, s_charge_status.temp, s_charge_status.temp_raw);
     }
     s_charge_is_ready = (ret == BSP_OK);
 #endif

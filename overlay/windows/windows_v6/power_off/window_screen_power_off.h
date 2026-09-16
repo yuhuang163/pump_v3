@@ -55,7 +55,8 @@ typedef struct {
     uint8_t window_run_state; /// WM是否运行.
     uint32_t last_progress_ani_time; /// 上次进度动画时间.
     uint16_t current_ui_type; /// 当前UI类型. factory_reset_ui_type_e
-    uint8_t rsv[6];
+    uint8_t vbus_check_retry_cnt; /// 进入窗口后 VBUS 延迟关机检测次数
+    uint8_t rsv[5];
 } ui_proc_power_off_t;
 
 /*

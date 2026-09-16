@@ -12,6 +12,8 @@
 */
 #define POWER_OFF_DELAY_TIME                    (1000 * 1)
 #define POWER_OFF_TASK_NAME                     "power_off_wm_task"
+#define POWER_OFF_VBUS_CHECK_RETRY_MAX          (3)
+#define POWER_OFF_VBUS_CHECK_DELAY_MS           (100)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -118,9 +120,15 @@ static int power_off_show_ui_by_charge_state(ui_proc_power_off_t *proc)
 
 #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
         if (proc->battery->is_vbus_plug_in()) {
-            LOG_WM("vbus plug in, delay power off check");
-            POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, 100, proc, POWER_OFF_TASK_NAME);
-            return 1;
+            if (proc->vbus_check_retry_cnt < POWER_OFF_VBUS_CHECK_RETRY_MAX) {
+                proc->vbus_check_retry_cnt++;
+                LOG_WM("vbus plug in, delay power off check (%d/%d)",
+                    proc->vbus_check_retry_cnt, POWER_OFF_VBUS_CHECK_RETRY_MAX);
+                POST_TASK_HANDLER_DELAYED_ARG1(power_off_cb, POWER_OFF_VBUS_CHECK_DELAY_MS,
+                    proc, POWER_OFF_TASK_NAME);
+                return 1;
+            }
+            LOG_WM("vbus plug in, retry limit reached, continue power off");
         }
 #endif
 
