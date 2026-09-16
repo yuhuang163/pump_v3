@@ -316,7 +316,10 @@ static int img_res_validate_and_dump(resource_manager_context_t *thiz, res_theme
     /// check magic
     const bool magic_ok = img_res_magic_valid(w.head.magic);
     LOG_RES("check.%s.magic: %s", theme_name, magic_ok ? "OK" : "FAIL");
-    ok = ok && magic_ok;
+    if (!magic_ok) {
+        ok = false;
+        goto out;
+    }
 
     /// check version compatibility (same major)
     const bool ver_ok = img_res_version_compatible(w.head.version);
@@ -371,6 +374,12 @@ static int img_res_validate_and_dump(resource_manager_context_t *thiz, res_theme
             header_fit_ok ? "OK" : "FAIL", 
             (unsigned)header_used, (unsigned)IMG_RES_HEADER_FIXED_SIZE);
     ok = ok && header_fit_ok;
+
+    /// Header fields are untrusted once any of the checks above failed.
+    /// Skip body/obj sampling to avoid huge flash reads and misleading logs.
+    if (!ok) {
+        goto out;
+    }
 
     uint32_t remaining = 0;
     uint32_t addr = 0;
@@ -462,25 +471,31 @@ static int img_res_validate_and_dump(resource_manager_context_t *thiz, res_theme
             }
 
             /// Verify first resource crc16 (streaming) to quickly sanity-check data placement.
-            uint16_t data_crc = 0xFFFF;
-            remaining = infos[0].data_size;
-            addr = base_addr + (uint32_t)IMG_RES_HEADER_FIXED_SIZE + infos[0].offset_addr;
-            while (ok && remaining) {
-                const uint32_t chunk = (remaining > buf_size) ? buf_size : remaining;
-                ret = img_res_flash_read(addr, buf, chunk);
-                if (ret != 0) {
-                    LOGE("read %s data failed: ret=%d addr=0x%08X size=%u", theme_name, ret, (unsigned)addr, (unsigned)chunk);
-                    ok = false;
-                    break;
+            /// Skip when obj[0] is already out of range: initial crc 0xFFFF vs erased flash also 0xFFFF
+            /// would otherwise report a false OK.
+            if (ok) {
+                uint16_t data_crc = 0xFFFF;
+                remaining = infos[0].data_size;
+                addr = base_addr + (uint32_t)IMG_RES_HEADER_FIXED_SIZE + infos[0].offset_addr;
+                while (remaining) {
+                    const uint32_t chunk = (remaining > buf_size) ? buf_size : remaining;
+                    ret = img_res_flash_read(addr, buf, chunk);
+                    if (ret != 0) {
+                        LOGE("read %s data failed: ret=%d addr=0x%08X size=%u", theme_name, ret, (unsigned)addr, (unsigned)chunk);
+                        ok = false;
+                        break;
+                    }
+                    CRC16_UPDATE(data_crc, buf, chunk);
+                    addr += chunk;
+                    remaining -= chunk;
                 }
-                CRC16_UPDATE(data_crc, buf, chunk);
-                addr += chunk;
-                remaining -= chunk;
+                if (ok) {
+                    const bool obj0_crc_ok = (data_crc == infos[0].crc16);
+                    LOG_RES("check.%s.crc16(data): %s (calc=0x%04X exp=0x%04X)", theme_name, obj0_crc_ok ? "OK" : "FAIL",
+                            (unsigned)data_crc, (unsigned)infos[0].crc16);
+                    ok = ok && obj0_crc_ok;
+                }
             }
-            const bool obj0_crc_ok = (data_crc == infos[0].crc16);
-            LOG_RES("check.%s.crc16(data): %s (calc=0x%04X exp=0x%04X)", theme_name, obj0_crc_ok ? "OK" : "FAIL",
-                    (unsigned)data_crc, (unsigned)infos[0].crc16);
-            ok = ok && obj0_crc_ok;
         } else {
             LOGE("read %s obj_info sample failed: ret=%d", theme_name, ret);
             ok = false;
