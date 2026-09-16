@@ -125,6 +125,7 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 		for (unsigned int i = 0; i < 11; i++)
 		{
 			tFeatureInfo[j].fPumpState4Pressure[i] = 0;
+			tFeatureInfo[j].uNoiseLevelBuff[i] = 0;
 		}
 		//LeakDetectReset(&tFeatureInfo[j]);
 
@@ -246,6 +247,7 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 	for (unsigned int i = 0; i < 11; i++)
 	{
 		tFeatureInfo[uChannelIdx].fPumpState4Pressure[i] = 0;
+		tFeatureInfo[uChannelIdx].uNoiseLevelBuff[i] = 0;
 	}
 	//LeakDetectReset(&tFeatureInfo[uChannelIdx]);
 
@@ -973,6 +975,15 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 			}
 			tFeatureInfoTemp->fPumpState4Pressure[0] = tFeatureInfoTemp->fPumpState4Pressure[10];
 			tFeatureInfoTemp->fPumpState4Pressure[10] = 0;
+
+			/* 更新噪声水平 */
+			for (unsigned int i = 9; i >= 1; i--)
+			{
+				tFeatureInfoTemp->uNoiseLevelBuff[i] = tFeatureInfoTemp->uNoiseLevelBuff[i - 1];
+			}
+			tFeatureInfoTemp->uNoiseLevelBuff[0] = tFeatureInfoTemp->uNoiseLevel;
+			tFeatureInfoTemp->uNoiseLevelBuff[10] = 0;
+
 		}
 		if (SUCTION_STATUS_SLEEP == uPumpState 
 			|| (SUCTION_STATUS_GENERATE == uPumpState && tFeatureInfoTemp->pumping_time < 10 
@@ -1515,25 +1526,33 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 
 		for (unsigned char i = 0; i < ulastIndex; i++)
 		{
-			if (tFeatureInfoTemp->fPumpState4Pressure[ulastIndex] >= 0)
+			if (tFeatureInfoTemp->fPumpState4Pressure[ulastIndex] >= 0 || tFeatureInfoTemp->uNoiseLevelBuff[ulastIndex] == 0)
 			{
 				continue;
 			}
 			/* 最新的5个平台的负压突然下拉 */
 			//printf("%f\n", (double)tFeatureInfoTemp->fPumpState4Pressure[i] - (double)tFeatureInfoTemp->fPumpState4Pressure[i + 5]);
-			if ((double)tFeatureInfoTemp->fPumpState4Pressure[i] <= -1.25)
+			if ((double)tFeatureInfoTemp->fPumpState4Pressure[i] <= -1.25 
+				&& (((tFeatureInfoTemp->uNoiseLevelBuff[i] - tFeatureInfoTemp->uNoiseLevelBuff[ulastIndex]) > 5)
+					|| tFeatureInfoTemp->uNoiseLevelBuff[i] > 15))
 			{
 				uPumpStateDecline_huge++;
 			}
-			else if ((double)tFeatureInfoTemp->fPumpState4Pressure[i] - (double)tFeatureInfoTemp->fPumpState4Pressure[ulastIndex] <= -1.0)
+			else if ((double)tFeatureInfoTemp->fPumpState4Pressure[i] - (double)tFeatureInfoTemp->fPumpState4Pressure[ulastIndex] <= -1.0 
+				&& (((tFeatureInfoTemp->uNoiseLevelBuff[i] - tFeatureInfoTemp->uNoiseLevelBuff[ulastIndex]) > 5)
+					|| tFeatureInfoTemp->uNoiseLevelBuff[i] > 15))
 			{
 				uPumpStateDecline_huge++;
 			}
-			if ((double)tFeatureInfoTemp->fPumpState4Pressure[i] - (double)tFeatureInfoTemp->fPumpState4Pressure[ulastIndex] <= -.8)
+			if ((double)tFeatureInfoTemp->fPumpState4Pressure[i] - (double)tFeatureInfoTemp->fPumpState4Pressure[ulastIndex] <= -.8
+				&& (((tFeatureInfoTemp->uNoiseLevelBuff[i] - tFeatureInfoTemp->uNoiseLevelBuff[ulastIndex]) > 5)
+					|| tFeatureInfoTemp->uNoiseLevelBuff[i] > 15))
 			{
 				uPumpStateDecline_med++;
 			}
-			if ((double)tFeatureInfoTemp->fPumpState4Pressure[i] - (double)tFeatureInfoTemp->fPumpState4Pressure[ulastIndex] <= -.5)
+			if ((double)tFeatureInfoTemp->fPumpState4Pressure[i] - (double)tFeatureInfoTemp->fPumpState4Pressure[ulastIndex] <= -.5
+				&& (((tFeatureInfoTemp->uNoiseLevelBuff[i] - tFeatureInfoTemp->uNoiseLevelBuff[ulastIndex]) > 5)
+					|| tFeatureInfoTemp->uNoiseLevelBuff[i] > 15))
 			{
 				uPumpStateDecline_small++;
 			}
