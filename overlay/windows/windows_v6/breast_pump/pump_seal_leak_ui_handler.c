@@ -440,9 +440,11 @@ static void pump_seal_leak_mock_tick_cb(hdr_post_args_t *args)
         return;
     }
     new_result = pump_seal_result_from_wear(proc, leakage);
-    if (new_result == proc->seal_result &&
-        proc->seal_tip != PUMP_SEAL_TIP_CHECKING) {
-        return;
+    if (new_result == proc->seal_result) {
+        if (proc->seal_tip != PUMP_SEAL_TIP_CHECKING ||
+            new_result == PUMP_SEAL_RESULT_NONE) {
+            return;
+        }
     }
     proc->seal_result = new_result;
     POST_WM_TASK_HANDLER_NO_DELAY(pump_seal_result_apply_cb, proc, PUMP_SEAL_LEAK_TASK_NAME);
@@ -472,9 +474,12 @@ static void pump_seal_leak_callback(void *user_data, algo_breast_pump_data_t *re
     memcpy(proc->weared_status, result->wear_detection.wear_result,
         sizeof(proc->weared_status));
     new_result = pump_seal_result_from_wear(proc, result->wear_detection.result);
-    if (new_result == proc->seal_result &&
-        proc->seal_tip != PUMP_SEAL_TIP_CHECKING) {
-        return;
+    if (new_result == proc->seal_result) {
+        /// CHECKING 仅在已有有效结果时允许同值再投，避免 NONE 帧按算法频率刷 WM 任务
+        if (proc->seal_tip != PUMP_SEAL_TIP_CHECKING ||
+            new_result == PUMP_SEAL_RESULT_NONE) {
+            return;
+        }
     }
     proc->seal_result = new_result;
     LOG_WM("seal result: %d(%d/%d) weared:%d/%d tip:%d shown:%d/%d", new_result,
