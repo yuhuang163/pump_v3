@@ -199,6 +199,7 @@ extern "C" {
 #define PRODUCT_TESTS_AGING_TIME_FMT                    "老化-%02lu时-%02lu分-%02lu秒"
 #define PRODUCT_TESTS_AGING_COMPLETE_TEXT               "老化完成"
 #define PRODUCT_TESTS_AGING_RUNNING_TEXT                "老化中"
+#define PUMP_HOME_MAIN_SEAL_FAIL_TEXT                   "密封检测未通过"
 
 #ifdef __cplusplus
 }

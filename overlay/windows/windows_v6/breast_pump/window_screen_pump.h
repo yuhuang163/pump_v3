@@ -196,15 +196,16 @@ typedef enum {
 typedef enum {
     PUMP_SEAL_TIP_NONE = 0,            /// 不显示，恢复波形
     PUMP_SEAL_TIP_CHECKING,            /// 检查中
-    PUMP_SEAL_TIP_RESULT,              /// 检查结果（仅不漏气）
+    PUMP_SEAL_TIP_RESULT,              /// 检查通过
+    PUMP_SEAL_TIP_RESULT_FAIL,         /// 检查未通过（首页 3s；与未佩戴/大漏页互斥）
 } pump_seal_tip_e;
 
 /// 漏气检测结果（算法回调驱动）
 typedef enum {
     PUMP_SEAL_RESULT_NONE = 0,         /// 尚未出结果：展示检测中
-    PUMP_SEAL_RESULT_NO_LEAK,          /// 不漏气：检测中结束后展示通过文案 3s
-    PUMP_SEAL_RESULT_SLIGHT,           /// 轻微漏气：收起检测中，不展示通过
-    PUMP_SEAL_RESULT_SEVERE,           /// 重度漏气：首次变为该状态时跳转
+    PUMP_SEAL_RESULT_NO_LEAK,          /// 不漏气：检测通过（优先级最低）
+    PUMP_SEAL_RESULT_SLIGHT,           /// 轻微漏气：检测失败
+    PUMP_SEAL_RESULT_SEVERE,           /// 重度漏气：优先大漏页，已提示过则检测失败
 } pump_seal_result_e;
 
 /// 重度漏气提醒页（与 UI 四页对齐，由 ui_proc_pump_t.seal_leak_page_index 驱动）
@@ -346,6 +347,7 @@ typedef struct {
     uint8_t seal_result;
     uint8_t leak_channel[AIR_PRESSURE_NUM]; /// 1: 该侧重度漏气（左/右）；跳转漏气页时锁存
     uint8_t leak_channel_latched; /// 1: leak_channel 已锁存，算法结果不再覆盖
+    uint8_t weared_status[AIR_PRESSURE_NUM]; /// 最新 weared_status（未佩戴优先级）
     #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     uint8_t wear_result[AIR_PRESSURE_NUM]; /// 漏气检测结果
     #endif
@@ -525,6 +527,8 @@ void pump_fit_not_detected_ui_exit(ui_proc_pump_t *proc);
 void pump_fit_not_detected_resume(ui_proc_pump_t *proc);
 void pump_fit_not_detected_reset(ui_proc_pump_t *proc);
 void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared);
+bool pump_fit_not_detected_is_not_worn(const uint8_t *weared);
+bool pump_fit_not_detected_try_jump(ui_proc_pump_t *proc);
 void pump_fit_not_detected_led_tick(ui_proc_pump_t *proc);
 
 #ifdef __cplusplus

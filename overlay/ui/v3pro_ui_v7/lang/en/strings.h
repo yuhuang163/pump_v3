@@ -198,6 +198,7 @@ extern "C" {
 #define PRODUCT_TESTS_AGING_TIME_FMT                    "aging-time-%02luh-%02lum-%02lus"
 #define PRODUCT_TESTS_AGING_COMPLETE_TEXT               "aging-complete"
 #define PRODUCT_TESTS_AGING_RUNNING_TEXT                "aging-running"
+#define PUMP_HOME_MAIN_SEAL_FAIL_TEXT                   "Seal check failed"
 
 #ifdef __cplusplus
 }

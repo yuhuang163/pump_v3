@@ -78,7 +78,9 @@ static bool pump_home_animation_res_get(uint8_t mode_index, uint8_t mode_type, u
 
 static bool pump_home_animation_is_seal(const pump_home_base_animation_info_t *anim)
 {
-    return anim->seal_tip == PUMP_SEAL_TIP_CHECKING || anim->seal_tip == PUMP_SEAL_TIP_RESULT;
+    return anim->seal_tip == PUMP_SEAL_TIP_CHECKING ||
+        anim->seal_tip == PUMP_SEAL_TIP_RESULT ||
+        anim->seal_tip == PUMP_SEAL_TIP_RESULT_FAIL;
 }
 
 static bool pump_home_animation_should_hide(const pump_home_base_animation_info_t *anim)
@@ -101,6 +103,13 @@ static bool pump_home_animation_target_get(const pump_home_base_ui_info_t *info,
         *start_id = BASE_RES_ID_CHECK_PASSED_ANIM_START;
         *end_id = BASE_RES_ID_CHECK_PASSED_ANIM_END;
         *res_type = PUMP_HOME_BASE_ANIM_CHECK_PASSED;
+        *loop = 0;
+        return true;
+    }
+    if (info->animation.seal_tip == PUMP_SEAL_TIP_RESULT_FAIL) {
+        *start_id = BASE_RES_ID_CHECK_FAILED_ANIM_START;
+        *end_id = BASE_RES_ID_CHECK_FAILED_ANIM_END;
+        *res_type = PUMP_HOME_BASE_ANIM_CHECK_FAILED;
         *loop = 0;
         return true;
     }

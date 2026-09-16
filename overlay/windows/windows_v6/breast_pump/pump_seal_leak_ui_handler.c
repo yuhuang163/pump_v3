@@ -240,6 +240,7 @@ static void pump_seal_leak_do_jump(ui_proc_pump_t *proc)
     LOG_WM("severe leak detected, jump to leak ui.");
     proc->seal_tip = PUMP_SEAL_TIP_NONE;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
+    proc->seal_result_time = 0;
     proc->seal_leak_page_index = PUMP_SEAL_LEAK_PAGE_CHECK_TUBING;
     pump_seal_leak_channel_latch(proc);
     pump_seal_leak_pause_pump(proc);
@@ -256,6 +257,23 @@ static void pump_seal_leak_trigger_ui_cb(hdr_post_args_t *args)
     pump_seal_leak_do_jump(proc);
 }
 
+static void pump_seal_result_tip_hide_cb(hdr_post_args_t *args);
+
+static void pump_seal_result_tip_show(ui_proc_pump_t *proc, uint8_t tip, uint8_t result)
+{
+    if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK ||
+        proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
+        proc->seal_tip = PUMP_SEAL_TIP_NONE;
+        return;
+    }
+    proc->seal_tip = tip;
+    proc->seal_result_time = get_timestamp();
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
+    POST_WM_TASK_HANDLER_DELAYED_ARG1(pump_seal_result_tip_hide_cb,
+        PUMP_SEAL_RESULT_TIMEOUT_MS, proc, PUMP_SEAL_RESULT_TIP_TASK_NAME);
+    LOG_WM("seal check result:%d, show tip %d 3s.", result, tip);
+}
+
 static void pump_seal_result_tip_hide_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc;
@@ -263,16 +281,19 @@ static void pump_seal_result_tip_hide_cb(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(args);
     proc = (ui_proc_pump_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
-    if (proc->seal_tip == PUMP_SEAL_TIP_RESULT) {
-        proc->seal_tip = PUMP_SEAL_TIP_NONE;
-        LOG_WM("seal check passed tip hide.");
+    if (proc->seal_tip != PUMP_SEAL_TIP_RESULT &&
+        proc->seal_tip != PUMP_SEAL_TIP_RESULT_FAIL) {
+        return;
     }
+    proc->seal_tip = PUMP_SEAL_TIP_NONE;
+    LOG_WM("seal check result tip hide.");
 }
 
 static void pump_seal_result_apply_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc;
     uint8_t result;
+    bool not_worn;
 
     EXCEPTION_CHECK_VOID(args);
     proc = (ui_proc_pump_t *)args->user_data;
@@ -280,29 +301,58 @@ static void pump_seal_result_apply_cb(hdr_post_args_t *args)
     if (!PUMP_IS_GOING(proc->pump_status)) {
         return;
     }
+    if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK ||
+        proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
+        proc->seal_tip = PUMP_SEAL_TIP_NONE;
+        return;
+    }
 
     result = proc->seal_result;
-    if (proc->seal_tip == PUMP_SEAL_TIP_CHECKING && result != PUMP_SEAL_RESULT_NONE) {
-        if (result == PUMP_SEAL_RESULT_NO_LEAK) {
-            proc->seal_tip = PUMP_SEAL_TIP_RESULT;
-            proc->seal_result_time = get_timestamp();
-            REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
-            POST_WM_TASK_HANDLER_DELAYED_ARG1(pump_seal_result_tip_hide_cb,
-                PUMP_SEAL_RESULT_TIMEOUT_MS, proc, PUMP_SEAL_RESULT_TIP_TASK_NAME);
-            LOG_WM("seal check passed, show result 3s.");
-        } else {
-            proc->seal_tip = PUMP_SEAL_TIP_NONE;
-            REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
-            LOG_WM("seal check leave checking, result:%d", result);
+    not_worn = pump_fit_not_detected_is_not_worn(proc->weared_status);
+
+    if (proc->seal_tip != PUMP_SEAL_TIP_CHECKING) {
+        /// 检测窗口已结束：后续重度漏气仍可跳大漏（未提示过时）
+        if (result == PUMP_SEAL_RESULT_SEVERE &&
+            proc->seal_tip != PUMP_SEAL_TIP_RESULT_FAIL) {
+            pump_seal_leak_do_jump(proc);
+            if (proc->current_ui_type != PUMP_UI_TYPE_SEAL_LEAK) {
+                pump_seal_leak_channel_unlatch(proc);
+            }
         }
+        return;
     }
 
-    if (result == PUMP_SEAL_RESULT_SEVERE) {
-        pump_seal_leak_do_jump(proc);
-        if (proc->current_ui_type != PUMP_UI_TYPE_SEAL_LEAK) {
-            pump_seal_leak_channel_unlatch(proc);
-        }
+    if (result == PUMP_SEAL_RESULT_NONE) {
+        return;
     }
+
+    /// 优先级：未佩戴 > 大漏 > 检测失败 > 检测通过；检测完必须四选一
+    if (not_worn) {
+        if (pump_fit_not_detected_try_jump(proc)) {
+            LOG_WM("seal resolve: fit not detected.");
+            return;
+        }
+        pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT_FAIL, result);
+        LOG_WM("seal resolve: not worn but popup skipped, show fail.");
+        return;
+    }
+    if (result == PUMP_SEAL_RESULT_SEVERE) {
+        if (pump_seal_leak_can_jump(proc)) {
+            pump_seal_leak_do_jump(proc);
+            LOG_WM("seal resolve: severe leak ui.");
+            return;
+        }
+        pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT_FAIL, result);
+        LOG_WM("seal resolve: severe already shown, show fail.");
+        return;
+    }
+    if (result == PUMP_SEAL_RESULT_SLIGHT) {
+        pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT_FAIL, result);
+        LOG_WM("seal resolve: slight leak, show fail.");
+        return;
+    }
+    pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT, result);
+    LOG_WM("seal resolve: pass.");
 }
 
 #if PUMP_SEAL_LEAK_MOCK_ENABLE
@@ -389,8 +439,10 @@ static void pump_seal_leak_mock_tick_cb(hdr_post_args_t *args)
     if (proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         return;
     }
+    memcpy(proc->weared_status, weared, sizeof(proc->weared_status));
     new_result = pump_seal_result_from_wear(proc, leakage);
-    if (new_result == proc->seal_result) {
+    if (new_result == proc->seal_result &&
+        proc->seal_tip != PUMP_SEAL_TIP_CHECKING) {
         return;
     }
     proc->seal_result = new_result;
@@ -418,14 +470,18 @@ static void pump_seal_leak_callback(void *user_data, algo_breast_pump_data_t *re
     if (proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         return;
     }
+    memcpy(proc->weared_status, result->wear_detection.wear_result,
+        sizeof(proc->weared_status));
     new_result = pump_seal_result_from_wear(proc, result->wear_detection.result);
-    if (new_result == proc->seal_result) {
+    if (new_result == proc->seal_result &&
+        proc->seal_tip != PUMP_SEAL_TIP_CHECKING) {
         return;
     }
     proc->seal_result = new_result;
-    LOG_WM("seal result: %d(%d/%d) weared:%d/%d", new_result,
+    LOG_WM("seal result: %d(%d/%d) weared:%d/%d tip:%d shown:%d/%d", new_result,
         result->wear_detection.result[0], result->wear_detection.result[1],
-        result->wear_detection.wear_result[0], result->wear_detection.wear_result[1]);
+        result->wear_detection.wear_result[0], result->wear_detection.wear_result[1],
+        proc->seal_tip, proc->fit_not_detected_shown, proc->seal_leak_shown);
     POST_WM_TASK_HANDLER_NO_DELAY(pump_seal_result_apply_cb, proc, PUMP_SEAL_LEAK_TASK_NAME);
 #endif
 }
@@ -439,6 +495,9 @@ void show_pump_seal_leak_ui(ui_proc_pump_t *proc)
     ui_manager_context_t *ui;
 
     EXCEPTION_CHECK_VOID(proc);
+    proc->seal_tip = PUMP_SEAL_TIP_NONE;
+    proc->seal_result_time = 0;
+    REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
     if (proc->servers && proc->servers->set_app_ctrl_block) {
         proc->servers->set_app_ctrl_block(SERVERS_APP_CTRL_BLOCK_SEAL_LEAK);
     }
