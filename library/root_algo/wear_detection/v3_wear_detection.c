@@ -617,7 +617,7 @@ void PressureDataPreprocess(float fPumpData, SFILTER_INFO* tFilterInfoTemp, SDAT
 		tFeatureInfoTemp->uDataIdx++;
 		tFeatureInfoTemp->uUpdateFlag = 0;
 	}
-
+	tFeatureInfoTemp->uTimeStamp ++;
 }
 
 
@@ -1038,6 +1038,14 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 			}
 			tFeatureInfoTemp->fPumpState4Pressure[0] = tFeatureInfoTemp->fPumpState4Pressure[10];
 			tFeatureInfoTemp->fPumpState4Pressure[10] = 0;
+
+			/* 更新噪声水平 */
+			for (unsigned int i = 9; i >= 1; i--)
+			{
+				tFeatureInfoTemp->uNoiseLevelBuff[i] = tFeatureInfoTemp->uNoiseLevelBuff[i - 1];
+			}
+			tFeatureInfoTemp->uNoiseLevelBuff[0] = tFeatureInfoTemp->uNoiseLevel;
+			tFeatureInfoTemp->uNoiseLevelBuff[10] = 0;
 		}
 
 		if (SUCTION_STATUS_SLEEP == uPumpState 
@@ -2975,8 +2983,6 @@ void GetWearDetectionResult(unsigned char* uWearStatus, unsigned char* uLeakStat
 		DetectOverTime[i] = tFeatureInfo[i].uDetectOverTime;
 	}
 
-
-
 }
 
 
@@ -3023,5 +3029,42 @@ void GetCompensationStatus(unsigned char* uCompsStatus, int* iDelta_pwm)
 	else
 		iDelta_pwm[1] = 0;
 }
+
+
+void GetWearDetectionDebugPackage(SRESULT_INFO *result_info)
+{
+	/* 1min 输出一次。 调试设置5分钟一次*/
+	if (tFeatureInfo[0].uTimeStamp % (SAMPLE_RATE*300) == 0)
+	{
+		for (unsigned char i = 0; i < CHANNEL_NUM; i++)
+		{
+			if (tFeatureInfo[i].uLeakStatus != 0 || tFeatureInfo[i].uLeakStatus == 3)
+			{
+				result_info[i].uLogIndex ++;
+			}
+			result_info[i].uGetResultFlag = 1;
+			/*
+			result_info[i].uLeakStatus = tFeatureInfo[i].uLeakStatus;
+			result_info[i].uNoiseLevel = tFeatureInfo[i].uNoiseLevel;
+			result_info[i].iDelta_pwm = tFeatureInfo[i].iDelta_pwm;
+			result_info[i].fPumpState4Pressure = tFeatureInfo[i].fPumpState4Pressure[0];
+			result_info[i].fMinPressure = tFeatureInfo[i].fRawSegMinPressure;*/
+
+			/* 先输出假值，之后再传入特征值 */
+			result_info[i].uLeakStatus = 0;
+			result_info[i].uNoiseLevel = 255;
+			result_info[i].iDelta_pwm = -255;
+			result_info[i].fPumpState4Pressure = -255.0;
+			result_info[i].fMinPressure = -255.0;
+		}
+	}
+	else
+	{
+		result_info[0].uGetResultFlag = 0;
+		result_info[1].uGetResultFlag = 0;
+	}
+
+}
+
 
 //#endif
