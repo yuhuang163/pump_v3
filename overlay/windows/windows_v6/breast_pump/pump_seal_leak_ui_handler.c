@@ -133,6 +133,34 @@ static void pump_seal_leak_ui_display_remove(void *user_data)
     ui_display_pump_seal_leak_remove(ui);
 }
 
+static void pump_seal_leak_channel_apply_ui_policy(ui_proc_pump_t *proc)
+{
+#if IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES
+    if (proc->leak_channel[0] || proc->leak_channel[1]) {
+        memset(proc->leak_channel, 1, sizeof(proc->leak_channel));
+    }
+#endif
+    /// 锁存后仍无通道：按双侧漏气展示，避免 L/R 都未选中
+    if (!proc->leak_channel[0] && !proc->leak_channel[1]) {
+        memset(proc->leak_channel, 1, sizeof(proc->leak_channel));
+    }
+}
+
+static void pump_seal_leak_channel_latch(ui_proc_pump_t *proc)
+{
+    if (proc->leak_channel_latched) {
+        return;
+    }
+    pump_seal_leak_channel_apply_ui_policy(proc);
+    proc->leak_channel_latched = 1;
+    LOG_WM("leak channel latch:%d/%d", proc->leak_channel[0], proc->leak_channel[1]);
+}
+
+static void pump_seal_leak_channel_unlatch(ui_proc_pump_t *proc)
+{
+    proc->leak_channel_latched = 0;
+}
+
 static uint8_t pump_seal_result_from_wear(ui_proc_pump_t *proc, const uint8_t *wear)
 {
     uint8_t worst = ALGO_WEAR_DETECTION_RESULT_INVALID;
@@ -144,17 +172,17 @@ static uint8_t pump_seal_result_from_wear(ui_proc_pump_t *proc, const uint8_t *w
 
     /// leakage_status: 0 无效, 1 无漏气, 2 微小漏气, 3 强漏气；两侧取更差一侧
     for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-        proc->leak_channel[i] = (wear[i] == ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK);
+        if (!proc->leak_channel_latched) {
+            proc->leak_channel[i] = (wear[i] == ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK);
+        }
         if (wear[i] > worst && wear[i] <= ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK) {
             worst = wear[i];
         }
     }
-#if IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES
-    /// UI 不区分左右：任一侧重度漏气则按双侧漏气展示
-    if (proc->leak_channel[0] || proc->leak_channel[1]) {
-        memset(proc->leak_channel, 1, sizeof(proc->leak_channel));
+    if (!proc->leak_channel_latched && worst == ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK) {
+        /// 首次强漏气即锁存，避免跳转前被后续帧覆盖成 [0,0]
+        pump_seal_leak_channel_latch(proc);
     }
-#endif
     
     #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     memcpy(proc->wear_result, wear, sizeof(proc->wear_result));
@@ -213,6 +241,7 @@ static void pump_seal_leak_do_jump(ui_proc_pump_t *proc)
     proc->seal_tip = PUMP_SEAL_TIP_NONE;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
     proc->seal_leak_page_index = PUMP_SEAL_LEAK_PAGE_CHECK_TUBING;
+    pump_seal_leak_channel_latch(proc);
     pump_seal_leak_pause_pump(proc);
     show_pump_seal_leak_ui(proc);
 }
@@ -270,6 +299,9 @@ static void pump_seal_result_apply_cb(hdr_post_args_t *args)
 
     if (result == PUMP_SEAL_RESULT_SEVERE) {
         pump_seal_leak_do_jump(proc);
+        if (proc->current_ui_type != PUMP_UI_TYPE_SEAL_LEAK) {
+            pump_seal_leak_channel_unlatch(proc);
+        }
     }
 }
 
@@ -417,6 +449,7 @@ void show_pump_seal_leak_ui(ui_proc_pump_t *proc)
     if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK) {
         return;
     }
+    pump_seal_leak_channel_latch(proc);
     proc->seal_leak_page_index = PUMP_SEAL_LEAK_PAGE_CHECK_TUBING;
     pump_ui_nav_push(proc);
     pump_ui_change_hdr_remove(proc);
@@ -539,6 +572,7 @@ void pump_seal_leak_resume(ui_proc_pump_t *proc)
         return;
     }
     pump_seal_leak_led_restore(proc);
+    pump_seal_leak_channel_unlatch(proc);
     pump_start_pump_keep_ui(proc);
     pump_ui_nav_back(proc, PUMP_UI_NAV_BACK_HOME_RESET_PAGE);
 }
@@ -554,6 +588,7 @@ void pump_seal_leak_init(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc && proc->algo && proc->algo->add_algo_result_listener);
     proc->seal_result = PUMP_SEAL_RESULT_NONE;
     memset(proc->leak_channel, 0, sizeof(proc->leak_channel));
+    pump_seal_leak_channel_unlatch(proc);
     pump_fit_not_detected_reset(proc);
     proc->algo->add_algo_result_listener(proc, pump_seal_leak_callback);
 #if PUMP_SEAL_LEAK_MOCK_ENABLE
