@@ -344,7 +344,8 @@ typedef struct {
     uint8_t seal_tip;
     /// 本轮检测窗口内最新结果 pump_seal_result_e
     uint8_t seal_result;
-    uint8_t leak_channel[AIR_PRESSURE_NUM]; /// 1: 该侧重度漏气（左/右）；IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES 时任一侧漏则两侧均为 1
+    uint8_t leak_channel[AIR_PRESSURE_NUM]; /// 1: 该侧重度漏气（左/右）；跳转漏气页时锁存
+    uint8_t leak_channel_latched; /// 1: leak_channel 已锁存，算法结果不再覆盖
     #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     uint8_t wear_result[AIR_PRESSURE_NUM]; /// 漏气检测结果
     #endif
