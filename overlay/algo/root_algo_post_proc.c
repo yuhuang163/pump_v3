@@ -34,7 +34,9 @@ void algo_fusion_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_le
     algo_air_pressure_data_t algo_data = {0};
     motor_policy_info_t *info = ctx->priv.motor->priv.runtime.info;
     pump_setting_t current_setting = {0};
-    READ_PUMP_SETTING_INFO(ctx->priv.pump, 0, current_setting);
+    int time_index = 0;
+    READ_PUMP_MODE_STEP_INDEX(ctx->priv.pump, time_index);
+    READ_PUMP_SETTING_INFO(ctx->priv.pump, time_index, current_setting);
     uint8_t time_policy_mode =  ctx->priv.motor->get_runtime_mode_type(0);
 
     algo_data.timestamp = get_timestamp_ms(0);
@@ -54,6 +56,7 @@ void algo_fusion_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_le
         READ_PUMP_IS_WORKING(ctx->priv.pump, is_working);
         algo_data.do_work = (uint8_t)is_working;
     }
+
     for (int i = 0; i < ALGO_AIR_PRESSURE_NUM; i++) {
         if (i >= BREAST_PUMP_NUM) {
             break;
@@ -71,6 +74,18 @@ void algo_fusion_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_le
             algo_data.pump_state[i].run_time = get_timestamp_ms(info[i].state.start_time);
         #endif
     }
+
+#if 0
+    static uint16_t log_time = 0;
+    log_time++;
+    if (log_time % 100 == 0) {
+        LOG_PASS("algo data level:%d/%d target:%d/%d, mode:%d/%d, duty:%d/%d", 
+            algo_data.pump_state[0].level, algo_data.pump_state[1].level, 
+            algo_data.pump_state[0].target_pressure, algo_data.pump_state[1].target_pressure,
+            algo_data.pump_state[0].mode, algo_data.pump_state[1].mode,
+            algo_data.pump_state[0].pump_duty, algo_data.pump_state[1].pump_duty);
+    }
+#endif
 
 #if IS_SUPPORT_ALGO_LIB_LOG_OUTPUT
     for (uint8_t i = 0; i < BREAST_PUMP_NUM; i++) {
