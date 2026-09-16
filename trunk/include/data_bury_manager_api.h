@@ -123,10 +123,15 @@ typedef enum {
     DATA_BURY_WEAR_DETECTION_TYPE_MIXED,
 } data_bury_wear_detection_type_e;
 
+/** EVT_019 算法数据大小：单通道 SRESULT_INFO 16B + 预留 14B = 30B（v1.0.5） */
+#define DATA_BURY_WEAR_DETECTION_ALGO_DATA_SIZE   30u
+
 /** EVT_019 trigger 入参，经 DATA_BURY_TRIGGER_EVT_WEAR_DETECTION 的 args->val 传入 */
 typedef struct {
+    uint8_t device_side;
     uint8_t detection_type;
     uint32_t detection_data;
+    uint8_t algorithm_data[DATA_BURY_WEAR_DETECTION_ALGO_DATA_SIZE];
 } data_bury_trigger_wear_detection_t;
 
 /** EVT_011 trigger 入参，经 DATA_BURY_TRIGGER_EVT_EXCEPTION 的 args->val 传入 */

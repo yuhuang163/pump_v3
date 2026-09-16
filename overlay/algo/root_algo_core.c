@@ -80,6 +80,18 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
     ctx->priv.algo_data.wear_detection.compensation_status[1] = algo_result->compensation_status[1];
     ctx->priv.algo_data.wear_detection.compensation_delta_pwm[0] = algo_result->compensation_delta_pwm[0];
     ctx->priv.algo_data.wear_detection.compensation_delta_pwm[1] = algo_result->compensation_delta_pwm[1];
+
+    /// 佩戴检测算法数据埋点：按 device_side 分左右，uGetResultFlag==1 时各带单通道 SRESULT_INFO 上报
+    for (uint8_t side = 0; side < AIR_PRESSURE_NUM; side++) {
+        if (algo_result->sDebugInfo[side].uGetResultFlag == 1) {
+            data_bury_trigger_wear_detection_t wear = {0};
+            wear.device_side = (side == 0) ? DATA_BURY_DEVICE_SIDE_LEFT : DATA_BURY_DEVICE_SIDE_RIGHT;
+            wear.detection_type = DATA_BURY_WEAR_DETECTION_TYPE_PRESSURE;
+            wear.detection_data = algo_result->weared_status[side];
+            memcpy(wear.algorithm_data, &algo_result->sDebugInfo[side], sizeof(SRESULT_INFO));
+            DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_WEAR_DETECTION, 0, 0, &wear);
+        }
+    }
     algo_manager_dispatch_to_clients(ctx);
     log_count++;
     if (log_count > 100) {

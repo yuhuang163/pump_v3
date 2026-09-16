@@ -473,7 +473,8 @@ static int data_bury_tlv_pack_wear_detection(const uint8_t *packed, uint16_t pac
         return -1;
     }
     if (BURY_PACK_HDR(builder, packed) != 0 ||
-        BURY_ADD_U8(builder, 3, packed, 9) != 0 || BURY_ADD_U32(builder, 4, packed, 10) != 0) {
+        BURY_ADD_U8(builder, 3, packed, 9) != 0 || BURY_ADD_U32(builder, 4, packed, 10) != 0 ||
+        bury_builder_add_raw(builder, 0x05u, packed + 14, 30u) != 0) {
         return -1;
     }
     return 0;
