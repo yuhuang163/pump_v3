@@ -1101,6 +1101,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	unsigned char uCandidateWearStatus = tFeatureInfoTemp->uWearStatus;
 	unsigned int uMode = tDeviceInfoTemp->uMode;
 	unsigned int uLevel = tDeviceInfoTemp->uLevel;
+	unsigned char uOffDetect = 0;
 
 	/* =========================================================
 	 * 1. 当前处于“未佩戴”状态时，判断是否进入“已佩戴”状态
@@ -1522,17 +1523,13 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		{
 			/* 负压过低，直接报大漏 */
 			tFeatureInfoTemp->uLeakStatus = 3;
+			uOffDetect = 1;
 		}
 		/* 如果平台基线突然下降 */
 		unsigned char uPumpStateDecline_huge = 0;
 		unsigned char uPumpStateDecline_med = 0;
 		unsigned char uPumpStateDecline_small = 0;
 		unsigned char ulastIndex = 9;
-		if (tFeatureInfoTemp->fRawSegMinPressure > -3)
-		{
-			/* 负压过低，直接报大漏 */
-			tFeatureInfoTemp->uLeakStatus = 3;
-		}
 
 		for (unsigned char i = 0; i < ulastIndex; i++)
 		{
@@ -1571,6 +1568,8 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		if (uPumpStateDecline_huge >= 3 || uPumpStateDecline_med >= 5 || uPumpStateDecline_small >= 6)
 		{
 			tFeatureInfoTemp->uLeakStatus = 3;
+			uOffDetect = 1;
+
 		}
 		/* 平台期 负压回不到0基线 ( < -1.2kPa ) 则认为是大漏 */
 
@@ -1670,7 +1669,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	}
 
 	/* 优化：区分漏气状态时，负压变大的情况，同时，对非密封/大漏时不进行补偿 */
-	if ((tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2 || tFeatureInfoTemp->uLeakStatus == 3) 
+	if ((tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2) 
 		&& tFeatureInfoTemp->uLeakValleyCount >= 10)
 		//if (tFeatureInfoTemp->uWearStatus != WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus != 3)
 	{
@@ -1944,8 +1943,17 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	if (tFeatureInfoTemp->uWearStatus == WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus == 0)
 	{
 		tFeatureInfoTemp->uLeakStatus = 3;
+		uOffDetect = 1;
 	}
-
+	/* 大漏情况下，不补偿 */
+	if (1 == uOffDetect)
+	{
+		tFeatureInfoTemp->iPwmOffset = 0;
+		tFeatureInfoTemp->iDelta_pwm = 0;
+		tFeatureInfoTemp->fCompErrSum = 0.0f;
+		tFeatureInfoTemp->fCompPrevErr = 0.0f;
+		tFeatureInfoTemp->uCompsStatus = 0;
+	}
 }
 
 #elif LONGYI_OR_SHIGUANG == 1
