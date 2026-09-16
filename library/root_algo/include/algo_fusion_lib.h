@@ -19,7 +19,7 @@ extern "C" {
 #define IS_SUPPORT_ALGO_LIB_LOG_OUTPUT     0
 
 
-typedef struct {
+typedef struct __attribute__((packed)) {
     unsigned char   uLogIndex;
     unsigned char   uGetResultFlag;  /// 是否获取到结果标志位
 	unsigned char	uLeakStatus;	// leak result
