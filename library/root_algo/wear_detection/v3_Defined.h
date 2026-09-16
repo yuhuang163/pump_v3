@@ -15,7 +15,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.1.8"
+#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.1.9"
 
 /* hardware parameters */
 #define SAMPLE_RATE			(50)
@@ -277,6 +277,7 @@ typedef struct _FEATURE_INFO_
 	unsigned short	uDataBaselineCnt[3];		/* 休眠状态下, 基线平台>1200Pa (大漏), >700Pa (小漏), <100Pa (正常) 计数 */
 	unsigned short  uMinPressureCnt;			/* 最小负压低于目标负压 */
 	float			fPumpState4Pressure[11];	/* 分析泵休眠期趋势 其中：[0]为当前循环，[9]为前10个循环，[10]为当前循环的最小负压 */
+	unsigned short	uNoiseLevelBuff[11] ;			/* 分析噪声水平突变 其中：[0]为当前循环，[9]为前10个循环，[10]为当前循环的最小负压 */
 	unsigned short  uUnloadedINcmpstStatusCnt;	/* 持续出现大漏特征的计时 --- 在补偿阶段，可能会出现大漏/脱落的情况，这个时候需要判断 */
 }SFEATURE_INFO;
 
