@@ -15,7 +15,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.1.9"
+#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.2.0"
 
 /* hardware parameters */
 #define SAMPLE_RATE			(50)
@@ -155,6 +155,8 @@ typedef enum {
 typedef struct _GLOBAL_INFO
 {
 	unsigned char	do_work;			/* 是否正在泵奶 */
+	unsigned char	uLogIndex;			/* 模式 */
+	unsigned int	uCoolDownTime;		/* 冷却时间 */
 	unsigned int	currtimestamp;		/* 当前时间戳 */
 	unsigned int	prevtimestamp;		/* 泵初始时间戳 */
 }SGLOBAL_INFO;

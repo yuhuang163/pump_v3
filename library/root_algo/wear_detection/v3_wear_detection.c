@@ -24,6 +24,7 @@ SWAVE_INFO			tWaveInfo[2];
 SFEATURE_INFO		tFeatureInfo[2];
 SDEVICE_INFO		tDeviceInfo[2];
 SFILTER_INFO		tFilterInfo[2];
+SGLOBAL_INFO		tGlobalInfo = {0};
 
 
 /* get pressure algorithm version */
@@ -51,6 +52,7 @@ void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, un
 	tDeviceInfo[CHANNEL_1].uMode = uModeRight;
 	tDeviceInfo[CHANNEL_1].uLevel = ulevelRight - 1;
 	
+	tGlobalInfo.uCoolDownTime = 0;
 	for (int j = 0; j < CHANNEL_NUM; j++)
 	{
 		/* pv info */
@@ -617,7 +619,7 @@ void PressureDataPreprocess(float fPumpData, SFILTER_INFO* tFilterInfoTemp, SDAT
 		tFeatureInfoTemp->uDataIdx++;
 		tFeatureInfoTemp->uUpdateFlag = 0;
 	}
-	tFeatureInfoTemp->uTimeStamp ++;
+	
 }
 
 
@@ -2751,22 +2753,17 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 	unsigned char uModeRight = sPressureData.pump_state[CHANNEL_1].mode;
 
 	/* reset if mode or level changed */
-	if ((uLevelLeft - 1 != tDeviceInfo[CHANNEL_0].uLevel) ||
-		(uModeLeft != tDeviceInfo[CHANNEL_0].uMode))
+	if ((uLevelLeft - 1 != tDeviceInfo[CHANNEL_0].uLevel) 
+		|| (uModeLeft != tDeviceInfo[CHANNEL_0].uMode) 
+		|| 0 == sPressureData.do_work)
 	{
 		V3WearDetectionModeReset(uLevelLeft, uModeLeft, CHANNEL_0);
 	}
 
-	if ((uLevelRight - 1 != tDeviceInfo[CHANNEL_1].uLevel) ||
-		(uModeRight != tDeviceInfo[CHANNEL_1].uMode))
+	if ((uLevelRight - 1 != tDeviceInfo[CHANNEL_1].uLevel) 
+		|| (uModeRight != tDeviceInfo[CHANNEL_1].uMode) 
+		|| 0 == sPressureData.do_work)
 	{
-		V3WearDetectionModeReset(uLevelRight, uModeRight, CHANNEL_1);
-	}
-
-	/* reset if do_work is 0 */
-	if(sPressureData.do_work == 0)
-	{
-		V3WearDetectionModeReset(uLevelLeft, uModeLeft, CHANNEL_0);
 		V3WearDetectionModeReset(uLevelRight, uModeRight, CHANNEL_1);
 	}
 
@@ -2796,12 +2793,13 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		tFeatureInfo[i].uPumpState = sPressureData.pump_state[i].state;
 
 		ptTargetCurve = GetCurrentTargetCurveItem(&tDeviceInfo[i]);
+		/*
 		if (ptTargetCurve != NULL)
 		{
 			tFeatureInfo[i].fThreshold = ptTargetCurve->target_pump_pressure;
 			tFeatureInfo[i].fLoadedThreshold = ptTargetCurve->target_load_pressure;
 		}
-
+		*/
 		PressureDataPreprocess(sPressureData.air_pressure[i], &tFilterInfo[i], &tDataBuffer[i], &tFeatureInfo[i]);
 
 		float fFilteredNow = tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos];
@@ -2882,12 +2880,13 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		tFeatureInfo[i].uPumpState = sPressureData.pump_state[i].state;
 
 		ptTargetCurve = GetCurrentTargetCurveItem(&tDeviceInfo[i]);
+		/*
 		if (ptTargetCurve != NULL)
 		{
 			tFeatureInfo[i].fThreshold = ptTargetCurve->target_pump_pressure;
 			tFeatureInfo[i].fLoadedThreshold = ptTargetCurve->target_load_pressure;
 		}
-
+		*/
 		PressureDataPreprocess(sPressureData.air_pressure[i], &tFilterInfo[i], &tDataBuffer[i], &tFeatureInfo[i]);
 		
 		float fFilteredNow = tDataBuffer[i].fDataBuff[tDataBuffer[i].uCurrPos];
@@ -3034,34 +3033,36 @@ void GetCompensationStatus(unsigned char* uCompsStatus, int* iDelta_pwm)
 void GetWearDetectionDebugPackage(SRESULT_INFO *result_info)
 {
 	/* 1min 输出一次。 调试设置5分钟一次*/
-	if (tFeatureInfo[0].uTimeStamp % (SAMPLE_RATE*300) == 0)
+	if (tGlobalInfo.uCoolDownTime == 0)
 	{
-		for (unsigned char i = 0; i < CHANNEL_NUM; i++)
+		if (tGlobalInfo.uLogIndex < 40)
 		{
-			if (tFeatureInfo[i].uLeakStatus != 0 || tFeatureInfo[i].uLeakStatus == 3)
+			for (unsigned char i = 0; i < CHANNEL_NUM; i++)
 			{
-				result_info[i].uLogIndex ++;
-			}
-			result_info[i].uGetResultFlag = 1;
-			/*
-			result_info[i].uLeakStatus = tFeatureInfo[i].uLeakStatus;
-			result_info[i].uNoiseLevel = tFeatureInfo[i].uNoiseLevel;
-			result_info[i].iDelta_pwm = tFeatureInfo[i].iDelta_pwm;
-			result_info[i].fPumpState4Pressure = tFeatureInfo[i].fPumpState4Pressure[0];
-			result_info[i].fMinPressure = tFeatureInfo[i].fRawSegMinPressure;*/
+				if (tFeatureInfo[i].uLeakStatus == 3 
+					|| tFeatureInfo[i].uWearStatus == WEAR_STATE_OVERTIME)
+				{
+					tGlobalInfo.uLogIndex ++;
+					result_info[i].uLogIndex = tGlobalInfo.uLogIndex;
+					result_info[i].uGetResultFlag = 1;
+					
+					result_info[i].uLeakStatus = tFeatureInfo[i].uLeakStatus;
+					result_info[i].uNoiseLevel = tFeatureInfo[i].uNoiseLevel;
+					result_info[i].iDelta_pwm = tFeatureInfo[i].iDelta_pwm;
+					result_info[i].fPumpState4Pressure = tFeatureInfo[i].fPumpState4Pressure[0];
+					result_info[i].fMinPressure = tFeatureInfo[i].fRawSegMinPressure;
 
-			/* 先输出假值，之后再传入特征值 */
-			result_info[i].uLeakStatus = 0;
-			result_info[i].uNoiseLevel = 255;
-			result_info[i].iDelta_pwm = -255;
-			result_info[i].fPumpState4Pressure = -255.0;
-			result_info[i].fMinPressure = -255.0;
+					tGlobalInfo.uCoolDownTime = 60*SAMPLE_RATE;
+					break;
+				}
+			}
 		}
 	}
 	else
 	{
 		result_info[0].uGetResultFlag = 0;
 		result_info[1].uGetResultFlag = 0;
+		tGlobalInfo.uCoolDownTime --;
 	}
 
 }
