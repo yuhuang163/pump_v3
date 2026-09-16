@@ -18,35 +18,17 @@ extern "C" {
 
 #define IS_SUPPORT_ALGO_LIB_LOG_OUTPUT     0
 
-/*
-typedef struct {
-    float fLeftAmp[100];
-    float fRightAmp[100];
-    float fValue[100];
-    unsigned int uPos[100];
-    unsigned int uType[100];   /// 0: valley, 1: peak
-    unsigned int uwidth[100];
-    float fLeftValue[100];
-    float fRightValue[100];
-    unsigned int uLeftWidth[100];
-    unsigned int uRightWidth[100];
 
-    unsigned int	uPVIndex;
-	unsigned int	uWaveSpikes;
-	float			fMinData;
-	float			fMinDataBuff[6];
-	float			fMinDataBuffMin;
-	unsigned int	uNoiseLevel;
-	unsigned int	uDataIdx;		// data index
-	unsigned short	uUpdateFlag;
-	float			fThreshold;
-	float			fLoadedThreshold;
-	unsigned char	uWearStatus;	// result
-	unsigned char	uCompsStatus;
+typedef struct {
+    unsigned char   uLogIndex;
+    unsigned char   uGetResultFlag;  /// 是否获取到结果标志位
+	unsigned char	uLeakStatus;	// leak result
+    unsigned char   uNoiseLevel;	// noise level
+    float           fPumpState4Pressure;
+    float           fMinPressure;
 	int 			iDelta_pwm;			// 返回delta_pwm	-10000~10000
-	unsigned char	uPrevWearStatus;
-	unsigned int	uNormalWaveform;
-} SRESULT_INFO;*/
+
+} SRESULT_INFO;
 
 typedef struct {
     uint8_t leakage_status[2];   /// 泵奶未启动结果无效状态:0,佩戴正常无漏气：1,佩戴微小漏气:2，佩戴强漏气:3
@@ -54,7 +36,7 @@ typedef struct {
     uint8_t detection_overtime[2];    /// 未超时：0，超时：1，
     uint8_t compensation_status[2];     // 0: 不补偿, 1: 减小气压; 2:加大气压
     int compensation_delta_pwm[2];               // 0: 不补偿, -10000~-1:PWM减小, 1~10000: PWM增加
-    /*SRESULT_INFO debug_info[2];                    /// 调试信息，包含特征值等*/
+    SRESULT_INFO sDebugInfo[2];                    /// 调试信息，包含特征值等
 } algo_fusion_result_t;
 
 typedef enum {

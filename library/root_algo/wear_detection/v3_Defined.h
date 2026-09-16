@@ -223,6 +223,7 @@ typedef struct _WAVE_INFO
 
 typedef struct _FEATURE_INFO_
 {
+	unsigned long	uTimeStamp;		/* timestamp */
 	unsigned int	uDataIdx;		/* data index */
 	unsigned short	uUpdateFlag;
 	unsigned int	uPVIndex;
