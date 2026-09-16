@@ -261,6 +261,10 @@ extern "C" {
 #ifndef IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES
 #define IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES          (1)
 #endif
+/// 气密检测失败独立动画：1 用 CHECK_FAILED；0 沿用检测中动画、只换文案
+#ifndef IS_SUPPORT_PUMP_SEAL_FAIL_ANIM
+#define IS_SUPPORT_PUMP_SEAL_FAIL_ANIM                   (0)
+#endif
 /// 未佩戴弹窗：一次吸乳仅触发一次（参考重度漏气 seal_leak_shown）
 #ifndef IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE
 #define IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE            (1)

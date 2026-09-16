@@ -107,10 +107,17 @@ static bool pump_home_animation_target_get(const pump_home_base_ui_info_t *info,
         return true;
     }
     if (info->animation.seal_tip == PUMP_SEAL_TIP_RESULT_FAIL) {
+#if IS_SUPPORT_PUMP_SEAL_FAIL_ANIM
         *start_id = BASE_RES_ID_CHECK_FAILED_ANIM_START;
         *end_id = BASE_RES_ID_CHECK_FAILED_ANIM_END;
         *res_type = PUMP_HOME_BASE_ANIM_CHECK_FAILED;
         *loop = 0;
+#else
+        *start_id = BASE_RES_ID_CHECKING_SEAL_ANIM_START;
+        *end_id = BASE_RES_ID_CHECKING_SEAL_ANIM_END;
+        *res_type = PUMP_HOME_BASE_ANIM_CHECKING_SEAL;
+        *loop = 1;
+#endif
         return true;
     }
     return pump_home_animation_res_get(info->mode.new_index, info->mode.new_mode_type,
