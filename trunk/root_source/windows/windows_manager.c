@@ -400,6 +400,45 @@ static void window_post_async_key_event(multi_func_msg_data_t *msg)
     }
 }
 
+static void log_window_dispatch_recv(const multi_func_msg_data_t *msg)
+{
+    switch (msg->msg_type) {
+        case MSG_TYPE_WIN_DISPATCH:
+        case MSG_TYPE_WIN_PRELOAD:
+            LOG_WM("recv msg: %d, window: %s/%d", msg->msg_type,
+                   to_window_name(msg->union_body.extra.window_id),
+                   msg->union_body.extra.window_id);
+            break;
+        case MSG_TYPE_WIN_EVENT:
+        case MSG_TYPE_WIN_FLUSH:
+            LOG_WM("recv msg: %d, window: %s/%d, evt_id: %lu", msg->msg_type,
+                   to_window_name(msg->union_body.window_evt_data.window_id),
+                   msg->union_body.window_evt_data.window_id,
+                   (unsigned long)msg->union_body.window_evt_data.evt_id);
+            break;
+        case MSG_TYPE_INPUT_KEY_EVENT:
+            LOG_WM("recv msg: %d, keycode: %u, keytype: %u", msg->msg_type,
+                   msg->union_body.key_event_data.keycode,
+                   msg->union_body.key_event_data.keytype);
+            break;
+        case MSG_TYPE_CLOSE_POPUP_OVERLAY:
+            LOG_WM("recv msg: %d, close_popup_overlay", msg->msg_type);
+            break;
+        case MSG_TYPE_HANDLER_POST_EVENT:
+            LOG_WM("recv msg: %d, hdr_post: %s", msg->msg_type,
+                   msg->union_body.hdr_post.name ? msg->union_body.hdr_post.name : "null");
+            break;
+        case MSG_TYPE_BROADCAST_EVENT:
+            LOG_WM("recv msg: %d, broadcast: %s, id: 0x%lx", msg->msg_type,
+                   msg->union_body.bcr_pkg.obj.name ? msg->union_body.bcr_pkg.obj.name : "null",
+                   (unsigned long)msg->union_body.bcr_pkg.id.code);
+            break;
+        default:
+            LOG_WM("recv msg: %d", msg->msg_type);
+            break;
+    }
+}
+
 static void window_dispatch_thread(const void *args)
 {
     thread_context_t *thd = (thread_context_t *)args;
@@ -414,7 +453,7 @@ static void window_dispatch_thread(const void *args)
         thd->is_running = 0;
         MSG_QUEUE_RECV(thd->msg_id, msg, OS_WAIT_FOREVER);
         thd->is_running = get_timestamp();
-        LOG_WM("recv msg: %d, window_id: %d", msg->msg_type, msg->union_body.extra.window_id);
+        log_window_dispatch_recv(msg);
         HANG_DETECT_LOCK(wm->priv.window_loop_detect_lock);
         switch (msg->msg_type) {
             case MSG_TYPE_WIN_DISPATCH:
