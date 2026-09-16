@@ -8,8 +8,12 @@ extern "C" {
 #include <stdint.h>
 #include "app_data_bury_protocol_defs.h"
 
-/* Momcozy 数据埋点：PSRAM 环临时缓冲 + Flash 关机快照（8 槽 × 2048B ≈ 16KB） */
+/* Momcozy 数据埋点：PSRAM 环临时缓冲 + Flash 关机快照（V3Pro 用 4096，其余 2048） */
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+#define DATA_BURY_RING_DATA_SIZE           4096u
+#else
 #define DATA_BURY_RING_DATA_SIZE           2048u
+#endif
 /* Flash 槽数据块与 PSRAM 环等大，每槽 1 块（不再拆 512B 分片） */
 #define DATA_BURY_RING_CHUNK_SIZE          DATA_BURY_RING_DATA_SIZE
 #define DATA_BURY_RING_CHUNK_NUM           1u
@@ -21,9 +25,14 @@ extern "C" {
 
 /*
  * Flash/环内 packed 事件结构布局版本。
- * 修改 data_bury_evt_*_t 字段或变长布局时递增，开机与 Flash 中版本不一致则清空埋点队列。
+ * 修改 data_bury_evt_*_t 字段、变长布局或 chunk 大小（RING_DATA_SIZE）时递增，
+ * 开机与 Flash 中版本不一致则清空埋点队列。
  */
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+#define DATA_BURY_STORAGE_VERSION           2u
+#else
 #define DATA_BURY_STORAGE_VERSION           1u
+#endif
 
 #define DATA_BURY_SVC_DATA                 APP_DATA_BURY_PROTOCOL_SVC_DATA
 /*============================================================================
@@ -298,6 +307,7 @@ typedef struct __attribute__((packed)) {
     uint32_t evt_timestamp;
     uint8_t  detection_type;
     uint32_t detection_data;
+    uint8_t  algorithm_data_arrays[30]; /* v1.0.5 TLV 0x05：单通道 SRESULT_INFO 16B + 预留 14B */
 } data_bury_evt_wear_detection_t;
 
 /*============================================================================

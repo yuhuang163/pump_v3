@@ -523,20 +523,25 @@ static void data_bury_event_publish_pump_user_evt(data_bury_manager_context_t *c
 }
 
 static void data_bury_event_publish_wear_detection(data_bury_manager_context_t *ctx,
+                                                   uint8_t device_side,
                                                    uint8_t detection_type,
-                                                   uint32_t detection_data)
+                                                   uint32_t detection_data,
+                                                   const uint8_t *algorithm_data)
 {
     data_bury_evt_wear_detection_t evt = {0};
 
-    evt.device_side = ctx->data_bury_get_device_side();
+    evt.device_side = device_side;
     evt.use_session_id = DATA_BURY_EVT_USE_SESSION_PLACEHOLDER;
     evt.evt_timestamp = DATA_BURY_EVT_TIMESTAMP_PLACEHOLDER;
     evt.detection_type = detection_type;
     evt.detection_data = detection_data;
+    if (algorithm_data != NULL) {
+        memcpy(evt.algorithm_data_arrays, algorithm_data, sizeof(evt.algorithm_data_arrays));
+    }
     (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_WEAR_DETECTION,
                                   &evt, (uint16_t)sizeof(evt), 0u);
-    LOG_BURY("wear detection publish: type=%u data=0x%08x",
-             (unsigned)detection_type, (unsigned)detection_data);
+    LOG_BURY("wear detection publish: side=%u type=%u data=0x%08x",
+             (unsigned)device_side, (unsigned)detection_type, (unsigned)detection_data);
 }
 
 static void data_bury_event_publish_exception(data_bury_manager_context_t *ctx,
@@ -1013,7 +1018,8 @@ int data_bury_event_process_wear_detection(data_bury_manager_context_t *ctx,
         return -1;
     }
     wear = (const data_bury_trigger_wear_detection_t *)args->val;
-    data_bury_event_publish_wear_detection(ctx, wear->detection_type, wear->detection_data);
+    data_bury_event_publish_wear_detection(ctx, wear->device_side, wear->detection_type,
+                                           wear->detection_data, wear->algorithm_data);
     return 0;
 }
 
