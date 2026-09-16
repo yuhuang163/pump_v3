@@ -86,6 +86,17 @@
       "note": "file_index = resource_id - 1520"
     },
     {
+      "start_resource_id": "BASE_RES_ID_CHECK_FAILED_ANIM_START",
+      "end_resource_id": "BASE_RES_ID_CHECK_FAILED_ANIM_END",
+      "description": "气密检测未通过动画",
+      "file_template": "animation/check_failed/baj/CFail_{file_index:05d}_90x90_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -1540,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 1540"
+    },
+    {
       "start_resource_id": "BASE_RES_ID_CHECK_COMPLETE_ANIM_START",
       "end_resource_id": "BASE_RES_ID_CHECK_COMPLETE_ANIM_END",
       "description": "自检完成动画",

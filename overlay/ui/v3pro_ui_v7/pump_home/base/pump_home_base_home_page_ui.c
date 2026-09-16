@@ -162,8 +162,13 @@ static bool pump_home_main_seal_check_showing(const ui_proc_pump_t *proc, bool p
     if (paused || proc == NULL) {
         return false;
     }
+    if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK ||
+        proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
+        return false;
+    }
     return proc->seal_tip == PUMP_SEAL_TIP_CHECKING ||
-        proc->seal_tip == PUMP_SEAL_TIP_RESULT;
+        proc->seal_tip == PUMP_SEAL_TIP_RESULT ||
+        proc->seal_tip == PUMP_SEAL_TIP_RESULT_FAIL;
 }
 
 static const char *pump_home_main_seal_check_text_get(const ui_proc_pump_t *proc)
@@ -176,6 +181,9 @@ static const char *pump_home_main_seal_check_text_get(const ui_proc_pump_t *proc
     }
     if (proc->seal_tip == PUMP_SEAL_TIP_RESULT) {
         return PUMP_HOME_MAIN_SEAL_RESULT_TEXT;
+    }
+    if (proc->seal_tip == PUMP_SEAL_TIP_RESULT_FAIL) {
+        return PUMP_HOME_MAIN_SEAL_FAIL_TEXT;
     }
     return NULL;
 }

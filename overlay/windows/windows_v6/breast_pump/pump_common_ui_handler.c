@@ -542,6 +542,7 @@ void pump_seal_check_start(ui_proc_pump_t *proc)
     proc->seal_result_time = 0;
     proc->seal_tip = PUMP_SEAL_TIP_CHECKING;
     proc->seal_result = PUMP_SEAL_RESULT_NONE;
+    memset(proc->weared_status, 0, sizeof(proc->weared_status));
     pump_fit_not_detected_reset(proc);
     LOG_WM("seal check start.");
 #else

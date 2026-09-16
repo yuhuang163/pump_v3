@@ -146,6 +146,31 @@ static void pump_fit_not_detected_do_jump(ui_proc_pump_t *proc)
     show_pump_fit_not_detected_ui(proc);
 }
 
+bool pump_fit_not_detected_is_not_worn(const uint8_t *weared)
+{
+    uint8_t i;
+
+    if (weared == NULL) {
+        return false;
+    }
+    for (i = 0; i < AIR_PRESSURE_NUM; i++) {
+        if (weared[i] == ALGO_WEARED_STATUS_NOT_WORN ||
+            weared[i] == ALGO_WEARED_STATUS_WORN_OVT) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool pump_fit_not_detected_try_jump(ui_proc_pump_t *proc)
+{
+    if (!pump_fit_not_detected_can_jump(proc)) {
+        return false;
+    }
+    pump_fit_not_detected_do_jump(proc);
+    return proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED;
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -174,7 +199,7 @@ void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared)
         LOG_WM("wear result: %d/%d", weared[0], weared[1]);
     }
 
-    /// weared_status: 3 佩戴检测超时
+    /// 检测中超时立即跳未佩戴页；NOT_WORN 等漏气结果出来后由 seal resolve 按优先级处理
     for (i = 0; i < AIR_PRESSURE_NUM; i++) {
         if (weared[i] == ALGO_WEARED_STATUS_WORN_OVT) {
             worn_ovt = 1;
@@ -320,6 +345,18 @@ void pump_fit_not_detected_ui_exit(ui_proc_pump_t *proc)
 void pump_fit_not_detected_resume(ui_proc_pump_t *proc)
 {
     (void)proc;
+}
+
+bool pump_fit_not_detected_is_not_worn(const uint8_t *weared)
+{
+    (void)weared;
+    return false;
+}
+
+bool pump_fit_not_detected_try_jump(ui_proc_pump_t *proc)
+{
+    (void)proc;
+    return false;
 }
 
 #endif /* IS_SUPPORT_DEVICE_AIR_PRESSURE */
