@@ -33,6 +33,9 @@ extern "C" {
 #ifndef IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM
 #define IS_SUPPORT_PUMP_MODE_TIME_ENTER_ANIM             (1)
 #endif
+#ifndef IS_SUPPORT_PUMP_SEAL_FAIL_ANIM
+#define IS_SUPPORT_PUMP_SEAL_FAIL_ANIM                   (0) /// 1: 独立失败动画；0: 沿用检测中只换文案
+#endif
 
 
 #define PUMP_HOME_BASE_MAIN_TIME_DIGIT_COUNT             (2)
@@ -43,7 +46,7 @@ extern "C" {
 /** 主页提示扫光宽度（像素，CPU 软边剖面） */
 #define PUMP_HOME_BASE_MAIN_HINT_SHINE_W                 (140)
 /** 漏气检测/结果文案缓冲长度（含 '\0'） */
-#define PUMP_HOME_MAIN_SEAL_TIP_TEXT_LEN                 (32)
+#define PUMP_HOME_MAIN_SEAL_TIP_TEXT_LEN                 (80)
 
 /// 页间过渡动画参数（与 home base 一致）
 #ifndef PUMP_HOME_BASE_PAGE_TRANSITION_MS

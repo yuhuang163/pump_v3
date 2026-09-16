@@ -140,6 +140,9 @@ const char *const g_ui_str_default[UI_STR_ID_COUNT] = {
 #ifdef PUMP_HOME_MAIN_SEAL_RESULT_TEXT
     [UI_STR_ID_PUMP_HOME_MAIN_SEAL_RESULT_TEXT] = PUMP_HOME_MAIN_SEAL_RESULT_TEXT,
 #endif
+#ifdef PUMP_HOME_MAIN_SEAL_FAIL_TEXT
+    [UI_STR_ID_PUMP_HOME_MAIN_SEAL_FAIL_TEXT] = PUMP_HOME_MAIN_SEAL_FAIL_TEXT,
+#endif
 #ifdef PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT
     [UI_STR_ID_PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT] = PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT,
 #endif
@@ -457,9 +460,6 @@ const char *const g_ui_str_default[UI_STR_ID_COUNT] = {
 #endif
 #ifdef PRODUCT_TESTS_AGING_RUNNING_TEXT
     [UI_STR_ID_PRODUCT_TESTS_AGING_RUNNING_TEXT] = PRODUCT_TESTS_AGING_RUNNING_TEXT,
-#endif
-#ifdef PUMP_HOME_MAIN_SEAL_FAIL_TEXT
-    [UI_STR_ID_PUMP_HOME_MAIN_SEAL_FAIL_TEXT] = PUMP_HOME_MAIN_SEAL_FAIL_TEXT,
 #endif
 #ifdef UI_STR_MODE_PROGRAM
     [UI_STR_ID_MODE_PROGRAM] = UI_STR_MODE_PROGRAM,
@@ -4561,6 +4561,31 @@ const ui_widget_style_t g_ui_widget_default[UI_W_COUNT] = {
         .text_align = 0,
         .line_space =
             0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_SEAL_FAIL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+#ifdef PUMP_HOME_MAIN_SEAL_FAIL_LINE_SPACE
+            (int8_t)(PUMP_HOME_MAIN_SEAL_FAIL_LINE_SPACE)
+#else
+            0
+#endif
         ,
         .font_role = 0xFF,
         .max_w =

@@ -61,6 +61,7 @@ extern "C" {
 #define PUMP_HOME_MAIN_HINT_TEXT                        "按下旋钮恢复吸奶"
 #define PUMP_HOME_MAIN_SEAL_CHECKING_TEXT               "正在检测密封..."
 #define PUMP_HOME_MAIN_SEAL_RESULT_TEXT                 "密封检测通过"
+#define PUMP_HOME_MAIN_SEAL_FAIL_TEXT                   "设备漏气，吸力补偿中"
 #define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT             "已切换到%s\n吸力和速度可能会变化"
 #define PUMP_LEVEL_DIR_LEFT_TEXT                        "左侧吸力"
 #define PUMP_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力"
@@ -199,7 +200,7 @@ extern "C" {
 #define PRODUCT_TESTS_AGING_TIME_FMT                    "老化-%02lu时-%02lu分-%02lu秒"
 #define PRODUCT_TESTS_AGING_COMPLETE_TEXT               "老化完成"
 #define PRODUCT_TESTS_AGING_RUNNING_TEXT                "老化中"
-#define PUMP_HOME_MAIN_SEAL_FAIL_TEXT                   "密封检测未通过"
+
 
 #ifdef __cplusplus
 }

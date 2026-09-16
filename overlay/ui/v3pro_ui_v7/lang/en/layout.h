@@ -259,6 +259,7 @@ extern "C" {
 #define GUIDE_LEVEL_BOTH_GUIDE_LEFT_ICON_Y              (121)
 #define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_X             (255)
 #define GUIDE_LEVEL_BOTH_GUIDE_RIGHT_ICON_Y             (121)
+#define PUMP_HOME_MAIN_SEAL_FAIL_LINE_SPACE             (4)
 
 #ifdef __cplusplus
 }

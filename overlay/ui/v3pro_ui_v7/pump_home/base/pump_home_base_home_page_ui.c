@@ -685,16 +685,28 @@ static void pump_home_main_mode_switch_update(pump_home_base_ui_info_t *info, ui
     info->main.shown_mode_switch = mode_switch;
 }
 
-static void pump_home_main_seal_check_style_get(ui_shine_style_t *style)
+static int32_t pump_home_main_seal_check_line_space_get(const ui_proc_pump_t *proc)
+{
+    if (proc != NULL && proc->seal_tip == PUMP_SEAL_TIP_RESULT_FAIL) {
+        return PUMP_HOME_MAIN_SEAL_FAIL_LINE_SPACE;
+    }
+    return 0;
+}
+
+static void pump_home_main_seal_check_style_get(ui_shine_style_t *style, lv_obj_t *label)
 {
     ui_shine_style_init(style);
     style->mask_w = PUMP_HOME_MAIN_SEAL_CHECK_MASK_W;
     style->mask_y = PUMP_HOME_MAIN_SEAL_CHECK_MASK_Y;
     style->screen_w = PUMP_HOME_MAIN_SCREEN_W;
+    if (label != NULL && lv_obj_is_valid(label)) {
+        lv_obj_update_layout(label);
+        style->mask_y = (int16_t)lv_obj_get_y(label);
+    }
 }
 
 static void pump_home_main_seal_check_mask_update(pump_home_base_ui_info_t *info, bool show,
-    const char *text)
+    const char *text, int32_t line_space)
 {
     lv_obj_t *parent = pump_home_page_parent_get(info);
     ui_shine_style_t style;
@@ -711,11 +723,11 @@ static void pump_home_main_seal_check_mask_update(pump_home_base_ui_info_t *info
         return;
     }
 
-    pump_home_main_seal_check_style_get(&style);
+    pump_home_main_seal_check_style_get(&style, info->main.seal_check_label);
     info->main.seal_check_shine.mask_x = (int16_t)(-(int16_t)style.mask_w);
     info->main.seal_check_shine.mask_tick_ms = get_timestamp();
     ui_shine_prepare_from_text(&info->main.seal_check_shine, &style,
-        text, UI_FONT_HINT, 0, 0);
+        text, UI_FONT_HINT, 0, line_space);
     ui_shine_update(&info->main.seal_check_shine, parent, &style, info->main.seal_check_label, 1);
     ui_shine_show(&info->main.seal_check_shine);
 }
@@ -729,7 +741,7 @@ static void pump_home_main_seal_check_shine_anim_update(pump_home_base_ui_info_t
         return;
     }
 
-    pump_home_main_seal_check_style_get(&style);
+    pump_home_main_seal_check_style_get(&style, info->main.seal_check_label);
     anim_paused = info->animation.paused_by_transition ? 1 : 0;
     ui_shine_anim_update(&info->main.seal_check_shine, &style, info->main.seal_check_label,
         anim_paused);
@@ -741,6 +753,7 @@ static void pump_home_main_seal_check_update(pump_home_base_ui_info_t *info, ui_
     const bool show = pump_home_main_seal_check_showing(proc, paused);
     const char *text = show ? pump_home_main_seal_check_text_get(proc) : NULL;
     const uint32_t color = pump_home_main_hint_color_get(mode);
+    const int32_t line_space = pump_home_main_seal_check_line_space_get(proc);
     bool state_changed;
     bool text_changed = false;
 
@@ -768,8 +781,10 @@ static void pump_home_main_seal_check_update(pump_home_base_ui_info_t *info, ui_
     if (state_changed) {
         if (show && text != NULL) {
             lv_obj_set_style_text_color(info->main.seal_check_label, lv_color_hex(color), 0);
+            lv_obj_set_style_text_line_space(info->main.seal_check_label, line_space, 0);
             lv_label_set_text(info->main.seal_check_label, text);
             lv_obj_align(info->main.seal_check_label, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MAIN_SEAL_CHECK_Y);
+            lv_obj_update_layout(info->main.seal_check_label);
             pump_home_main_obj_flag_set(info->main.seal_check_label, true);
             strncpy(info->main.shown_seal_text, text, sizeof(info->main.shown_seal_text) - 1);
             info->main.shown_seal_text[sizeof(info->main.shown_seal_text) - 1] = '\0';
@@ -784,7 +799,7 @@ static void pump_home_main_seal_check_update(pump_home_base_ui_info_t *info, ui_
     }
 
     info->animation.seal_tip = show ? proc->seal_tip : PUMP_SEAL_TIP_NONE;
-    pump_home_main_seal_check_mask_update(info, show, text);
+    pump_home_main_seal_check_mask_update(info, show, text, line_space);
     info->main.shown_seal_check = show ? 1 : 0;
 }
 

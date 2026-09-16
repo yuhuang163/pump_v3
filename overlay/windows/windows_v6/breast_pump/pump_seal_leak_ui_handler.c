@@ -211,11 +211,9 @@ static bool pump_seal_leak_can_jump(ui_proc_pump_t *proc)
         return false;
     }
 
-#if !PUMP_SEAL_LEAK_MOCK_ENABLE
     if (proc->seal_leak_shown) {
         return false;
     }
-#endif
 
     if (proc->current_ui_type != PUMP_UI_TYPE_HOME &&
         proc->current_ui_type != PUMP_UI_TYPE_LEVEL_ADJUST &&
@@ -371,9 +369,9 @@ static void pump_seal_leak_mock_fill(uint8_t *leakage, uint8_t *weared)
     if (s_seal_leak_mock_step == PUMP_SEAL_LEAK_MOCK_STEP_NOT_WORN) {
         mask = pump_seal_leak_mock_channel_mask();
         for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-            leakage[i] = ALGO_WEAR_DETECTION_RESULT_INVALID;
+            leakage[i] = ALGO_WEAR_DETECTION_RESULT_NORMAL;
             weared[i] = (mask & (uint8_t)(1u << i)) ?
-                ALGO_WEARED_STATUS_NOT_WORN : ALGO_WEARED_STATUS_WORN;
+                ALGO_WEARED_STATUS_WORN_OVT : ALGO_WEARED_STATUS_WORN;
         }
         return;
     }
@@ -432,14 +430,15 @@ static void pump_seal_leak_mock_tick_cb(hdr_post_args_t *args)
     }
 
     pump_seal_leak_mock_fill(leakage, weared);
-    LOG_WM("seal mock step:%d leak:%d/%d weared:%d/%d", s_seal_leak_mock_step,
-        leakage[0], leakage[1], weared[0], weared[1]);
+    memcpy(proc->weared_status, weared, sizeof(proc->weared_status));
+    LOG_WM("seal mock step:%d leak:%d/%d weared:%d/%d shown:%d/%d", s_seal_leak_mock_step,
+        leakage[0], leakage[1], weared[0], weared[1],
+        proc->fit_not_detected_shown, proc->seal_leak_shown);
     pump_fit_not_detected_on_wear(proc, weared);
     s_seal_leak_mock_step = (uint8_t)((s_seal_leak_mock_step + 1u) % PUMP_SEAL_LEAK_MOCK_STEP_MAX);
     if (proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         return;
     }
-    memcpy(proc->weared_status, weared, sizeof(proc->weared_status));
     new_result = pump_seal_result_from_wear(proc, leakage);
     if (new_result == proc->seal_result &&
         proc->seal_tip != PUMP_SEAL_TIP_CHECKING) {

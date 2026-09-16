@@ -60,6 +60,8 @@ extern "C" {
 #define PUMP_HOME_MAIN_HINT_TEXT                        "Press to resume"
 #define PUMP_HOME_MAIN_SEAL_CHECKING_TEXT               "Checking seal..."
 #define PUMP_HOME_MAIN_SEAL_RESULT_TEXT                 "Seal check passed"
+// #define PUMP_HOME_MAIN_SEAL_FAIL_TEXT                   "Air leak detected. Compensating\nsuction..."
+#define PUMP_HOME_MAIN_SEAL_FAIL_TEXT                   "Air leak, suction adjusting..."
 #define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT             "Switched to %s.\nLevel and speed may changed."
 #define PUMP_LEVEL_DIR_LEFT_TEXT                        "Left Level"
 #define PUMP_LEVEL_DIR_RIGHT_TEXT                       "Right Level"
@@ -198,7 +200,7 @@ extern "C" {
 #define PRODUCT_TESTS_AGING_TIME_FMT                    "aging-time-%02luh-%02lum-%02lus"
 #define PRODUCT_TESTS_AGING_COMPLETE_TEXT               "aging-complete"
 #define PRODUCT_TESTS_AGING_RUNNING_TEXT                "aging-running"
-#define PUMP_HOME_MAIN_SEAL_FAIL_TEXT                   "Seal check failed"
+
 
 #ifdef __cplusplus
 }
