@@ -3,6 +3,7 @@
 *****************************************************************************************
 */
 #include "led_hook_internal.h" // IWYU pragma: keep
+#include "night_light_policy.h" // IWYU pragma: keep
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -22,7 +23,12 @@ static void led_hook_fill_state_snapshot(led_manager_context_t *thiz, led_broadc
     info->evt_id = (uint8_t)evt;
 #if IS_SUPPORT_NIGHT_LIGHT
     info->night_light_onoff = thiz->priv.night_light_onoff;
-    info->night_light_gear = thiz->priv.night_light_gear;
+    if (thiz->priv.night_light_adaptive_dimming_switch) {
+        /// 夜灯自适应开：上报 ALS 控制后的实际档位（无极亮度反推）
+        info->night_light_gear = night_light_policy_level_to_gear(thiz->priv.night_light_level);
+    } else {
+        info->night_light_gear = thiz->priv.night_light_gear;
+    }
     info->night_light_startup_switch = thiz->priv.night_light_startup_switch;
 #endif
     info->global_adaptive_dimming_switch = thiz->priv.global_adaptive_dimming_switch;

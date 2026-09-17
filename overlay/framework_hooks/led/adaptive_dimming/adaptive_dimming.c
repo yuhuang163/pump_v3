@@ -405,6 +405,15 @@ static void adaptive_dimming_slew_thread(void *user_data)
 #endif
 }
 
+/// 慢周期：自适应亮度/夜灯档位变化时触发 App 上报（5s 防抖，无极调光避免频繁上报）
+static void adaptive_dimming_report_thread(void *user_data)
+{
+    led_manager_context_t *led = (led_manager_context_t *)user_data;
+
+    EXCEPTION_CHECK_VOID(led);
+    led_hook_notify_state(led, LED_BROADCAST_NIGHT_LIGHT_ADAPTIVE);
+}
+
 #define LIGHT_SENSOR_USER_CALIB_INVALID_MARK      ((int32_t)0xFFFFFFFF)
 
 static int light_sensor_calib_thr_in_range(int32_t v)
@@ -534,6 +543,8 @@ void adaptive_dimming_init(void)
                         adaptive_dimming_polling_thread);
     misc->add_misc_task(led, MISC_TASK_ID_ADAPTIVE_DIMMING_SLEW, ADAP_DIM_SLEW_POLL_MS, MISC_WORK_MSG_ID_TIMER,
                         adaptive_dimming_slew_thread);
+    misc->add_misc_task(led, MISC_TASK_ID_ADAPTIVE_DIMMING_REPORT, 5000, MISC_WORK_MSG_ID_TIMER,
+                        adaptive_dimming_report_thread);
     sensor_manager_context_t *sensor = (sensor_manager_context_t *)find_module(ID_MODULE_SENSOR);
     EXCEPTION_CHECK_VOID(sensor);
 #if IS_SUPPORT_DEVICE_LIGHT_SENSOR_CALIB
