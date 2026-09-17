@@ -142,7 +142,8 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 
 ### 3.11 Power Off（关机）
 - 永久 Wakelock、关背光/夜灯、断/停 BLE、按 `extra.arg1` 埋点（MANUAL/LOW_POWER/AUTO/ABNORMAL）。充电态 LONG3S → 退出充电、LONG10S → reboot。
-- V3Pro 关机充电 / 适配器不匹配：POWER 单击 → DUMMY 开机引导。
+- V3Pro 关机充电 / 适配器不匹配：POWER 单击 → 开机引导。
+- `PM_POWER_OFF_TYPE_CHARGE` + `CHARGE_STATE_ERROR`：停留在关机窗不适配 UI（复用 charge adapter 页），拔出或状态恢复非 ERROR 才关机。V3 未开 `IS_SUPPORT_POWER_OFF_WHEN_CHARGING`，因此不走关机充电页，只走该停留判定。
 
 ### 3.12 System Abnormal（系统异常）
 - `ADD_ABNORMAL_STATE_CB` 订阅；`map_abnormal_type_to_ui_type` 映射 BATTERY_TEMP_HIGH/STORAGE_FAILURE/COMMUNICATION_ERROR；异常清除 → 退出。

@@ -82,6 +82,7 @@ static void power_off_ble_policy(ui_proc_power_off_t *proc)
     }
 }
 
+#if (IS_SUPPORT_POWER_OFF_WHEN_CHARGING || IS_SUPPORT_POWER_ON_GUIDE_UI)
 #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
 static void power_off_force_save_battery_percent(ui_proc_power_off_t *proc)
 {
@@ -91,6 +92,7 @@ static void power_off_force_save_battery_percent(ui_proc_power_off_t *proc)
         LOG_WM("power off charge save battery percent");
     }
 }
+#endif
 
 static void power_off_ui_common_cb(hdr_post_args_t *args)
 {
@@ -102,8 +104,11 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
     }
     LOG_WM("margic:%x, action:%d.", proc->margic, args->arg1);
     int action = args->arg1;
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
     multi_func_msg_data_t msg = {0};
+#endif
     switch (action) {
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
         case POWER_OFF_HDR_EXIT_CHARGE_POLICY:
             LOG_WM("%s", args->name);
             power_off_force_save_battery_percent(proc);
@@ -114,20 +119,25 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
             msg.union_body.extra.window_id = ID_WINDOW_LOGO;
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
             break;
+#endif
         case POWER_OFF_HDR_DISCHARGE_POWER_OFF: 
             LOG_WM("%s", args->name);
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
             if (proc->st && proc->st->hook && proc->st->hook->on_power_off_force_save_route) {
                 proc->st->flash_protect(false); /// 禁止flash读写操作. 
                 proc->st->hook->on_power_off_force_save_route(proc->st);
                 proc->st->flash_protect(true); /// 禁止flash读写操作.
                 msleep(100); /// 等待100ms，确保数据写入完成
             }
+#endif
             power_off_handle(proc);
             break;
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
         case POWER_OFF_HDR_DISPLAY_CHARGING:
             LOG_WM("%s", args->name);
             show_power_off_charging_ui(proc);
             break;
+#endif
         case POWER_OFF_HDR_DISPLAY_CHARGE_ERROR:
             LOG_WM("%s", args->name);
             show_power_off_charge_error_ui(proc);
@@ -146,17 +156,23 @@ static void on_power_off_window_battery_state_cb(void *user_data, battery_state_
         LOG_WM("wm not running, ignore.");
         return;
     }
-    LOG_WM("charge status: %d, show charge adapter ui", info->charge_status);
+    LOG_WM("charge status: %d, stay/charge/power off policy", info->charge_status);
     if (proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGING && 
         proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGE_ERROR) {
         return;
     }
 
     if (BATTERY_IS_CHARGING(info->charge_status)) {
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
         if (proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGING) {
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
                 POWER_OFF_HDR_DISPLAY_CHARGING, POWER_OFF_PAGE_POLICY_TASK_NAME);
         }
+#else
+        /// V3 无关机充电页：不适配恢复为可充电后按拔出同样关机
+        POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
+            POWER_OFF_HDR_DISCHARGE_POWER_OFF, POWER_OFF_PAGE_POLICY_TASK_NAME);
+#endif
     } else if (info->charge_status == CHARGE_STATE_ERROR) {
         if (proc->current_ui_type != POWER_OFF_UI_TYPE_CHARGE_ERROR) {
             POST_WM_TASK_HANDLER_NO_DELAY_ARG1(power_off_ui_common_cb, proc,
@@ -181,6 +197,21 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
         return 0;
     }
 
+    if (proc->current_ui_type == POWER_OFF_UI_TYPE_CHARGE_ERROR) {
+        if (keytype == KEY_EVENT_LONG_10S) {
+            LOG_WM("power off charge error reboot");
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
+            power_off_force_save_battery_percent(proc);
+#endif
+            msleep(20);
+            platform_system_reboot();
+        } else {
+            LOG_WM("adapter mismatch, ignore power key");
+        }
+        return 0;
+    }
+
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
     if (keytype == KEY_EVENT_CLICK && proc->current_ui_type == POWER_OFF_UI_TYPE_CHARGING) {
         multi_func_msg_data_t msg = {0};
@@ -209,10 +240,12 @@ static int on_power_off_keyevent_hdr(void *user_data, uint16_t keycode, uint16_t
         power_off_force_save_battery_percent(proc);
         msleep(20);
         platform_system_reboot();
-    } 
+    }
+#endif
     return 0;
 }
 
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
 static void power_off_show_ui_by_charge_state(ui_proc_power_off_t *proc)
 {
     int chage_state = CHARGE_STATE_UNCHARGE;
@@ -235,6 +268,7 @@ static void power_off_show_ui_by_charge_state(ui_proc_power_off_t *proc)
     }
 }
 #endif
+#endif
 
 static void power_off_select_entry_ui(ui_proc_power_off_t *proc)
 {
@@ -245,11 +279,22 @@ static void power_off_select_entry_ui(ui_proc_power_off_t *proc)
             LOG_WM("force power off, skip animation");
             power_off_handle(proc);
             break;
-#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
         case PM_POWER_OFF_TYPE_CHARGE:
+#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
             power_off_show_ui_by_charge_state(proc);
-            break;
+#elif IS_SUPPORT_POWER_ON_GUIDE_UI
+            /// V3 无关机充电：不适配停留在关机窗 charge error UI，否则走关机动画
+            if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+                proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
+                LOG_WM("adapter mismatch, stay on power off charge error ui");
+                show_power_off_charge_error_ui(proc);
+            } else {
+                start_power_off_ui_animation(proc);
+            }
+#else
+            start_power_off_ui_animation(proc);
 #endif
+            break;
         default:
 #if IS_SUPPORT_POWER_OFF_UI_BEFORE_CHARGE
             start_power_off_ui_animation(proc);
@@ -277,6 +322,10 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             KEY_EVENT_LONG_3S | KEY_EVENT_LONG_10S,
 #endif
             on_power_off_keyevent_hdr);
+        ADD_BATTERY_STATE_CB(proc->battery, proc, on_power_off_window_battery_state_cb);
+#elif IS_SUPPORT_POWER_ON_GUIDE_UI
+        ADD_KEYEVENT_CB(proc->key, "power_off_wm", proc, KEY_CODE_POWER,
+            KEY_EVENT_LONG_10S, on_power_off_keyevent_hdr);
         ADD_BATTERY_STATE_CB(proc->battery, proc, on_power_off_window_battery_state_cb);
 #endif
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
@@ -329,7 +378,7 @@ static int exit_event_cb(window_lift_cycle_e new_state,
                 proc->pm->release_wakelock("power_off_screen");
             }
             REMOVE_ALL_HANDER_TASK();
-#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING            
+#if (IS_SUPPORT_POWER_OFF_WHEN_CHARGING || IS_SUPPORT_POWER_ON_GUIDE_UI)
             REMOVE_BATTERY_STATE_CB(proc->battery, on_power_off_window_battery_state_cb);
             REMOVE_KEYEVENT_CB(proc->key, on_power_off_keyevent_hdr);
 #endif
