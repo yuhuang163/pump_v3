@@ -154,8 +154,7 @@ bool pump_fit_not_detected_is_not_worn(const uint8_t *weared)
         return false;
     }
     for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-        if (weared[i] == ALGO_WEARED_STATUS_NOT_WORN ||
-            weared[i] == ALGO_WEARED_STATUS_WORN_OVT) {
+        if (weared[i] == ALGO_WEARED_STATUS_WORN_OVT) {
             return true;
         }
     }
