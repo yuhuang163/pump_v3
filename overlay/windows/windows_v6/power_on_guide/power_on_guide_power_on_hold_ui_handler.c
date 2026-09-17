@@ -41,12 +41,12 @@ static void power_on_guide_hold_direct_power_off(void)
     platform_system_reboot();
 }
 
-static void power_on_hold_goto_charge_screen(ui_proc_power_on_guide_t *proc)
+static void power_on_hold_goto_power_off_charge_screen(ui_proc_power_on_guide_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc && proc->wm);
     multi_func_msg_data_t msg = {0};
-    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-    LOG_WM("adapter mismatch, goto charge screen");
+    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 
@@ -55,29 +55,21 @@ static bool power_on_guide_hold_is_charging(ui_proc_power_on_guide_t *proc)
 {
     return proc->battery && BATTERY_IS_CHARGING(proc->battery->get_charge_status());
 }
-
-static void power_on_hold_goto_power_off_charge_screen(ui_proc_power_on_guide_t *proc)
-{
-    EXCEPTION_CHECK_VOID(proc && proc->wm);
-    multi_func_msg_data_t msg = {0};
-    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
-    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
-    LOG_WM("charging, goto power off charge screen");
-    proc->wm->dispatch_new_window_args(proc->wm, &msg);
-}
 #endif
 
 static int power_on_hold_exit_by_charge_state(ui_proc_power_on_guide_t *proc)
 {
 #if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
     if (power_on_guide_hold_is_charging(proc)) {
+        LOG_WM("charging, goto power off charge screen");
         power_on_hold_goto_power_off_charge_screen(proc);
         return 1;
     }
 #endif
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
         proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
-        power_on_hold_goto_charge_screen(proc);
+        LOG_WM("adapter mismatch, goto power off charge screen");
+        power_on_hold_goto_power_off_charge_screen(proc);
         return 1;
     }
     return 0;

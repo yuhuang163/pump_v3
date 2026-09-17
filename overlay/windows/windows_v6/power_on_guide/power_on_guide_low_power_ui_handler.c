@@ -49,8 +49,9 @@ static int power_on_guide_low_power_exit_by_charge_state(ui_proc_power_on_guide_
     if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
         proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
         multi_func_msg_data_t msg = {0};
-        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-        LOG_WM("adapter mismatch, goto charge screen");
+        msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+        msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
+        LOG_WM("adapter mismatch, goto power off charge screen");
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return 1;
     }
