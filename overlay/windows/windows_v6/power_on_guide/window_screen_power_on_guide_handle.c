@@ -160,9 +160,10 @@ static void on_power_on_guide_window_battery_state_cb(void *user_data, battery_s
     if (proc->battery == NULL || proc->battery->is_vbus_plug_in() == 0) {
         return;
     }
-    LOG_WM("adapter mismatch on power on guide, goto charge screen");
+    LOG_WM("adapter mismatch on power on guide, goto power off charge screen");
     multi_func_msg_data_t msg = {0};
-    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
+    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
 }
 #endif
@@ -281,8 +282,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
             proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
             multi_func_msg_data_t msg = {0};
-            msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-            LOG_WM("adapter mismatch on create, goto charge screen");
+            msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+            msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
+            LOG_WM("adapter mismatch on create, goto power off charge screen");
             proc->wm->dispatch_new_window_args(proc->wm, &msg);
             return 0;
         }

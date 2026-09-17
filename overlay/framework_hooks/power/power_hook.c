@@ -170,8 +170,9 @@ static void system_power_event_cb(hdr_post_args_t *args)
                 SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
                 DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
                 if (is_adapter_mismatch(battery)) {
-                    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-                    LOG_PM("power on detect key up, adapter mismatch, goto charge");
+                    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+                    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
+                    LOG_PM("power on detect key up, adapter mismatch, goto power off charge");
                 } else {
                     msg.union_body.extra.window_id = ID_WINDOW_POWER_ON_GUIDE;
                     LOG_PM("power on detect key up, goto power on guide");
@@ -186,8 +187,9 @@ static void system_power_event_cb(hdr_post_args_t *args)
                 DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
                 if (is_adapter_mismatch(battery)) {
-                    msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-                    LOG_PM("adapter mismatch, goto charge screen");
+                    msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+                    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
+                    LOG_PM("adapter mismatch, goto power off charge screen");
                 } else {
                     msg.union_body.extra.window_id = ID_WINDOW_LOGO;
                     LOG_PM("goto logo screen");
@@ -206,8 +208,9 @@ static void system_power_event_cb(hdr_post_args_t *args)
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
 #if IS_SUPPORT_POWER_ON_GUIDE_UI
             if (is_adapter_mismatch(battery)) {
-                msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-                LOG_PM("adapter mismatch, goto charge screen");
+                msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+                msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
+                LOG_PM("adapter mismatch, goto power off charge screen");
             } else {
                 msg.union_body.extra.window_id = ID_WINDOW_LOGO;
                 LOG_PM("goto logo screen");
@@ -248,8 +251,9 @@ static void system_power_event_cb(hdr_post_args_t *args)
             SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
             if (is_adapter_mismatch(battery)) {
-                msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-                LOG_PM("adapter mismatch, goto charge screen");
+                msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
+                msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
+                LOG_PM("adapter mismatch, goto power off charge screen");
             } else {
                 msg.union_body.extra.window_id = ID_WINDOW_POWER_ON_GUIDE;
                 LOG_PM("goto power on guide");

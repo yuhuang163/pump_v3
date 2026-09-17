@@ -95,9 +95,9 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 ### 3.1.1 Power On Guide（开机引导）
 - 目录 `overlay/windows/windows_v6/power_on_guide/`，ID 为 `ID_WINDOW_POWER_ON_GUIDE`。
 - 短按未满足开机时长、关机充电页短按等走本窗口，不再占用 dummy。
-- `IS_SUPPORT_POWER_ON_GUIDE_UI`：适配器不匹配 → CHARGE；否则长按开机引导（POWER DOWN/UP 控制进度）。
-  - 引导结束（长按完成 / 静默超时）：V3Pro 充电中 → `POWER_OFF(CHARGE)`；适配器不匹配 → CHARGE；未充电长按完成 → LOGO，静默超时 → 关机。
-  - V3：长按完成 → LOGO；静默超时 → 关机（适配器不匹配仍进 CHARGE）。
+- `IS_SUPPORT_POWER_ON_GUIDE_UI`：适配器不匹配一律进 `POWER_OFF(CHARGE)`（关机充电/异常页），含 `power_hook` 的引导、短按抬键、长按 2s 确认开机、detect 期间仍按住、reboot；不进 `ID_WINDOW_CHARGE`。否则长按开机引导（POWER DOWN/UP 控制进度）。
+  - 引导结束（长按完成 / 静默超时）：V3Pro 充电中 → `POWER_OFF(CHARGE)`；适配器不匹配 → `POWER_OFF(CHARGE)`；未充电长按完成 → LOGO，静默超时 → 关机。
+  - V3：长按完成 → LOGO；静默超时 → 关机（适配器不匹配进 `POWER_OFF(CHARGE)`）。
 
 ### 3.2 Logo（开机 LOGO）
 - on_create：背光/自适应亮度、`start_logo_ui_animation`、延迟 500ms 做触摸键固件版本检查。
