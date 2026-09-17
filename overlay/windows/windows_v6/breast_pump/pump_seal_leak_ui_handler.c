@@ -19,15 +19,25 @@
 #ifndef IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES
 #define IS_SUPPORT_PUMP_SEAL_LEAK_UI_BOTH_SIDES         (0) /// 1: 任一侧漏气按双侧展示
 #endif
+#ifndef IS_SUPPORT_PUMP_SEAL_SLIGHT_AS_PASS
+#define IS_SUPPORT_PUMP_SEAL_SLIGHT_AS_PASS             (1) /// 1: 轻微漏气展示通过；0: 不展示
+#endif
 #define PUMP_SEAL_LEAK_BLINK_PERIOD_MS                  (1000) /// 半周期 1000ms → 0.5Hz
 #if PUMP_SEAL_LEAK_MOCK_ENABLE
-#define PUMP_SEAL_LEAK_MOCK_INTERVAL_MS                 (5000)
+#define PUMP_SEAL_LEAK_MOCK_INJECT_DELAY_MS             (1500) /// 先展示 Checking seal... 再灌结果
 #define PUMP_SEAL_LEAK_MOCK_TASK_NAME                   "pump_seal_leak_mock"
-#define PUMP_SEAL_LEAK_MOCK_STEP_SEVERE                 (0)
-#define PUMP_SEAL_LEAK_MOCK_STEP_SLIGHT                 (1)
-#define PUMP_SEAL_LEAK_MOCK_STEP_NO_LEAK                (2)
-#define PUMP_SEAL_LEAK_MOCK_STEP_NOT_WORN               (3)
-#define PUMP_SEAL_LEAK_MOCK_STEP_MAX                    (4)
+/// 暂停再启动切下一步。0-5 接续 Checking；6-9 结束检测后走吸奶动画。
+#define PUMP_SEAL_LEAK_MOCK_CHK_NO_LEAK                 (0)
+#define PUMP_SEAL_LEAK_MOCK_CHK_SLIGHT                  (1)
+#define PUMP_SEAL_LEAK_MOCK_CHK_SEVERE_FIRST            (2)
+#define PUMP_SEAL_LEAK_MOCK_CHK_SEVERE_AGAIN            (3)
+#define PUMP_SEAL_LEAK_MOCK_CHK_OVT_FIRST               (4)
+#define PUMP_SEAL_LEAK_MOCK_CHK_OVT_AGAIN               (5)
+#define PUMP_SEAL_LEAK_MOCK_IDLE_SEVERE_AGAIN           (6)
+#define PUMP_SEAL_LEAK_MOCK_IDLE_OVT_AGAIN              (7)
+#define PUMP_SEAL_LEAK_MOCK_IDLE_SEVERE_FIRST           (8)
+#define PUMP_SEAL_LEAK_MOCK_IDLE_OVT_FIRST              (9)
+#define PUMP_SEAL_LEAK_MOCK_STEP_MAX                    (10)
 #endif
 
 /*
@@ -36,7 +46,6 @@
 */
 #if PUMP_SEAL_LEAK_MOCK_ENABLE
 static uint8_t s_seal_leak_mock_step;
-static uint8_t s_seal_leak_mock_seed;
 static void pump_seal_leak_mock_tick_cb(hdr_post_args_t *args);
 #endif
 
@@ -264,6 +273,12 @@ static void pump_seal_result_tip_show(ui_proc_pump_t *proc, uint8_t tip, uint8_t
         proc->seal_tip = PUMP_SEAL_TIP_NONE;
         return;
     }
+    /// 通过/补偿只能接续 Checking seal...，吸奶动画中不得单独出现
+    if ((tip == PUMP_SEAL_TIP_RESULT || tip == PUMP_SEAL_TIP_RESULT_FAIL) &&
+        proc->seal_tip != PUMP_SEAL_TIP_CHECKING) {
+        LOG_WM("seal tip %d ignored, not checking.", tip);
+        return;
+    }
     proc->seal_tip = tip;
     proc->seal_result_time = get_timestamp();
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
@@ -291,7 +306,8 @@ static void pump_seal_result_apply_cb(hdr_post_args_t *args)
 {
     ui_proc_pump_t *proc;
     uint8_t result;
-    bool not_worn;
+    bool checking;
+    bool worn_ovt;
 
     EXCEPTION_CHECK_VOID(args);
     proc = (ui_proc_pump_t *)args->user_data;
@@ -306,33 +322,20 @@ static void pump_seal_result_apply_cb(hdr_post_args_t *args)
     }
 
     result = proc->seal_result;
-    not_worn = pump_fit_not_detected_is_not_worn(proc->weared_status);
+    checking = (proc->seal_tip == PUMP_SEAL_TIP_CHECKING);
+    worn_ovt = pump_fit_not_detected_is_not_worn(proc->weared_status);
 
-    if (proc->seal_tip != PUMP_SEAL_TIP_CHECKING) {
-        /// 检测窗口已结束：后续重度漏气仍可跳大漏（未提示过时）
-        if (result == PUMP_SEAL_RESULT_SEVERE &&
-            proc->seal_tip != PUMP_SEAL_TIP_RESULT_FAIL) {
-            pump_seal_leak_do_jump(proc);
-            if (proc->current_ui_type != PUMP_UI_TYPE_SEAL_LEAK) {
-                pump_seal_leak_channel_unlatch(proc);
-            }
-        }
-        return;
-    }
-
-    if (result == PUMP_SEAL_RESULT_NONE) {
-        return;
-    }
-
-    /// 优先级：未佩戴 > 大漏 > 检测失败 > 检测通过；检测完必须四选一
-    if (not_worn) {
+    /// 检测中：超时/大漏优先于通过；补偿 tip 仅检测中。检测外超时已展示过则继续看大漏。
+    if (worn_ovt) {
         if (pump_fit_not_detected_try_jump(proc)) {
             LOG_WM("seal resolve: fit not detected.");
             return;
         }
-        pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT_FAIL, result);
-        LOG_WM("seal resolve: not worn but popup skipped, show fail.");
-        return;
+        if (checking) {
+            pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT_FAIL, result);
+            LOG_WM("seal resolve: worn ovt already shown, compensating.");
+            return;
+        }
     }
     if (result == PUMP_SEAL_RESULT_SEVERE) {
         if (pump_seal_leak_can_jump(proc)) {
@@ -340,67 +343,140 @@ static void pump_seal_result_apply_cb(hdr_post_args_t *args)
             LOG_WM("seal resolve: severe leak ui.");
             return;
         }
-        pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT_FAIL, result);
-        LOG_WM("seal resolve: severe already shown, show fail.");
+        if (checking) {
+            pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT_FAIL, result);
+            LOG_WM("seal resolve: severe already shown, compensating.");
+        } else {
+            pump_seal_leak_channel_unlatch(proc);
+        }
         return;
     }
+    if (!checking || result == PUMP_SEAL_RESULT_NONE) {
+        return;
+    }
+#if !IS_SUPPORT_PUMP_SEAL_SLIGHT_AS_PASS
     if (result == PUMP_SEAL_RESULT_SLIGHT) {
-        pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT_FAIL, result);
-        LOG_WM("seal resolve: slight leak, show fail.");
+        proc->seal_tip = PUMP_SEAL_TIP_NONE;
+        proc->seal_result_time = 0;
+        REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
+        LOG_WM("seal resolve: slight leak, skip pass.");
         return;
     }
+#endif
     pump_seal_result_tip_show(proc, PUMP_SEAL_TIP_RESULT, result);
     LOG_WM("seal resolve: pass.");
 }
 
-#if PUMP_SEAL_LEAK_MOCK_ENABLE
-static uint8_t pump_seal_leak_mock_channel_mask(void)
+static void pump_seal_ingest_algo(ui_proc_pump_t *proc, const uint8_t *leakage, const uint8_t *weared)
 {
-    s_seal_leak_mock_seed = (uint8_t)(s_seal_leak_mock_seed * 33u + (uint8_t)get_timestamp());
-    return (uint8_t)((s_seal_leak_mock_seed % 3u) + 1u);
+    bool wear_changed;
+    uint8_t new_result;
+
+    EXCEPTION_CHECK_VOID(proc && leakage && weared);
+    wear_changed = (memcmp(proc->weared_status, weared, sizeof(proc->weared_status)) != 0);
+    memcpy(proc->weared_status, weared, sizeof(proc->weared_status));
+    new_result = pump_seal_result_from_wear(proc, leakage);
+    if (new_result == proc->seal_result && !wear_changed) {
+        /// CHECKING 仅在已有有效结果时允许同值再投，避免 NONE 帧按算法频率刷 WM 任务
+        if (proc->seal_tip != PUMP_SEAL_TIP_CHECKING ||
+            new_result == PUMP_SEAL_RESULT_NONE) {
+            return;
+        }
+    }
+    proc->seal_result = new_result;
+    LOG_WM("seal ingest:%d weared:%d/%d tip:%d shown:%d/%d", new_result,
+        weared[0], weared[1], proc->seal_tip,
+        proc->fit_not_detected_shown, proc->seal_leak_shown);
+    POST_WM_TASK_HANDLER_NO_DELAY(pump_seal_result_apply_cb, proc, PUMP_SEAL_LEAK_TASK_NAME);
 }
 
-static void pump_seal_leak_mock_fill(uint8_t *leakage, uint8_t *weared)
+#if PUMP_SEAL_LEAK_MOCK_ENABLE
+static void pump_seal_leak_mock_fill(uint8_t leak, bool worn_ovt, uint8_t *leakage, uint8_t *weared)
 {
-    uint8_t leak;
-    uint8_t mask;
     uint8_t i;
 
-    if (s_seal_leak_mock_step == PUMP_SEAL_LEAK_MOCK_STEP_NOT_WORN) {
-        mask = pump_seal_leak_mock_channel_mask();
-        for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-            leakage[i] = ALGO_WEAR_DETECTION_RESULT_NORMAL;
-            weared[i] = (mask & (uint8_t)(1u << i)) ?
-                ALGO_WEARED_STATUS_WORN_OVT : ALGO_WEARED_STATUS_WORN;
-        }
-        return;
+    for (i = 0; i < AIR_PRESSURE_NUM; i++) {
+        leakage[i] = leak;
+        weared[i] = worn_ovt ? ALGO_WEARED_STATUS_WORN_OVT : ALGO_WEARED_STATUS_WORN;
+    }
+}
+
+static const char *pump_seal_leak_mock_expect(uint8_t step)
+{
+    switch (step) {
+        case PUMP_SEAL_LEAK_MOCK_CHK_NO_LEAK:
+            return "1.1 checking no_leak -> pass";
+        case PUMP_SEAL_LEAK_MOCK_CHK_SLIGHT:
+#if IS_SUPPORT_PUMP_SEAL_SLIGHT_AS_PASS
+            return "1.1 checking slight -> pass";
+#else
+            return "1.1 checking slight -> skip pass";
+#endif
+        case PUMP_SEAL_LEAK_MOCK_CHK_SEVERE_FIRST:
+            return "1.2 checking severe first -> leak ui";
+        case PUMP_SEAL_LEAK_MOCK_CHK_SEVERE_AGAIN:
+            return "1.2 checking severe shown -> compensate";
+        case PUMP_SEAL_LEAK_MOCK_CHK_OVT_FIRST:
+            return "1.3 checking ovt first -> fit ui";
+        case PUMP_SEAL_LEAK_MOCK_CHK_OVT_AGAIN:
+            return "1.3 checking ovt shown -> compensate";
+        case PUMP_SEAL_LEAK_MOCK_IDLE_SEVERE_AGAIN:
+            return "2.1 idle severe shown -> nop";
+        case PUMP_SEAL_LEAK_MOCK_IDLE_OVT_AGAIN:
+            return "2.2 idle ovt shown -> nop";
+        case PUMP_SEAL_LEAK_MOCK_IDLE_SEVERE_FIRST:
+            return "2.1 idle severe first -> leak ui";
+        case PUMP_SEAL_LEAK_MOCK_IDLE_OVT_FIRST:
+            return "2.2 idle ovt first -> fit ui";
+        default:
+            return "unknown";
+    }
+}
+
+static void pump_seal_leak_mock_prepare(ui_proc_pump_t *proc, uint8_t step,
+    uint8_t *leakage, uint8_t *weared)
+{
+    /// 0-5：保持启动时的 Checking；6-9：结束检测，回到吸奶动画再灌结果
+    if (step >= PUMP_SEAL_LEAK_MOCK_IDLE_SEVERE_AGAIN) {
+        pump_seal_check_stop(proc);
     }
 
-    switch (s_seal_leak_mock_step) {
-        case PUMP_SEAL_LEAK_MOCK_STEP_SEVERE:
-            leak = ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK;
+    switch (step) {
+        case PUMP_SEAL_LEAK_MOCK_CHK_NO_LEAK:
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_NORMAL, false, leakage, weared);
             break;
-        case PUMP_SEAL_LEAK_MOCK_STEP_SLIGHT:
-            leak = ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK;
+        case PUMP_SEAL_LEAK_MOCK_CHK_SLIGHT:
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK, false, leakage, weared);
+            break;
+        case PUMP_SEAL_LEAK_MOCK_CHK_SEVERE_FIRST:
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK, false, leakage, weared);
+            break;
+        case PUMP_SEAL_LEAK_MOCK_CHK_SEVERE_AGAIN:
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK, false, leakage, weared);
+            break;
+        case PUMP_SEAL_LEAK_MOCK_CHK_OVT_FIRST:
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_NORMAL, true, leakage, weared);
+            break;
+        case PUMP_SEAL_LEAK_MOCK_CHK_OVT_AGAIN:
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_NORMAL, true, leakage, weared);
+            break;
+        case PUMP_SEAL_LEAK_MOCK_IDLE_SEVERE_AGAIN:
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK, false, leakage, weared);
+            break;
+        case PUMP_SEAL_LEAK_MOCK_IDLE_OVT_AGAIN:
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_NORMAL, true, leakage, weared);
+            break;
+        case PUMP_SEAL_LEAK_MOCK_IDLE_SEVERE_FIRST:
+            proc->seal_leak_shown = 0;
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_LARGE_LEAK, false, leakage, weared);
+            break;
+        case PUMP_SEAL_LEAK_MOCK_IDLE_OVT_FIRST:
+            proc->fit_not_detected_shown = 0;
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_NORMAL, true, leakage, weared);
             break;
         default:
-            leak = ALGO_WEAR_DETECTION_RESULT_NORMAL;
+            pump_seal_leak_mock_fill(ALGO_WEAR_DETECTION_RESULT_NORMAL, false, leakage, weared);
             break;
-    }
-
-    if (leak == ALGO_WEAR_DETECTION_RESULT_NORMAL) {
-        for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-            leakage[i] = leak;
-        }
-    } else {
-        mask = pump_seal_leak_mock_channel_mask();
-        for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-            leakage[i] = (mask & (uint8_t)(1u << i)) ? leak : ALGO_WEAR_DETECTION_RESULT_NORMAL;
-        }
-    }
-
-    for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-        weared[i] = ALGO_WEARED_STATUS_WORN;
     }
 }
 
@@ -408,7 +484,7 @@ static void pump_seal_leak_mock_schedule(ui_proc_pump_t *proc)
 {
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_LEAK_MOCK_TASK_NAME);
     POST_WM_TASK_HANDLER_DELAYED_ARG1(pump_seal_leak_mock_tick_cb,
-        PUMP_SEAL_LEAK_MOCK_INTERVAL_MS, proc, PUMP_SEAL_LEAK_MOCK_TASK_NAME);
+        PUMP_SEAL_LEAK_MOCK_INJECT_DELAY_MS, proc, PUMP_SEAL_LEAK_MOCK_TASK_NAME);
 }
 
 static void pump_seal_leak_mock_tick_cb(hdr_post_args_t *args)
@@ -416,47 +492,60 @@ static void pump_seal_leak_mock_tick_cb(hdr_post_args_t *args)
     ui_proc_pump_t *proc;
     uint8_t leakage[AIR_PRESSURE_NUM];
     uint8_t weared[AIR_PRESSURE_NUM];
-    uint8_t new_result;
+    uint8_t step;
+    bool checking_step;
 
     EXCEPTION_CHECK_VOID(args);
     proc = (ui_proc_pump_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
-    pump_seal_leak_mock_schedule(proc);
 
     if (!PUMP_IS_GOING(proc->pump_status) ||
         proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK ||
         proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
+        LOG_WM("[seal mock] wait step=%d/%d expect:%s ui=%d going=%d (pause/start to continue)",
+            s_seal_leak_mock_step, PUMP_SEAL_LEAK_MOCK_STEP_MAX - 1,
+            pump_seal_leak_mock_expect(s_seal_leak_mock_step),
+            proc->current_ui_type, PUMP_IS_GOING(proc->pump_status));
         return;
     }
 
-    pump_seal_leak_mock_fill(leakage, weared);
-    memcpy(proc->weared_status, weared, sizeof(proc->weared_status));
-    LOG_WM("seal mock step:%d leak:%d/%d weared:%d/%d shown:%d/%d", s_seal_leak_mock_step,
-        leakage[0], leakage[1], weared[0], weared[1],
-        proc->fit_not_detected_shown, proc->seal_leak_shown);
-    pump_fit_not_detected_on_wear(proc, weared);
-    s_seal_leak_mock_step = (uint8_t)((s_seal_leak_mock_step + 1u) % PUMP_SEAL_LEAK_MOCK_STEP_MAX);
-    if (proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
+    step = s_seal_leak_mock_step;
+    checking_step = (step <= PUMP_SEAL_LEAK_MOCK_CHK_OVT_AGAIN);
+    if (checking_step && proc->seal_tip != PUMP_SEAL_TIP_CHECKING) {
+        LOG_WM("[seal mock] skip step=%d, not checking (tip=%d)", step, proc->seal_tip);
         return;
     }
-    new_result = pump_seal_result_from_wear(proc, leakage);
-    if (new_result == proc->seal_result) {
-        if (proc->seal_tip != PUMP_SEAL_TIP_CHECKING ||
-            new_result == PUMP_SEAL_RESULT_NONE) {
-            return;
-        }
+
+    pump_seal_leak_mock_prepare(proc, step, leakage, weared);
+    LOG_WM("[seal mock] step=%d/%d expect:%s leak:%d/%d weared:%d/%d shown:%d/%d tip:%d",
+        step, PUMP_SEAL_LEAK_MOCK_STEP_MAX - 1, pump_seal_leak_mock_expect(step),
+        leakage[0], leakage[1], weared[0], weared[1],
+        proc->fit_not_detected_shown, proc->seal_leak_shown, proc->seal_tip);
+    s_seal_leak_mock_step = (uint8_t)((step + 1u) % PUMP_SEAL_LEAK_MOCK_STEP_MAX);
+    if (s_seal_leak_mock_step == 0) {
+        LOG_WM("[seal mock] round done, pause/start again for step 0");
     }
-    proc->seal_result = new_result;
-    POST_WM_TASK_HANDLER_NO_DELAY(pump_seal_result_apply_cb, proc, PUMP_SEAL_LEAK_TASK_NAME);
+    pump_seal_ingest_algo(proc, leakage, weared);
 }
 #endif
+
+void pump_seal_leak_mock_on_check_start(ui_proc_pump_t *proc)
+{
+#if PUMP_SEAL_LEAK_MOCK_ENABLE
+    EXCEPTION_CHECK_VOID(proc);
+    LOG_WM("[seal mock] start -> next inject step=%d/%d expect:%s in %dms",
+        s_seal_leak_mock_step, PUMP_SEAL_LEAK_MOCK_STEP_MAX - 1,
+        pump_seal_leak_mock_expect(s_seal_leak_mock_step),
+        PUMP_SEAL_LEAK_MOCK_INJECT_DELAY_MS);
+    pump_seal_leak_mock_schedule(proc);
+#else
+    (void)proc;
+#endif
+}
 
 static void pump_seal_leak_callback(void *user_data, algo_breast_pump_data_t *result)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
-#if !PUMP_SEAL_LEAK_MOCK_ENABLE
-    uint8_t new_result;
-#endif
 
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
 #if PUMP_SEAL_LEAK_MOCK_ENABLE
@@ -467,26 +556,8 @@ static void pump_seal_leak_callback(void *user_data, algo_breast_pump_data_t *re
         return;
     }
 
-    pump_fit_not_detected_on_wear(proc, result->wear_detection.wear_result);
-    if (proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
-        return;
-    }
-    memcpy(proc->weared_status, result->wear_detection.wear_result,
-        sizeof(proc->weared_status));
-    new_result = pump_seal_result_from_wear(proc, result->wear_detection.result);
-    if (new_result == proc->seal_result) {
-        /// CHECKING 仅在已有有效结果时允许同值再投，避免 NONE 帧按算法频率刷 WM 任务
-        if (proc->seal_tip != PUMP_SEAL_TIP_CHECKING ||
-            new_result == PUMP_SEAL_RESULT_NONE) {
-            return;
-        }
-    }
-    proc->seal_result = new_result;
-    LOG_WM("seal result: %d(%d/%d) weared:%d/%d tip:%d shown:%d/%d", new_result,
-        result->wear_detection.result[0], result->wear_detection.result[1],
-        result->wear_detection.wear_result[0], result->wear_detection.wear_result[1],
-        proc->seal_tip, proc->fit_not_detected_shown, proc->seal_leak_shown);
-    POST_WM_TASK_HANDLER_NO_DELAY(pump_seal_result_apply_cb, proc, PUMP_SEAL_LEAK_TASK_NAME);
+    pump_seal_ingest_algo(proc, result->wear_detection.result,
+        result->wear_detection.wear_result);
 #endif
 }
 
@@ -655,11 +726,8 @@ void pump_seal_leak_init(ui_proc_pump_t *proc)
     pump_fit_not_detected_reset(proc);
     proc->algo->add_algo_result_listener(proc, pump_seal_leak_callback);
 #if PUMP_SEAL_LEAK_MOCK_ENABLE
-    s_seal_leak_mock_step = PUMP_SEAL_LEAK_MOCK_STEP_SEVERE;
-    s_seal_leak_mock_seed = (uint8_t)get_timestamp();
-    pump_seal_leak_mock_schedule(proc);
-    LOG_WM("seal leak mock enable, interval:%dms, cycle:severe/slight/no_leak/not_worn",
-        PUMP_SEAL_LEAK_MOCK_INTERVAL_MS);
+    s_seal_leak_mock_step = PUMP_SEAL_LEAK_MOCK_CHK_NO_LEAK;
+    LOG_WM("[seal mock] enable, pause then start to next step, grep '[seal mock]'");
 #endif
 }
 
@@ -731,6 +799,11 @@ void pump_seal_leak_init(ui_proc_pump_t *proc)
 }
 
 void pump_seal_leak_exit(ui_proc_pump_t *proc)
+{
+    (void)proc;
+}
+
+void pump_seal_leak_mock_on_check_start(ui_proc_pump_t *proc)
 {
     (void)proc;
 }

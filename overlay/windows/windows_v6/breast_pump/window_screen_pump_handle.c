@@ -1002,6 +1002,9 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
         pump_custom_mode_info_sync(proc, 1);
         proc->current_ui_type = PUMP_UI_TYPE_NONE;
+        proc->seal_leak_shown = 0;
+        proc->fit_not_detected_shown = 0;
+        LOG_WM("pump window session start, reset leak/fit shown.");
         if (proc->pump) {
             WRITE_PUMP_WORK_STATUS(proc->pump, BREAST_PUMP_IDLE, 1);
             proc->pump->add_breast_pump_result_listener(proc, on_breast_pump_result_cb);

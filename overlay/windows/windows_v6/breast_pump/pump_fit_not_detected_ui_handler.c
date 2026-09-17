@@ -16,7 +16,7 @@
 */
 #define PUMP_FIT_NOT_DETECTED_BLINK_PERIOD_MS          (1000) /// 半周期 1000ms → 0.5Hz
 #ifndef IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE
-#define IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE          (1) /// 1: 一次吸乳仅触发一次
+#define IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE          (1) /// 1: 本泵奶窗口仅触发一次
 #endif
 
 /*
@@ -133,17 +133,18 @@ static bool pump_fit_not_detected_can_jump(ui_proc_pump_t *proc)
     return true;
 }
 
-static void pump_fit_not_detected_do_jump(ui_proc_pump_t *proc)
+bool pump_fit_not_detected_try_jump(ui_proc_pump_t *proc)
 {
     if (!pump_fit_not_detected_can_jump(proc)) {
-        return;
+        return false;
     }
 
-    LOG_WM("not worn detected, jump to popup.");
+    LOG_WM("wear detect timeout, jump to popup.");
     proc->seal_tip = PUMP_SEAL_TIP_NONE;
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
     pump_fit_not_detected_pause_pump(proc);
     show_pump_fit_not_detected_ui(proc);
+    return true;
 }
 
 bool pump_fit_not_detected_is_not_worn(const uint8_t *weared)
@@ -153,21 +154,13 @@ bool pump_fit_not_detected_is_not_worn(const uint8_t *weared)
     if (weared == NULL) {
         return false;
     }
+    /// 仅佩戴检测超时触发未佩戴弹窗
     for (i = 0; i < AIR_PRESSURE_NUM; i++) {
         if (weared[i] == ALGO_WEARED_STATUS_WORN_OVT) {
             return true;
         }
     }
     return false;
-}
-
-bool pump_fit_not_detected_try_jump(ui_proc_pump_t *proc)
-{
-    if (!pump_fit_not_detected_can_jump(proc)) {
-        return false;
-    }
-    pump_fit_not_detected_do_jump(proc);
-    return proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED;
 }
 
 /*
@@ -182,36 +175,14 @@ void pump_fit_not_detected_reset(ui_proc_pump_t *proc)
 
 void pump_fit_not_detected_on_wear(ui_proc_pump_t *proc, const uint8_t *weared)
 {
-    uint8_t i;
-    uint8_t worn_ovt = 0;
-
     EXCEPTION_CHECK_VOID(proc);
     if (weared == NULL || proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         return;
     }
-
-    if (!pump_fit_not_detected_can_jump(proc)) {
+    if (!pump_fit_not_detected_is_not_worn(weared)) {
         return;
     }
-
-    if (get_timestamp_ms(proc->seal_log_time) > 1000) {
-        LOG_WM("wear result: %d/%d", weared[0], weared[1]);
-    }
-
-    /// 检测中超时立即跳未佩戴页；NOT_WORN 等漏气结果出来后由 seal resolve 按优先级处理
-    for (i = 0; i < AIR_PRESSURE_NUM; i++) {
-        if (weared[i] == ALGO_WEARED_STATUS_WORN_OVT) {
-            worn_ovt = 1;
-            break;
-        }
-    }
-
-    if (!worn_ovt) {
-        return;
-    }
-    // LOG_WM("weared status: %d/%d, jump fit not detected.", weared[0], weared[1]);
-    
-    pump_fit_not_detected_do_jump(proc);
+    pump_fit_not_detected_try_jump(proc);
 }
 
 void pump_fit_not_detected_led_tick(ui_proc_pump_t *proc)
