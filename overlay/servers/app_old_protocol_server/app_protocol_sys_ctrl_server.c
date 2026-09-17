@@ -1,6 +1,7 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
 #include "app_protocol_sys_ctrl_server.h"
+#include "night_light_policy.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -232,12 +233,20 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
 
     memset(status, 0, sizeof(*status));
     if (led && led->hook) {
+        if (led->hook->get_global_adaptive_dimming_switch) {
+            status->adaptive_switch = led->hook->get_global_adaptive_dimming_switch(led) > 0 ? 1 : 0;
+        }
 #if IS_SUPPORT_NIGHT_LIGHT
         if (led->hook->get_night_light_onoff) {
             status->night_light_switch = led->hook->get_night_light_onoff(led) > 0 ? 1 : 0;
         }
-        
-        if (led->hook->get_night_light_gear) {
+        if (led->hook->get_night_light_adaptive_dimming_switch &&
+            led->hook->get_night_light_adaptive_dimming_switch(led) > 0 &&
+            led->hook->get_night_light_level) {
+            /// 夜灯自适应开关打开：上报 ALS 控制后的实际档位
+            status->night_light_gear = night_light_policy_level_to_gear(
+                (uint8_t)led->hook->get_night_light_level(led));
+        } else if (led->hook->get_night_light_gear) {
             status->night_light_gear = (uint8_t)led->hook->get_night_light_gear(led);
         }
         if (led->hook->get_night_light_startup_switch) {
@@ -246,10 +255,12 @@ static void app_old_comm_fill_light_status(app_old_comm_light_status_t *status)
         }
 #endif
 
-        if (led->hook->get_global_adaptive_dimming_switch) {
-            status->adaptive_switch = led->hook->get_global_adaptive_dimming_switch(led) > 0 ? 1 : 0;
-        }
-        if (led->hook->get_global_backlight_level) {
+        if (led->hook->get_ui_backlight_adaptive_dimming_switch &&
+            led->hook->get_ui_backlight_adaptive_dimming_switch(led) > 0 &&
+            led->hook->get_ui_backlight_level) {
+            /// UI 背光自适应开关打开：上报 ALS 控制后的实际亮度
+            status->screen_key_level = (uint8_t)led->hook->get_ui_backlight_level(led);
+        } else if (led->hook->get_global_backlight_level) {
             status->screen_key_level = (uint8_t)led->hook->get_global_backlight_level(led);
         }
     }

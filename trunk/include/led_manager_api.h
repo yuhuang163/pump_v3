@@ -102,6 +102,7 @@ typedef struct led_manager_context {
         void (*ui_backlight_adaptive_level_update)(struct led_manager_context *ctx, uint8_t level);
         void (*set_ui_backlight_adaptive_dimming_switch)(struct led_manager_context *ctx, uint8_t onoff);
         int (*get_ui_backlight_adaptive_dimming_switch)(struct led_manager_context *ctx);
+        int (*get_ui_backlight_level)(struct led_manager_context *ctx);
         void (*set_global_adaptive_dimming_switch)(struct led_manager_context *ctx, uint8_t onoff);
         int (*get_global_adaptive_dimming_switch)(struct led_manager_context *ctx);
         void (*set_global_backlight_level)(struct led_manager_context *ctx, uint8_t level);
