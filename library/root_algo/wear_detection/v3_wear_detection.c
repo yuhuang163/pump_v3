@@ -1669,7 +1669,9 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	}
 
 	/* 优化：区分漏气状态时，负压变大的情况，同时，对非密封/大漏时不进行补偿 */
-	if ((tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON || tFeatureInfoTemp->uLeakStatus == 1 || tFeatureInfoTemp->uLeakStatus == 2) 
+	if ((tFeatureInfoTemp->uWearStatus == WEAR_STATE_ON 
+		|| tFeatureInfoTemp->uLeakStatus == 1 
+		|| tFeatureInfoTemp->uLeakStatus == 2) 
 		&& tFeatureInfoTemp->uLeakValleyCount >= 10)
 		//if (tFeatureInfoTemp->uWearStatus != WEAR_STATE_OFF && tFeatureInfoTemp->uLeakStatus != 3)
 	{
@@ -2854,7 +2856,9 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		}
 
 		/* 仅在每次开始工作后检查 */
-		if (tFeatureInfo[i].uWearStatus == WEAR_STATE_0 && tFeatureInfo[i].uLeakStatus == 0)
+		if (tFeatureInfo[i].uWearStatus == WEAR_STATE_0 
+			&& tFeatureInfo[i].uLeakStatus == 0 
+			&& sPressureData.do_work == 1)
 		{
 			/* 初始 -> 佩戴检测(包括漏气) 时间 */
 			tFeatureInfo[i].uWearDetectTime++;
@@ -2939,7 +2943,9 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		}
 
 		/* 仅在每次开始工作后检查 */
-		if (tFeatureInfo[i].uWearStatus == WEAR_STATE_0 && tFeatureInfo[i].uLeakStatus == 0)
+		if (tFeatureInfo[i].uWearStatus == WEAR_STATE_0 
+			&& tFeatureInfo[i].uLeakStatus == 0
+			&& sPressureData.do_work == 1)
 		{
 			/* 初始 -> 佩戴检测(包括漏气) 时间 */
 			tFeatureInfo[i].uWearDetectTime++;
@@ -2949,7 +2955,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			/* 佩戴(包括漏气) -> 非密封检测时间 */
 			tFeatureInfo[i].uWearDetectTime = 0;
 		}
-		if (tFeatureInfo[i].uWearDetectTime >= 1000)
+		if (tFeatureInfo[i].uWearDetectTime >= 20*SAMPLE_RATE)
 		{
 			tFeatureInfo[i].uWearStatusOutput = WEAR_STATE_OVERTIME;
 			tFeatureInfo[i].uDetectOverTime = 1;
