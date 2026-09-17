@@ -123,7 +123,7 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 - 广播 `ID_BROADCAST_BREAST_PUMP_STATE_CHANGE`：COMPLETED → HOME(PUMP_RESULT)；TIMEOUT → 结算；RUNNING_30M_TIP → 暂停+提示；WILL_FINISH → 即将完成。
 - 电池回调：charge error → 充电异常结算；低电 → POWER_OFF(LOW_POWER)；FORBID_START → 禁启动。
 - 子 UI（PUMP_UI_TYPE_*）：HOME / RHYTHM_CONFIRM / SETTINGS_SUCCESS / STOP_HOLD / POWER_OFF_HOLD / LEVEL/BOTH_LEVEL/SPEED_ADJUST / FINISH_TIMEOUT / FINISH_CHARGE_ERROR / PAUSE_TIMEOUT / WILL_FINISH / LOW_POWER / SEAL_LEAK / FIT_NOT_DETECTED。
-- 气密检测（V3Pro）：`leakage_status` 分 NO_LEAK / SLIGHT / SEVERE（SEVERE 进 SEAL_LEAK：Tubing→Cup→Fit→Complete）。SEAL_LEAK 仅响应 power/start/旋钮，其它按键灯灭、start 0.5Hz 闪；非末页短按 power/start 切下一页，末页启动泵奶并退出后恢复按键灯。`weared_status` 任一侧为未佩戴则进 FIT_NOT_DETECTED 弹窗并暂停；短按 power/start 恢复泵奶。
+- 气密检测（V3Pro）：检测中（Checking seal...）不漏/轻微 → Seal check passed；大漏在本泵奶窗口未展示过则进 SEAL_LEAK，已展示过则补偿中（Air leak, suction adjusting...）。检测外大漏仅窗口内首次跳 SEAL_LEAK。佩戴检测超时（`WORN_OVT`）窗口内未展示过则进 FIT_NOT_DETECTED 并暂停；已展示过时检测中出补偿中、检测外不处理。`IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE` 控制进入泵奶窗口至退出仅展示一次未佩戴页。SEAL_LEAK 仅响应 power/start/旋钮；非末页短按 power/start 切下一页，末页启动泵奶并退出。FIT_NOT_DETECTED 短按 power/start 恢复泵奶。
 
 ### 3.7 Battery（低电）
 - on_create：vbus+error → CHARGE；否则低电页 + 自动关机调度（EMPTY 立即，否则超时）。

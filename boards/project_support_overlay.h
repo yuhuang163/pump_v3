@@ -265,7 +265,11 @@ extern "C" {
 #ifndef IS_SUPPORT_PUMP_SEAL_FAIL_ANIM
 #define IS_SUPPORT_PUMP_SEAL_FAIL_ANIM                   (0)
 #endif
-/// 未佩戴弹窗：一次吸乳仅触发一次（参考重度漏气 seal_leak_shown）
+/// 检测中轻微漏气：1 展示 Seal check passed；0 结束检测、不展示通过
+#ifndef IS_SUPPORT_PUMP_SEAL_SLIGHT_AS_PASS
+#define IS_SUPPORT_PUMP_SEAL_SLIGHT_AS_PASS              (0)
+#endif
+/// 未佩戴弹窗：进入泵奶窗口至退出仅触发一次（同 seal_leak_shown）
 #ifndef IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE
 #define IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE            (1)
 #endif

@@ -195,17 +195,17 @@ typedef enum {
 /// 漏气检测提示（泵奶首页）
 typedef enum {
     PUMP_SEAL_TIP_NONE = 0,            /// 不显示，恢复波形
-    PUMP_SEAL_TIP_CHECKING,            /// 检查中
-    PUMP_SEAL_TIP_RESULT,              /// 检查通过
-    PUMP_SEAL_TIP_RESULT_FAIL,         /// 检查未通过（首页 3s；与未佩戴/大漏页互斥）
+    PUMP_SEAL_TIP_CHECKING,            /// 检查中 Checking seal...
+    PUMP_SEAL_TIP_RESULT,              /// 检查通过：仅能接续 CHECKING
+    PUMP_SEAL_TIP_RESULT_FAIL,         /// 漏气补偿中：仅能接续 CHECKING
 } pump_seal_tip_e;
 
 /// 漏气检测结果（算法回调驱动）
 typedef enum {
     PUMP_SEAL_RESULT_NONE = 0,         /// 尚未出结果：展示检测中
-    PUMP_SEAL_RESULT_NO_LEAK,          /// 不漏气：检测通过（优先级最低）
-    PUMP_SEAL_RESULT_SLIGHT,           /// 轻微漏气：检测失败
-    PUMP_SEAL_RESULT_SEVERE,           /// 重度漏气：优先大漏页，已提示过则检测失败
+    PUMP_SEAL_RESULT_NO_LEAK,          /// 不漏气：检测中切通过
+    PUMP_SEAL_RESULT_SLIGHT,           /// 轻微漏气：IS_SUPPORT_PUMP_SEAL_SLIGHT_AS_PASS 控制是否展示通过
+    PUMP_SEAL_RESULT_SEVERE,           /// 重度漏气：未展示过大漏则跳大漏页；检测中已展示过则补偿中
 } pump_seal_result_e;
 
 /// 重度漏气提醒页（与 UI 四页对齐，由 ui_proc_pump_t.seal_leak_page_index 驱动）
@@ -354,10 +354,10 @@ typedef struct {
     uint32_t seal_check_time; /// 非 0 表示本轮启动已进入检测
     uint32_t seal_result_time; /// 通过文案起始时间
     uint32_t seal_log_time; /// 结果展示日志时间点
-    /// 重度漏气提醒：本次进入泵奶窗口是否已跳转过；页索引 pump_seal_leak_page_e
+    /// 重度漏气提醒：进入泵奶窗口至退出前是否已跳转过
     uint8_t seal_leak_shown;
     uint16_t seal_leak_page_index;
-    /// 未佩戴弹窗：本次进入泵奶窗口是否已跳转过
+    /// 未佩戴弹窗：进入泵奶窗口至退出前是否已跳转过
     uint8_t fit_not_detected_shown;
 
 } ui_proc_pump_t;
@@ -403,6 +403,8 @@ bool pump_adjust_exit_if_rest_mode(ui_proc_pump_t *proc);
 /// 漏气检测：每次启动展示检测中，由算法结果切换文案 / 跳转
 void pump_seal_check_start(ui_proc_pump_t *proc);
 void pump_seal_check_stop(ui_proc_pump_t *proc);
+/// mock：暂停再启动切下一步（无 mock 时为空）
+void pump_seal_leak_mock_on_check_start(ui_proc_pump_t *proc);
 
 /// 电源按键事件处理
 void pump_power_key_event_handler(ui_proc_pump_t *proc);
@@ -521,7 +523,7 @@ void pump_seal_leak_init(ui_proc_pump_t *proc);
 /// 漏气检测退出
 void pump_seal_leak_exit(ui_proc_pump_t *proc);
 
-/// 未佩戴弹窗：weared_status 未佩戴时暂停并进入；短按 power/start 恢复泵奶
+/// 未佩戴弹窗：weared_status 为佩戴检测超时时暂停并进入；短按 power/start 恢复泵奶
 void show_pump_fit_not_detected_ui(ui_proc_pump_t *proc);
 void pump_fit_not_detected_ui_exit(ui_proc_pump_t *proc);
 void pump_fit_not_detected_resume(ui_proc_pump_t *proc);
