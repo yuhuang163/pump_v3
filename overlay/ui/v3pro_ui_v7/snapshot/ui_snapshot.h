@@ -16,7 +16,7 @@ typedef struct ui_manager_context ui_manager_context_t;
 
 /**
  * 获取预解码背景 draw_buf（`LV_COLOR_FORMAT_NATIVE`）。
- * 支持：`BASE_RES_ID_SIMULATION_MODE_BG` / `BASE_RES_ID_EXPRESSION_MODE_BG` /
+ * 支持：`BASE_RES_ID_STIMULATION_MODE_BG` / `BASE_RES_ID_EXPRESSION_MODE_BG` /
  * `BASE_RES_ID_PROGRAM_MODE_BG`。
  * 返回的缓冲由 snapshot 模块长期持有，页面侧勿 destroy。
  */
@@ -24,7 +24,7 @@ lv_draw_buf_t *get_predecoded_bg(uint16_t res_id);
 
 /**
  * 获取预解码模式 ICON draw_buf（`LV_COLOR_FORMAT_ARGB8888`）。
- * 支持：`BASE_RES_ID_SIMULATION_ICON` / `BASE_RES_ID_EXPRESSION_ICON` /
+ * 支持：`BASE_RES_ID_STIMULATION_ICON` / `BASE_RES_ID_EXPRESSION_ICON` /
  * `BASE_RES_ID_PROGRAM_ICON`。
  * 返回的缓冲由 snapshot 模块长期持有，页面侧勿 destroy。
  */

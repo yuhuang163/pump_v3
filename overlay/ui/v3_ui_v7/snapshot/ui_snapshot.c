@@ -21,7 +21,7 @@
 */
 /// 模式背景预解码（NATIVE），页面按资源 ID 直接取用
 static const uint16_t predecode_bg_ids[UI_PREDECODE_BG_COUNT] = {
-    BASE_RES_ID_SIMULATION_MODE_BG,
+    BASE_RES_ID_STIMULATION_MODE_BG,
     BASE_RES_ID_EXPRESSION_MODE_BG,
     BASE_RES_ID_PROGRAM_MODE_BG,
 };
@@ -30,7 +30,7 @@ static lv_draw_buf_t *lv_predecode_bg[UI_PREDECODE_BG_COUNT] = {NULL};
 
 /// 模式 ICON 预解码（ARGB8888），页面按资源 ID 直接取用
 static const uint16_t predecode_icon_ids[UI_PREDECODE_ICON_COUNT] = {
-    BASE_RES_ID_SIMULATION_ICON,
+    BASE_RES_ID_STIMULATION_ICON,
     BASE_RES_ID_EXPRESSION_ICON,
     BASE_RES_ID_PROGRAM_ICON,
 };

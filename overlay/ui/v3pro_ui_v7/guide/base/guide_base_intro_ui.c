@@ -9,7 +9,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define GUIDE_INTRO_BG_RES_ID                       (BASE_RES_ID_SIMULATION_MODE_BG)
+#define GUIDE_INTRO_BG_RES_ID                       (BASE_RES_ID_STIMULATION_MODE_BG)
 #define GUIDE_INTRO_TITLE_COLOR                     (0xFFFFFF)
 
 /*

@@ -314,7 +314,7 @@
     {
       "resource_id": "BASE_RES_ID_STIMULATION_KEY_ICON",
       "description": "刺激按键图标",
-      "file": "baj/icon_simulation_key_60x60_a8_q99_444.baj",
+      "file": "baj/icon_stimulation_key_60x60_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -452,9 +452,9 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_SIMULATION_MODE_BG",
+      "resource_id": "BASE_RES_ID_STIMULATION_MODE_BG",
       "description": "刺激模式背景",
-      "file": "png/bg_simulation.png",
+      "file": "png/bg_stimulation.png",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -480,9 +480,9 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_SIMULATION_ICON",
+      "resource_id": "BASE_RES_ID_STIMULATION_ICON",
       "description": "刺激模式图标",
-      "file": "png/icon_simulation.png",
+      "file": "png/icon_stimulation.png",
       "x_offset": 0,
       "y_offset": 0
     },

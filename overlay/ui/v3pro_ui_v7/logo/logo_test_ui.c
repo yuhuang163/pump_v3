@@ -52,8 +52,8 @@ typedef struct {
 static logo_display_info_t *logo_info = NULL;
 #if IS_SUPPORT_LOGO_IMG_TEST
 static PSRAM_DATA_LOC uint8_t logo_img_data1[] = {
-    // #include "v3_res_v7/base/jpg2txt/bg_simulation_mode_352x352.txt"
-    #include "v3_res_v7/base/png2txt/bg_simulation_mode_360x360.txt"
+    // #include "v3_res_v7/base/jpg2txt/bg_stimulation_mode_352x352.txt"
+    #include "v3_res_v7/base/png2txt/bg_stimulation_mode_360x360.txt"
 };    
 
 static PSRAM_DATA_LOC uint8_t logo_img_data2[] = {

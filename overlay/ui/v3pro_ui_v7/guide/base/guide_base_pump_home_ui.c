@@ -11,7 +11,7 @@
 */
 /** 参考第四页泵奶启动页：无波形，时间下移 31，固定 00:00 */
 #define GUIDE_PUMP_HOME_SCREEN_W                    (360)
-#define GUIDE_PUMP_HOME_BG_RES_ID                   (BASE_RES_ID_SIMULATION_MODE_BG)
+#define GUIDE_PUMP_HOME_BG_RES_ID                   (BASE_RES_ID_STIMULATION_MODE_BG)
 
 #define GUIDE_PUMP_HOME_MODE_TITLE_COLOR            (0xFFFFFF)
 

@@ -69,14 +69,14 @@ static uint16_t guide_mode_switch_icon_res_id_get(uint8_t mode)
 {
     switch (mode) {
         case BREAST_PUMP_STIMULATION_MODE:
-            return BASE_RES_ID_SIMULATION_ICON;
+            return BASE_RES_ID_STIMULATION_ICON;
         case BREAST_PUMP_LACTATION_MODE:
             return BASE_RES_ID_EXPRESSION_ICON;
         case BREAST_PUMP_MILK_BOOST_MODE:
         case BREAST_PUMP_PP_MILK_TRACK_MODE:
             return BASE_RES_ID_PROGRAM_ICON;
         default:
-            return BASE_RES_ID_SIMULATION_ICON;
+            return BASE_RES_ID_STIMULATION_ICON;
     }
 }
 

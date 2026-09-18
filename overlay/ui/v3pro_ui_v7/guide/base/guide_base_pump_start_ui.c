@@ -12,7 +12,7 @@
 */
 /** 固定刺激模式泵奶首页布局，坐标对齐 pump_home_base_home_page_ui.c */
 #define GUIDE_PUMP_START_SCREEN_W                   (360)
-#define GUIDE_PUMP_START_BG_RES_ID                  (BASE_RES_ID_SIMULATION_MODE_BG)
+#define GUIDE_PUMP_START_BG_RES_ID                  (BASE_RES_ID_STIMULATION_MODE_BG)
 
 #define GUIDE_PUMP_START_MODE_TITLE_COLOR           (0xFFFFFF)
 

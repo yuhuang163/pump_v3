@@ -12,7 +12,7 @@
 */
 /** 固定刺激模式泵奶暂停态，坐标对齐 pump_home_base_home_page_ui.c / animation.c */
 #define GUIDE_PUMP_PAUSE_SCREEN_W                   (360)
-#define GUIDE_PUMP_PAUSE_BG_RES_ID                  (BASE_RES_ID_SIMULATION_MODE_BG)
+#define GUIDE_PUMP_PAUSE_BG_RES_ID                  (BASE_RES_ID_STIMULATION_MODE_BG)
 
 #define GUIDE_PUMP_PAUSE_MODE_TITLE_COLOR           (0xFFFFFF)
 

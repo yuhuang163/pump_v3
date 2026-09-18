@@ -190,7 +190,7 @@ const static uint16_t home_speed_icon_ids[HOME_SPEED_MAX_COUNT] = {
 };
 
 const static home_mode_info_t home_mode_infos[HOME_MODE_MAX_COUNT] = {
-    {"Stimulate", BASE_RES_ID_PUMP_SIMULATION_ICON, 122, 40},
+    {"Stimulate", BASE_RES_ID_PUMP_STIMULATION_ICON, 122, 40},
     {"Expression", BASE_RES_ID_PUMP_EXPRESSION_ICON, 134, 40},
     {"Mixed", BASE_RES_ID_PUMP_MIXED_ICON, 98, 40},
     {"Relax", BASE_RES_ID_PUMP_MIXED_ICON, 98, 40},

@@ -56,7 +56,7 @@ typedef enum {
     BASE_RES_ID_PUMP_SPEED_FAST_ICON, /// 泵奶首页-快速图标
     BASE_RES_ID_REGULAR_PUMPING_BG, /// 泵奶首页-常规泵奶背景
     BASE_RES_ID_EXPERT_PUMPING_BG, /// 泵奶首页-专家泵奶背景
-    BASE_RES_ID_PUMP_SIMULATION_ICON, /// 泵奶首页-刺激图标
+    BASE_RES_ID_PUMP_STIMULATION_ICON, /// 泵奶首页-刺激图标
     BASE_RES_ID_PUMP_EXPRESSION_ICON, /// 泵奶首页-泌乳图标
     BASE_RES_ID_PUMP_MIXED_ICON, /// 泵奶首页-混合图标
     BASE_RES_ID_PUMP_MILK_BOOST_ICON, /// 泵奶首页-奶量提升图标
