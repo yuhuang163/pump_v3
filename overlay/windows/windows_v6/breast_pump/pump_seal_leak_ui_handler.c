@@ -384,7 +384,7 @@ static void pump_seal_ingest_algo(ui_proc_pump_t *proc, const uint8_t *leakage, 
         }
     }
     proc->seal_result = new_result;
-    LOG_WM("seal ingest:%d(%d/%d) weared:%d/%d/%d tip:%d shown:%d/%d", 
+    LOG_WM("seal ingest:%d(%d/%d) weared:%d/%d tip:%d shown:%d/%d", 
         new_result, leakage[0], leakage[1],
         weared[0], weared[1], proc->seal_tip,
         proc->fit_not_detected_shown, proc->seal_leak_shown);
