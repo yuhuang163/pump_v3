@@ -9,7 +9,7 @@ extern "C" {
 #include "lvgl.h"  // IWYU pragma: keep
 
 /// LVGL 字体声明 - Aeonik soft 56px
-/// 包含字符: 0-9
+/// 包含字符: 0-9：
 extern const lv_font_t lv_font_aeonik_soft_56_semibold;
 #ifdef __cplusplus
 }
