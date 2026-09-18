@@ -91,7 +91,7 @@ static theme_guide_ui_info_t *theme_info = NULL;
 static const uint16_t theme_guide_preview_res_ids[THEME_GUIDE_OPTION_NUM] = {
     // BASE_RES_ID_MINIMAL_THEME_IMG,
     0,
-    CUSTOM_RES_ID_IP_THEME_IMG,
+    CUSTOM_RES_ID_IP_THEME_ICON,
 };
 
 static const res_theme_type_e theme_guide_preview_theme_types[THEME_GUIDE_OPTION_NUM] = {
