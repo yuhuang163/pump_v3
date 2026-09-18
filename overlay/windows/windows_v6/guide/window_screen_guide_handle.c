@@ -25,8 +25,7 @@
 
 /// 引导页 Start/pause 键指示灯常亮页（其余页面指示灯熄灭）
 #define GUIDE_PAGE_IS_START_LED_ON(page) \
-    ((page) == GUIDE_PAGE_QRCODE || (page) == GUIDE_PAGE_WELCOME_ANIM || \
-     (page) == GUIDE_PAGE_FINISH)
+    ((page) == GUIDE_PAGE_QRCODE || (page) == GUIDE_PAGE_FINISH)
 
 #define REMOVE_ALL_HANDER_TASK() \
 do { \

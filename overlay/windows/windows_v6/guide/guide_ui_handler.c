@@ -221,21 +221,10 @@ static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
 {
     ui_proc_guide_t *proc = (ui_proc_guide_t *)ui->priv.play_info.user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_GUIDE);
+    (void)index;
 
     /// 弹窗期间不跑自动切页逻辑，避免组件重建盖住弹窗
     if (proc->popup_ui_type == ID_POPUP_UI_NONE) {
-        if (proc->page_index == GUIDE_PAGE_WELCOME_ANIM) {
-            int res_theme_type = RES_THEME_TYPE_BASE;
-            if (proc->ui && proc->ui->priv.res) {
-                res_theme_type = proc->ui->priv.res->get_sys_theme_type();
-            }
-            if (res_theme_type == RES_THEME_TYPE_CUSTOM &&
-                index >= (int)CUSTOM_GUIDE_ANIM_NUM) {
-                // guide_page_advance(proc, GUIDE_PAGE_INTRO);
-                guide_page_advance(proc, GUIDE_PAGE_PUMP_START_GUIDE);
-            }
-        }
-
         guide_guide_step_timeout_handler(proc);
         guide_pump_level_idle_timeout_handler(proc);
 #if GUIDE_LEVEL_OVER_LIMIT_ENABLE
@@ -248,9 +237,6 @@ static void guide_ui_after_policy(ui_manager_context_t *ui, int index)
     const bool blink_changed = guide_ui_blink_update(proc);
     if (blink_changed && GUIDE_PAGE_IS_LED_BLINK(proc->page_index)) {
         guide_led_backlight_blink_tick(proc);
-    }
-    if (proc->page_index == GUIDE_PAGE_WELCOME_ANIM) {
-        guide_led_backlight_update(proc);
     }
 
     ui_display_guide_process(ui);
@@ -368,10 +354,6 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
 {
     EXCEPTION_CHECK_VOID(proc);
     (void)keytype;
-    if (GUIDE_PAGE_IS_WELCOME_ANIM(proc->page_index)) {
-        return;
-    }
-
     if (proc->page_index == GUIDE_PAGE_PUMP_FINISH_HOLD) {
         return;
     }
@@ -386,7 +368,7 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
                 } else {
                     #if GUIDE_SET_DEPLOYED_FLAG_ON_ENTER
                     proc->wm->set_window_guidance_deployed_flag(true);
-                    LOG_WM("set guidance deployed flag on welcome anim page.");
+                    LOG_WM("set guidance deployed flag on qrcode page.");
                     #endif
                     guide_page_advance(proc, GUIDE_PAGE_INTRO);               
                 }
@@ -474,8 +456,7 @@ void guide_key_event_handler(ui_proc_guide_t *proc, uint16_t keycode, uint16_t k
 void guide_knob_event_handler(ui_proc_guide_t *proc, bool is_left)
 {
     EXCEPTION_CHECK_VOID(proc);
-    if (GUIDE_PAGE_IS_WELCOME_ANIM(proc->page_index) ||
-        proc->page_index == GUIDE_PAGE_QRCODE ||
+    if (proc->page_index == GUIDE_PAGE_QRCODE ||
         proc->page_index == GUIDE_PAGE_INTRO) {
         return;
     }

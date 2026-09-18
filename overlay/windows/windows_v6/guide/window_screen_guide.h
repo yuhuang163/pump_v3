@@ -63,11 +63,6 @@ extern "C" {
 #define IS_SUPPORT_GUIDE_PUMP_START              (0)
 #endif
 
-/// base 主题是否支持引导欢迎动画页
-#ifndef IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM
-#define IS_SUPPORT_BASE_GUIDE_WELCOME_ANIM         (0)
-#endif
-
 /// 引导已部署标记设置时机：1=进入引导页时，0=退出引导页时
 #ifndef GUIDE_SET_DEPLOYED_FLAG_ON_ENTER
 #define GUIDE_SET_DEPLOYED_FLAG_ON_ENTER           (1)
@@ -88,28 +83,27 @@ typedef enum {
 
 typedef enum {
     GUIDE_PAGE_QRCODE = 0,              /// 1. 绑定二维码
-    GUIDE_PAGE_WELCOME_ANIM = 1,        /// custom: 引导动画
-    GUIDE_PAGE_INTRO = 2,               /// 2. 引导简介
-    GUIDE_PAGE_PUMP_START_GUIDE = 3,    /// 3. 泵奶启动向导
-    GUIDE_PAGE_PUMP_HOME_GUIDE = 4,     /// 4. 泵奶首页引导（刺激模式）
-    GUIDE_PAGE_PUMP_PAUSE_GUIDE = 5,    /// 5. 泵奶暂停向导
-    GUIDE_PAGE_PUMP_PAUSE = 6,          /// 6. 泵奶暂停（刺激模式）
-    GUIDE_PAGE_PUMP_FINISH_GUIDE = 7,   /// 7. 泵奶完成向导
-    GUIDE_PAGE_PUMP_FINISH_HOLD = 8,    /// 8. 泵奶完成进度页
-    GUIDE_PAGE_PUMP_HOME = 9,           /// 9. 泵奶首页
-    GUIDE_PAGE_MODE_SWITCH_GUIDE = 10,  /// 10. 模式切换向导
-    GUIDE_PAGE_MODE_SWITCH = 11,        /// 11. 模式切换
-    GUIDE_PAGE_MODE_HOME = 12,          /// 12. 模式首页
-    GUIDE_PAGE_LEVEL_SIDE_GUIDE = 13,   /// 13. 单边力度调节向导
-    GUIDE_PAGE_LEVEL_SIDE = 14,         /// 14. 单边力度调节
-    GUIDE_PAGE_LEVEL_SIDE_DONE = 15,    /// 15. 单边力度调节完成
-    GUIDE_PAGE_LEVEL_BOTH_GUIDE = 16,   /// 16. 双边力度调节向导
-    GUIDE_PAGE_LEVEL_BOTH = 17,         /// 17. 双边力度调节
-    GUIDE_PAGE_LEVEL_BOTH_DONE = 18,    /// 18. 双边力度调节完成
-    GUIDE_PAGE_SPEED_GUIDE = 19,        /// 19. 速度调节向导
-    GUIDE_PAGE_SPEED = 20,              /// 20. 速度调节
-    GUIDE_PAGE_SPEED_DONE = 21,         /// 21. 速度调节完成
-    GUIDE_PAGE_FINISH = 22,             /// 22. 引导完成
+    GUIDE_PAGE_INTRO = 1,               /// 2. 引导简介
+    GUIDE_PAGE_PUMP_START_GUIDE = 2,    /// 3. 泵奶启动向导
+    GUIDE_PAGE_PUMP_HOME_GUIDE = 3,     /// 4. 泵奶首页引导（刺激模式）
+    GUIDE_PAGE_PUMP_PAUSE_GUIDE = 4,    /// 5. 泵奶暂停向导
+    GUIDE_PAGE_PUMP_PAUSE = 5,          /// 6. 泵奶暂停（刺激模式）
+    GUIDE_PAGE_PUMP_FINISH_GUIDE = 6,   /// 7. 泵奶完成向导
+    GUIDE_PAGE_PUMP_FINISH_HOLD = 7,    /// 8. 泵奶完成进度页
+    GUIDE_PAGE_PUMP_HOME = 8,           /// 9. 泵奶首页
+    GUIDE_PAGE_MODE_SWITCH_GUIDE = 9,   /// 10. 模式切换向导
+    GUIDE_PAGE_MODE_SWITCH = 10,        /// 11. 模式切换
+    GUIDE_PAGE_MODE_HOME = 11,          /// 12. 模式首页
+    GUIDE_PAGE_LEVEL_SIDE_GUIDE = 12,   /// 13. 单边力度调节向导
+    GUIDE_PAGE_LEVEL_SIDE = 13,         /// 14. 单边力度调节
+    GUIDE_PAGE_LEVEL_SIDE_DONE = 14,    /// 15. 单边力度调节完成
+    GUIDE_PAGE_LEVEL_BOTH_GUIDE = 15,   /// 16. 双边力度调节向导
+    GUIDE_PAGE_LEVEL_BOTH = 16,         /// 17. 双边力度调节
+    GUIDE_PAGE_LEVEL_BOTH_DONE = 17,    /// 18. 双边力度调节完成
+    GUIDE_PAGE_SPEED_GUIDE = 18,        /// 19. 速度调节向导
+    GUIDE_PAGE_SPEED = 19,              /// 20. 速度调节
+    GUIDE_PAGE_SPEED_DONE = 20,         /// 21. 速度调节完成
+    GUIDE_PAGE_FINISH = 21,             /// 22. 引导完成
     GUIDE_PAGE_MAX,
 } guide_page_index_t;
 
@@ -143,14 +137,6 @@ static inline uint8_t guide_mode_switch_mode_from_slot(uint8_t slot)
 /** 兼容旧命名：旋钮按压引导即泵奶启动向导 */
 #define GUIDE_PAGE_KNOB_GUIDE                       GUIDE_PAGE_PUMP_START_GUIDE
 
-#define GUIDE_PAGE_IS_WELCOME_ANIM(page)        ((page) == GUIDE_PAGE_WELCOME_ANIM)
-
-/// base 主题无欢迎动画页时，custom 主题仍从欢迎动画页开始
-static inline uint16_t guide_page_initial_get(int res_theme_type)
-{
-    return (res_theme_type == RES_THEME_TYPE_CUSTOM)
-        ? GUIDE_PAGE_WELCOME_ANIM : GUIDE_PAGE_QRCODE;
-}
 #define GUIDE_PAGE_IS_GUIDE_STEP(page)        \
     ((page) == GUIDE_PAGE_INTRO || (page) == GUIDE_PAGE_PUMP_START_GUIDE || \
      (page) == GUIDE_PAGE_PUMP_PAUSE_GUIDE || (page) == GUIDE_PAGE_PUMP_FINISH_GUIDE || \
