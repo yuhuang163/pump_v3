@@ -154,7 +154,6 @@ void guide_led_backlight_update(ui_proc_guide_t *proc)
     EXCEPTION_CHECK_VOID(proc);
 
     switch (proc->page_index) {
-        case GUIDE_PAGE_WELCOME_ANIM:
         case GUIDE_PAGE_QRCODE:
         case GUIDE_PAGE_FINISH:
             guide_led_backlight_all_on(proc);
