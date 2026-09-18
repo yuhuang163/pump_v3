@@ -22,7 +22,7 @@ typedef enum {
     MISC_TASK_ID_KEY_LIGHT_ADAPTIVE = 7,
     MISC_TASK_ID_ADAPTIVE_DIMMING_SLEW = 8,  /// 键灯 slew + 屏/夜灯 target 下发
     MISC_TASK_ID_SYS_ABNORMAL_POLLING = 9,   /// 系统异常状态轮询
-    MISC_TASK_ID_ADAPTIVE_DIMMING_REPORT = 10, /// 自适应亮度/档位变化上报（5s 防抖）
+    MISC_TASK_ID_ADAPTIVE_DIMMING_REPORT = 10, /// 自适应亮度/档位变化上报（3s 防抖）
     MISC_TASK_ID_MAX
 } misc_task_id_e;
 

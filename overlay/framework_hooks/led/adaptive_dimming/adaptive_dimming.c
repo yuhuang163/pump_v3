@@ -543,7 +543,7 @@ void adaptive_dimming_init(void)
                         adaptive_dimming_polling_thread);
     misc->add_misc_task(led, MISC_TASK_ID_ADAPTIVE_DIMMING_SLEW, ADAP_DIM_SLEW_POLL_MS, MISC_WORK_MSG_ID_TIMER,
                         adaptive_dimming_slew_thread);
-    misc->add_misc_task(led, MISC_TASK_ID_ADAPTIVE_DIMMING_REPORT, 5000, MISC_WORK_MSG_ID_TIMER,
+    misc->add_misc_task(led, MISC_TASK_ID_ADAPTIVE_DIMMING_REPORT, 3000, MISC_WORK_MSG_ID_TIMER,
                         adaptive_dimming_report_thread);
     sensor_manager_context_t *sensor = (sensor_manager_context_t *)find_module(ID_MODULE_SENSOR);
     EXCEPTION_CHECK_VOID(sensor);

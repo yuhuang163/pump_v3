@@ -85,16 +85,42 @@ static void led_capture_ui_to_global_backlight(led_manager_context_t *thiz)
              thiz->priv.ui_backlight_level_rate);
 }
 
+/// 关全局 ALS 前：把当前夜灯亮度反推档位写入 night_light_gear 并落盘
+static void led_capture_night_light_to_gear(led_manager_context_t *thiz)
+{
+#if IS_SUPPORT_NIGHT_LIGHT
+    uint8_t gear;
+
+    if (!thiz->priv.night_light_onoff) {
+        return;
+    }
+    gear = night_light_policy_level_to_gear(thiz->priv.night_light_level);
+    if (gear == NIGHT_LIGHT_GEAR_L0) {
+        return;
+    }
+    if (gear == thiz->priv.night_light_gear) {
+        return;
+    }
+    thiz->priv.night_light_gear = gear;
+    storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (st) {
+        st->put_store_ram_val(STORE_ID_SYS_NIGHT_LIGHT_GEAR, thiz->priv.night_light_gear, 0, NULL);
+    }
+    LOG_MISC("capture night light to gear: %d (level:%d)",
+             thiz->priv.night_light_gear, thiz->priv.night_light_level);
+#endif
+}
+
 /// App 设置总开关：写 Flash global_adaptive_switch，并同步三路 ALS 子开关（RAM）
 static void set_global_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
 {
     EXCEPTION_CHECK_VOID(thiz);
     if (onoff != thiz->priv.global_adaptive_dimming_switch) {
-        /// 关总开关前先记下当前屏亮度，避免随后钉全局时把 ALS 现场盖掉
-        /// 暂注释：capture 会把 ALS 临时亮度写进 global，关自适应后屏/键被钉到该值，用户手动档被改掉
-        // if (!onoff) {
-        //     led_capture_ui_to_global_backlight(thiz);
-        // }
+        /// 关总开关前：把当前 ALS 亮度/档位写入手动挡位，关闭后无缝衔接
+        if (!onoff) {
+            led_capture_ui_to_global_backlight(thiz);
+            led_capture_night_light_to_gear(thiz);
+        }
         thiz->priv.global_adaptive_dimming_switch = onoff;
         LOG_MISC("global_adaptive_dimming_switch (ram): %d", thiz->priv.global_adaptive_dimming_switch);
         storage_manager_context_t *st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
