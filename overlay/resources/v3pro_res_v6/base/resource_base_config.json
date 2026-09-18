@@ -449,7 +449,7 @@
         {
             "resource_id": "BASE_RES_ID_STIMULATION_WAVE",
             "description": "刺激波形",
-            "file": "baj/wave_simulation_314x32_a8_q99_444.baj",
+            "file": "baj/wave_stimulation_314x32_a8_q99_444.baj",
             "x_offset": 0,
             "y_offset": 0
         },

@@ -36,7 +36,7 @@ static uint16_t guide_speed_guide_bg_res_id_get(uint8_t mode)
             return BASE_RES_ID_PROGRAM_MODE_BG;
         case BREAST_PUMP_STIMULATION_MODE:
         default:
-            return BASE_RES_ID_SIMULATION_MODE_BG;
+            return BASE_RES_ID_STIMULATION_MODE_BG;
     }
 }
 

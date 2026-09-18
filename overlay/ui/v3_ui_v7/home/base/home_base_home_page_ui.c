@@ -96,7 +96,7 @@ static uint16_t home_main_bg_res_id_get(uint8_t mode)
 {
     switch (mode) {
         case BREAST_PUMP_STIMULATION_MODE:
-            return BASE_RES_ID_SIMULATION_MODE_BG;
+            return BASE_RES_ID_STIMULATION_MODE_BG;
         case BREAST_PUMP_LACTATION_MODE:
             return BASE_RES_ID_EXPRESSION_MODE_BG;
 
@@ -105,7 +105,7 @@ static uint16_t home_main_bg_res_id_get(uint8_t mode)
         case BREAST_PUMP_CUSTOM_MODE:
             return BASE_RES_ID_PROGRAM_MODE_BG;
         default:
-            return BASE_RES_ID_SIMULATION_MODE_BG;
+            return BASE_RES_ID_STIMULATION_MODE_BG;
     }
 }
 

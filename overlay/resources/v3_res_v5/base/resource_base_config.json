@@ -311,9 +311,9 @@
       "y_offset": 0
     },
     {
-      "resource_id": "BASE_RES_ID_PUMP_SIMULATION_ICON",
+      "resource_id": "BASE_RES_ID_PUMP_STIMULATION_ICON",
       "description": "泵奶首页-刺激图标",
-      "file": "baj/icon_pump_simulation_24x24_a8_q99_444.baj",
+      "file": "baj/icon_pump_stimulation_24x24_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },

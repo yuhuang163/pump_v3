@@ -9,7 +9,7 @@
 * DEFINES
 *****************************************************************************************
 */
-#define GUIDE_PUMP_START_GUIDE_BG_RES_ID                        (BASE_RES_ID_SIMULATION_MODE_BG)
+#define GUIDE_PUMP_START_GUIDE_BG_RES_ID                        (BASE_RES_ID_STIMULATION_MODE_BG)
 
 #define GUIDE_PUMP_START_GUIDE_PAGE_NUM_CURRENT                 (1)
 #define GUIDE_PUMP_START_GUIDE_PAGE_NUM_TOTAL                   (6) //(7)

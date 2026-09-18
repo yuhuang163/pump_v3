@@ -56,12 +56,12 @@ typedef enum {
     BASE_RES_ID_GUIDE_SPEED_KEY_ICON, /// 引导速度按键
 
     /* 模式相关组 [300..500] */
-    BASE_RES_ID_SIMULATION_MODE_BG = 300, /// 刺激模式背景
+    BASE_RES_ID_STIMULATION_MODE_BG = 300, /// 刺激模式背景
     BASE_RES_ID_EXPRESSION_MODE_BG, /// 吸吮模式背景
     BASE_RES_ID_MIXED_MODE_BG, /// 混合模式背景
     BASE_RES_ID_PROGRAM_MODE_BG, /// 韵律模式背景
 
-    BASE_RES_ID_SIMULATION_ICON, /// 刺激模式图标
+    BASE_RES_ID_STIMULATION_ICON, /// 刺激模式图标
     BASE_RES_ID_EXPRESSION_ICON, /// 吸吮模式图标
     BASE_RES_ID_MIXED_ICON, /// 混合模式图标
     BASE_RES_ID_PROGRAM_ICON, /// 韵律模式图标
