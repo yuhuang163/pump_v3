@@ -12,7 +12,7 @@
 
 `all_in_one / phy_init / ota_upgrade / userdata / littleFs / littleFsExt / factory_data / dev_info / img_int_data / img_ext_data`。
 
-内部 flash（NorFlash）：FDS（littlefs）、FACTORY_DATA（0x2000）、IMG_INT_DATA（图片，IMC V3/V4 为 0 图片全走外 flash）。外部 flash（16MB）：BASE_IMG_RES（8MB）、THEME_IMG_RES（7MB）、FDS_EXT。
+内部 flash（NorFlash）：FDS（littlefs）、FACTORY_DATA（0x2000）、IMG_INT_DATA（图片，IMC V3/V4 为 0 图片全走外 flash）。外部 flash（16MB）：BASE_IMG_RES（7MB）、THEME_IMG_RES（7MB）、FDS_EXT（1.5MB，littlefs 语言包）。
 
 ### 存储格式
 
@@ -55,5 +55,5 @@ ota_upgrade_state_e: NONE / START / DOWNLOAD / SUCCESS / FAIL / END
 - 读取校验失败会静默重置（丢数据）但打 ERROR 日志。
 - `factory_reset`：user_database_reset + 时间同步 + 可选 reboot，flash 写用 `storage_rw_lock` 门闩。
 - BLE 断连即中止 OTA。
-- 图片资源 OTA 进度存 `img_res_ota_info_t`。
+- 图片资源 OTA 进度存 `img_res_ota_info_t`，协议详见 [`IMG_RES_OTA_PROTOCOL.md`](../../../overlay/servers/common_server/ota/IMG_RES_OTA_PROTOCOL.md)。
 - `drivers/fatfs/bsp_fatfs.c` 基本 stub（真实逻辑在 `#if 0`）。

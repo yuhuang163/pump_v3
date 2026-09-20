@@ -24,7 +24,7 @@
 | [`architecture/breast-pump/motor-policy.md`](architecture/breast-pump/motor-policy.md) | 吸奶泵 + 马达策略引擎：策略数据结构、模式列表、20ms 主循环、反馈闭环 |
 | [`architecture/ui/ui-windows-resource.md`](architecture/ui/ui-windows-resource.md) | UI/窗口/资源三层分工、窗口路由、LVGL 集成、资源分包与版本化 |
 | [`architecture/ui/lang-pack-fds.md`](architecture/ui/lang-pack-fds.md) | 语言包 FDS 多 key：字号/页面文案/页面组件、公共 Latin、整包安装 |
-| [`architecture/ui/windows-v6-business.md`](architecture/ui/windows-v6-business.md) | 窗口层业务实现（windows_v6）：15 窗口入口/生命周期/按键/广播/跳转 |
+| [`architecture/ui/windows-v6-business.md`](architecture/ui/windows-v6-business.md) | 窗口层业务实现（windows_v6）：16 窗口入口/生命周期/按键/广播/跳转 |
 | [`architecture/ui/ui-v7-pages-business.md`](architecture/ui/ui-v7-pages-business.md) | UI 页面层业务实现（v3_ui_v7 / v3pro_ui_v7）：页面三件套、组件、V3/V3Pro 差异 |
 | [`architecture/ble/ble-servers.md`](architecture/ble/ble-servers.md) | BLE 服务注册、连接状态机、服务器管理、数据埋点链路 |
 | [`architecture/sensor-algo/sensor-algorithm.md`](architecture/sensor-algo/sensor-algorithm.md) | 传感器调度、算法框架三段式、佩戴检测、自适应调光与夜灯 |
@@ -43,6 +43,21 @@
 | [`protocol/data-bury-protocol.md`](protocol/data-bury-protocol.md) | 数据埋点协议（0x5A）链路层/应用层、设备管理命令 |
 | [`protocol/ota-protocol.md`](protocol/ota-protocol.md) | OTA 协议命令/应答、断点续传、CRC32 校验 |
 | [`protocol/factory-shell.md`](protocol/factory-shell.md) | 产测 Shell 文本命令（#cmd） |
+
+## 业务代码内嵌文档（随代码维护）
+
+以下文档直接存放在对应业务代码目录下，随代码一起维护，是这些子系统的权威细节说明，改动前应一并查阅：
+
+| 文档 | 说明 |
+|------|------|
+| [`../drivers/battery/BATTERY_SOC_STRATEGY.md`](../drivers/battery/BATTERY_SOC_STRATEGY.md) | 电池充放电 SOC 估算策略（估算电压、OCV 查表、充满去抖） |
+| [`../drivers/battery/charge/CHARGE_STRATEGY.md`](../drivers/battery/charge/CHARGE_STRATEGY.md) | 充电策略（PD 匹配、充电芯片初始化、温度分段电流） |
+| [`../trunk/root_source/motor/breast_pump_policy/pump_climb_policy.md`](../trunk/root_source/motor/breast_pump_policy/pump_climb_policy.md) | 力度爬升策略（mark_auto / mark_rhythm_switch、韵律切步缓冲） |
+| [`../overlay/framework_hooks/led/灯光策略.md`](../overlay/framework_hooks/led/灯光策略.md) | 灯光策略（三路灯光、自适应调光 ALS、夜灯） |
+| [`../overlay/servers/common_server/ota/IMG_RES_OTA_PROTOCOL.md`](../overlay/servers/common_server/ota/IMG_RES_OTA_PROTOCOL.md) | 图片资源 OTA 协议 |
+| [`../overlay/resources/README.md`](../overlay/resources/README.md) | 资源打包与转换工具说明 |
+| [`../overlay/ui/v3pro_ui_v7/README.md`](../overlay/ui/v3pro_ui_v7/README.md) | UI 页面层（v3/v3pro × v6/v7）页面与组件清单 |
+| [`../overlay/font/README.md`](../overlay/font/README.md) | 字库结构说明 |
 
 ---
 

@@ -36,7 +36,9 @@ typedef struct multi_func_msg_data {
 
 ## 3. 线程与优先级（root_common_config.h）
 
-集中管理所有线程优先级、栈深、消息队列深度。栈默认 1KB/单位，主线程 16KB，LVGL 渲染线程 16KB（最大）。优先级示例：`RT_PRIO_BRC_DISPATCH_THREAD = OS_PRIORITY_REALTIME`，`RT_PRIO_LVGL_HANDLER_THREAD = REALTIME6`。
+集中管理所有线程优先级、栈深、消息队列深度。栈默认 1KB/单位，主线程 5KB，LVGL 渲染线程 16KB（最大）。优先级示例：`RT_PRIO_BRC_DISPATCH_THREAD = OS_PRIORITY_REALTIME`，`RT_PRIO_LVGL_HANDLER_THREAD = REALTIME6`。
+
+> 注意：栈深以 `boards/project_config.h` 的覆盖值为准（它先于 `root_common_config.h` 被包含且无 `#ifndef` 守卫，故覆盖后者默认值，如主线程 16KB→5KB）。
 
 ## 4. 时间系统（time_system.c）
 
@@ -68,7 +70,7 @@ typedef struct multi_func_msg_data {
 
 ## 7. 日志（root_log_define.h + project_log_filter.h）
 
-两级过滤：编译期 `US_LOG_COMPILE_LEVEL` + `IS_SUPPORT_LOG_<MOD>` 裁剪；运行期 `g_log_filter` 位掩码 + `g_log_level_set`。24 个日志模块（PM/PBUS/WM/UI/KEY/SENSOR/RES/MISC/PMP/OTA/BLE/MOTOR/DB/BCR/HDR/TIME/ALGO/PROTOCOL/AUDIO/AIR/STORE/HG/SRV/STEP/TEST/BURY），`project_log_filter.h` 提供 `LOG_FILTER_ALL` 等聚合。输出格式带 UTC 时间 + tick + tid。
+两级过滤：编译期 `US_LOG_COMPILE_LEVEL` + `IS_SUPPORT_LOG_<MOD>` 裁剪；运行期 `g_log_filter` 位掩码 + `g_log_level_set`。26 个日志模块（PM/PBUS/WM/UI/KEY/SENSOR/RES/MISC/PMP/OTA/BLE/MOTOR/DB/BCR/HDR/TIME/ALGO/PROTOCOL/AUDIO/AIR/STORE/HG/SRV/STEP/TEST/BURY），`project_log_filter.h` 提供 `LOG_FILTER_ALL` 等聚合。输出格式带 UTC 时间 + tick + tid。
 
 ## 8. 注意事项
 
