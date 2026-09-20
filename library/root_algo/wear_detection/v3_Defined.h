@@ -29,22 +29,6 @@
 #define MODE_EXPRESSION		(1)
 #define MODE_MIXED			(2)
 
-/* define levels */
-#define LEVEL_1				(1)
-#define LEVEL_2				(2)
-#define LEVEL_3				(3)
-#define LEVEL_4				(4)
-#define LEVEL_5				(5)
-#define LEVEL_6				(6)
-#define LEVEL_7				(7)
-#define LEVEL_8				(8)
-#define LEVEL_9				(9)
-#define LEVEL_10			(10)
-#define LEVEL_11			(11)
-#define LEVEL_12			(12)
-#define LEVEL_13			(13)
-#define LEVEL_14			(14)
-#define LEVEL_15			(15)
 
 #define INVALID_TARGET_PRESSURE_REF    (-255.0f) /* 无效的目标压力参考值 */
 #define RAW_PUMP_POST_TAIL_POINTS 3 /* 每段结束后多采的原始压力点数（含 active->inactive 当前点） */
@@ -92,6 +76,26 @@ static float expression_intercep[] = { 0.8553, -4.6521, -4.7871, -5.0214, -17.60
 
 
 /* from software, 吸力状态 */
+
+/* define levels */
+typedef enum _Set_Levels {
+	LEVEL_1 = 0,
+	LEVEL_2,
+	LEVEL_3,
+	LEVEL_4,
+	LEVEL_5,
+	LEVEL_6,
+	LEVEL_7,
+	LEVEL_8,
+	LEVEL_9,
+	LEVEL_10,
+	LEVEL_11,
+	LEVEL_12,
+	LEVEL_13,
+	LEVEL_14,
+	LEVEL_15,
+	LEVEL_Max,
+}SETLEVELS;
 
 
 typedef enum {
@@ -225,7 +229,6 @@ typedef struct _WAVE_INFO
 
 typedef struct _FEATURE_INFO_
 {
-	unsigned long	uTimeStamp;		/* timestamp */
 	unsigned int	uDataIdx;		/* data index */
 	unsigned short	uUpdateFlag;
 	unsigned int	uPVIndex;
@@ -243,6 +246,7 @@ typedef struct _FEATURE_INFO_
 	unsigned short	uPump_flag;
 	unsigned char	pumping_time;
 	unsigned char	uPumpState;
+	unsigned char	uPumpStateLast;
 	unsigned char	uCompsStatus;
 
 	unsigned char	uWearStatus;		/* result */
@@ -250,9 +254,9 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uDetectOverTime;	/* 检测超时 */
 
 	int				iDelta_pwm;
-	int 			iPwmOffset;   	/* 累计补偿量 */
-	float 			fCompErrSum;      /* PI积分项 */
-	float 			fCompPrevErr;     /* 上一周期误差，后续需要D时可直接用 */
+	int 			iPwmOffset;              	/* 累计补偿量 */
+	float 			fCompErrSum;                /* PI积分项 */
+	float 			fCompPrevErr;               /* 上一周期误差，后续需要D时可直接用 */
 	unsigned char	uWearOnCount;
 	unsigned char	uWearOffCount;
 	unsigned char	uPrevWearStatus;
@@ -268,14 +272,21 @@ typedef struct _FEATURE_INFO_
 	float			fRawSegRunningMin; /* 当前段内 raw 最小（仅用于求 fRawSegMinPressure） */
 	float			fFilteredSegMinPressure; /* 与 fRawSegMinPressure 同泵段、同拍滤波的段内最小 */
 	float			fFilteredSegRunningMin; /* 段内滤波最小（内部） */
-	float			fLeakValleyBuff[6];         /* 泵周期 raw 段最小，左移 6 槽，不复用 fMinDataBuff */
+
+	unsigned short	uPump1LastTime;
+	float           fRawValleyDownBase;
+	float           fRawValleyUpBase;
+	float           fRawWearValleyBase;
+	float			fRawValleyBuff[11];         /* 泵周期 raw 段最小，左移 6 槽，不复用 fMinDataBuff */
 
 	unsigned char	uLeakValleyCount;           /* 0~6 */
 	unsigned char	uLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
 	unsigned char	uPrevLeakStatus;            /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
 	unsigned short  uWearDetectTime;			/* 检测佩戴状态的时长 */
-	unsigned short  uLeakDetectTime;			/* 检测完全漏气状态的时长 */
+	
 	unsigned short  uLeakSwitchTime;			/* 切换状态时长 */
+	unsigned short  uLeakAdjustTime;			/* 切换状态时长 */
+	unsigned short  uLeakSwitchDelayTime;	    /* 切换状态时长 */
 
 	unsigned short	uDataBaselineCnt[3];		/* 休眠状态下, 基线平台>1200Pa (大漏), >700Pa (小漏), <100Pa (正常) 计数 */
 	unsigned short  uMinPressureCnt;			/* 最小负压低于目标负压 */
@@ -305,7 +316,4 @@ typedef struct _FILTER_INFO_
 	unsigned short	uInitState;
 }SFILTER_INFO;
 
-/*
-
-*/
 #endif

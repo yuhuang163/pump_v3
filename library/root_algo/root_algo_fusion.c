@@ -45,16 +45,16 @@ static void wear_detection_process_data(void)
 {
     if (s_task_flag & (1 << WEAR_DETECTION_TASK)) {
         /// TODO: 实现佩戴检测算法
-        ALGO_LOG_INFO("time_stamp1: %d", get_timestamp_ms());
+        ALGO_LOG_INFO("time_stamp1: %d", get_timestamp_ms(0));
         V3WearDetectionMain(s_air_pressure_data);
         /// TODO: 修改算法结果s_result
         GetWearDetectionResult(s_result.weared_status, s_result.leakage_status, s_result.detection_overtime);/// 泵奶未启动结果无效状态:0,佩戴漏气，1. 正常无漏气：2,佩戴微小漏气:3，佩戴强漏气
         // ALGO_LOG_INFO("wear state13: %d, %d", s_result.leakage_status[0], s_result.leakage_status[1]);
         GetCompensationStatus(s_result.compensation_status, s_result.compensation_delta_pwm);
         GetWearDetectionDebugPackage(s_result.sDebugInfo);
-        ALGO_LOG_INFO("time_stamp2: %d", get_timestamp_ms());
-        // s_result.compensation_status[0] = 0;s_result.compensation_status[1] = 0;
-        // s_result.compensation_delta_pwm[0] = 0;s_result.compensation_delta_pwm[1] = 0;
+        ALGO_LOG_INFO("time_stamp2: %d", get_timestamp_ms(0));
+        //s_result.compensation_status[0] = 0;s_result.compensation_status[1] = 0;
+        //s_result.compensation_delta_pwm[0] = 0;s_result.compensation_delta_pwm[1] = 0;
         // Debug here
         unsigned int uWaveSpikes[2] = { 0 };
         unsigned int uNormalWaveform[2] = { 0 };
@@ -74,7 +74,7 @@ static void wear_detection_process_data(void)
             fThreshold, fFilteredData, raw_pressure_max, threshold_at_min_pressure, 
             fFilteredSegMinPressure, uWearDetSegMinCommitted, uWearDetectTime, uLeakDetectTime, uDataBaselineCnt);
         
-        ALGO_LOG_INFO("time_stamp3: %d, air pressure: p1: %f, p2: %f", get_timestamp_ms(), s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
+        ALGO_LOG_INFO("time_stamp3: %d, air pressure: p1: %f, p2: %f", get_timestamp_ms(0), s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
         ALGO_LOG_INFO("pump state: %d, %d, do_work: %d, detect_time: %d, %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state, s_air_pressure_data.do_work, uWearDetectTime[0], uWearDetectTime[1]);
         ALGO_LOG_INFO("compensation status_0: %d/%d, delta_pwm_0: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
         ALGO_LOG_INFO("wear state: %d, %d, leak state: %d, %d", s_result.weared_status[0], s_result.weared_status[1], s_result.leakage_status[0], s_result.leakage_status[1]);
@@ -184,7 +184,7 @@ int algo_fusion_lib_init(algo_fusion_sensor_attr_type_e sensor_flag, algo_fusion
         // just for initialization - not the final parameters
         
         //v3_pressure_algo_get_version();
-        ALGO_LOG_INFO("v 3.0.2.1");
+        ALGO_LOG_INFO("v 3.0.2.2");
         V3WearDetectionInit(1, 1, 0, 0);
     }
     return ALGO_FUSION_INIT_SUCCESS;
