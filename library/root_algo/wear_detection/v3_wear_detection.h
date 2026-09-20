@@ -12,40 +12,55 @@
 修 改 者：
 修改内容：
 ******************************************************************************************************************/
+
+
+
 #ifndef V3_WEAR_DETECTION_H
 #define V3_WEAR_DETECTION_H
 #include "v3_Defined.h"
 #include "v3_target_curve_table.h"
-#include <stdio.h> 
 
-#ifdef __cplusplus
-extern "C" {
+#ifdef FOR_PC_DISPLAY
+#include "MultiParamExter.h"
+
+typedef struct _deubg_info
+{
+	int       mNoiseLevel[2];
+	int       mWearStatus[2];
+	int       mWaveDetect[2];
+	int       mFilteredPress[2];
+	int       mBaseMinPress[2];
+	int       mRawMinEndPress[2];
+	int       mRawMinPress[2];
+	int       mSpikes[2];
+	int       mWearOnCount[2];
+	int       mWearOffCount[2];
+	int       mNormalWaveform[2];
+	int       mSwitchTimes[2];
+}DEBUGINFO;
 #endif
 
-
-/*functions*/
-unsigned int BufferCircleNextIndex(unsigned int uCurrPos, unsigned int uIndent, unsigned int uBufferLen);
-unsigned int BufferCircleRelativeIndex(unsigned int uPos, unsigned int uIdx, unsigned int uBufferLen, unsigned int uFirstTime);
-void PressureDataPreprocess(float fPumpData, SFILTER_INFO* tFilterInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp);
-void PeakValleyAnalysis(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp);
-void PressureDataFeature(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA_BUFFER* tDataBufferTemp, SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfoTemp);
-void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* tDeviceInfoTemp);
-void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigned int uChannelIdx);
-void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpState, unsigned char uMode, unsigned char uLevel, float fPressure1, float fPressure2);
-void GetFilteredPressureData(float* fFilteredData);
-
-/*interface*/
+/* interface */
+// 初始化
 void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight);
+
+// 逐点计算主函数
 void V3WearDetectionMain(algo_air_pressure_data_t sPressureData);
+
+// 佩戴、漏气、未佩戴超时状态获取
 void GetWearDetectionResult(unsigned char* uWearStatus, unsigned char* uLeakStatus, unsigned char* DetectOverTime);
+
+//补偿状态获取
 void GetCompensationStatus(unsigned char* uCompsStatus, int* iDelta_pwm);
-void GetWearDetectionDebugPackage(SRESULT_INFO *result_info);
+
+// 版本号获取
 const char* v3_pressure_algo_get_version(void);
 
-/*void GetDebugInfo(SRESULT_INFO *result_info);*/
-#endif
-#ifdef __cplusplus
-}
+void GetWearDetectionDebugPackage(SRESULT_INFO *result_info);
+
+// 用于上位机调试，可忽略
+#ifdef FOR_PC_DISPLAY
+void GetDebugInfo(DEBUGINFO* DebugInfo);
 #endif
 
-//#endif
+#endif
