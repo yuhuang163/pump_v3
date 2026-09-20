@@ -76,7 +76,7 @@ typedef struct rt_device_node {
 
 ## 4. Overlay 钩子注入
 
-`overlay/framework_hooks/framework_hook.c` 的 `framework_extra_hook()` 在 `register_module()` 后、`init_module()` 前执行，用 `find_module()` 拿各模块 context，逐个 `register_*_hook()`，把 storage/输入键/马达/泵奶/电源/飞行模式/UI/算法/产测/埋点/服务器/异常/LED/OTA/BLE 共 15 类产品钩子挂进框架主干。
+`overlay/framework_hooks/framework_hook.c` 的 `framework_extra_hook()` 在 `register_module()` 后、`init_module()` 前执行，用 `find_module()` 拿各模块 context，逐个 `register_*_hook()`，把 storage/输入键/马达/泵奶/电源/飞行模式/资源/UI/算法/产测/埋点/服务器/异常/LED/OTA/BLE 共 16 类产品钩子挂进框架主干。
 
 ## 5. 模块注册顺序
 

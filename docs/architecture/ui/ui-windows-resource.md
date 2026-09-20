@@ -50,7 +50,7 @@ Resource Manager (trunk/root_source/resource + overlay/resources)
 ## 5. 资源管理
 
 - 包格式：魔数 `IMG_RES_MAGIC = 0x52534547`（"GESR"），头含 magic/CRC16/MD5/version/res_count，校验链 magic → CRC16 → MD5 → 各 obj CRC16。
-- Base/Custom 双主题：BASE（8MB 起）+ CUSTOM（+8MB）；运行期 `STORE_ID_SYS_UI_STYLE` 决定，当前 `IS_SUPPORT_THEME_SWITCH(0)` 固定 BASE。
+- Base/Custom 双主题：BASE（7MB）+ CUSTOM（7MB，`project_partitions.h`）；运行期 `STORE_ID_SYS_UI_STYLE` 决定，当前 `IS_SUPPORT_THEME_SWITCH(0)` 固定 BASE。
 - 内部 flash 直接映射；外部 flash（`V3_IMG_RES_STORAGE_TYPE==EXTERNAL`）用 PSRAM 分配 + `platform_flash_read`。
 - 资源 ID：uint16_t，BASE 范围 [0..10000]，按功能分组。
 

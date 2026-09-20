@@ -44,6 +44,8 @@ battery_state_e: NONE / EMPTY(1%) / LOW_POWER_SHUTDOWN(5%) /
 - PD 匹配（bsp_charge_pd.c）：插入→`charge_pd_power_is_ready`（≥PD2.0）→ `CHARGE_EVENT_PLUG_IN`；版本过低→`ADAPTER_MISMATCH`。
 - 一次读 12 字节 ADC 寄存器（VBUS/IBUS/VBAT/IBAT/NTC/status），VBAT/NTC 各 20 点滑动平均。
 
+> 电池 SOC 估算与充电策略的逐拍细节见内嵌文档：[`BATTERY_SOC_STRATEGY.md`](../../../drivers/battery/BATTERY_SOC_STRATEGY.md)、[`CHARGE_STRATEGY.md`](../../../drivers/battery/charge/CHARGE_STRATEGY.md)。
+
 ## 3. 注意事项
 
 - 开机超时检测与按键释放有竞态（UP 落在 timeout 窗口内会误关）。
