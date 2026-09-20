@@ -7,6 +7,9 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager_api.h"
 #include "ui_manager.h" // IWYU pragma: keep
+#if IS_SUPPORT_LANG_PACK
+#include "ui_lang_pack.h"
+#endif
 
 /*
 * DEFINES
@@ -635,7 +638,7 @@ static void ui_thread_init_route(struct ui_manager_context *thiz)
     UI_DBG_SET_STEP(UI_DBG_STEP_THREAD_INIT);
     CREATE_MSG_TYPE_QUEUE(&thiz->priv.ui_hdr_thd.msg_id, UI_LVGL_MSG_QUEUE_NUM, sizeof(ui_lvgl_msg_t));
     thiz->priv.lvgl_initialized = true;
-#if IS_SUPPORT_LVGL
+#if IS_SUPPORT_LVGL && IS_SUPPORT_LANG_PACK
     ui_lang_pack_load_runtime_fonts();
 #endif
 #if IS_SUPPORT_LVGL && !IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
