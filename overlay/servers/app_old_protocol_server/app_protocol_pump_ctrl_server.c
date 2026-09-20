@@ -1,7 +1,7 @@
 #include "root_common_api.h" // IWYU pragma: keep
 #include "app_protocol_handler.h"
 #include "app_protocol_pump_ctrl_server.h"
-#include "app_protocol_broadcast_to_window.h"
+#include "app_protocol_window_msg.h"
 #include "app_protocol_key_simulation.h"
 
 /*
@@ -764,6 +764,8 @@ static uint8_t pump_custom_mode_update_by_app(pump_mode_steps_info_t pump_steps_
 
     //更新自定义模式名称
     storage_ctx->put_store_ram_val(STORE_ID_PUMP_MODE_NAME_INFO, BREAST_PUMP_CUSTOM_MODE, 0, name);
+    /// 名字 → 模式的区分交由窗口侧处理：这里只把模式变化连同名字一并下发给窗口
+    app_window_msg_pump_mode(BREAST_PUMP_CUSTOM_MODE, name);
     ///是否需要区分设备是否在用户自定义模式下运行，如果运行，是否直接替换用户自定义模式参数
     storage_ctx->put_store_ram_val(STORE_ID_PUMP_MODE_STEPS_INFO, BREAST_PUMP_CUSTOM_MODE, 0, &pump_steps_info);
     LOG_SRV("put custom steps info to ram");
@@ -906,7 +908,7 @@ static uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_ol
         }
         setting.level[0] = level;
         LOG_SRV("left pump level %d",setting.level[0]);
-        app_broadcast_pump_level_to_window(setting.level[0], OLD_BROADCAST_LEFT_CT);
+        app_window_msg_pump_level(setting.level[0], setting.level[1], WINDOW_EVT_LEVEL_SIDE_LEFT);
     } else if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_RIGHT_CT) {
         ///相同不进行设置
         if (setting.level[1] == level) {
@@ -915,7 +917,7 @@ static uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_ol
         }
         setting.level[1] = level;
         LOG_SRV("right pump level %d",setting.level[1]);
-        app_broadcast_pump_level_to_window(setting.level[1], OLD_BROADCAST_RIGHT_CT);
+        app_window_msg_pump_level(setting.level[0], setting.level[1], WINDOW_EVT_LEVEL_SIDE_RIGHT);
     } else {
         ///相同不进行设置
         if (setting.level[0] == level && setting.level[1] == level) {
@@ -925,8 +927,7 @@ static uint8_t app_old_comm_set_nommal_pump_level(app_old_comm_pump_ctrl *app_ol
         setting.level[1] = level;
         setting.level[0] = level;
         LOG_SRV("all pump level %d, %d", setting.level[0], setting.level[1]);
-        app_broadcast_pump_level_to_window(setting.level[0], OLD_BROADCAST_LEFT_CT);
-        app_broadcast_pump_level_to_window(setting.level[1], OLD_BROADCAST_RIGHT_CT);
+        app_window_msg_pump_level(setting.level[0], setting.level[1], WINDOW_EVT_LEVEL_SIDE_BOTH);
         ///双边模式不要设置，通过EA设置
         ///app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
         return false;
@@ -965,7 +966,7 @@ static uint8_t app_old_comm_set_nommal_pump_speed(app_old_comm_pump_ctrl *app_ol
     setting.speed = app_old_comm_pump_ctrl_date->normal_pump_speed;
     LOG_SRV("pump speed  %d", setting.speed);
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
-    app_broadcast_pump_speed_to_window(setting.speed ,OLD_BROADCAST_ALL_CT);
+    app_window_msg_pump_speed(setting.speed );
 
     return true;
 }
@@ -1035,7 +1036,7 @@ static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_ol
         }
         setting.level[0] = level;
         LOG_SRV("left pump level %d",setting.level[0]);
-        app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
+        app_window_msg_pump_level(setting.level[0], setting.level[1], WINDOW_EVT_LEVEL_SIDE_LEFT);
     } else if (app_old_comm_pump_ctrl_date->pump_mode_lr_or_all == APP_OLD_COMM_RIGHT_CT) {
         ///相同不进行设置
         if (setting.level[1] == level) {
@@ -1044,7 +1045,7 @@ static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_ol
         }
         setting.level[1] = level;
         LOG_SRV("right pump level %d",setting.level[1]);
-        app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
+        app_window_msg_pump_level(setting.level[0], setting.level[1], WINDOW_EVT_LEVEL_SIDE_RIGHT);
     } else {
         ///相同不进行设置
         if (setting.level[0] == level && setting.level[1] == level) {
@@ -1054,8 +1055,7 @@ static uint8_t app_old_comm_set_custom_pump_level(app_old_comm_pump_ctrl *app_ol
         setting.level[1] = level;
         setting.level[0] = level;
         LOG_SRV("all pump level %d, %d no set to local", setting.level[0], setting.level[1]);
-        app_broadcast_pump_level_to_window(setting.level[0] ,OLD_BROADCAST_LEFT_CT);
-        app_broadcast_pump_level_to_window(setting.level[1] ,OLD_BROADCAST_RIGHT_CT);
+        app_window_msg_pump_level(setting.level[0], setting.level[1], WINDOW_EVT_LEVEL_SIDE_BOTH);
         ///双边模式不要设置，通过EA设置
         //app_old_comm_bury_pump_level_adjust(&setting_before, &setting);
         return false;
@@ -1094,7 +1094,7 @@ static uint8_t app_old_comm_set_custom_pump_speed(app_old_comm_pump_ctrl *app_ol
     setting.speed = app_old_comm_pump_ctrl_date->user_define_pump_speed;
     LOG_SRV("pump speed  %d", setting.speed);
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
-    app_broadcast_pump_speed_to_window(setting.speed ,OLD_BROADCAST_ALL_CT);
+    app_window_msg_pump_speed(setting.speed );
 
     return true;
 }
@@ -1141,7 +1141,10 @@ static uint8_t app_old_comm_pump_control_handler(app_old_comm_pump_ctrl *app_old
         uint8_t mode_from = app_old_comm_get_current_pump_mode();
         uint8_t mode_to = app_old_comm_pump_ctrl_date->pump_mode;
         WRITE_PUMP_WORK_MODE(pump_ctx, mode_to, true, 1);
-        app_broadcast_pump_mode_to_window(mode_to, OLD_BROADCAST_ALL_CT);
+        /// 自定义模式已由 pump_custom_mode_update_by_app 带名字下发，这里避免重复上报
+        if (mode_to != BREAST_PUMP_CUSTOM_MODE) {
+            app_window_msg_pump_mode(mode_to, NULL);
+        }
         /// 触发泵奶模式切换埋点 (EVT_006: 模式切换)
         {
             data_bury_trigger_manual_adjust_t bury_adj = {
@@ -1170,21 +1173,18 @@ static uint8_t app_old_comm_pump_run_status_ctrl(uint8_t status)
             //WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 1);
             WRITE_PUMP_IS_START_FROM_APP(pump_ctx, true);
             WRITE_PUMP_CONTROL_SOURCE(pump_ctx, true);
-            app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
             app_pump_safe_start_key_sim_task();
         }
     } else if (pump_status == BREAST_PUMP_START || pump_status == BREAST_PUMP_CONTINUE) {
         if (status == APP_OLD_COMM_PUMP_CTRL_STOP) {
             //WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 1);
             WRITE_PUMP_CONTROL_SOURCE(pump_ctx, true);
-            app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE,OLD_BROADCAST_ALL_CT);
             app_pump_safe_start_key_sim_task();
         }
     } else if (pump_status == BREAST_PUMP_PAUSE) {
         if (status == APP_OLD_COMM_PUMP_CTRL_RUN) {
             //WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_CONTINUE, 1);
             WRITE_PUMP_CONTROL_SOURCE(pump_ctx, true);
-            app_broadcast_pump_status_to_window(BREAST_PUMP_CONTINUE,OLD_BROADCAST_ALL_CT);
             app_pump_safe_start_key_sim_task();
         }
     }
@@ -1212,10 +1212,8 @@ static void app_pump_custom_trial_mode_start_handler(void)
         PUMP_NO_FINISH(pump_status)) {
         if (PUMP_IS_GOING(pump_status)) {
             WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 0);
-            app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE, OLD_BROADCAST_ALL_CT);
         }
         WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 0);
-        app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
         /// 强制上报DO
         app_old_comm_report_device_status(APP_OLD_COMM_LEFT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
         app_old_comm_report_device_status(APP_OLD_COMM_RIGHT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
@@ -1234,10 +1232,8 @@ static void app_pump_custom_mode_start_handler(void)
         PUMP_NO_FINISH(pump_status)) {
         if (PUMP_IS_GOING(pump_status)) {
             WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_PAUSE, 0);
-            app_broadcast_pump_status_to_window(BREAST_PUMP_PAUSE, OLD_BROADCAST_ALL_CT);
         }
         WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_START, 0);
-        app_broadcast_pump_status_to_window(BREAST_PUMP_START, OLD_BROADCAST_ALL_CT);
         /// 强制上报DO，触发时间更新
         app_old_comm_report_device_status(APP_OLD_COMM_LEFT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
         app_old_comm_report_device_status(APP_OLD_COMM_RIGHT_CT, OLD_PUBLISH_DATA_POLL_REPORT, NULL);
@@ -1732,7 +1728,6 @@ void app_old_comm_handle_ctrl_reset_dev_req(uint8_t cal, uint8_t *cab)
                             DATA_BURY_END_REASON_MANUAL, 0);
     /// 先重置pump，再将pump状态设置为空闲
     WRITE_PUMP_WORK_STATUS(pump_ctx, BREAST_PUMP_RESET, 1);
-    app_broadcast_pump_status_to_window(BREAST_PUMP_RESET,OLD_BROADCAST_ALL_CT);
     /// 延时发送APP强制完成广播 
     POST_TASK_HANDLER_DELAYED_ARG0(app_pump_broadcast_app_completed_delay_task_handler, 50,
                                     "app_pump_broadcast_app_completed_delay_task");
@@ -1986,16 +1981,16 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
         LOG_SRV("set pump control type %d", control_type);
     }
 
-    bool level_speed_no_change = (setting.speed == target_speed);
+    bool speed_changed = (setting.speed != target_speed);
+    bool level_changed = false;
     if (ctrl == APP_OLD_COMM_LEFT_CT) {
-        level_speed_no_change = level_speed_no_change && (setting.level[0] == left_level);
+        level_changed = (setting.level[0] != left_level);
     } else if (ctrl == APP_OLD_COMM_RIGHT_CT) {
-        level_speed_no_change = level_speed_no_change && (setting.level[1] == right_level);
+        level_changed = (setting.level[1] != right_level);
     } else {
-        level_speed_no_change = level_speed_no_change &&
-            (setting.level[0] == left_level) && (setting.level[1] == right_level);
+        level_changed = (setting.level[0] != left_level) || (setting.level[1] != right_level);
     }
-    if (level_speed_no_change) {
+    if (!level_changed && !speed_changed) {
         LOG_SRV("EA pump param no change, ctrl=%d L=%d/%d R=%d/%d",
             ctrl, left_level, left_speed_internal, right_level, right_speed_internal);
         return;
@@ -2042,13 +2037,16 @@ void app_old_comm_handle_set_bilateral_pump_param_req(uint8_t cal, uint8_t *cab)
 
     WRITE_PUMP_SETTING_INFO(pump_ctx, time_index, true, setting);
 
-    if (ctrl == APP_OLD_COMM_LEFT_CT) {
-        app_broadcast_pump_level_to_window(left_level, OLD_BROADCAST_LEFT_CT);
-    } else if (ctrl == APP_OLD_COMM_RIGHT_CT) {
-        app_broadcast_pump_level_to_window(right_level, OLD_BROADCAST_RIGHT_CT);
-    } else {
-        app_broadcast_pump_level_to_window(left_level, OLD_BROADCAST_LEFT_CT);
-        app_broadcast_pump_level_to_window(right_level, OLD_BROADCAST_RIGHT_CT);
+    if (level_changed) {
+        if (ctrl == APP_OLD_COMM_LEFT_CT) {
+            app_window_msg_pump_level(left_level, right_level, WINDOW_EVT_LEVEL_SIDE_LEFT);
+        } else if (ctrl == APP_OLD_COMM_RIGHT_CT) {
+            app_window_msg_pump_level(left_level, right_level, WINDOW_EVT_LEVEL_SIDE_RIGHT);
+        } else {
+            app_window_msg_pump_level(left_level, right_level, WINDOW_EVT_LEVEL_SIDE_BOTH);
+        }
     }
-    app_broadcast_pump_speed_to_window(target_speed, OLD_BROADCAST_ALL_CT);
+    if (speed_changed) {
+        app_window_msg_pump_speed(target_speed);
+    }
 }
