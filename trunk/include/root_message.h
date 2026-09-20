@@ -112,6 +112,18 @@ typedef struct {
     uint8_t speed;
 } window_evt_speed_t;
 
+/// 模式切换事件参数（home/pump 共用）
+#define WINDOW_EVT_MODE_NAME_LEN   32  /// 模式名最大长度（自定义模式名）
+typedef struct {
+    uint8_t mode;                       /// 模式/韵律 ID
+    char name[WINDOW_EVT_MODE_NAME_LEN];/// 模式名（自定义模式带名字，其余为空串）
+} window_evt_mode_t;
+
+/// 泵奶状态变化事件参数（home/pump 共用）
+typedef struct {
+    uint8_t status;
+} window_evt_status_t;
+
 /// 描述窗口事件结构.
 /// 小参数用 args1/args2；超出 int 或结构化数据走 user_data（堆内存 + FREE 标志）.
 typedef struct window_event_data {
