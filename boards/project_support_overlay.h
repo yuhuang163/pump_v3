@@ -213,9 +213,13 @@ extern "C" {
 #define IS_SUPPORT_LOGO_UI_TEST                          (0)
 /// 支持LOGO界面按键背光自适应测试
 #define IS_SUPPORT_LOGO_KEY_LIGHT_ADAPTIVE_TEST          (0)    
-/// 开机优化：logo 亮屏后再分步预解码
+/// 开机优化：logo 亮屏后再分步预解码（V6+ 才有 ui_snap_shot_prepare_step）
 #ifndef IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE
+#if (ROOT_UI_VERSION >= ROOT_UI_V6)
 #define IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE            (1)
+#else
+#define IS_SUPPORT_BOOT_DEFER_UI_SNAP_PREPARE            (0)
+#endif
 #endif
 /// 支持引导界面
 #define IS_SUPPORT_GUIDE_WINDOW                          (1)    

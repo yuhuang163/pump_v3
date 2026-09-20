@@ -9,6 +9,10 @@
 #include "ui_page_define.h"  // IWYU pragma: keep
 #include "window_screen_guide.h" // IWYU pragma: keep
 
+#ifndef CUSTOM_GUIDE_ANIM_NUM
+#define CUSTOM_GUIDE_ANIM_NUM BASE_GUIDE_ANIM_NUM
+#endif
+
 /*
 * DEFINES
 *****************************************************************************************

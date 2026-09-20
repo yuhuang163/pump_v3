@@ -4,7 +4,9 @@
 */
 #include "root_common_api.h" // IWYU pragma: keep
 #include "resource_manager_api.h"
+#if IS_SUPPORT_LANG_PACK
 #include "ui_lang_pack.h"
+#endif
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -13,7 +15,11 @@
 static int on_lang_res_init(resource_manager_context_t *thiz)
 {
     (void)thiz;
+#if IS_SUPPORT_LANG_PACK
     return ui_lang_pack_probe();
+#else
+    return 0;
+#endif
 }
 
 /*
