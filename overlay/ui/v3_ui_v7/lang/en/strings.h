@@ -85,7 +85,7 @@ extern "C" {
  * Rhythm / settings
  ******************************************************************************/
 #define RHYTHM_CONFIRM_TITLE_TEXT                       "Switch program?"
-#define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "The timer will reset"
+#define RHYTHM_CONFIRM_SUBTITLE_TEXT                    "Timer will restart"
 #define SETTINGS_SUCCESS_TITLE_TEXT                     "Success"
 #define SETTINGS_SUCCESS_PROGRAM_TITLE_TEXT             "Program switched"
 #define SETTINGS_SUCCESS_PROGRAM_SUBTITLE_TEXT          "Timer reset"
