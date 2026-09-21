@@ -7,7 +7,7 @@ extern "C" {
 
 /*******************************************************************************
  * 语言入口：先展开编译期 strings/layout/fonts，再叠 bind，把宏改成运行时查表。
- * 改文案/坐标请改 lang/<zh|en>/，然后跑 gen_ui_lang_tables.py。
+ * 改文案/坐标请改对应 UI 的 lang/<zh|en>/<子页>_strings.h / <子页>_layout.h，然后跑 gen_ui_lang_tables.py。
  * ID 对照：ui_lang_id_map.html；打包预览：overlay/font/packaging_tools/preview.sh
  ******************************************************************************/
 #include "product_info.h" // IWYU pragma: keep

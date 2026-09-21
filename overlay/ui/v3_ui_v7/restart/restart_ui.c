@@ -18,7 +18,6 @@
 #define PROGRESS_ARC_LOOP_MS_PER_DEG            (3)
 #define PROGRESS_ARC_ANGLE_SPAN                 (90)
 #define PROGRESS_ARC_TEXT_COLOR                 (0xFFFFFF)
-#define PROGRESS_ARC_Y                          (121)
 
 typedef struct {
     lv_obj_t *root;

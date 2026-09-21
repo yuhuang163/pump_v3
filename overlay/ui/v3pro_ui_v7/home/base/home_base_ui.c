@@ -28,11 +28,6 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
 static home_base_ui_info_t *home_info;
 
 /*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-
-/*
 * LOCAL FUNCTION DEFINITIONS
 *****************************************************************************************
 */
@@ -41,14 +36,14 @@ static void home_root_init(void)
     if (home_info->root == NULL || !lv_obj_is_valid(home_info->root)) {
         home_info->root = lv_obj_create(lv_screen_active());
     }
-    lv_obj_set_size(home_info->root, LV_PCT(100), LV_PCT(100));          /// 设置容器尺寸为屏幕的100%（自动适配屏幕分辨率）
-    lv_obj_set_style_bg_color(home_info->root, lv_color_black(), 0);     /// 设置背景颜色为黑色
-    lv_obj_set_style_bg_opa(home_info->root, LV_OPA_COVER, 0);           /// 设置背景不透明度为完全不透明（覆盖下层）
-    lv_obj_set_style_border_width(home_info->root, 0, 0);                /// 设置边框宽度为0（无边框）
-    lv_obj_set_style_pad_all(home_info->root, 0, 0);                     /// 设置所有内边距为0（子对象紧贴边缘）
+    lv_obj_set_size(home_info->root, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(home_info->root, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(home_info->root, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(home_info->root, 0, 0);
+    lv_obj_set_style_pad_all(home_info->root, 0, 0);
     lv_obj_align(home_info->root, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_clear_flag(home_info->root, LV_OBJ_FLAG_CLICKABLE); /// 让 root 不吃事件，防止挡子控件
-    lv_obj_clear_flag(home_info->root, LV_OBJ_FLAG_SCROLLABLE); /// 禁止滚动
+    lv_obj_clear_flag(home_info->root, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(home_info->root, LV_OBJ_FLAG_SCROLLABLE);
 }
 
 #if IS_SUPPORT_BASE_HOME_COMP_BG
@@ -80,27 +75,12 @@ static void home_root_bg_update(ui_manager_context_t *thiz)
 #else
 static void home_root_bg_update(ui_manager_context_t *thiz)
 {
-    /// 首页使用模式背景 PNG，root 保持黑底即可
     (void)thiz;
     if (home_info->background != NULL && lv_obj_is_valid(home_info->background)) {
         lv_obj_add_flag(home_info->background, LV_OBJ_FLAG_HIDDEN);
     }
 }
 #endif
-
-static void home_base_ui_apply_custom_mode_from_proc(ui_proc_home_t *proc)
-{
-    EXCEPTION_CHECK_VOID(home_info && proc);
-    if (home_info->mode.custom_mode_id != proc->custom_mode_id) {
-        LOG_UI("home v7 custom refresh id %u -> %u",
-            home_info->mode.custom_mode_id, proc->custom_mode_id);
-    }
-    home_info->mode.custom_mode_active = proc->custom_mode_active;
-    home_info->mode.custom_mode_id = proc->custom_mode_id;
-    memset(home_info->mode.custom_id_str, 0, sizeof(home_info->mode.custom_id_str));
-    strncpy(home_info->mode.custom_id_str, proc->custom_mode_name,
-        sizeof(home_info->mode.custom_id_str) - 1);
-}
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -119,14 +99,16 @@ void home_base_ui_prepare(ui_manager_context_t *thiz)
     home_root_init();
     ble_ui_init(thiz);
     battery_ui_init(thiz);
+    battery_ui_y_offset_set(0);
     home_info->ui = thiz;
+    home_info->theme_type = RES_THEME_TYPE_BASE;
+    home_info->main_ops = &home_base_main_page_ops;
     home_info->force_update = true;
     home_info->popup_ui_index = ID_POPUP_UI_NONE;
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     home_info->st = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
-    home_base_ui_apply_custom_mode_from_proc(proc);
-    LOG_UI("home v7 prepare: page begin t=%ld", get_timestamp());
+    home_ui_sync_work_mode(home_info);
     home_page_ui_prepare(home_info);
     LOG_UI("home v7 prepare done t=%ld", get_timestamp());
 }
@@ -150,36 +132,16 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     EXCEPTION_CHECK_INT(thiz && home_info && home_info->root);
     ui_proc_home_t *proc = (ui_proc_home_t *)thiz->priv.play_info.user_data;
     EXCEPTION_CHECK_INT(proc && proc->ble && proc->battery && proc->pump);
-    if (first_frame) {
-        LOG_UI("home v7 first frame: enter t=%ld", get_timestamp());
-    }
     pump_setting_t setting;
     READ_PUMP_SETTING_INFO(proc->pump, 0, setting);
     home_info->level.left = setting.level[0];
     home_info->level.right = setting.level[1];
-    int pump_mode = 0;
-    READ_PUMP_WORK_MODE(proc->pump, pump_mode);
-    home_info->mode.new_index = pump_mode;
-    if (first_frame) {
-        LOG_UI("home v7 first frame: pump read mode=%d", pump_mode);
-    }
-    home_base_ui_apply_custom_mode_from_proc(proc);
-    if (first_frame) {
-        LOG_UI("home v7 first frame: store done (wm-synced, activate=%d id=%u)",
-            home_info->mode.custom_mode_active, home_info->mode.custom_mode_id);
-    }
+    home_ui_sync_work_mode(home_info);
     home_root_bg_update(thiz);
-    if (first_frame) {
-        LOG_UI("home v7 first frame: bg done");
-    }
     #if IS_SUPPORT_HOME_UI_TEST
-    // proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_CONFIRM;
     proc->popup_ui_type = ID_POPUP_UI_GUIDE_EXIT_COUNTDOWN;
     #else
     home_page_ui_update(home_info, proc);
-    if (first_frame) {
-        LOG_UI("home v7 first frame: page done");
-    }
     if (home_info->page.shown_page_index == HOME_PAGE_MAIN &&
         !home_page_ui_is_transitioning(home_info)) {
         battery_ui_update(thiz, home_info->root, proc->battery, true,
@@ -190,9 +152,6 @@ int home_base_ui_process(ui_manager_context_t *thiz)
     } else {
         battery_ui_update(thiz, home_info->root, proc->battery, false, 1);
         ble_ui_hide();
-    }
-    if (first_frame) {
-        LOG_UI("home v7 first frame: ble done");
     }
     #endif
     ui_popup_update(thiz, proc->popup_ui_type, home_info->root, &home_info->popup_ui_index);

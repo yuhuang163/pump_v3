@@ -20,36 +20,20 @@
 #define PUMP_HOME_MAIN_MODE_TITLE_COLOR                 (0xFFFFFF)
 #endif
 
-/// 两段计时 MM:SS（hours==0）；相对 home 主页时间上移 14
+/// 两段计时 MM:SS（hours==0）；坐标见 lang/*/layout.h
 #define PUMP_HOME_MAIN_TIME_2SEG                        (2)
 #define PUMP_HOME_MAIN_TIME_2SEG_WIDTH                  (88)
-#define PUMP_HOME_MAIN_TIME_2SEG_M_X                    (75 + 4)
-#define PUMP_HOME_MAIN_TIME_2SEG_S_X                    (189 + 4)
-#define PUMP_HOME_MAIN_TIME_2SEG_Y                      (122 + 4)
-#define PUMP_HOME_MAIN_TIME_2SEG_COLON_X                (0)
-#define PUMP_HOME_MAIN_TIME_2SEG_COLON_Y                (128 + 4)
 
-/// 三段计时 HH:MM:SS（hours>0，等宽，参考 V6）
+/// 三段计时 HH:MM:SS（hours>0，等宽，参考 V6）；坐标见 lang/*/layout.h
 #define PUMP_HOME_MAIN_TIME_3SEG                        (3)
 #define PUMP_HOME_MAIN_TIME_3SEG_WIDTH                  (69)
-#define PUMP_HOME_MAIN_TIME_3SEG_H_X                    (51)
-#define PUMP_HOME_MAIN_TIME_3SEG_M_X                    (147)
-#define PUMP_HOME_MAIN_TIME_3SEG_S_X                    (240)
-#define PUMP_HOME_MAIN_TIME_3SEG_Y                      (130)
-#define PUMP_HOME_MAIN_TIME_COLON_HM_X                  (130)
-#define PUMP_HOME_MAIN_TIME_COLON_MS_X                  (222)
-#define PUMP_HOME_MAIN_TIME_COLON_3SEG_Y                (134)
 #if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
 #define PUMP_HOME_MAIN_TIME_COLOR                       (0x00FF00)
 #else
 #define PUMP_HOME_MAIN_TIME_COLOR                       (0xFFFFFF)
 #endif
-/** 子模式切换提醒出现时，时间整体下移 */
-#define PUMP_HOME_MAIN_TIME_MODE_SWITCH_OFFSET_Y        (15)
 
 #define PUMP_HOME_MAIN_SPEED_GROUP_WIDTH                (47)
-#define PUMP_HOME_MAIN_SPEED_ICON_Y                     (265 + 4)
-#define PUMP_HOME_MAIN_SPEED_VALUE_Y                    (267 + 4)
 #if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
 #define PUMP_HOME_MAIN_SPEED_COLOR                      (0x00FF00)
 #else
@@ -57,11 +41,7 @@
 #endif
 #define PUMP_HOME_MAIN_SPEED_ICON_VALUE_GAP             (6)
 
-#define PUMP_HOME_MAIN_LEFT_LEVEL_X                     (68 + 4)
-#define PUMP_HOME_MAIN_LEFT_LEVEL_Y                     (267 + 4)
 #define PUMP_HOME_MAIN_LEFT_LEVEL_W                     (58)
-#define PUMP_HOME_MAIN_RIGHT_LEVEL_X                    (227 + 4)
-#define PUMP_HOME_MAIN_RIGHT_LEVEL_Y                    (PUMP_HOME_MAIN_LEFT_LEVEL_Y)
 #define PUMP_HOME_MAIN_RIGHT_LEVEL_W                    (58)
 #if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
 #define PUMP_HOME_MAIN_LEVEL_COLOR                      (0x00FF00)
@@ -69,7 +49,6 @@
 #define PUMP_HOME_MAIN_LEVEL_COLOR                      (0xFFFFFF)
 #endif
 
-#define PUMP_HOME_MAIN_PLAY_ICON_Y                      (136)
 #if IS_SUPPORT_BASE_PUMP_HOME_COMP_BG
 #define PUMP_HOME_MAIN_HINT_COLOR                       (0x00FF00)
 #else
@@ -167,7 +146,7 @@ static void pump_home_main_obj_flag_set(lv_obj_t *obj, bool visible)
 
 static lv_coord_t pump_home_main_time_y_offset_get(const pump_home_base_ui_info_t *info)
 {
-    return info->main.shown_mode_switch ? PUMP_HOME_MAIN_TIME_MODE_SWITCH_OFFSET_Y : 0;
+    return info->main.shown_mode_switch ? PUMP_HOME_MAIN_TIME_MODE_SWITCH_SHIFT_Y : 0;
 }
 
 static void pump_home_main_time_layout_invalidate(pump_home_base_ui_info_t *info)

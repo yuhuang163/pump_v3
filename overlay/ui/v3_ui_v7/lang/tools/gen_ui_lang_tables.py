@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Generate stable string/widget/layout IDs and firmware default tables.
 
-Source of truth remains lang/{en,zh}/strings.h and layout.h.
+Source of truth: each UI module's lang/{en,zh}/{strings,layout}.h,
+aggregated by lang/{en,zh}/strings.h and layout.h.
 Run from repo: python3 overlay/ui/v3_ui_v7/lang/tools/gen_ui_lang_tables.py
 Also generates v3pro_ui_v7 if that tree exists.
+Existing ui_*_id.h order is preserved; new macros are appended.
 """
 
 from __future__ import annotations
@@ -15,6 +17,8 @@ from collections import OrderedDict
 from pathlib import Path
 
 DEFINE_RE = re.compile(r"^#define\s+([A-Z][A-Z0-9_]+)\s+(.+?)\s*(?:/\*.*)?(?://.*)?$")
+INCLUDE_RE = re.compile(r'^#include\s+"([^"]+)"')
+ENUM_TOKEN_RE = re.compile(r"^\s+([A-Z][A-Z0-9_]*)(?:\s*=\s*0)?\s*,")
 GUARD_RE = re.compile(r"^__UI_LANG_")
 
 SCALAR_SUFFIXES = ("_GAP", "_SHIFT_Y")
@@ -33,6 +37,7 @@ UI_PAGE_NAMES = [
     "FACTORY",
     "SYS_ERROR",
     "BLE",
+    "BATTERY",
     "SEAL",
     "PRODUCT_TESTS",
 ]
@@ -51,7 +56,16 @@ UI_PAGE_PREFIX_RULES = (
     ("SETTINGS", "SETTINGS_"),
     ("CHARGE", "CHARGE_"),
     ("OTA", "OTA_"),
+    ("BLE", "BASE_PUMP_HOME_BLE_"),
+    ("BLE", "CUSTOM_PUMP_HOME_BLE_"),
+    ("BLE", "BASE_BLE_"),
+    ("BLE", "CUSTOM_BLE_"),
     ("BLE", "BLE_"),
+    ("BATTERY", "BASE_PUMP_HOME_BATTERY_"),
+    ("BATTERY", "CUSTOM_PUMP_HOME_BATTERY_"),
+    ("BATTERY", "BASE_BATTERY_"),
+    ("BATTERY", "CUSTOM_BATTERY_"),
+    ("BATTERY", "BATTERY_"),
     ("SYS_ERROR", "SYS_ERROR_"),
     ("SYS_ERROR", "TEMP_ERROR_"),
     ("POWER", "POWER_"),
@@ -89,18 +103,90 @@ def str_widget_stem(str_key: str, widgets: dict) -> str | None:
     return None
 
 
-def parse_defines(path: Path) -> OrderedDict[str, str]:
+def resolve_include(from_path: Path, inc: str, search_root: Path | None) -> Path:
+    direct = from_path.parent / inc
+    if direct.is_file():
+        return direct
+    name = Path(inc).name
+    lang = from_path.parent.name
+    if search_root is None:
+        return direct
+    hits = [p for p in search_root.rglob(name) if p.is_file() and p.parent.name == lang]
+    if len(hits) == 1:
+        return hits[0]
+    if len(hits) > 1:
+        raise RuntimeError(f"{from_path}: ambiguous include {inc}: {hits}")
+    return direct
+
+
+def parse_defines(
+    path: Path,
+    _seen: set[Path] | None = None,
+    search_root: Path | None = None,
+) -> OrderedDict[str, str]:
     items: OrderedDict[str, str] = OrderedDict()
+    path = Path(path)
+    if not path.is_file():
+        return items
+    if search_root is None and path.parent.name in ("en", "zh") and path.parent.parent.name == "lang":
+        search_root = path.parent.parent.parent
+    seen = _seen if _seen is not None else set()
+    resolved = path.resolve()
+    if resolved in seen:
+        return items
+    seen.add(resolved)
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
+        inc = INCLUDE_RE.match(line)
+        if inc:
+            child = resolve_include(path, inc.group(1), search_root).resolve()
+            for name, value in parse_defines(child, seen, search_root).items():
+                items.setdefault(name, value)
+            continue
         m = DEFINE_RE.match(line)
         if not m:
             continue
         name, value = m.group(1), m.group(2).strip()
         if GUARD_RE.search(name) or name.startswith("__"):
             continue
-        items[name] = value
+        items.setdefault(name, value)
     return items
+
+
+def read_enum_tokens(path: Path, prefix: str) -> list[str]:
+    tokens: list[str] = []
+    if not path.is_file():
+        return tokens
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        m = ENUM_TOKEN_RE.match(raw)
+        if not m:
+            continue
+        name = m.group(1)
+        if not name.startswith(prefix) or name.endswith("_COUNT") or name == f"{prefix}COUNT":
+            continue
+        tokens.append(name[len(prefix) :])
+    return tokens
+
+
+def stabilize_keys(
+    existing_tokens: list[str],
+    keys: list[str],
+    to_token,
+) -> list[str]:
+    token_to_key = {to_token(k): k for k in keys}
+    out: list[str] = []
+    seen: set[str] = set()
+    for tok in existing_tokens:
+        key = token_to_key.get(tok)
+        if key is None or key in seen:
+            continue
+        out.append(key)
+        seen.add(key)
+    for key in keys:
+        if key not in seen:
+            out.append(key)
+            seen.add(key)
+    return out
 
 
 def str_enum_token(macro: str) -> str:
@@ -171,7 +257,7 @@ def classify_layout(name: str) -> tuple[str, str, str] | None:
 
 
 def widget_kind(stem: str) -> str:
-    return "ICON" if "ICON" in stem else "TEXT"
+    return "ICON" if "ICON" in stem or "BLE_UI" in stem else "TEXT"
 
 
 def write_text(path: Path, text: str) -> None:
@@ -452,16 +538,7 @@ const lv_font_t *const g_ui_font_default[UI_FONT_ROLE_COUNT] = {{
 """
 
 
-def generate_for_ui(lang_dir: Path) -> None:
-    en_str = parse_defines(lang_dir / "en" / "strings.h")
-    zh_str = parse_defines(lang_dir / "zh" / "strings.h")
-    str_keys = union_keys(en_str, zh_str)
-
-    en_lay = parse_defines(lang_dir / "en" / "layout.h")
-    zh_lay = parse_defines(lang_dir / "zh" / "layout.h")
-    lay_keys = union_keys(en_lay, zh_lay)
-    # Default table numeric values come from the English layout; Chinese
-    # firmware still compiles zh/layout.h into the table via C macros.
+def classify_layout_keys(lay_keys: list[str]) -> tuple[OrderedDict[str, dict[str, int]], list[str]]:
     widgets: OrderedDict[str, dict[str, int]] = OrderedDict()
     scalars: list[str] = []
     for name in lay_keys:
@@ -474,18 +551,60 @@ def generate_for_ui(lang_dir: Path) -> None:
                 scalars.append(name)
             continue
         widgets.setdefault(stem, {})
-        # placeholder; actual numbers filled in C from macros
         widgets[stem][field] = 0
+    return widgets, scalars
 
-    # Fill English numbers for a readable default table snapshot; C file
-    # still assigns from macros so PRODUCT_LANGUAGE=zh gets zh values.
+
+def load_lang_index(lang_dir: Path) -> tuple[
+    list[str],
+    OrderedDict[str, dict[str, int]],
+    list[str],
+    OrderedDict[str, str],
+    OrderedDict[str, str],
+    OrderedDict[str, str],
+    OrderedDict[str, str],
+    list[str],
+]:
+    """Parse en/zh sources and keep previously generated ID order."""
+    en_str = parse_defines(lang_dir / "en" / "strings.h")
+    zh_str = parse_defines(lang_dir / "zh" / "strings.h")
+    en_lay = parse_defines(lang_dir / "en" / "layout.h")
+    zh_lay = parse_defines(lang_dir / "zh" / "layout.h")
+    str_keys = stabilize_keys(
+        read_enum_tokens(lang_dir / "ui_str_id.h", "UI_STR_ID_"),
+        union_keys(en_str, zh_str),
+        str_enum_token,
+    )
+    lay_keys = union_keys(en_lay, zh_lay)
+    widgets, scalars = classify_layout_keys(lay_keys)
+    widget_stems = stabilize_keys(
+        read_enum_tokens(lang_dir / "ui_widget_id.h", "UI_W_"),
+        list(widgets.keys()),
+        lambda stem: stem,
+    )
+    widgets = OrderedDict((stem, widgets[stem]) for stem in widget_stems)
+    scalars = stabilize_keys(
+        read_enum_tokens(lang_dir / "ui_layout_id.h", "UI_LAY_"),
+        scalars,
+        lambda name: name,
+    )
+    return str_keys, widgets, scalars, en_str, zh_str, en_lay, zh_lay, lay_keys
+
+
+def generate_for_ui(lang_dir: Path) -> None:
+    str_keys, widgets, scalars, _en_str, _zh_str, en_lay, _zh_lay, lay_keys = load_lang_index(
+        lang_dir
+    )
+    # Default table numeric values come from the English layout; Chinese
+    # firmware still compiles zh/layout.h into the table via C macros.
     en_resolved = resolve_layout(en_lay)
     for name, val in en_resolved.items():
         classified = classify_layout(name)
         if classified is None or classified[0] != "widget":
             continue
         _, stem, field = classified
-        widgets[stem][field] = val
+        if stem in widgets:
+            widgets[stem][field] = val
 
     write_text(
         lang_dir / "ui_str_id.h",
@@ -495,7 +614,7 @@ def generate_for_ui(lang_dir: Path) -> None:
             "UI_STR_ID_",
             [str_enum_token(k) for k in str_keys],
             "UI_STR_ID_COUNT",
-            "文案下标。页面用 ui_str(id)；源宏在 lang/<zh|en>/strings.h",
+            "文案下标。页面用 ui_str(id)；源宏在各 UI 的 lang/<zh|en>/<子页>_strings.h",
             {str_enum_token(k): f"{k}, 页 {page_name_of(k)}" for k in str_keys},
         ),
     )
@@ -652,7 +771,7 @@ const lv_font_t *const g_ui_font_default[UI_FONT_ROLE_COUNT] = {{
         "#define __UI_LANG_BIND_H__",
         "",
         "/* 运行时绑定：页面仍写 strings.h/layout.h 里的旧宏名，这里改成查表。",
-        " * 加文案/坐标请改 lang/<zh|en>/ 后跑 gen_ui_lang_tables.py，不要手改本文件。",
+        " * 加文案/坐标请改对应 UI 的 lang/<zh|en>/<子页>_strings.h / <子页>_layout.h 后跑 gen_ui_lang_tables.py，不要手改本文件。",
         " * 对照：同目录 ui_lang_id_map.html（按页）。 */",
         "",
     ]

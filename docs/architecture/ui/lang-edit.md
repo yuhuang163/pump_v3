@@ -1,6 +1,9 @@
 # 怎么加文案 / 控件坐标
 
-只改 `overlay/ui/<v3|v3pro>_ui_v7/lang/<zh|en>/` 里的源宏。  
+只改对应 UI 子页目录下的一套 `lang/<zh|en>/{<子页>_strings.h,<子页>_layout.h}`，例如 `home/lang/zh/home_layout.h`。  
+base/custom 共用这一套，用宏名区分（如 `HOME_CUSTOM_*`），不要在 `base/`、`custom/` 下再各放语言包。  
+共用文案在 `lang/common/<zh|en>/lang_common_strings.h`。  
+`lang/<zh|en>/strings.h` 和 `layout.h` 只做短名 `#include`（由 GNUmakefile 把各 UI `lang/<lang>` 加入 `-I`）。  
 **不要手改** `ui_str_id.h`、`ui_widget_id.h`、`ui_layout_id.h`、`ui_lang_bind.h`、`ui_lang_default.c`。
 
 对照（按页）：`overlay/ui/<ui>_ui_v7/lang/ui_lang_id_map.html`  
@@ -10,9 +13,9 @@
 
 | 你要改的 | 写在哪 | 运行时 |
 |----------|--------|--------|
-| 显示文字 | `strings.h` 的 `FOO_TEXT` / `UI_STR_*` | `ui_str(UI_STR_ID_*)` |
-| 某个控件的 x/y/行距/最大宽 | `layout.h` 的 `FOO_Y`、`FOO_X`、`FOO_LINE_SPACE`、`FOO_MAX_W` | `ui_widget(UI_W_FOO)` |
-| 两个控件之间的间隙 | `layout.h` 的 `FOO_GAP` / `FOO_SHIFT_Y` | `ui_layout_i16(UI_LAY_*)` |
+| 显示文字 | `<子页>_strings.h` 的 `FOO_TEXT` / `UI_STR_*` | `ui_str(UI_STR_ID_*)` |
+| 某个控件的 x/y/行距/最大宽 | `<子页>_layout.h` 的 `FOO_Y`、`FOO_X`、`FOO_LINE_SPACE`、`FOO_MAX_W` | `ui_widget(UI_W_FOO)` |
+| 两个控件之间的间隙 | `<子页>_layout.h` 的 `FOO_GAP` / `FOO_SHIFT_Y` | `ui_layout_i16(UI_LAY_*)` |
 
 `FOO` 是控件 stem。例如 `HOME_MAIN_HINT_Y` 和 `HOME_MAIN_HINT_TEXT` 共用 stem `HOME_MAIN_HINT`。
 
@@ -28,10 +31,10 @@
 ## 四种改法
 
 **1. 只改已有文案**  
-改 `en/strings.h` 和 `zh/strings.h` 同一宏。不用跑 gen。要进外部包再 `./pack.sh`。
+改该页 `lang/en/<子页>_strings.h` 和 `lang/zh/<子页>_strings.h` 同一宏。不用跑 gen。要进外部包再 `./pack.sh`。
 
 **2. 只改已有控件坐标**  
-改两种语言 `layout.h` 里已有的 `STEM_Y` 等。不用跑 gen。要进外部包再 pack。
+改该页两种语言 `layout.h` 里已有的 `STEM_Y` 等。不用跑 gen。要进外部包再 pack。
 
 **3. 新增一句文案**
 
@@ -40,7 +43,7 @@
 #define PUMP_NEW_TIP_TEXT   "日文或中文..."
 ```
 
-页面里写 `PUMP_NEW_TIP_TEXT`。然后跑 gen，再 pack。
+写在该页 `lang/<zh|en>/<子页>_strings.h` 末尾，页面里写 `PUMP_NEW_TIP_TEXT`。然后跑 gen，再 pack。
 
 **4. 新增一个控件（可带文案）**
 

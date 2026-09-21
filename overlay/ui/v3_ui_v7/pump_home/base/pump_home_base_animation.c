@@ -12,7 +12,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define PUMP_HOME_WAVE_Y                               (190)
 #define PUMP_HOME_WAVE_PAUSE_OFFSET_Y                  (46)
 #define PUMP_HOME_ANIM_FRAME_INTERVAL_MS               (1000 / PUMP_ANIMATION_FREQ)
 #define PUMP_HOME_ANIM_FRAME_RES_INVALID               (0xFFFF)
@@ -76,14 +75,14 @@ static bool pump_home_animation_res_get(uint8_t mode_index, uint8_t mode_type, u
 
 static void pump_home_animation_wave_align(pump_home_base_ui_info_t *info)
 {
-    lv_coord_t y = PUMP_HOME_WAVE_Y;
+    lv_coord_t y = PUMP_HOME_MAIN_WAVE_Y;
     lv_opa_t opa = LV_OPA_COVER;
 
     if (info->animation.wave == NULL || !lv_obj_is_valid(info->animation.wave)) {
         return;
     }
     if (info->animation.anim_play_state != 0) {
-        y = (lv_coord_t)(PUMP_HOME_WAVE_Y - PUMP_HOME_WAVE_PAUSE_OFFSET_Y);
+        y = (lv_coord_t)(PUMP_HOME_MAIN_WAVE_Y - PUMP_HOME_WAVE_PAUSE_OFFSET_Y);
         opa = LV_OPA_60;
     }
     lv_obj_align(info->animation.wave, LV_ALIGN_TOP_MID, 0, y);

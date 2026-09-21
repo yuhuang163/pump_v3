@@ -1,0 +1,67 @@
+#ifndef __UI_LANG_ZH_PUMP_HOME_LAYOUT_H__
+#define __UI_LANG_ZH_PUMP_HOME_LAYOUT_H__
+
+/* pump_home — base/custom 共用；用宏名区分。改完重新 pack，不要改页面 C */
+
+/* base */
+#define PUMP_HOME_MAIN_MODE_TITLE_Y                     (62 + 4)
+#define PUMP_HOME_MAIN_HINT_Y                           (220)
+#define PUMP_HOME_MAIN_SEAL_CHECK_Y                     (208)
+#define PUMP_HOME_MAIN_MODE_SWITCH_Y                    (208)
+#define PUMP_HOME_MAIN_MODE_SWITCH_LINE_SPACE           (8)
+#define PUMP_HOME_MAIN_SEAL_FAIL_LINE_SPACE             (4)
+#define PUMP_HOME_MAIN_TIME_2SEG_Y                      (122 + 4)
+#define PUMP_HOME_MAIN_TIME_2SEG_COLON_Y                (128 + 4)
+#define PUMP_HOME_MAIN_TIME_3SEG_Y                      (130)
+#define PUMP_HOME_MAIN_TIME_COLON_3SEG_Y                (134)
+#define PUMP_HOME_MAIN_TIME_MODE_SWITCH_SHIFT_Y         (15)
+#define PUMP_HOME_MAIN_SPEED_ICON_Y                     (265 + 4)
+#define PUMP_HOME_MAIN_SPEED_VALUE_Y                    (267 + 4)
+#define PUMP_HOME_MAIN_LEFT_LEVEL_Y                     (267 + 4)
+#define PUMP_HOME_MAIN_RIGHT_LEVEL_Y                    (PUMP_HOME_MAIN_LEFT_LEVEL_Y)
+#define PUMP_HOME_MAIN_PLAY_ICON_Y                      (136)
+#define PUMP_HOME_MAIN_WAVE_Y                           (190)
+#define PUMP_HOME_MAIN_TIME_2SEG_M_X                    (HOME_MAIN_TIME_2SEG_M_X)
+#define PUMP_HOME_MAIN_TIME_2SEG_S_X                    (HOME_MAIN_TIME_2SEG_S_X)
+#define PUMP_HOME_MAIN_TIME_2SEG_COLON_X                (HOME_MAIN_TIME_2SEG_COLON_X)
+#define PUMP_HOME_MAIN_TIME_3SEG_H_X                    (HOME_MAIN_TIME_3SEG_H_X)
+#define PUMP_HOME_MAIN_TIME_3SEG_M_X                    (HOME_MAIN_TIME_3SEG_M_X)
+#define PUMP_HOME_MAIN_TIME_3SEG_S_X                    (HOME_MAIN_TIME_3SEG_S_X)
+#define PUMP_HOME_MAIN_TIME_COLON_HM_X                  (HOME_MAIN_TIME_COLON_HM_X)
+#define PUMP_HOME_MAIN_TIME_COLON_MS_X                  (HOME_MAIN_TIME_COLON_MS_X)
+#define PUMP_HOME_MAIN_LEFT_LEVEL_X                     (HOME_MAIN_LEFT_LEVEL_X)
+#define PUMP_HOME_MAIN_RIGHT_LEVEL_X                    (HOME_MAIN_RIGHT_LEVEL_X)
+
+/* custom */
+#define PUMP_HOME_CUSTOM_LEVEL_SHIFT_Y                  (43)
+#define PUMP_HOME_CUSTOM_TIME_2SEG_SEP_SHIFT_Y          (-8)
+#define PUMP_HOME_CUSTOM_TIME_3SEG_SEP_SHIFT_Y          (-6)
+#define PUMP_HOME_CUSTOM_MAIN_MODE_TITLE_Y              (HOME_CUSTOM_MAIN_MODE_TITLE_Y)
+#define PUMP_HOME_CUSTOM_MAIN_HINT_Y                    (291)
+#define PUMP_HOME_CUSTOM_MAIN_TIME_2SEG_Y               (89)
+#define PUMP_HOME_CUSTOM_MAIN_TIME_2SEG_COLON_Y         (PUMP_HOME_CUSTOM_MAIN_TIME_2SEG_Y + PUMP_HOME_CUSTOM_TIME_2SEG_SEP_SHIFT_Y)
+#define PUMP_HOME_CUSTOM_MAIN_TIME_3SEG_Y               (101)
+#define PUMP_HOME_CUSTOM_MAIN_TIME_COLON_3SEG_Y         (PUMP_HOME_CUSTOM_MAIN_TIME_3SEG_Y + PUMP_HOME_CUSTOM_TIME_3SEG_SEP_SHIFT_Y)
+#define PUMP_HOME_CUSTOM_MAIN_SPEED_ICON_Y              (HOME_CUSTOM_MAIN_SPEED_ICON_Y + PUMP_HOME_CUSTOM_LEVEL_SHIFT_Y)
+#define PUMP_HOME_CUSTOM_MAIN_SPEED_VALUE_Y             (HOME_CUSTOM_MAIN_SPEED_VALUE_Y + PUMP_HOME_CUSTOM_LEVEL_SHIFT_Y)
+#define PUMP_HOME_CUSTOM_MAIN_LEFT_LEVEL_Y              (HOME_CUSTOM_MAIN_LEFT_LEVEL_Y + PUMP_HOME_CUSTOM_LEVEL_SHIFT_Y)
+#define PUMP_HOME_CUSTOM_MAIN_RIGHT_LEVEL_Y             (HOME_CUSTOM_MAIN_RIGHT_LEVEL_Y + PUMP_HOME_CUSTOM_LEVEL_SHIFT_Y)
+#define PUMP_HOME_CUSTOM_MAIN_PLAY_ICON_Y               (113)
+#define PUMP_HOME_CUSTOM_MAIN_WAVE_Y                    (110)
+
+/* common */
+#define PUMP_MODE_PAGE_STIM_ICON_Y                      (107)
+#define PUMP_MODE_PAGE_STIM_TITLE_Y                     (213)
+#define PUMP_MODE_PAGE_STIM_DURATION_Y                  (241)
+#define PUMP_MODE_PAGE_EXPR_ICON_Y                      (107)
+#define PUMP_MODE_PAGE_EXPR_TITLE_Y                     (213)
+#define PUMP_MODE_PAGE_EXPR_DURATION_Y                  (241)
+#define PUMP_MODE_PAGE_RHYTHM_1L_ICON_Y                 (88)
+#define PUMP_MODE_PAGE_RHYTHM_1L_TITLE_Y                (194)
+#define PUMP_MODE_PAGE_RHYTHM_1L_DURATION_Y             (241)
+#define PUMP_MODE_PAGE_RHYTHM_2L_ICON_Y                 (67)
+#define PUMP_MODE_PAGE_RHYTHM_2L_TITLE_Y                (173)
+#define PUMP_MODE_PAGE_RHYTHM_2L_DURATION_Y             (263)
+#define PUMP_MODE_PAGE_TITLE_MAX_W                      (290)
+
+#endif /* __UI_LANG_ZH_PUMP_HOME_LAYOUT_H__ */

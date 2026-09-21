@@ -22,8 +22,9 @@ typedef enum {
     UI_PAGE_FACTORY, /* 0x000A */
     UI_PAGE_SYS_ERROR, /* 0x000B */
     UI_PAGE_BLE, /* 0x000C */
-    UI_PAGE_SEAL, /* 0x000D */
-    UI_PAGE_PRODUCT_TESTS, /* 0x000E */
+    UI_PAGE_BATTERY, /* 0x000D */
+    UI_PAGE_SEAL, /* 0x000E */
+    UI_PAGE_PRODUCT_TESTS, /* 0x000F */
     UI_PAGE_COUNT
 } ui_page_id_e;
 

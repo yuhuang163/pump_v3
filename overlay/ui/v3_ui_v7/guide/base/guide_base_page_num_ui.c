@@ -8,9 +8,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define GUIDE_PAGE_NUM_GAP_X                        (4)
-#define GUIDE_PAGE_NUM_CURRENT_Y                    (23)
-#define GUIDE_PAGE_NUM_TOTAL_Y                      (GUIDE_PAGE_NUM_CURRENT_Y + 8)
 #define GUIDE_PAGE_NUM_CURRENT_COLOR                (0xFFFFFF)
 #define GUIDE_PAGE_NUM_TOTAL_COLOR                  (0x999999)
 

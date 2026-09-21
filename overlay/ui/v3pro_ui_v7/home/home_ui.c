@@ -6,7 +6,9 @@
 #include "ui_page_define.h" // IWYU pragma: keep
 #include "ui_manager.h" // IWYU pragma: keep
 #include "home_base_ui_internal.h" // IWYU pragma: keep
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
 #include "home_custom_ui_internal.h" // IWYU pragma: keep
+#endif
 #include "window_screen_home.h" // IWYU pragma: keep
 
 /*
@@ -20,19 +22,9 @@
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
-#if IS_SUPPORT_THEME_SWITCH
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
 static ui_page_ops_t s_ops = {0};
 #endif
-
-/*
-* GLOBAL VARIABLE DEFINITIONS
-*****************************************************************************************
-*/
-
-/*
-* LOCAL FUNCTION DEFINITIONS
-*****************************************************************************************
-*/
 
 /*
 * GLOBAL FUNCTION DEFINITIONS
@@ -41,30 +33,15 @@ static ui_page_ops_t s_ops = {0};
 void ui_display_home_prepare(ui_manager_context_t *thiz)
 {
 #if IS_SUPPORT_HOME_UI_TEST
-    // ui_display_pump_complete_tip_prepare(thiz);
-    // popup_window_ui_prepare(thiz, HOME_POPUP_WINDOW_ID, 20 * 1000);
-    // ui_display_power_off_prepare(thiz);
-    // ui_display_factory_reset_prepare(thiz);
-    // ui_display_factory_reset_confirm_prepare(thiz);
-    // ui_display_airplane_mode_prepare(thiz);
-    // ui_display_ota_prepare(thiz);
-    // ui_display_charge_adapter_screen_prepare(thiz);
-    // ui_display_home_screen_saver_prepare(thiz);
-    // ui_display_theme_guide_prepare(thiz);
-    // ui_display_settings_success_prepare(thiz);
-    // ui_display_rhythm_confirm_prepare(thiz);
-    // ui_display_pump_stop_hold_prepare(thiz);
     ui_display_system_abnormal_prepare(thiz);
 #else
-
-    #if IS_SUPPORT_THEME_SWITCH
+    #if IS_SUPPORT_THEME_GUIDE_WINDOW
     void (*prepare)(ui_manager_context_t *thiz) = NULL;
     int res_theme_type = RES_THEME_TYPE_BASE;
 
     if (thiz && thiz->priv.res) {
         res_theme_type = thiz->priv.res->get_sys_theme_type();
     }
-
     if (res_theme_type == RES_THEME_TYPE_CUSTOM) {
         prepare = home_custom_ui_prepare;
         s_ops.remove = home_custom_ui_remove;
@@ -86,22 +63,9 @@ void ui_display_home_prepare(ui_manager_context_t *thiz)
 void ui_display_home_remove(ui_manager_context_t *thiz)
 {
 #if IS_SUPPORT_HOME_UI_TEST
-    // ui_display_pump_complete_tip_remove(thiz);
-    // popup_window_ui_remove(thiz);
-    // ui_display_power_off_remove(thiz);
-    // ui_display_factory_reset_remove(thiz);
-    // ui_display_factory_reset_confirm_remove(thiz);
-    // ui_display_airplane_mode_remove(thiz);
-    // ui_display_ota_remove(thiz);
-    // ui_display_charge_adapter_screen_remove(thiz);
-    // ui_display_home_screen_saver_remove(thiz);
-    // ui_display_theme_guide_remove(thiz);
-    // ui_display_settings_success_remove(thiz);
-    // ui_display_rhythm_confirm_remove(thiz);
-    // ui_display_pump_stop_hold_remove(thiz);
     ui_display_system_abnormal_remove(thiz);
 #else
-    #if IS_SUPPORT_THEME_SWITCH
+    #if IS_SUPPORT_THEME_GUIDE_WINDOW
     if (s_ops.remove) {
         s_ops.remove(thiz);
     } else {
@@ -116,22 +80,9 @@ void ui_display_home_remove(ui_manager_context_t *thiz)
 int ui_display_home_process(ui_manager_context_t *thiz)
 {
 #if IS_SUPPORT_HOME_UI_TEST
-    // ui_display_pump_complete_tip_process(thiz);
-    // popup_window_ui_process(thiz, HOME_POPUP_WINDOW_ID);
-    // ui_display_power_off_process(thiz, POWER_OFF_TEXT_POWERING_OFF);
-    // ui_display_factory_reset_process(thiz);
-    // ui_display_factory_reset_confirm_process(thiz, 0);
-    // ui_display_airplane_mode_process(thiz);
-    // ui_display_ota_process(thiz);
-    // ui_display_charge_adapter_process(thiz);
-    // ui_display_home_screen_saver_process(thiz);
-    // ui_display_theme_guide_process(thiz);
-    // ui_display_settings_success_process(thiz);
-    // ui_display_rhythm_confirm_process(thiz);
-    // ui_display_pump_stop_hold_process(thiz);
     ui_display_system_abnormal_process(thiz, SYS_ABNORMAL_COMMUNICATION_ERROR);
 #else
-    #if IS_SUPPORT_THEME_SWITCH
+    #if IS_SUPPORT_THEME_GUIDE_WINDOW
     if (s_ops.process) {
         return s_ops.process(thiz);
     }

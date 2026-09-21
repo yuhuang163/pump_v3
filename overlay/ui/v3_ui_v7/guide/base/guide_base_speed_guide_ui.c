@@ -18,7 +18,6 @@
 
 #define GUIDE_SPEED_GUIDE_ICON_RES_ID                       (BASE_RES_ID_GUIDE_SPEED_KEY_ICON)
 
-#define GUIDE_SPEED_GUIDE_TIP_H                             (63)
 #define GUIDE_SPEED_GUIDE_TIP_Y                             (PANLE_DISPLAY_H - GUIDE_SPEED_GUIDE_TIP_H - 8)
 #define GUIDE_SPEED_GUIDE_TIP_BASE_OPA                      (LV_OPA_70)
 

@@ -20,25 +20,13 @@
 #define HOME_MAIN_MODE_TITLE_COLOR                      (0xFFFFFF)
 #endif
 
-/// 两段计时 MM:SS（hours==0）
+/// 两段计时 MM:SS（hours==0）；坐标见 lang/*/layout.h
 #define HOME_MAIN_TIME_2SEG                             (2)
 #define HOME_MAIN_TIME_2SEG_WIDTH                       (88)
-#define HOME_MAIN_TIME_2SEG_M_X                         (75 + 4)
-#define HOME_MAIN_TIME_2SEG_S_X                         (189 + 4)
-#define HOME_MAIN_TIME_2SEG_Y                           (137 + 4)
-#define HOME_MAIN_TIME_2SEG_COLON_X                     (0)
-#define HOME_MAIN_TIME_2SEG_COLON_Y                     (143 + 4)
 
-/// 三段计时 HH:MM:SS（hours>0，等宽，参考 V6）
+/// 三段计时 HH:MM:SS（hours>0，等宽，参考 V6）；坐标见 lang/*/layout.h
 #define HOME_MAIN_TIME_3SEG                             (3)
 #define HOME_MAIN_TIME_3SEG_WIDTH                       (69)
-#define HOME_MAIN_TIME_3SEG_H_X                         (51)
-#define HOME_MAIN_TIME_3SEG_M_X                         (147)
-#define HOME_MAIN_TIME_3SEG_S_X                         (240)
-#define HOME_MAIN_TIME_3SEG_Y                           (130 + 15)
-#define HOME_MAIN_TIME_COLON_HM_X                       (130)
-#define HOME_MAIN_TIME_COLON_MS_X                       (222)
-#define HOME_MAIN_TIME_COLON_3SEG_Y                     (134 + 15)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_TIME_COLOR                            (0x00FF00)
 #else
@@ -57,8 +45,6 @@
 #define HOME_MAIN_MASK_Y                                (HOME_MAIN_HINT_Y)
 
 #define HOME_MAIN_SPEED_GROUP_WIDTH                     (47)
-#define HOME_MAIN_SPEED_ICON_Y                          (265 + 4)
-#define HOME_MAIN_SPEED_VALUE_Y                         (267 + 4)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_SPEED_COLOR                           (0x00FF00)
 #else
@@ -66,11 +52,7 @@
 #endif
 #define HOME_MAIN_SPEED_ICON_VALUE_GAP                  (6)
 
-#define HOME_MAIN_LEFT_LEVEL_X                          (68 + 4)
-#define HOME_MAIN_LEFT_LEVEL_Y                          (267 + 4)
 #define HOME_MAIN_LEFT_LEVEL_W                          (58)
-#define HOME_MAIN_RIGHT_LEVEL_X                         (227 + 4)
-#define HOME_MAIN_RIGHT_LEVEL_Y                         (HOME_MAIN_LEFT_LEVEL_Y)
 #define HOME_MAIN_RIGHT_LEVEL_W                         (58)
 #if IS_SUPPORT_BASE_HOME_COMP_BG
 #define HOME_MAIN_LEVEL_COLOR                           (0x00FF00)

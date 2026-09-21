@@ -47,17 +47,8 @@
 #define HOME_BOTH_LEVEL_OVER_LIMIT_LACTATION_COLOR  (0x64A4F2)
 #endif
 
-#define HOME_BOTH_LEVEL_VALUE_W                     (150)
-#define HOME_BOTH_LEVEL_VALUE_H                     (69)
-#define HOME_BOTH_LEVEL_VALUE_Y                     (122)
-#define HOME_BOTH_LEVEL_VALUE_LEFT_X                (29)
-#define HOME_BOTH_LEVEL_VALUE_RIGHT_X               (179)
 #define HOME_BOTH_LEVEL_VALUE_COLOR                 (0xFFFFFF)
 
-#define HOME_BOTH_LEVEL_DIR_W                       (150)
-#define HOME_BOTH_LEVEL_DIR_H                       (34)
-#define HOME_BOTH_LEVEL_DIR_LEFT_X                  (29)
-#define HOME_BOTH_LEVEL_DIR_RIGHT_X                 (179)
 #define HOME_BOTH_LEVEL_DIR_COLOR                   (0x999999)
 
 #define HOME_BOTH_LEVEL_OVER_LIMIT_W                (220)

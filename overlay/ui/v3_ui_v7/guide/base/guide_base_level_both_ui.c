@@ -24,22 +24,10 @@
 #define GUIDE_BOTH_LEVEL_RIGHT_TRACK                    (GUIDE_BOTH_LEVEL_LEFT_TRACK)
 #define GUIDE_BOTH_LEVEL_RIGHT_START                    (GUIDE_BOTH_LEVEL_RIGHT_END - GUIDE_BOTH_LEVEL_RIGHT_TRACK)
 
-#define GUIDE_BOTH_LEVEL_VALUE_W                        (150)
-#define GUIDE_BOTH_LEVEL_VALUE_H                        (69)
-#define GUIDE_BOTH_LEVEL_VALUE_Y                        (122)
-#define GUIDE_BOTH_LEVEL_VALUE_LEFT_X                   (29)
-#define GUIDE_BOTH_LEVEL_VALUE_RIGHT_X                  (179)
 #define GUIDE_BOTH_LEVEL_VALUE_COLOR                    (0xFFFFFF)
 
-#define GUIDE_BOTH_LEVEL_DIR_W                          (150)
-#define GUIDE_BOTH_LEVEL_DIR_H                          (34)
-#define GUIDE_BOTH_LEVEL_DIR_LEFT_X                     (29)
-#define GUIDE_BOTH_LEVEL_DIR_RIGHT_X                    (179)
 #define GUIDE_BOTH_LEVEL_DIR_COLOR                      (0x999999)
 
-#define GUIDE_BOTH_LEVEL_OVER_LIMIT_W                   (220)
-#define GUIDE_BOTH_LEVEL_OVER_LIMIT_H                   (50)
-#define GUIDE_BOTH_LEVEL_TIP_H                          (63)
 #define GUIDE_BOTH_LEVEL_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_BOTH_LEVEL_TIP_H - 8)
 #define GUIDE_BOTH_LEVEL_TIP_BASE_OPA                   (LV_OPA_70)
 

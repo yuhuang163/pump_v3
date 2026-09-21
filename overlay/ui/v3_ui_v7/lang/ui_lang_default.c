@@ -4179,6 +4179,2968 @@ const ui_widget_style_t g_ui_widget_default[UI_W_COUNT] = {
         .color_rgb = 0,
         .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
     },
+    [UI_W_HOME_MAIN_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef HOME_MAIN_SPEED_ICON_Y
+            (int16_t)(HOME_MAIN_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef HOME_MAIN_SPEED_VALUE_Y
+            (int16_t)(HOME_MAIN_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_LEFT_LEVEL_X
+            (int16_t)(HOME_MAIN_LEFT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef HOME_MAIN_LEFT_LEVEL_Y
+            (int16_t)(HOME_MAIN_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_RIGHT_LEVEL_X
+            (int16_t)(HOME_MAIN_RIGHT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef HOME_MAIN_RIGHT_LEVEL_Y
+            (int16_t)(HOME_MAIN_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_2SEG] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef HOME_MAIN_TIME_2SEG_Y
+            (int16_t)(HOME_MAIN_TIME_2SEG_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_2SEG_COLON] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_TIME_2SEG_COLON_X
+            (int16_t)(HOME_MAIN_TIME_2SEG_COLON_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef HOME_MAIN_TIME_2SEG_COLON_Y
+            (int16_t)(HOME_MAIN_TIME_2SEG_COLON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_3SEG] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef HOME_MAIN_TIME_3SEG_Y
+            (int16_t)(HOME_MAIN_TIME_3SEG_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_COLON_3SEG] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef HOME_MAIN_TIME_COLON_3SEG_Y
+            (int16_t)(HOME_MAIN_TIME_COLON_3SEG_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_2SEG] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_TIME_2SEG_Y
+            (int16_t)(PUMP_HOME_MAIN_TIME_2SEG_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_2SEG_COLON] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_TIME_2SEG_COLON_X
+            (int16_t)(PUMP_HOME_MAIN_TIME_2SEG_COLON_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_TIME_2SEG_COLON_Y
+            (int16_t)(PUMP_HOME_MAIN_TIME_2SEG_COLON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_3SEG] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_TIME_3SEG_Y
+            (int16_t)(PUMP_HOME_MAIN_TIME_3SEG_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_COLON_3SEG] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_TIME_COLON_3SEG_Y
+            (int16_t)(PUMP_HOME_MAIN_TIME_COLON_3SEG_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_SPEED_ICON_Y
+            (int16_t)(PUMP_HOME_MAIN_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_SPEED_VALUE_Y
+            (int16_t)(PUMP_HOME_MAIN_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_LEFT_LEVEL_X
+            (int16_t)(PUMP_HOME_MAIN_LEFT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_LEFT_LEVEL_Y
+            (int16_t)(PUMP_HOME_MAIN_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_RIGHT_LEVEL_X
+            (int16_t)(PUMP_HOME_MAIN_RIGHT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_RIGHT_LEVEL_Y
+            (int16_t)(PUMP_HOME_MAIN_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_PLAY_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_PLAY_ICON_Y
+            (int16_t)(PUMP_HOME_MAIN_PLAY_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_WAVE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_WAVE_Y
+            (int16_t)(PUMP_HOME_MAIN_WAVE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_2SEG_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_TIME_2SEG_M_X
+            (int16_t)(HOME_MAIN_TIME_2SEG_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_2SEG_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_TIME_2SEG_S_X
+            (int16_t)(HOME_MAIN_TIME_2SEG_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_3SEG_H] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_TIME_3SEG_H_X
+            (int16_t)(HOME_MAIN_TIME_3SEG_H_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_3SEG_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_TIME_3SEG_M_X
+            (int16_t)(HOME_MAIN_TIME_3SEG_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_3SEG_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_TIME_3SEG_S_X
+            (int16_t)(HOME_MAIN_TIME_3SEG_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_COLON_HM] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_TIME_COLON_HM_X
+            (int16_t)(HOME_MAIN_TIME_COLON_HM_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_MAIN_TIME_COLON_MS] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_MAIN_TIME_COLON_MS_X
+            (int16_t)(HOME_MAIN_TIME_COLON_MS_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_2SEG_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_TIME_2SEG_M_X
+            (int16_t)(PUMP_HOME_MAIN_TIME_2SEG_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_2SEG_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_TIME_2SEG_S_X
+            (int16_t)(PUMP_HOME_MAIN_TIME_2SEG_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_3SEG_H] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_TIME_3SEG_H_X
+            (int16_t)(PUMP_HOME_MAIN_TIME_3SEG_H_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_3SEG_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_TIME_3SEG_M_X
+            (int16_t)(PUMP_HOME_MAIN_TIME_3SEG_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_3SEG_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_TIME_3SEG_S_X
+            (int16_t)(PUMP_HOME_MAIN_TIME_3SEG_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_COLON_HM] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_TIME_COLON_HM_X
+            (int16_t)(PUMP_HOME_MAIN_TIME_COLON_HM_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_MAIN_TIME_COLON_MS] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef PUMP_HOME_MAIN_TIME_COLON_MS_X
+            (int16_t)(PUMP_HOME_MAIN_TIME_COLON_MS_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_BASE_BLE_UI] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 1,
+        .x =
+#ifdef BASE_BLE_UI_X
+            (int16_t)(BASE_BLE_UI_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef BASE_BLE_UI_Y
+            (int16_t)(BASE_BLE_UI_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_BASE_PUMP_HOME_BLE_UI] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 1,
+        .x =
+#ifdef BASE_PUMP_HOME_BLE_UI_X
+            (int16_t)(BASE_PUMP_HOME_BLE_UI_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef BASE_PUMP_HOME_BLE_UI_Y
+            (int16_t)(BASE_PUMP_HOME_BLE_UI_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_CUSTOM_BLE_UI] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 1,
+        .x =
+#ifdef CUSTOM_BLE_UI_X
+            (int16_t)(CUSTOM_BLE_UI_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef CUSTOM_BLE_UI_Y
+            (int16_t)(CUSTOM_BLE_UI_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_CUSTOM_PUMP_HOME_BLE_UI] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 1,
+        .x =
+#ifdef CUSTOM_PUMP_HOME_BLE_UI_X
+            (int16_t)(CUSTOM_PUMP_HOME_BLE_UI_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef CUSTOM_PUMP_HOME_BLE_UI_Y
+            (int16_t)(CUSTOM_PUMP_HOME_BLE_UI_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_BOTH_LEVEL_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef HOME_BOTH_LEVEL_VALUE_Y
+            (int16_t)(HOME_BOTH_LEVEL_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_BOTH_LEVEL_VALUE_LEFT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_BOTH_LEVEL_VALUE_LEFT_X
+            (int16_t)(HOME_BOTH_LEVEL_VALUE_LEFT_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_BOTH_LEVEL_VALUE_RIGHT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_BOTH_LEVEL_VALUE_RIGHT_X
+            (int16_t)(HOME_BOTH_LEVEL_VALUE_RIGHT_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_BOTH_LEVEL_DIR_LEFT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_BOTH_LEVEL_DIR_LEFT_X
+            (int16_t)(HOME_BOTH_LEVEL_DIR_LEFT_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_HOME_BOTH_LEVEL_DIR_RIGHT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef HOME_BOTH_LEVEL_DIR_RIGHT_X
+            (int16_t)(HOME_BOTH_LEVEL_DIR_RIGHT_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PROGRESS_ARC] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PROGRESS_ARC_Y
+            (int16_t)(PROGRESS_ARC_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PAGE_NUM_GAP] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PAGE_NUM_GAP_X
+            (int16_t)(GUIDE_PAGE_NUM_GAP_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PAGE_NUM_CURRENT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PAGE_NUM_CURRENT_Y
+            (int16_t)(GUIDE_PAGE_NUM_CURRENT_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PAGE_NUM_TOTAL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PAGE_NUM_TOTAL_Y
+            (int16_t)(GUIDE_PAGE_NUM_TOTAL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_MODE_HOME_TIME_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_MODE_HOME_TIME_M_X
+            (int16_t)(GUIDE_MODE_HOME_TIME_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_MODE_HOME_TIME_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_MODE_HOME_TIME_S_X
+            (int16_t)(GUIDE_MODE_HOME_TIME_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_MODE_HOME_TIME] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_MODE_HOME_TIME_Y
+            (int16_t)(GUIDE_MODE_HOME_TIME_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_MODE_HOME_TIME_COLON] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_MODE_HOME_TIME_COLON_Y
+            (int16_t)(GUIDE_MODE_HOME_TIME_COLON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_MODE_HOME_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_MODE_HOME_SPEED_ICON_Y
+            (int16_t)(GUIDE_MODE_HOME_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_MODE_HOME_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_MODE_HOME_SPEED_VALUE_Y
+            (int16_t)(GUIDE_MODE_HOME_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_MODE_HOME_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_MODE_HOME_LEFT_LEVEL_X
+            (int16_t)(GUIDE_MODE_HOME_LEFT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_MODE_HOME_LEFT_LEVEL_Y
+            (int16_t)(GUIDE_MODE_HOME_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_MODE_HOME_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_MODE_HOME_RIGHT_LEVEL_X
+            (int16_t)(GUIDE_MODE_HOME_RIGHT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_MODE_HOME_RIGHT_LEVEL_Y
+            (int16_t)(GUIDE_MODE_HOME_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_HOME_TIME_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_HOME_TIME_M_X
+            (int16_t)(GUIDE_PUMP_HOME_TIME_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_HOME_TIME_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_HOME_TIME_S_X
+            (int16_t)(GUIDE_PUMP_HOME_TIME_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_HOME_TIME] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_HOME_TIME_Y
+            (int16_t)(GUIDE_PUMP_HOME_TIME_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_HOME_TIME_COLON] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_HOME_TIME_COLON_Y
+            (int16_t)(GUIDE_PUMP_HOME_TIME_COLON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_HOME_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_HOME_SPEED_ICON_Y
+            (int16_t)(GUIDE_PUMP_HOME_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_HOME_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_HOME_SPEED_VALUE_Y
+            (int16_t)(GUIDE_PUMP_HOME_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_HOME_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_HOME_LEFT_LEVEL_X
+            (int16_t)(GUIDE_PUMP_HOME_LEFT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_PUMP_HOME_LEFT_LEVEL_Y
+            (int16_t)(GUIDE_PUMP_HOME_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_HOME_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_HOME_RIGHT_LEVEL_X
+            (int16_t)(GUIDE_PUMP_HOME_RIGHT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_PUMP_HOME_RIGHT_LEVEL_Y
+            (int16_t)(GUIDE_PUMP_HOME_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_START_TIME_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_START_TIME_M_X
+            (int16_t)(GUIDE_PUMP_START_TIME_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_START_TIME_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_START_TIME_S_X
+            (int16_t)(GUIDE_PUMP_START_TIME_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_START_TIME] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_START_TIME_Y
+            (int16_t)(GUIDE_PUMP_START_TIME_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_START_TIME_COLON] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_START_TIME_COLON_Y
+            (int16_t)(GUIDE_PUMP_START_TIME_COLON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_START_WAVE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_START_WAVE_Y
+            (int16_t)(GUIDE_PUMP_START_WAVE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_START_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_START_SPEED_ICON_Y
+            (int16_t)(GUIDE_PUMP_START_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_START_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_START_SPEED_VALUE_Y
+            (int16_t)(GUIDE_PUMP_START_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_START_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_START_LEFT_LEVEL_X
+            (int16_t)(GUIDE_PUMP_START_LEFT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_PUMP_START_LEFT_LEVEL_Y
+            (int16_t)(GUIDE_PUMP_START_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_START_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_START_RIGHT_LEVEL_X
+            (int16_t)(GUIDE_PUMP_START_RIGHT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_PUMP_START_RIGHT_LEVEL_Y
+            (int16_t)(GUIDE_PUMP_START_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_PAUSE_WAVE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_PAUSE_WAVE_Y
+            (int16_t)(GUIDE_PUMP_PAUSE_WAVE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_PAUSE_PLAY_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_PAUSE_PLAY_ICON_Y
+            (int16_t)(GUIDE_PUMP_PAUSE_PLAY_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_PAUSE_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_PAUSE_SPEED_ICON_Y
+            (int16_t)(GUIDE_PUMP_PAUSE_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_PAUSE_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_PAUSE_SPEED_VALUE_Y
+            (int16_t)(GUIDE_PUMP_PAUSE_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_PAUSE_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_PAUSE_LEFT_LEVEL_X
+            (int16_t)(GUIDE_PUMP_PAUSE_LEFT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_PUMP_PAUSE_LEFT_LEVEL_Y
+            (int16_t)(GUIDE_PUMP_PAUSE_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_PAUSE_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_PUMP_PAUSE_RIGHT_LEVEL_X
+            (int16_t)(GUIDE_PUMP_PAUSE_RIGHT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_PUMP_PAUSE_RIGHT_LEVEL_Y
+            (int16_t)(GUIDE_PUMP_PAUSE_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_PUMP_FINISH_GUIDE_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_PUMP_FINISH_GUIDE_ICON_Y
+            (int16_t)(GUIDE_PUMP_FINISH_GUIDE_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_SPEED_DONE_TIME_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_SPEED_DONE_TIME_M_X
+            (int16_t)(GUIDE_SPEED_DONE_TIME_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_SPEED_DONE_TIME_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_SPEED_DONE_TIME_S_X
+            (int16_t)(GUIDE_SPEED_DONE_TIME_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_SPEED_DONE_TIME] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_SPEED_DONE_TIME_Y
+            (int16_t)(GUIDE_SPEED_DONE_TIME_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_SPEED_DONE_TIME_COLON] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_SPEED_DONE_TIME_COLON_Y
+            (int16_t)(GUIDE_SPEED_DONE_TIME_COLON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_SPEED_DONE_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_SPEED_DONE_SPEED_ICON_Y
+            (int16_t)(GUIDE_SPEED_DONE_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_SPEED_DONE_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_SPEED_DONE_SPEED_VALUE_Y
+            (int16_t)(GUIDE_SPEED_DONE_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_SPEED_DONE_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_SPEED_DONE_LEFT_LEVEL_X
+            (int16_t)(GUIDE_SPEED_DONE_LEFT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_SPEED_DONE_LEFT_LEVEL_Y
+            (int16_t)(GUIDE_SPEED_DONE_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_SPEED_DONE_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_SPEED_DONE_RIGHT_LEVEL_X
+            (int16_t)(GUIDE_SPEED_DONE_RIGHT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_SPEED_DONE_RIGHT_LEVEL_Y
+            (int16_t)(GUIDE_SPEED_DONE_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_SPEED_VALUE_Y
+            (int16_t)(GUIDE_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_DONE_TIME_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_SIDE_DONE_TIME_M_X
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_TIME_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_DONE_TIME_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_SIDE_DONE_TIME_S_X
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_TIME_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_DONE_TIME] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_SIDE_DONE_TIME_Y
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_TIME_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_DONE_TIME_COLON] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_SIDE_DONE_TIME_COLON_Y
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_TIME_COLON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_DONE_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_SIDE_DONE_SPEED_ICON_Y
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_DONE_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_SIDE_DONE_SPEED_VALUE_Y
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_DONE_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_SIDE_DONE_LEFT_LEVEL_X
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_LEFT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_SIDE_DONE_LEFT_LEVEL_Y
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_DONE_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_SIDE_DONE_RIGHT_LEVEL_X
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_RIGHT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_SIDE_DONE_RIGHT_LEVEL_Y
+            (int16_t)(GUIDE_LEVEL_SIDE_DONE_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_X
+            (int16_t)(GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_Y
+            (int16_t)(GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_X
+            (int16_t)(GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_Y
+            (int16_t)(GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_SIDE_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_SIDE_VALUE_Y
+            (int16_t)(GUIDE_LEVEL_SIDE_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_BOTH_DONE_TIME_M] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_BOTH_DONE_TIME_M_X
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_TIME_M_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_BOTH_DONE_TIME_S] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_BOTH_DONE_TIME_S_X
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_TIME_S_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_BOTH_DONE_TIME] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_BOTH_DONE_TIME_Y
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_TIME_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_BOTH_DONE_TIME_COLON] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_BOTH_DONE_TIME_COLON_Y
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_TIME_COLON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_BOTH_DONE_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_BOTH_DONE_SPEED_ICON_Y
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_BOTH_DONE_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_BOTH_DONE_SPEED_VALUE_Y
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_X
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_Y
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_X
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_Y
+            (int16_t)(GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_BOTH_LEVEL_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef GUIDE_BOTH_LEVEL_VALUE_Y
+            (int16_t)(GUIDE_BOTH_LEVEL_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_BOTH_LEVEL_VALUE_LEFT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_BOTH_LEVEL_VALUE_LEFT_X
+            (int16_t)(GUIDE_BOTH_LEVEL_VALUE_LEFT_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_BOTH_LEVEL_VALUE_RIGHT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_BOTH_LEVEL_VALUE_RIGHT_X
+            (int16_t)(GUIDE_BOTH_LEVEL_VALUE_RIGHT_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_BOTH_LEVEL_DIR_LEFT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_BOTH_LEVEL_DIR_LEFT_X
+            (int16_t)(GUIDE_BOTH_LEVEL_DIR_LEFT_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_GUIDE_BOTH_LEVEL_DIR_RIGHT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef GUIDE_BOTH_LEVEL_DIR_RIGHT_X
+            (int16_t)(GUIDE_BOTH_LEVEL_DIR_RIGHT_X)
+#else
+            0
+#endif
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_BATTERY_UI_BLE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef BATTERY_UI_BLE_Y
+            (int16_t)(BATTERY_UI_BLE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_BASE_BATTERY_UI] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef BASE_BATTERY_UI_X
+            (int16_t)(BASE_BATTERY_UI_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef BASE_BATTERY_UI_Y
+            (int16_t)(BASE_BATTERY_UI_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_BASE_PUMP_HOME_BATTERY_UI] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 1,
+        .x =
+#ifdef BASE_PUMP_HOME_BATTERY_UI_X
+            (int16_t)(BASE_PUMP_HOME_BATTERY_UI_X)
+#else
+            0
+#endif
+        ,
+        .y =
+#ifdef BASE_PUMP_HOME_BATTERY_UI_Y
+            (int16_t)(BASE_PUMP_HOME_BATTERY_UI_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_BATTERY_CAP] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+            0
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+#ifdef BATTERY_CAP_MAX_W
+            (uint16_t)(BATTERY_CAP_MAX_W)
+#else
+            0
+#endif
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
 };
 
 const int16_t g_ui_layout_default[UI_LAY_COUNT] = {
@@ -4217,6 +7179,213 @@ const int16_t g_ui_layout_default[UI_LAY_COUNT] = {
 #endif
 #ifdef SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR
     [UI_LAY_SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR] = (int16_t)(SYS_ABNORMAL_CONTENT_Y_TEMP_ERROR),
+#endif
+#ifdef PUMP_HOME_MAIN_TIME_MODE_SWITCH_SHIFT_Y
+    [UI_LAY_PUMP_HOME_MAIN_TIME_MODE_SWITCH_SHIFT_Y] = (int16_t)(PUMP_HOME_MAIN_TIME_MODE_SWITCH_SHIFT_Y),
+#endif
+#ifdef HOME_BOTH_LEVEL_VALUE_W
+    [UI_LAY_HOME_BOTH_LEVEL_VALUE_W] = (int16_t)(HOME_BOTH_LEVEL_VALUE_W),
+#endif
+#ifdef HOME_BOTH_LEVEL_VALUE_H
+    [UI_LAY_HOME_BOTH_LEVEL_VALUE_H] = (int16_t)(HOME_BOTH_LEVEL_VALUE_H),
+#endif
+#ifdef HOME_BOTH_LEVEL_DIR_W
+    [UI_LAY_HOME_BOTH_LEVEL_DIR_W] = (int16_t)(HOME_BOTH_LEVEL_DIR_W),
+#endif
+#ifdef HOME_BOTH_LEVEL_DIR_H
+    [UI_LAY_HOME_BOTH_LEVEL_DIR_H] = (int16_t)(HOME_BOTH_LEVEL_DIR_H),
+#endif
+#ifdef GUIDE_QRCODE_SIZE
+    [UI_LAY_GUIDE_QRCODE_SIZE] = (int16_t)(GUIDE_QRCODE_SIZE),
+#endif
+#ifdef GUIDE_QRCODE_PAD
+    [UI_LAY_GUIDE_QRCODE_PAD] = (int16_t)(GUIDE_QRCODE_PAD),
+#endif
+#ifdef GUIDE_QRCODE_TIP_H
+    [UI_LAY_GUIDE_QRCODE_TIP_H] = (int16_t)(GUIDE_QRCODE_TIP_H),
+#endif
+#ifdef GUIDE_FINISH_QRCODE_SIZE
+    [UI_LAY_GUIDE_FINISH_QRCODE_SIZE] = (int16_t)(GUIDE_FINISH_QRCODE_SIZE),
+#endif
+#ifdef GUIDE_FINISH_QRCODE_PAD
+    [UI_LAY_GUIDE_FINISH_QRCODE_PAD] = (int16_t)(GUIDE_FINISH_QRCODE_PAD),
+#endif
+#ifdef GUIDE_FINISH_TIP_H
+    [UI_LAY_GUIDE_FINISH_TIP_H] = (int16_t)(GUIDE_FINISH_TIP_H),
+#endif
+#ifdef GUIDE_MODE_HOME_TIME_SEG_WIDTH
+    [UI_LAY_GUIDE_MODE_HOME_TIME_SEG_WIDTH] = (int16_t)(GUIDE_MODE_HOME_TIME_SEG_WIDTH),
+#endif
+#ifdef GUIDE_MODE_HOME_SPEED_GROUP_WIDTH
+    [UI_LAY_GUIDE_MODE_HOME_SPEED_GROUP_WIDTH] = (int16_t)(GUIDE_MODE_HOME_SPEED_GROUP_WIDTH),
+#endif
+#ifdef GUIDE_MODE_HOME_SPEED_ICON_VALUE_GAP
+    [UI_LAY_GUIDE_MODE_HOME_SPEED_ICON_VALUE_GAP] = (int16_t)(GUIDE_MODE_HOME_SPEED_ICON_VALUE_GAP),
+#endif
+#ifdef GUIDE_MODE_HOME_LEFT_LEVEL_W
+    [UI_LAY_GUIDE_MODE_HOME_LEFT_LEVEL_W] = (int16_t)(GUIDE_MODE_HOME_LEFT_LEVEL_W),
+#endif
+#ifdef GUIDE_MODE_HOME_RIGHT_LEVEL_W
+    [UI_LAY_GUIDE_MODE_HOME_RIGHT_LEVEL_W] = (int16_t)(GUIDE_MODE_HOME_RIGHT_LEVEL_W),
+#endif
+#ifdef GUIDE_MODE_SWITCH_GUIDE_TIP_H
+    [UI_LAY_GUIDE_MODE_SWITCH_GUIDE_TIP_H] = (int16_t)(GUIDE_MODE_SWITCH_GUIDE_TIP_H),
+#endif
+#ifdef GUIDE_MODE_SWITCH_CIRCLE_GAP
+    [UI_LAY_GUIDE_MODE_SWITCH_CIRCLE_GAP] = (int16_t)(GUIDE_MODE_SWITCH_CIRCLE_GAP),
+#endif
+#ifdef GUIDE_MODE_SWITCH_TIP_H
+    [UI_LAY_GUIDE_MODE_SWITCH_TIP_H] = (int16_t)(GUIDE_MODE_SWITCH_TIP_H),
+#endif
+#ifdef GUIDE_PUMP_HOME_TIME_SEG_WIDTH
+    [UI_LAY_GUIDE_PUMP_HOME_TIME_SEG_WIDTH] = (int16_t)(GUIDE_PUMP_HOME_TIME_SEG_WIDTH),
+#endif
+#ifdef GUIDE_PUMP_HOME_SPEED_GROUP_WIDTH
+    [UI_LAY_GUIDE_PUMP_HOME_SPEED_GROUP_WIDTH] = (int16_t)(GUIDE_PUMP_HOME_SPEED_GROUP_WIDTH),
+#endif
+#ifdef GUIDE_PUMP_HOME_SPEED_ICON_VALUE_GAP
+    [UI_LAY_GUIDE_PUMP_HOME_SPEED_ICON_VALUE_GAP] = (int16_t)(GUIDE_PUMP_HOME_SPEED_ICON_VALUE_GAP),
+#endif
+#ifdef GUIDE_PUMP_HOME_LEFT_LEVEL_W
+    [UI_LAY_GUIDE_PUMP_HOME_LEFT_LEVEL_W] = (int16_t)(GUIDE_PUMP_HOME_LEFT_LEVEL_W),
+#endif
+#ifdef GUIDE_PUMP_HOME_RIGHT_LEVEL_W
+    [UI_LAY_GUIDE_PUMP_HOME_RIGHT_LEVEL_W] = (int16_t)(GUIDE_PUMP_HOME_RIGHT_LEVEL_W),
+#endif
+#ifdef GUIDE_PUMP_START_TIME_SEG_WIDTH
+    [UI_LAY_GUIDE_PUMP_START_TIME_SEG_WIDTH] = (int16_t)(GUIDE_PUMP_START_TIME_SEG_WIDTH),
+#endif
+#ifdef GUIDE_PUMP_START_SPEED_GROUP_WIDTH
+    [UI_LAY_GUIDE_PUMP_START_SPEED_GROUP_WIDTH] = (int16_t)(GUIDE_PUMP_START_SPEED_GROUP_WIDTH),
+#endif
+#ifdef GUIDE_PUMP_START_SPEED_ICON_VALUE_GAP
+    [UI_LAY_GUIDE_PUMP_START_SPEED_ICON_VALUE_GAP] = (int16_t)(GUIDE_PUMP_START_SPEED_ICON_VALUE_GAP),
+#endif
+#ifdef GUIDE_PUMP_START_LEFT_LEVEL_W
+    [UI_LAY_GUIDE_PUMP_START_LEFT_LEVEL_W] = (int16_t)(GUIDE_PUMP_START_LEFT_LEVEL_W),
+#endif
+#ifdef GUIDE_PUMP_START_RIGHT_LEVEL_W
+    [UI_LAY_GUIDE_PUMP_START_RIGHT_LEVEL_W] = (int16_t)(GUIDE_PUMP_START_RIGHT_LEVEL_W),
+#endif
+#ifdef GUIDE_PUMP_PAUSE_SPEED_GROUP_WIDTH
+    [UI_LAY_GUIDE_PUMP_PAUSE_SPEED_GROUP_WIDTH] = (int16_t)(GUIDE_PUMP_PAUSE_SPEED_GROUP_WIDTH),
+#endif
+#ifdef GUIDE_PUMP_PAUSE_SPEED_ICON_VALUE_GAP
+    [UI_LAY_GUIDE_PUMP_PAUSE_SPEED_ICON_VALUE_GAP] = (int16_t)(GUIDE_PUMP_PAUSE_SPEED_ICON_VALUE_GAP),
+#endif
+#ifdef GUIDE_PUMP_PAUSE_LEFT_LEVEL_W
+    [UI_LAY_GUIDE_PUMP_PAUSE_LEFT_LEVEL_W] = (int16_t)(GUIDE_PUMP_PAUSE_LEFT_LEVEL_W),
+#endif
+#ifdef GUIDE_PUMP_PAUSE_RIGHT_LEVEL_W
+    [UI_LAY_GUIDE_PUMP_PAUSE_RIGHT_LEVEL_W] = (int16_t)(GUIDE_PUMP_PAUSE_RIGHT_LEVEL_W),
+#endif
+#ifdef GUIDE_SPEED_DONE_TIME_SEG_WIDTH
+    [UI_LAY_GUIDE_SPEED_DONE_TIME_SEG_WIDTH] = (int16_t)(GUIDE_SPEED_DONE_TIME_SEG_WIDTH),
+#endif
+#ifdef GUIDE_SPEED_DONE_SPEED_GROUP_WIDTH
+    [UI_LAY_GUIDE_SPEED_DONE_SPEED_GROUP_WIDTH] = (int16_t)(GUIDE_SPEED_DONE_SPEED_GROUP_WIDTH),
+#endif
+#ifdef GUIDE_SPEED_DONE_SPEED_ICON_VALUE_GAP
+    [UI_LAY_GUIDE_SPEED_DONE_SPEED_ICON_VALUE_GAP] = (int16_t)(GUIDE_SPEED_DONE_SPEED_ICON_VALUE_GAP),
+#endif
+#ifdef GUIDE_SPEED_DONE_LEFT_LEVEL_W
+    [UI_LAY_GUIDE_SPEED_DONE_LEFT_LEVEL_W] = (int16_t)(GUIDE_SPEED_DONE_LEFT_LEVEL_W),
+#endif
+#ifdef GUIDE_SPEED_DONE_RIGHT_LEVEL_W
+    [UI_LAY_GUIDE_SPEED_DONE_RIGHT_LEVEL_W] = (int16_t)(GUIDE_SPEED_DONE_RIGHT_LEVEL_W),
+#endif
+#ifdef GUIDE_SPEED_GUIDE_TIP_H
+    [UI_LAY_GUIDE_SPEED_GUIDE_TIP_H] = (int16_t)(GUIDE_SPEED_GUIDE_TIP_H),
+#endif
+#ifdef GUIDE_SPEED_TIP_H
+    [UI_LAY_GUIDE_SPEED_TIP_H] = (int16_t)(GUIDE_SPEED_TIP_H),
+#endif
+#ifdef GUIDE_LEVEL_SIDE_DONE_TIME_SEG_WIDTH
+    [UI_LAY_GUIDE_LEVEL_SIDE_DONE_TIME_SEG_WIDTH] = (int16_t)(GUIDE_LEVEL_SIDE_DONE_TIME_SEG_WIDTH),
+#endif
+#ifdef GUIDE_LEVEL_SIDE_DONE_SPEED_GROUP_WIDTH
+    [UI_LAY_GUIDE_LEVEL_SIDE_DONE_SPEED_GROUP_WIDTH] = (int16_t)(GUIDE_LEVEL_SIDE_DONE_SPEED_GROUP_WIDTH),
+#endif
+#ifdef GUIDE_LEVEL_SIDE_DONE_SPEED_ICON_VALUE_GAP
+    [UI_LAY_GUIDE_LEVEL_SIDE_DONE_SPEED_ICON_VALUE_GAP] = (int16_t)(GUIDE_LEVEL_SIDE_DONE_SPEED_ICON_VALUE_GAP),
+#endif
+#ifdef GUIDE_LEVEL_SIDE_DONE_LEFT_LEVEL_W
+    [UI_LAY_GUIDE_LEVEL_SIDE_DONE_LEFT_LEVEL_W] = (int16_t)(GUIDE_LEVEL_SIDE_DONE_LEFT_LEVEL_W),
+#endif
+#ifdef GUIDE_LEVEL_SIDE_DONE_RIGHT_LEVEL_W
+    [UI_LAY_GUIDE_LEVEL_SIDE_DONE_RIGHT_LEVEL_W] = (int16_t)(GUIDE_LEVEL_SIDE_DONE_RIGHT_LEVEL_W),
+#endif
+#ifdef GUIDE_LEVEL_SIDE_GUIDE_TIP_H
+    [UI_LAY_GUIDE_LEVEL_SIDE_GUIDE_TIP_H] = (int16_t)(GUIDE_LEVEL_SIDE_GUIDE_TIP_H),
+#endif
+#ifdef GUIDE_LEVEL_SIDE_TIP_H
+    [UI_LAY_GUIDE_LEVEL_SIDE_TIP_H] = (int16_t)(GUIDE_LEVEL_SIDE_TIP_H),
+#endif
+#ifdef GUIDE_LEVEL_BOTH_DONE_TIME_SEG_WIDTH
+    [UI_LAY_GUIDE_LEVEL_BOTH_DONE_TIME_SEG_WIDTH] = (int16_t)(GUIDE_LEVEL_BOTH_DONE_TIME_SEG_WIDTH),
+#endif
+#ifdef GUIDE_LEVEL_BOTH_DONE_SPEED_GROUP_WIDTH
+    [UI_LAY_GUIDE_LEVEL_BOTH_DONE_SPEED_GROUP_WIDTH] = (int16_t)(GUIDE_LEVEL_BOTH_DONE_SPEED_GROUP_WIDTH),
+#endif
+#ifdef GUIDE_LEVEL_BOTH_DONE_SPEED_ICON_VALUE_GAP
+    [UI_LAY_GUIDE_LEVEL_BOTH_DONE_SPEED_ICON_VALUE_GAP] = (int16_t)(GUIDE_LEVEL_BOTH_DONE_SPEED_ICON_VALUE_GAP),
+#endif
+#ifdef GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_W
+    [UI_LAY_GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_W] = (int16_t)(GUIDE_LEVEL_BOTH_DONE_LEFT_LEVEL_W),
+#endif
+#ifdef GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_W
+    [UI_LAY_GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_W] = (int16_t)(GUIDE_LEVEL_BOTH_DONE_RIGHT_LEVEL_W),
+#endif
+#ifdef GUIDE_LEVEL_BOTH_GUIDE_TIP_H
+    [UI_LAY_GUIDE_LEVEL_BOTH_GUIDE_TIP_H] = (int16_t)(GUIDE_LEVEL_BOTH_GUIDE_TIP_H),
+#endif
+#ifdef GUIDE_BOTH_LEVEL_VALUE_W
+    [UI_LAY_GUIDE_BOTH_LEVEL_VALUE_W] = (int16_t)(GUIDE_BOTH_LEVEL_VALUE_W),
+#endif
+#ifdef GUIDE_BOTH_LEVEL_VALUE_H
+    [UI_LAY_GUIDE_BOTH_LEVEL_VALUE_H] = (int16_t)(GUIDE_BOTH_LEVEL_VALUE_H),
+#endif
+#ifdef GUIDE_BOTH_LEVEL_DIR_W
+    [UI_LAY_GUIDE_BOTH_LEVEL_DIR_W] = (int16_t)(GUIDE_BOTH_LEVEL_DIR_W),
+#endif
+#ifdef GUIDE_BOTH_LEVEL_DIR_H
+    [UI_LAY_GUIDE_BOTH_LEVEL_DIR_H] = (int16_t)(GUIDE_BOTH_LEVEL_DIR_H),
+#endif
+#ifdef GUIDE_BOTH_LEVEL_OVER_LIMIT_W
+    [UI_LAY_GUIDE_BOTH_LEVEL_OVER_LIMIT_W] = (int16_t)(GUIDE_BOTH_LEVEL_OVER_LIMIT_W),
+#endif
+#ifdef GUIDE_BOTH_LEVEL_OVER_LIMIT_H
+    [UI_LAY_GUIDE_BOTH_LEVEL_OVER_LIMIT_H] = (int16_t)(GUIDE_BOTH_LEVEL_OVER_LIMIT_H),
+#endif
+#ifdef GUIDE_BOTH_LEVEL_TIP_H
+    [UI_LAY_GUIDE_BOTH_LEVEL_TIP_H] = (int16_t)(GUIDE_BOTH_LEVEL_TIP_H),
+#endif
+#ifdef BATTERY_UI_ICON_GAP
+    [UI_LAY_BATTERY_UI_ICON_GAP] = (int16_t)(BATTERY_UI_ICON_GAP),
+#endif
+#ifdef BATTERY_UI_BLE_ICON_W
+    [UI_LAY_BATTERY_UI_BLE_ICON_W] = (int16_t)(BATTERY_UI_BLE_ICON_W),
+#endif
+#ifdef BATTERY_UI_Y_WITH_PEER
+    [UI_LAY_BATTERY_UI_Y_WITH_PEER] = (int16_t)(BATTERY_UI_Y_WITH_PEER),
+#endif
+#ifdef BATTERY_UI_Y_ALONE
+    [UI_LAY_BATTERY_UI_Y_ALONE] = (int16_t)(BATTERY_UI_Y_ALONE),
+#endif
+#ifdef BATTERY_FRAME_W
+    [UI_LAY_BATTERY_FRAME_W] = (int16_t)(BATTERY_FRAME_W),
+#endif
+#ifdef BATTERY_FRAME_H
+    [UI_LAY_BATTERY_FRAME_H] = (int16_t)(BATTERY_FRAME_H),
+#endif
+#ifdef BATTERY_CAP_H
+    [UI_LAY_BATTERY_CAP_H] = (int16_t)(BATTERY_CAP_H),
+#endif
+#ifdef BATTERY_CAP_X_OFFSET
+    [UI_LAY_BATTERY_CAP_X_OFFSET] = (int16_t)(BATTERY_CAP_X_OFFSET),
+#endif
+#ifdef BATTERY_CAP_Y_OFFSET
+    [UI_LAY_BATTERY_CAP_Y_OFFSET] = (int16_t)(BATTERY_CAP_Y_OFFSET),
 #endif
 };
 

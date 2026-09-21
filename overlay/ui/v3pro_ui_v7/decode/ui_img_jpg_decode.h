@@ -26,7 +26,7 @@ typedef struct ui_manager_context ui_manager_context_t;
 
 /** 目标像素格式（JPG 解码后的内存布局，供 LVGL draw_buf / lv_image 使用） */
 typedef enum {
-    /** 每像素 3 字节，顺序 R、G、B（`LV_COLOR_FORMAT_RGB888`） */
+    /** 每像素 3 字节；本平台 `LV_COLOR_FORMAT_RGB888` 按 BGR888 落盘（与 PNG 预解码一致） */
     UI_IMG_JPG_DECODE_RGB888 = 0,
     /** 每像素 4 字节，`LV_COLOR_FORMAT_ARGB8888`，alpha 固定为 0xFF */
     UI_IMG_JPG_DECODE_RGBA8888,
