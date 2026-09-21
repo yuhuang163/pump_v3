@@ -137,6 +137,15 @@ static void system_abnormal_exit_cb(ui_proc_system_abnormal_t *proc)
     }
 #endif
 
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
+    }
+#endif
+
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
