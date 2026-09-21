@@ -13,10 +13,12 @@
 * DEFINES
 *****************************************************************************************
 */
-#define LIMS_I2C_ADDR                  0x6C
-#define LIMS_LOG_DEBUG                 0
-#define LIMS_ABNORMAL_MAX_COUNT        500
-#define LIMS_LOG_COUNT_INTERVAL        100
+#define LIMS_I2C_ADDR                          0x6C
+#define LIMS_LOG_DEBUG                         0
+#define LIMS_ABNORMAL_MAX_COUNT                500
+#define LIMS_LOG_COUNT_INTERVAL                100
+#define LIMS_ABNORMAL_RECOVERY_INTERVAL        20
+#define IS_SUPPORT_I2C_ABNORMAL_RECOVERY       1
 
 #define PRESSURE_RAW_DATA_CALC(x)  (x) > 8388608 ? \
  (((x) - 16777216) / 8388608.0f * (-110)) : ((x) / 8388608.0f * (-110))
@@ -35,6 +37,23 @@ static uint16_t s_log_count = 0;
 * GLOBAL VARIABLE DEFINITIONS
 *****************************************************************************************
 */
+static void lims_abnormal_count_increase(uint8_t index, bool is_write)
+{
+    s_dev_abnormal_count[index]++;
+    if (s_dev_abnormal_count[index] > LIMS_ABNORMAL_MAX_COUNT) {
+        s_dev_is_ready[index] = 0;
+    } else {
+        uint8_t abnormal_interval = s_dev_abnormal_count[index] % 10;
+        #if IS_SUPPORT_I2C_ABNORMAL_RECOVERY
+        if (abnormal_interval == 0) {
+            LOG_PBUS("i2c abnormal recovery");
+            i2c_abnormal_recovery(index == 0 ? AIR_PRESSURE_I2C_ID1 : AIR_PRESSURE_I2C_ID2);
+        }
+        #endif
+        LOG_PBUS("%s air pressure %d abnormal count: %d, interval: %d", is_write ? "write" : "read", index, s_dev_abnormal_count[index], abnormal_interval);
+    }
+}
+
 static int lims_write_nbyte(uint8_t index, uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     int ret = 0;
@@ -67,14 +86,7 @@ static int lims_write_nbyte(uint8_t index, uint8_t reg_addr, uint8_t *data, uint
         }
         msleep(10);
     }
-
-    s_dev_abnormal_count[index]++;
-    if (s_dev_abnormal_count[index] > LIMS_ABNORMAL_MAX_COUNT) {
-        s_dev_is_ready[index] = 0;
-    } else {
-        LOG_PBUS("air pressure %d abnormal count: %d", index, s_dev_abnormal_count[index]);
-    }
-
+    lims_abnormal_count_increase(index, true);
     return BSP_ERROR;
 }
 
@@ -110,13 +122,7 @@ static int lims_read_nbyte(uint8_t index, uint8_t reg_addr, uint8_t *data, uint1
         }
         msleep(10);
     }
-
-    s_dev_abnormal_count[index]++;
-    if (s_dev_abnormal_count[index] > LIMS_ABNORMAL_MAX_COUNT) {
-        s_dev_is_ready[index] = 0;
-    } else {
-        LOG_PBUS("air pressure %d abnormal count: %d", index, s_dev_abnormal_count[index]);
-    }
+    lims_abnormal_count_increase(index, false);
 
     return BSP_ERROR;
 }
@@ -142,14 +148,7 @@ static int lims_read_nbyte_no_retry(uint8_t index, uint8_t reg_addr, uint8_t *da
         s_dev_abnormal_count[index] = 0;
         return BSP_OK;
     }
-
-    s_dev_abnormal_count[index]++;
-    if (s_dev_abnormal_count[index] > LIMS_ABNORMAL_MAX_COUNT) {
-        s_dev_is_ready[index] = 0;
-    } else {
-        LOG_PBUS("air pressure %d abnormal count: %d", index, s_dev_abnormal_count[index]);
-    }
-
+    lims_abnormal_count_increase(index, false);
     return BSP_ERROR;
 }
 
