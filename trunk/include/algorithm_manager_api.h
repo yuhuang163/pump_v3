@@ -12,6 +12,7 @@ extern "C" {
 #include "root_common_base.h" // IWYU pragma: keep
 #include "broadcast_manager_api.h"
 #include "root_algo.h" // IWYU pragma: keep
+#include "algo_fusion_lib.h" // IWYU pragma: keep
 
 struct breast_pump_context;
 struct input_dispatcher_context;
@@ -41,6 +42,8 @@ typedef struct algo_manager_context {
         bool is_algo_enabled;         /// 算法开关 默认开启
         algo_breast_pump_data_t algo_data; /// 算法数据
         algo_breast_pump_data_t m_result;  /// 最近一次分发的算法结果快照
+        algo_fusion_result_t latest_result;   /// 最近一次原始算法结果（供结果上报）
+        bool result_report_enabled;           /// 算法结果上报开关
         struct motor_manager_context *motor;
         struct sensor_manager_context *sensor;
         struct breast_pump_manager_context *pump;
@@ -55,6 +58,12 @@ typedef struct algo_manager_context {
     void (*set_algo_enabled)(bool enabled);
     /// 获取算法开关
     bool (*get_algo_enabled)(void);
+    /// 获取最近一次原始算法结果
+    algo_fusion_result_t *(*get_algo_fusion_result)(void);
+    /// 设置算法结果上报开关
+    void (*set_result_report_enabled)(bool enabled);
+    /// 获取算法结果上报开关
+    bool (*get_result_report_enabled)(void);
     struct __algo_manager_hook {
         int (*on_post_init_route)(struct algo_manager_context *ctx);
         int (*on_algo_receiver_route)(broadcast_mask_id_t id, void *context, int arg1, int arg2, void *user_data);

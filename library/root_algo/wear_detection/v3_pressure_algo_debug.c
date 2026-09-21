@@ -85,8 +85,8 @@ void GetWearDetectionDebugInfoAlg(unsigned int* uWaveSpikes,
     }
     if (uLeakDetectTime != 0)
     {
-        uLeakDetectTime[0] = tFeatureInfo[0].uLeakDetectTime;
-        uLeakDetectTime[1] = tFeatureInfo[1].uLeakDetectTime;
+        uLeakDetectTime[0] = tFeatureInfo[0].uLeakSwitchTime;
+        uLeakDetectTime[1] = tFeatureInfo[1].uLeakSwitchTime;
     }
     if (uDataBaselineCnt != 0)
     {

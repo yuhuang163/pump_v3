@@ -107,6 +107,14 @@ boards/          板级与产品配置聚合
 
 项目文档索引在 [`docs/README.md`](docs/README.md)。修改跨域行为、广播契约、吸奶泵状态机或产测接口前，先读 `docs/architecture/` 下的架构文档；协议变更前读 `docs/protocol/` 下的协议文档。
 
+部分子系统在业务代码目录内随代码维护权威说明，改动前应一并查阅：
+
+- [`drivers/battery/BATTERY_SOC_STRATEGY.md`](drivers/battery/BATTERY_SOC_STRATEGY.md) 与 [`drivers/battery/charge/CHARGE_STRATEGY.md`](drivers/battery/charge/CHARGE_STRATEGY.md) — 电池 SOC / 充电策略
+- [`trunk/root_source/motor/breast_pump_policy/pump_climb_policy.md`](trunk/root_source/motor/breast_pump_policy/pump_climb_policy.md) — 力度爬升策略
+- [`overlay/framework_hooks/led/灯光策略.md`](overlay/framework_hooks/led/灯光策略.md) — 灯光/自适应调光/夜灯
+- [`overlay/servers/common_server/ota/IMG_RES_OTA_PROTOCOL.md`](overlay/servers/common_server/ota/IMG_RES_OTA_PROTOCOL.md) — 图片资源 OTA 协议
+- [`overlay/resources/README.md`](overlay/resources/README.md) — 资源打包与转换
+
 ## Git 工作流
 
 - 任何代码改动优先使用特性分支。

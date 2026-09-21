@@ -19,6 +19,7 @@ const static protocol_service_tlvs_handle_t protocol_service_tlvs_list[] = {
     {ALGO_TLV_SAMPLE_INTERVAL_SET, algo_tlvs_sample_interval_set},
     {ALGO_TLV_SAMPLE_ONOFF_GET, algo_tlvs_sample_onoff_get},
     {ALGO_TLV_SAMPLE_INTERVAL_GET, algo_tlvs_sample_interval_get},
+    {ALGO_TLV_RESULT_REPORT_ONOFF_SET, algo_tlvs_result_report_onoff_set},
 };
 
 /*

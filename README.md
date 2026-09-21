@@ -508,7 +508,7 @@ FIRMWARE_V3/
 
 策略配置通过 `overlay/breast_pump/table/` 中的参数表定义，在运行时由马达管理系统执行。
 
-### 七种标准工作模式
+### 工作模式（共 11 种：7 标准 + 4 专家/韵律）
 
 #### 1. 刺激模式 (Stimulation Mode)
 - **模式 ID**: `BREAST_PUMP_STIMULATION_MODE`
@@ -561,6 +561,8 @@ FIRMWARE_V3/
 - **特点**: 2 分钟刺激 + 8 分钟吸乳的黄金组合
 - **工作时长**: 固定 10 分钟（由 `MILK_BOOST_MODE_WORK_TIME` 定义）
 - **适用场景**: 追求高效吸乳，时间有限的场景
+
+> 另有 4 种专家/韵律模式（`overlay/breast_pump/mode/`）：自定义试戴（custom_trial）、常规韵律（regular_pumping）、追加排空（emptying_boost）、放松（relax）。完整清单见 [`docs/architecture/breast-pump/motor-policy.md`](docs/architecture/breast-pump/motor-policy.md)。
 
 ### 模式参数配置
 - **配置文件位置**: `overlay/breast_pump/table/pump_mode_default_config.h`
@@ -639,7 +641,7 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 - **依赖**: `python3 -m pip install --user littlefs-python`（或 `./preview.sh --install`）
 
 #### 4. `overlay/breast_pump/` - 吸奶泵业务配置
-- **mode/**: 工作模式定义，支持 7 种标准模式
+- **mode/**: 工作模式定义，共 11 种模式（7 标准 + 4 专家/韵律）
 - **table/**: 参数表配置（压力曲线、频率表、时间配置、定时策略等）
 
 #### 5. `overlay/framework_hooks/` - 框架钩子（17 个模块）
@@ -670,10 +672,10 @@ int custom_mode_parameter_update(motor_policy_cfg_t *cfg, uint8_t cfg_num);
 #### 7. `overlay/data_bury/` - 数据埋点事件处理
 - **用途**: 定义埋点事件类型、采集规则、上传策略
 
-#### 8. `overlay/night_light/` - 小夜灯策略
+#### 8. `overlay/framework_hooks/led/night_light/` - 小夜灯策略
 - **用途**: 小夜灯亮度、触发条件、时长等策略控制
 
-#### 9. `overlay/adaptive_dimming/` - 自适应调光
+#### 9. `overlay/framework_hooks/led/adaptive_dimming/` - 自适应调光
 - **用途**: 根据环境光自动调整屏幕亮度
 
 #### 10. `overlay/input_key/` - 输入按键配置

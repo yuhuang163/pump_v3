@@ -50,6 +50,10 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
     EXCEPTION_CHECK_VOID(algo_result);
     algo_manager_context_t *ctx = s_algo_ctx;
     EXCEPTION_CHECK_VOID(ctx);
+    /// 缓存原始算法结果，供算法结果上报（0x0008 notify）。
+    /// 注意：必须在下方 is_algo_enabled 判断之前缓存——算法关闭时下方会覆写 algo_result 为 INVALID，
+    /// 结果上报要求独立于算法开关（set_algo_enabled），故此处须先存原始值，勿挪进 if 分支。
+    memcpy(&ctx->priv.latest_result, algo_result, sizeof(algo_fusion_result_t));
     memcpy(old_leakage, ctx->priv.algo_data.wear_detection.result, sizeof(old_leakage));
     if (!ctx->priv.is_algo_enabled) {
         /// 算法未启用，结果上报默认值

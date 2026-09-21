@@ -100,7 +100,7 @@ RECV msg → 累加 policy_running_time_ms → is_can_play_now()
 
 - 双堵转检测并存；`pump_motor_error_check.c` 轮询定时器疑似未启动。
 - `policy_update_lock` 门控时间策略推进，防打断未完成动作。
-- 爬升标记（mark_auto/mark_rhythm_switch）须在 `pump_policy_info_reset` 之前。
-- 时间策略静态表 duration 是秒，`work_time_get` 返回分钟，注意单位。
+- 爬升标记（mark_auto/mark_rhythm_switch）须在 `pump_policy_info_reset` 之前。力度爬升策略的详细说明见 [`pump_climb_policy.md`](../../../trunk/root_source/motor/breast_pump_policy/pump_climb_policy.md)。
+- 时间策略静态表 duration 是秒，`breast_pump_mode_work_time_get` 返回值同为秒（fast-test 分支为 1/10 缩放），注意单位。
 - 追奶/自定义依赖 `STORE_ID_PUMP_MODE_STEPS_INFO`，`id.dat32==0` 回退默认。
 - 双泵各自独立 `info[i]/policy[i]`，频率同步由 `PUMP_FREQ_SYNC_ENABLE` 控制。

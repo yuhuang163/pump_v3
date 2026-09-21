@@ -191,3 +191,86 @@ ERROR_EXIT:
     protocol_ctx->comm_protocol_builder_free(&builder);
     return ret;
 }
+
+int algo_tlvs_result_report_onoff_set(comm_protocol_builder_t *builder, comm_protocol_service_t *service,
+                    uint8_t *data, uint16_t data_len)
+{
+    uint8_t result = 0x00;
+    EXCEPTION_CHECK_INT(builder && service && data);
+    algo_manager_context_t *algo_ctx = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+    EXCEPTION_CHECK_INT(algo_ctx && algo_ctx->set_result_report_enabled);
+    if (data[0] == 0x01) {
+        algo_ctx->set_result_report_enabled(true);
+        result = 0x01;
+    } else if (data[0] == 0x00) {
+        algo_ctx->set_result_report_enabled(false);
+        result = 0x01;
+    }
+    LOG_SRV("algo_tlvs_result_report_onoff_set, data: %d, result: %d", data[0], result);
+    comm_protocol_tlv_node_t tlv_node = {
+        .type = ALGO_TLV_RESULT_REPORT_ONOFF_SET,
+        .length = 1,
+        .value = &result,
+    };
+    return comm_protocol_builder_add_tlv(builder, service, &tlv_node);
+}
+
+int algo_result_report_publish(servers_publish_data_args_t *args)
+{
+    int ret = COMM_PROTOCOL_ERROR_NONE;
+    EXCEPTION_CHECK_INT(args && args->val);
+    protocol_manager_context_t *protocol_ctx = (protocol_manager_context_t *)find_module(ID_MODULE_PROTOCOL);
+    EXCEPTION_CHECK_INT(protocol_ctx);
+    ble_manager_context_t *ble_ctx = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+    EXCEPTION_CHECK_INT(ble_ctx);
+    uint8_t num = (uint8_t)args->arg1;   /// 组数 N
+    EXCEPTION_CHECK_INT(num > 0 && num <= ALGO_RESULT_REPORT_CACHE_NUM);
+    comm_protocol_builder_t builder = {0};
+    /// 初始化构建器
+    ret = protocol_ctx->comm_protocol_builder_init(&builder, COMM_PROTOCOL_MAX_PAYLOAD_SIZE,
+        protocol_ctx->get_packet_seq(), COMM_PROTOCOL_FRAME_TYPE_NOTIFY);
+    if (ret != 0) {
+        LOGE("==> comm_protocol_builder_init failed");
+        return COMM_PROTOCOL_ERROR_INVALID_BUILDER;
+    }
+    /// 初始化服务节点
+    comm_protocol_service_t *service = protocol_ctx->comm_protocol_builder_init_service(&builder, COMM_PROTOCOL_ALGO_SERVICE);
+    if (service == NULL) {
+        LOGE("==> algo service begin error");
+        goto ERROR_EXIT;
+    }
+    /// 组装：byte0=组数 N，byte1-n=N 组 algo_fusion_result_t
+    /// 注意：用堆分配避免在 algo_fusion_thread（仅 2KB 栈）上占用大块栈空间
+    uint16_t payload_len = (uint16_t)(1 + sizeof(algo_fusion_result_t) * num);
+    uint8_t *payload = u_malloz(payload_len);
+    if (payload == NULL) {
+        LOGE("==> u_malloz result report payload failed");
+        goto ERROR_EXIT;
+    }
+    payload[0] = num;
+    memcpy(&payload[1], args->val, sizeof(algo_fusion_result_t) * num);
+    comm_protocol_tlv_node_t rsp_tlv_node = {
+        .type = ALGO_TLV_RESULT_REPORT,
+        .length = payload_len,
+        .value = payload,
+    };
+    ret = protocol_ctx->comm_protocol_builder_add_tlv(&builder, service, &rsp_tlv_node);
+    u_free(payload);   /// add_tlv 已把 value 拷贝进 builder 帧缓冲，此处可释放
+    if (ret != 0) {
+        LOGE("==> comm_protocol_builder_add_tlv failed");
+        goto ERROR_EXIT;
+    }
+    /// 最终化构建器
+    uint16_t out_size = 0;
+    uint8_t *data = protocol_ctx->comm_protocol_builder_finalize(&builder, &out_size);
+    if (data == NULL) {
+        LOGE("==> comm_protocol_builder_finalize failed");
+        goto ERROR_EXIT;
+    }
+    /// 发送数据
+    ble_ctx->dispatch_ble_event_wrapper(ble_ctx, BLE_MSG_FAC_SEND_DATA, (uint8_t *)data, out_size);
+
+ERROR_EXIT:
+    protocol_ctx->comm_protocol_builder_free(&builder);
+    return ret;
+}

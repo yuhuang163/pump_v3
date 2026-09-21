@@ -101,6 +101,11 @@ static int get_ui_backlight_adaptive_dimming_switch(led_manager_context_t *thiz)
     return thiz->priv.ui_backlight_adaptive_dimming_switch ? 1 : 0;
 }
 
+static int get_ui_backlight_level(led_manager_context_t *thiz)
+{
+    return thiz->priv.ui_backlight_level;
+}
+
 static void set_ui_backlight_adaptive_dimming_switch(led_manager_context_t *thiz, uint8_t onoff)
 {
     EXCEPTION_CHECK_VOID(thiz);
@@ -250,4 +255,5 @@ void led_ui_backlight_bind(led_manager_context_t *ctx)
     ctx->hook->ui_backlight_adaptive_level_update = ui_backlight_adaptive_level_update;
     ctx->hook->get_ui_backlight_adaptive_dimming_switch = get_ui_backlight_adaptive_dimming_switch;
     ctx->hook->set_ui_backlight_adaptive_dimming_switch = set_ui_backlight_adaptive_dimming_switch;
+    ctx->hook->get_ui_backlight_level = get_ui_backlight_level;
 }
