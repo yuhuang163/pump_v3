@@ -312,6 +312,12 @@ static void pump_seal_result_apply_cb(hdr_post_args_t *args)
     EXCEPTION_CHECK_VOID(args);
     proc = (ui_proc_pump_t *)args->user_data;
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    /// 使用投递时携带的 new_result，避免异步期间 proc->seal_result 被后续帧覆盖导致结果被丢
+    result = (uint8_t)args->arg1;
+#if 0   // 调试日志：排查 seal 结果被覆盖/被提前 return 时打开
+    LOG_WM("seal apply: result=%d(shared=%d) tip=%d status=%d ui=%d",
+        result, proc->seal_result, proc->seal_tip, proc->pump_status, proc->current_ui_type);
+#endif
     if (!PUMP_IS_GOING(proc->pump_status)) {
         return;
     }
@@ -321,7 +327,6 @@ static void pump_seal_result_apply_cb(hdr_post_args_t *args)
         return;
     }
 
-    result = proc->seal_result;
     checking = (proc->seal_tip == PUMP_SEAL_TIP_CHECKING);
     worn_ovt = pump_fit_not_detected_is_not_worn(proc->weared_status);
 
@@ -388,7 +393,7 @@ static void pump_seal_ingest_algo(ui_proc_pump_t *proc, const uint8_t *leakage, 
         new_result, leakage[0], leakage[1],
         weared[0], weared[1], proc->seal_tip,
         proc->fit_not_detected_shown, proc->seal_leak_shown);
-    POST_WM_TASK_HANDLER_NO_DELAY(pump_seal_result_apply_cb, proc, PUMP_SEAL_LEAK_TASK_NAME);
+    POST_WM_TASK_HANDLER_NO_DELAY_ARG1(pump_seal_result_apply_cb, proc, new_result, PUMP_SEAL_LEAK_TASK_NAME);
 }
 
 #if PUMP_SEAL_LEAK_MOCK_ENABLE
