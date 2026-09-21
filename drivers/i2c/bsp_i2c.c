@@ -120,7 +120,7 @@ static const i2c_master_config_t s_i2c_config[I2C_MASTER_COUNT] = {
 *****************************************************************************************
 */
 
-static void bsp_i2c_abnormal_recovery(const i2c_master_config_t *config)
+static void bsp_i2c_abnormal_recovery_internal(const i2c_master_config_t *config)
 {
     struct HAL_IOMUX_PIN_FUNCTION_MAP gpio_map = {
         (enum HAL_IOMUX_PIN_T)config->scl_pin,  
@@ -132,10 +132,10 @@ static void bsp_i2c_abnormal_recovery(const i2c_master_config_t *config)
     hal_gpio_pin_set_dir(config->scl_pin, HAL_GPIO_DIR_OUT, 1);
     gpio_map.pin = (enum HAL_IOMUX_PIN_T)config->sda_pin;
     hal_iomux_init(&gpio_map, 1);
-    hal_gpio_pin_set_dir(config->sda_pin, HAL_GPIO_DIR_IN, 0);
-    if (hal_gpio_pin_get_val(config->sda_pin)) {
-        return;
-    }
+    hal_gpio_pin_set_dir(config->sda_pin, HAL_GPIO_DIR_IN, 1);
+    // if (hal_gpio_pin_get_val(config->sda_pin)) {
+    //     return;
+    // }
     LOGW("i2c %d is abnormal", config->id);
     /// 发送9个时钟信号
     for (int i = 0; i < 9; i++) {
@@ -253,7 +253,7 @@ int bsp_i2c_init(i2c_master_id_e device_id)
         LOG_PBUS("i2c reinit:%d", s_i2c_init_count[device_id]);
         return BSP_OK;
     }
-    bsp_i2c_abnormal_recovery(&s_i2c_config[device_id]);    /// 检测I2C是否异常
+    bsp_i2c_abnormal_recovery_internal(&s_i2c_config[device_id]);    /// 检测I2C是否异常
     if (s_i2c_mux[device_id] == NULL) {
         MUTEX_INIT(&s_i2c_mux[device_id], dev_i2c_mutex);
     }
@@ -290,4 +290,14 @@ int bsp_i2c_deinit(i2c_master_id_e device_id)
     MUTEX_UNLOCK(s_i2c_mux[device_id]);
     LOG_PBUS("i2c_driver_delete:%d, ret:%d", device_id, ret);
     return ret;
+}
+
+void i2c_abnormal_recovery(i2c_master_id_e device_id)
+{
+    if (device_id >= I2C_MASTER_COUNT) {
+        LOGE("i2c device_id out of range:%d", device_id);
+        return;
+    }
+    bsp_i2c_deinit(device_id);
+    bsp_i2c_init(device_id);
 }

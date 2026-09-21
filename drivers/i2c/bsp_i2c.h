@@ -37,6 +37,7 @@ int bsp_i2c_write_byte(i2c_master_id_e device_id, i2c_master_data_t *data);
 int bsp_i2c_read_byte(i2c_master_id_e device_id, i2c_master_data_t *data);
 int bsp_i2c_init(i2c_master_id_e device_id);
 int bsp_i2c_deinit(i2c_master_id_e device_id);
+void i2c_abnormal_recovery(i2c_master_id_e device_id);
 #ifdef __cplusplus
 }
 #endif
