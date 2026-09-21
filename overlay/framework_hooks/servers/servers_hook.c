@@ -8,6 +8,7 @@
 #include "ota_server_client.h"
 #include "app_protocol_handler.h"
 #include "data_bury_protocol_server_client.h"
+#include "algo_tlvs_protocol.h" // IWYU pragma: keep
 
 
 /*
@@ -28,6 +29,8 @@ typedef struct {
 static servers_system_info_t *servers_sys_info = NULL;
 static uint8_t s_power_off_sync_d0_done = 0;
 static uint8_t s_air_leak_micro = 0;
+static algo_fusion_result_t s_algo_result_cache[ALGO_RESULT_REPORT_CACHE_NUM];
+static uint8_t s_algo_result_cache_count = 0;
 static uint8_t s_air_leak_strong = 0;
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -207,6 +210,40 @@ static void on_algo_result_air_leak_cb(void *user_data, algo_breast_pump_data_t 
     if (s_air_leak_strong != strong) {
         s_air_leak_strong = strong;
         ctx->dispatch_servers_event_wrapper(ctx, SERVERS_PUBLISH_DATA_AIR_LEAK_STRONG_REPORT);
+    }
+}
+
+static void on_algo_result_report_cb(void *user_data, algo_breast_pump_data_t *result)
+{
+    servers_manager_context_t *ctx = (servers_manager_context_t *)user_data;
+    algo_manager_context_t *algo_ctx = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
+
+    (void)result;
+    EXCEPTION_CHECK_VOID(ctx && ctx->hook && ctx->hook->factory_server_data_publish);
+    if (algo_ctx == NULL || algo_ctx->get_result_report_enabled == NULL ||
+        algo_ctx->get_algo_fusion_result == NULL) {
+        return;
+    }
+    /// 上报关闭时清空缓存，避免重新开启后混入旧结果
+    if (!algo_ctx->get_result_report_enabled()) {
+        s_algo_result_cache_count = 0;
+        return;
+    }
+    algo_fusion_result_t *latest = algo_ctx->get_algo_fusion_result();
+    if (latest == NULL) {
+        return;
+    }
+    memcpy(&s_algo_result_cache[s_algo_result_cache_count], latest, sizeof(algo_fusion_result_t));
+    s_algo_result_cache_count++;
+    /// 缓存满 5 帧，统一上报
+    if (s_algo_result_cache_count >= ALGO_RESULT_REPORT_CACHE_NUM) {
+        servers_publish_data_args_t args = {
+            .arg1 = s_algo_result_cache_count,
+            .arg2 = 0,
+            .val = s_algo_result_cache,
+        };
+        ctx->hook->factory_server_data_publish(SERVERS_PUBLISH_DATA_ALGO_RESULT_REPORT, &args);
+        s_algo_result_cache_count = 0;
     }
 }
 
@@ -603,6 +640,7 @@ static int on_post_servers_init_route(struct servers_manager_context *ctx)
     algo_manager_context_t *algo_ctx = (algo_manager_context_t *)find_module(ID_MODULE_ALGO_HUB);
     if (algo_ctx && algo_ctx->add_algo_result_listener) {
         algo_ctx->add_algo_result_listener(ctx, on_algo_result_air_leak_cb);
+        algo_ctx->add_algo_result_listener(ctx, on_algo_result_report_cb);
     }
 
     return 0;
