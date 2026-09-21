@@ -258,27 +258,11 @@ def main() -> int:
 
     strings = gen.parse_defines(lang_dir / args.lang / "strings.h")
     layout = gen.parse_defines(lang_dir / args.lang / "layout.h")
-    en_str = gen.parse_defines(lang_dir / "en" / "strings.h")
-    zh_str = gen.parse_defines(lang_dir / "zh" / "strings.h")
-    str_keys = gen.union_keys(en_str, zh_str)
-    en_lay = gen.parse_defines(lang_dir / "en" / "layout.h")
-    zh_lay = gen.parse_defines(lang_dir / "zh" / "layout.h")
-    lay_keys = set(gen.union_keys(en_lay, zh_lay))
+    str_keys, widgets, scalars, _en_str, _zh_str, _en_lay, _zh_lay, lay_key_list = gen.load_lang_index(
+        lang_dir
+    )
+    lay_keys = set(lay_key_list)
     resolved = gen.resolve_layout(layout)
-
-    widgets: dict = {}
-    scalars: list[str] = []
-    for name in gen.union_keys(en_lay, zh_lay):
-        classified = gen.classify_layout(name)
-        if classified is None:
-            continue
-        kind, stem, field = classified
-        if kind == "scalar":
-            if name not in scalars:
-                scalars.append(name)
-            continue
-        widgets.setdefault(stem, {})
-        widgets[stem][field] = 0
 
     str_id = {key: i for i, key in enumerate(str_keys)}
     widget_id = {stem: i for i, stem in enumerate(widgets)}

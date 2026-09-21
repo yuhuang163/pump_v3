@@ -15,25 +15,10 @@
 #define GUIDE_SPEED_DONE_MODE_TITLE_COLOR          (0xFFFFFF)
 
 #define GUIDE_SPEED_DONE_TIME_DIGIT_COUNT          (2)
-#define GUIDE_SPEED_DONE_TIME_SEG_WIDTH            (88)
-#define GUIDE_SPEED_DONE_TIME_M_X                  (75 + 4)
-#define GUIDE_SPEED_DONE_TIME_S_X                  (189 + 4)
-#define GUIDE_SPEED_DONE_TIME_Y                    (122 + 4 + 31)
-#define GUIDE_SPEED_DONE_TIME_COLON_Y              (128 + 4 + 31)
 #define GUIDE_SPEED_DONE_TIME_COLOR                (0xFFFFFF)
 
-#define GUIDE_SPEED_DONE_SPEED_GROUP_WIDTH         (47)
-#define GUIDE_SPEED_DONE_SPEED_ICON_Y              (265 + 4)
-#define GUIDE_SPEED_DONE_SPEED_VALUE_Y             (267 + 4)
 #define GUIDE_SPEED_DONE_SPEED_COLOR               (0xFFFFFF)
-#define GUIDE_SPEED_DONE_SPEED_ICON_VALUE_GAP      (6)
 
-#define GUIDE_SPEED_DONE_LEFT_LEVEL_X              (68 + 4)
-#define GUIDE_SPEED_DONE_LEFT_LEVEL_Y              (267 + 4)
-#define GUIDE_SPEED_DONE_LEFT_LEVEL_W              (58)
-#define GUIDE_SPEED_DONE_RIGHT_LEVEL_X             (227 + 4)
-#define GUIDE_SPEED_DONE_RIGHT_LEVEL_Y             (GUIDE_SPEED_DONE_LEFT_LEVEL_Y)
-#define GUIDE_SPEED_DONE_RIGHT_LEVEL_W             (58)
 #define GUIDE_SPEED_DONE_LEVEL_COLOR               (0xFFFFFF)
 
 /*

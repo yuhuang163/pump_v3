@@ -105,7 +105,7 @@ home POWER 单击 → on_home_ui_keyevent_hdr
 
 ### 3.3 Theme Guide（主题选择）
 - 入口：系统异常退出且 `get_sys_theme_type()==NONE` 才进。
-- KNOB 移动选择（SIMPLE/IP），START 二次确认；动画结束按选择写 BASE/CUSTOM 主题 → 适配器/低电/引导/首页分流。
+- KNOB 移动选择（SIMPLE/IP）；POWER 短按确认当前主题并写 BASE/CUSTOM，随后进 `ID_WINDOW_HOME`（`HOME_SUB_UI_TYPE_PUMP_MODE_UNSELECT`），按键灯全灭。START 按键本窗口屏蔽。V7 无主题重选弹窗，不再等 `THEME_RESELECT`。
 
 ### 3.4 Guide（新手引导）
 - 约 24 个子页（QRCODE/INTRO/泵奶步骤/模式/力度/速度/完成）。on_create 读 `is_window_guidance_deployed`。

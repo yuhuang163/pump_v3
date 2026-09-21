@@ -13,12 +13,6 @@
 * DEFINES
 *****************************************************************************************
 */
-#define BATTERY_FRAME_W                                    (30)
-#define BATTERY_FRAME_H                                    (20)
-#define BATTERY_CAP_MAX_W                                  (18)
-#define BATTERY_CAP_H                                      (12)
-#define BATTERY_CAP_X_OFFSET                               (4)
-#define BATTERY_CAP_Y_OFFSET                               (4)
 #define BATTERY_CAP_COLOR_NORMAL                           (0xFFFFFF)
 #define BATTERY_CAP_COLOR_CHARGING                         (0x3DAD77)
 #define BATTERY_CAP_COLOR_WARNING                          (0xEF4C4E)
@@ -50,6 +44,7 @@ typedef struct {
 *****************************************************************************************
 */
 static battery_ui_info_t *battery_info;
+static int16_t s_battery_y_offset = 0;
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -122,6 +117,16 @@ static uint16_t battery_ui_frame_res_id_get(uint8_t is_charging, uint8_t is_low_
     return BASE_RES_ID_BATTERY_BOX_WHITE_ICON;
 }
 
+static uint16_t battery_ui_y_with_offset(uint16_t y)
+{
+    int32_t v = (int32_t)y + s_battery_y_offset;
+
+    if (v < 0) {
+        return 0;
+    }
+    return (uint16_t)v;
+}
+
 static void battery_ui_layout_calc(uint8_t is_ble_connected, uint16_t *battery_x,
     uint16_t *battery_y, uint16_t *ble_x, uint16_t *ble_y)
 {
@@ -138,14 +143,14 @@ static void battery_ui_layout_calc(uint8_t is_ble_connected, uint16_t *battery_x
     }
 
     uint16_t cur_x = (uint16_t)start_x;
-    *ble_y = BATTERY_UI_BLE_Y;
+    *ble_y = battery_ui_y_with_offset(BATTERY_UI_BLE_Y);
     *ble_x = cur_x;
     if (show_ble) {
         cur_x = (uint16_t)(cur_x + BATTERY_UI_BLE_ICON_W + BATTERY_UI_ICON_GAP);
     }
 
     *battery_x = cur_x;
-    *battery_y = show_ble ? BATTERY_UI_Y_WITH_PEER : BATTERY_UI_Y_ALONE;
+    *battery_y = battery_ui_y_with_offset(show_ble ? BATTERY_UI_Y_WITH_PEER : BATTERY_UI_Y_ALONE);
 }
 
 static uint8_t battery_ui_is_charging_detect(battery_manager_context_t *battery, uint8_t charge_status)
@@ -302,9 +307,21 @@ void battery_ui_init(ui_manager_context_t *thiz)
     battery_info->is_ble_connected = 0xFF;
 }
 
+void battery_ui_y_offset_set(int16_t y_offset)
+{
+    if (s_battery_y_offset == y_offset) {
+        return;
+    }
+    s_battery_y_offset = y_offset;
+    if (battery_info != NULL) {
+        battery_info->force_update = true;
+    }
+}
+
 void battery_ui_deinit(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz);
+    s_battery_y_offset = 0;
     if (battery_info == NULL) {
         return;
     }

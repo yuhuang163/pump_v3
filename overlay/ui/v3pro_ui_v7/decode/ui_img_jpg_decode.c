@@ -266,14 +266,15 @@ static int ui_img_jpg_decode(const uint8_t *jpg_data, size_t jpg_size, ui_img_jp
             ui_img_jpg_yuv_to_rgb(y0, u, v, &r0, &g0, &b0);
             ui_img_jpg_yuv_to_rgb(y1, u, v, &r1, &g1, &b1);
 
-            dst_row[x * 3U + 0U] = r0;
+            /* LV_COLOR_FORMAT_RGB888 在本平台按 BGR 字节序（VGLITE BGR888） */
+            dst_row[x * 3U + 0U] = b0;
             dst_row[x * 3U + 1U] = g0;
-            dst_row[x * 3U + 2U] = b0;
+            dst_row[x * 3U + 2U] = r0;
 
             if ((x + 1U) < width) {
-                dst_row[(x + 1U) * 3U + 0U] = r1;
+                dst_row[(x + 1U) * 3U + 0U] = b1;
                 dst_row[(x + 1U) * 3U + 1U] = g1;
-                dst_row[(x + 1U) * 3U + 2U] = b1;
+                dst_row[(x + 1U) * 3U + 2U] = r1;
             }
         }
 

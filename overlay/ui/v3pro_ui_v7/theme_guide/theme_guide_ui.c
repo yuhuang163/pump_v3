@@ -21,35 +21,14 @@
 
 #define THEME_GUIDE_OPTION_NUM                          (2)
 
-#define THEME_GUIDE_TITLE_COLOR                         (0xBD4060)
-#define THEME_GUIDE_DESC_COLOR                          (0xCD6F87)
-#define THEME_GUIDE_LABEL_SELECTED_COLOR                (0xBD4060)
-#define THEME_GUIDE_LABEL_UNSELECTED_COLOR              (0xB99BA3)
-#define THEME_GUIDE_RING_COLOR                          (0xBD4060)
+#define THEME_GUIDE_TITLE_COLOR                         (0xFFFFFF)
+#define THEME_GUIDE_DESC_COLOR                          (0x999999)
+#define THEME_GUIDE_LABEL_COLOR                         (0xFFFFFF)
+#define THEME_GUIDE_RING_SELECTED_COLOR                 (0xE2637E)
+#define THEME_GUIDE_RING_UNSELECTED_COLOR               (0x252525)
 
-
-#define THEME_GUIDE_PREVIEW_SIZE                        (140)
-#define THEME_GUIDE_PREVIEW_Y                           (126)
-#define THEME_GUIDE_PREVIEW_LEFT_X                      (32)
-#define THEME_GUIDE_PREVIEW_RIGHT_X                     (188)
-
-#define THEME_GUIDE_RING_SIZE                           (148)
-#define THEME_GUIDE_RING_LINE_WIDTH                     (2)
-#define THEME_GUIDE_RING_OFFSET                         ((THEME_GUIDE_RING_SIZE - THEME_GUIDE_PREVIEW_SIZE) / 2)
-#define THEME_GUIDE_RING_Y                              (THEME_GUIDE_PREVIEW_Y - THEME_GUIDE_RING_OFFSET)
-#define THEME_GUIDE_RING_LEFT_X                         (THEME_GUIDE_PREVIEW_LEFT_X - THEME_GUIDE_RING_OFFSET)
-#define THEME_GUIDE_RING_RIGHT_X                        (THEME_GUIDE_PREVIEW_RIGHT_X - THEME_GUIDE_RING_OFFSET)
-
-#define THEME_GUIDE_CONFIRM_ICON_X                      (144)
-#define THEME_GUIDE_CONFIRM_ICON_Y                      (80)
-
-#define THEME_GUIDE_RADIO_Y                             (282)
-#define THEME_GUIDE_RADIO_LEFT_X                        (57)
-#define THEME_GUIDE_RADIO_RIGHT_X                       (233)
-
-#define THEME_GUIDE_LABEL_LEFT_X                        (91)
-#define THEME_GUIDE_LABEL_RIGHT_X                       (267)
-
+#define THEME_GUIDE_RING_SIZE                           (120)
+#define THEME_GUIDE_RING_LINE_WIDTH                     (3)
 
 typedef struct {
     const char *text;
@@ -64,16 +43,15 @@ typedef struct {
     lv_obj_t *background;
     lv_obj_t *title;
     lv_obj_t *desc;
-    lv_obj_t *confirm_icon;
     lv_obj_t *preview[THEME_GUIDE_OPTION_NUM];
-    lv_obj_t *select_ring;
+    lv_obj_t *ring[THEME_GUIDE_OPTION_NUM];
     lv_obj_t *radio[THEME_GUIDE_OPTION_NUM];
     lv_obj_t *label[THEME_GUIDE_OPTION_NUM];
     uint8_t selected_index;
     uint8_t is_operated;
     uint8_t force_update;
     uint8_t popup_ui_index;
-    uint8_t rsv[11];
+    uint8_t rsv[12];
 } theme_guide_ui_info_t;
 
 /*
@@ -89,15 +67,12 @@ static PSRAM_NC_DATA_LOC uint8_t theme_guide_bg_data[] = {
 static theme_guide_ui_info_t *theme_info = NULL;
 
 static const uint16_t theme_guide_preview_res_ids[THEME_GUIDE_OPTION_NUM] = {
-    // BASE_RES_ID_MINIMAL_THEME_IMG,
-    0,
+    CUSTOM_RES_ID_SYS_THEME_ICON,
     CUSTOM_RES_ID_IP_THEME_ICON,
 };
 
-static const res_theme_type_e theme_guide_preview_theme_types[THEME_GUIDE_OPTION_NUM] = {
-    RES_THEME_TYPE_BASE,
-    RES_THEME_TYPE_CUSTOM,
-};
+static const uint16_t theme_guide_radio_selected_res_id = CUSTOM_RES_ID_THEME_SELECTED_ICON;
+static const uint16_t theme_guide_radio_unselected_res_id = CUSTOM_RES_ID_THEME_UNSELECTED_ICON;
 
 /*
 * LOCAL FUNCTION DEFINITIONS
@@ -141,7 +116,7 @@ static void theme_guide_title_update(void)
 {
     theme_guide_text_cfg_t title_cfg = {
         .text = THEME_GUIDE_TITLE_TEXT,
-        .font = UI_FONT_HINT,
+        .font = &lv_font_aeonik_soft_26_medium,
         .color = THEME_GUIDE_TITLE_COLOR,
         .y = THEME_GUIDE_TITLE_Y,
         .line_space = 0,
@@ -153,67 +128,49 @@ static void theme_guide_title_update(void)
     theme_guide_label_update(&theme_info->title, &title_cfg);
 }
 
-static void theme_guide_confirm_icon_update(ui_manager_context_t *thiz)
+static void theme_guide_desc_update(void)
 {
-    if (theme_info->confirm_icon == NULL || !lv_obj_is_valid(theme_info->confirm_icon)) {
-        theme_info->confirm_icon = lv_image_create(theme_info->root);
-        EXCEPTION_CHECK_VOID(theme_info->confirm_icon);
-        // ui_img_baj_theme_set_src(thiz, theme_info->confirm_icon, BASE_RES_ID_GUIDE_START_BUTTON_ICON,
-        //     RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-        lv_obj_align(theme_info->confirm_icon, LV_ALIGN_TOP_LEFT,
-            THEME_GUIDE_CONFIRM_ICON_X, THEME_GUIDE_CONFIRM_ICON_Y);
-    }
-
-    if (theme_info->is_operated) {
-        lv_obj_clear_flag(theme_info->confirm_icon, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(theme_info->confirm_icon, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
-static void theme_guide_desc_update(ui_manager_context_t *thiz)
-{
-    static uint8_t last_is_operated = 0xFF;
-    const char *desc_text = theme_info->is_operated ?
-        THEME_GUIDE_DESC_CONFIRM_TEXT : THEME_GUIDE_DESC_SELECT_TEXT;
     theme_guide_text_cfg_t desc_cfg = {
-        .text = desc_text,
-        .font = UI_FONT_HINT,
+        .text = THEME_GUIDE_DESC_SELECT_TEXT,
+        .font = &lv_font_aeonik_soft_19_medium,
         .color = THEME_GUIDE_DESC_COLOR,
         .y = THEME_GUIDE_DESC_Y,
-        .line_space = 0,
+        .line_space = THEME_GUIDE_DESC_LINE_SPACE,
     };
 
-    if (theme_info->force_update == false && last_is_operated == theme_info->is_operated) {
+    if (theme_info->force_update == false) {
         return;
     }
-    last_is_operated = theme_info->is_operated;
     theme_guide_label_update(&theme_info->desc, &desc_cfg);
-    theme_guide_confirm_icon_update(thiz);
 }
 
-static void theme_guide_select_ring_update(void)
+static void theme_guide_select_ring_update(uint8_t index)
 {
     const int16_t ring_x[THEME_GUIDE_OPTION_NUM] = {
         THEME_GUIDE_RING_LEFT_X,
         THEME_GUIDE_RING_RIGHT_X,
     };
+    const int16_t ring_y[THEME_GUIDE_OPTION_NUM] = {
+        THEME_GUIDE_RING_LEFT_Y,
+        THEME_GUIDE_RING_RIGHT_Y,
+    };
+    bool selected = (theme_info->selected_index == index);
+    uint32_t ring_color = selected ? THEME_GUIDE_RING_SELECTED_COLOR : THEME_GUIDE_RING_UNSELECTED_COLOR;
 
-    if (theme_info->select_ring == NULL || !lv_obj_is_valid(theme_info->select_ring)) {
-        theme_info->select_ring = lv_obj_create(theme_info->root);
-        EXCEPTION_CHECK_VOID(theme_info->select_ring);
-        lv_obj_remove_style_all(theme_info->select_ring);
-        lv_obj_set_size(theme_info->select_ring, THEME_GUIDE_RING_SIZE, THEME_GUIDE_RING_SIZE);
-        lv_obj_set_style_radius(theme_info->select_ring, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_opa(theme_info->select_ring, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_color(theme_info->select_ring, lv_color_hex(THEME_GUIDE_RING_COLOR), 0);
-        lv_obj_set_style_border_width(theme_info->select_ring, THEME_GUIDE_RING_LINE_WIDTH, 0);
-        lv_obj_set_style_border_opa(theme_info->select_ring, LV_OPA_COVER, 0);
-        lv_obj_clear_flag(theme_info->select_ring, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    if (theme_info->ring[index] == NULL || !lv_obj_is_valid(theme_info->ring[index])) {
+        theme_info->ring[index] = lv_obj_create(theme_info->root);
+        EXCEPTION_CHECK_VOID(theme_info->ring[index]);
+        lv_obj_remove_style_all(theme_info->ring[index]);
+        lv_obj_set_size(theme_info->ring[index], THEME_GUIDE_RING_SIZE, THEME_GUIDE_RING_SIZE);
+        lv_obj_set_style_radius(theme_info->ring[index], LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(theme_info->ring[index], LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(theme_info->ring[index], THEME_GUIDE_RING_LINE_WIDTH, 0);
+        lv_obj_set_style_border_opa(theme_info->ring[index], LV_OPA_COVER, 0);
+        lv_obj_clear_flag(theme_info->ring[index], LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_align(theme_info->ring[index], LV_ALIGN_TOP_LEFT, ring_x[index], ring_y[index]);
     }
 
-    lv_obj_align(theme_info->select_ring, LV_ALIGN_TOP_LEFT,
-        ring_x[theme_info->selected_index], THEME_GUIDE_RING_Y);
+    lv_obj_set_style_border_color(theme_info->ring[index], lv_color_hex(ring_color), 0);
 }
 
 static void theme_guide_preview_update(ui_manager_context_t *thiz)
@@ -226,6 +183,10 @@ static void theme_guide_preview_update(ui_manager_context_t *thiz)
         THEME_GUIDE_PREVIEW_LEFT_X,
         THEME_GUIDE_PREVIEW_RIGHT_X,
     };
+    const int16_t preview_y[THEME_GUIDE_OPTION_NUM] = {
+        THEME_GUIDE_PREVIEW_LEFT_Y,
+        THEME_GUIDE_PREVIEW_RIGHT_Y,
+    };
 
     for (uint8_t i = 0; i < THEME_GUIDE_OPTION_NUM; i++) {
         if (theme_info->preview[i] == NULL || !lv_obj_is_valid(theme_info->preview[i])) {
@@ -234,15 +195,13 @@ static void theme_guide_preview_update(ui_manager_context_t *thiz)
         }
 
         ui_img_png_theme_set_src(thiz, theme_info->preview[i], theme_guide_preview_res_ids[i],
-            theme_guide_preview_theme_types[i], UI_IMG_PNG_DECODE_RGBA8888);
-        lv_obj_align(theme_info->preview[i], LV_ALIGN_TOP_LEFT, preview_x[i], THEME_GUIDE_PREVIEW_Y);
+            RES_THEME_TYPE_CUSTOM, UI_IMG_PNG_DECODE_RGBA8888);
+        lv_obj_align(theme_info->preview[i], LV_ALIGN_TOP_LEFT, preview_x[i], preview_y[i]);
     }
 }
 
 static void theme_guide_option_label_update(uint8_t index)
 {
-    bool selected = (theme_info->selected_index == index);
-
     if (theme_info->label[index] == NULL || !lv_obj_is_valid(theme_info->label[index])) {
         theme_info->label[index] = lv_label_create(theme_info->root);
         EXCEPTION_CHECK_VOID(theme_info->label[index]);
@@ -252,26 +211,26 @@ static void theme_guide_option_label_update(uint8_t index)
         };
 
         lv_label_set_text(theme_info->label[index], option_labels[index]);
-        lv_obj_set_style_text_font(theme_info->label[index], UI_FONT_HINT, 0);
+        lv_obj_set_style_text_font(theme_info->label[index], &lv_font_aeonik_soft_19_medium, 0);
         lv_obj_set_style_text_align(theme_info->label[index], LV_TEXT_ALIGN_LEFT, 0);
+        lv_obj_set_style_text_color(theme_info->label[index], lv_color_hex(THEME_GUIDE_LABEL_COLOR), 0);
+        lv_obj_align(theme_info->label[index], LV_ALIGN_TOP_LEFT,
+            (index == 0) ? THEME_GUIDE_LABEL_LEFT_X : THEME_GUIDE_LABEL_RIGHT_X,
+            THEME_GUIDE_LABEL_Y);
     }
-
-    lv_obj_set_style_text_color(theme_info->label[index],
-        lv_color_hex(selected ? THEME_GUIDE_LABEL_SELECTED_COLOR : THEME_GUIDE_LABEL_UNSELECTED_COLOR), 0);
-    lv_obj_set_style_text_opa(theme_info->label[index], selected ? LV_OPA_COVER : LV_OPA_70, 0);
-    lv_obj_align(theme_info->label[index], LV_ALIGN_TOP_LEFT,
-        (index == 0) ? THEME_GUIDE_LABEL_LEFT_X : THEME_GUIDE_LABEL_RIGHT_X,
-        THEME_GUIDE_LABEL_Y);
 }
 
 static void theme_guide_radio_update(ui_manager_context_t *thiz, uint8_t index)
 {
-    // uint16_t res_id = (theme_info->selected_index == index) ?
-    //     BASE_RES_ID_THEME_SELECT_ICON : BASE_RES_ID_THEME_UNSELECT_ICON;
-    uint16_t res_id = 0;
+    uint16_t res_id = (theme_info->selected_index == index) ?
+        theme_guide_radio_selected_res_id : theme_guide_radio_unselected_res_id;
     const int16_t radio_x[THEME_GUIDE_OPTION_NUM] = {
         THEME_GUIDE_RADIO_LEFT_X,
         THEME_GUIDE_RADIO_RIGHT_X,
+    };
+    const int16_t radio_y[THEME_GUIDE_OPTION_NUM] = {
+        THEME_GUIDE_RADIO_LEFT_Y,
+        THEME_GUIDE_RADIO_RIGHT_Y,
     };
 
     if (theme_info->radio[index] == NULL || !lv_obj_is_valid(theme_info->radio[index])) {
@@ -280,8 +239,8 @@ static void theme_guide_radio_update(ui_manager_context_t *thiz, uint8_t index)
     }
 
     ui_img_baj_theme_set_src(thiz, theme_info->radio[index], res_id,
-        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
-    lv_obj_align(theme_info->radio[index], LV_ALIGN_TOP_LEFT, radio_x[index], THEME_GUIDE_RADIO_Y);
+        RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
+    lv_obj_align(theme_info->radio[index], LV_ALIGN_TOP_LEFT, radio_x[index], radio_y[index]);
     theme_guide_option_label_update(index);
 }
 
@@ -294,8 +253,8 @@ static void theme_guide_selection_update(ui_manager_context_t *thiz)
     }
     last_selected_index = theme_info->selected_index;
 
-    theme_guide_select_ring_update();
     for (uint8_t i = 0; i < THEME_GUIDE_OPTION_NUM; i++) {
+        theme_guide_select_ring_update(i);
         theme_guide_radio_update(thiz, i);
     }
 }
@@ -325,7 +284,6 @@ void ui_display_theme_guide_remove(ui_manager_context_t *thiz)
         ui_img_png_release_decoded_buf(theme_info->preview[i]);
         ui_img_baj_release_decoded_buf(theme_info->radio[i]);
     }
-    ui_img_baj_release_decoded_buf(theme_info->confirm_icon);
     ui_popup_remove(thiz);
     LVGL_OBJ_DELETE(theme_info->root);
     u_free(theme_info);
@@ -352,7 +310,7 @@ int ui_display_theme_guide_process(ui_manager_context_t *thiz)
 
     theme_guide_bg_update(thiz);
     theme_guide_title_update();
-    theme_guide_desc_update(thiz);
+    theme_guide_desc_update();
     theme_guide_preview_update(thiz);
     theme_guide_selection_update(thiz);
     theme_info->force_update = false;

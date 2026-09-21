@@ -1,7 +1,7 @@
 #ifndef __UI_STR_ID_H__
 #define __UI_STR_ID_H__
 
-/* 文案下标。页面用 ui_str(id)；源宏在 lang/<zh|en>/strings.h */
+/* 文案下标。页面用 ui_str(id)；源宏在各 UI 的 lang/<zh|en>/<子页>_strings.h */
 /* 本文件由 gen_ui_lang_tables.py 生成，不要手改。对照表见同目录 ui_lang_id_map.html */
 
 #ifdef __cplusplus
@@ -52,6 +52,8 @@ typedef enum {
     UI_STR_ID_PUMP_HOME_MAIN_SEAL_RESULT_TEXT, /* PUMP_HOME_MAIN_SEAL_RESULT_TEXT, 页 PUMP */
     UI_STR_ID_PUMP_HOME_MAIN_SEAL_FAIL_TEXT, /* PUMP_HOME_MAIN_SEAL_FAIL_TEXT, 页 PUMP */
     UI_STR_ID_PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT, /* PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT, 页 PUMP */
+    UI_STR_ID_PUMP_HOME_CUSTOM_TIME_H_TEXT, /* PUMP_HOME_CUSTOM_TIME_H_TEXT, 页 PUMP */
+    UI_STR_ID_PUMP_HOME_CUSTOM_TIME_M_TEXT, /* PUMP_HOME_CUSTOM_TIME_M_TEXT, 页 PUMP */
     UI_STR_ID_PUMP_LEVEL_DIR_LEFT_TEXT, /* PUMP_LEVEL_DIR_LEFT_TEXT, 页 PUMP */
     UI_STR_ID_PUMP_LEVEL_DIR_RIGHT_TEXT, /* PUMP_LEVEL_DIR_RIGHT_TEXT, 页 PUMP */
     UI_STR_ID_PUMP_LEVEL_OVER_LIMIT_TEXT, /* PUMP_LEVEL_OVER_LIMIT_TEXT, 页 PUMP */

@@ -14,10 +14,10 @@
 #if IS_SUPPORT_LOGO_UI_TEST
 
 #define IS_SUPPORT_LOGO_COMP_BG                                (0)
-#define IS_SUPPORT_LOGO_IMG_TEST                               (0)
+#define IS_SUPPORT_LOGO_IMG_TEST                               (1)
 #define IS_SUPPORT_LOGO_TEST_PAGE                              (0)
 #define IS_SUPPORT_LOGO_WAVE_TEST                              (0)
-#define IS_SUPPORT_LOGO_COLOR_TEST                             (1)
+#define IS_SUPPORT_LOGO_COLOR_TEST                             (0)
 
 #define LOGO_WAVE_X                                            (0)
 #define LOGO_WAVE_Y                                            (118)
@@ -52,31 +52,38 @@ typedef struct {
 static logo_display_info_t *logo_info = NULL;
 #if IS_SUPPORT_LOGO_IMG_TEST
 static PSRAM_DATA_LOC uint8_t logo_img_data1[] = {
-    // #include "v3_res_v7/base/jpg2txt/bg_stimulation_mode_352x352.txt"
-    #include "v3_res_v7/base/png2txt/bg_stimulation_mode_360x360.txt"
+    #include "v3pro_res_v7/custom/jpg2txt/bg_home_stimulation_352x352_q99_422.txt"
 };    
 
 static PSRAM_DATA_LOC uint8_t logo_img_data2[] = {
-    // #include "v3_res_v7/base/jpg2txt/bg_mixed_mode_352x352.txt"
-    #include "v3_res_v7/base/png2txt/bg_mixed_mode_360x360.txt"
+    #include "v3pro_res_v7/custom/jpg2txt/bg_home_expression_352x352_q99_422.txt"
 };    
 
 static PSRAM_DATA_LOC uint8_t logo_img_data3[] = {
-    // #include "v3_res_v7/base/jpg2txt/bg_expression_mode_352x352.txt"
-    #include "v3_res_v7/base/png2txt/bg_expression_mode_360x360.txt"
+    #include "v3pro_res_v7/custom/jpg2txt/bg_home_program_352x352_q99_422.txt"
 };    
     
 static PSRAM_DATA_LOC uint8_t logo_img_data4[] = {
-    // #include "v3_res_v7/base/jpg2txt/bg_program_mode_352x352.txt"
-    #include "v3_res_v7/base/png2txt/bg_program_mode_360x360.txt"
+    #include "v3pro_res_v7/custom/jpg2txt/bg_pump_stimulation_352x352_q99_422.txt"
 };   
 
-#define LOGO_IMG_COUNT 4
+static PSRAM_DATA_LOC uint8_t logo_img_data5[] = {
+    #include "v3pro_res_v7/custom/jpg2txt/bg_pump_expression_352x352_q99_422.txt"
+};   
+
+static PSRAM_DATA_LOC uint8_t logo_img_data6[] = {
+    #include "v3pro_res_v7/custom/jpg2txt/bg_pump_program_352x352_q99_422.txt"
+};   
+
+#define LOGO_IMG_TYPE      "jpg"
+#define LOGO_IMG_COUNT     6
 static ui_img_data_t logo_img[LOGO_IMG_COUNT] = {
     {logo_img_data1, sizeof(logo_img_data1)},
     {logo_img_data2, sizeof(logo_img_data2)},
     {logo_img_data3, sizeof(logo_img_data3)},
     {logo_img_data4, sizeof(logo_img_data4)},
+    {logo_img_data5, sizeof(logo_img_data5)},
+    {logo_img_data6, sizeof(logo_img_data6)},
 };
 #endif
 
@@ -199,7 +206,7 @@ static void sys_logo_label_update(ui_manager_context_t *thiz, uint8_t index)
     LOG_UI("logo_img id: %d/%d", page_id, index);
     lv_fs_path_ex_t logo_img_path;
     lv_fs_make_path_from_buffer(&logo_img_path, LV_FS_MEMFS_LETTER, logo_img[page_id].data,
-        logo_img[page_id].size, "png");
+        logo_img[page_id].size, LOGO_IMG_TYPE);
     lv_image_set_src(logo_info->logo_icon, (const void *)&logo_img_path);
     lv_obj_align(logo_info->logo_icon, LV_ALIGN_CENTER, 0, 0);    /// 设置logo图标位置  
     logo_info->force_update = false;

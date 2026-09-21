@@ -12,12 +12,10 @@
 * DEFINES
 *****************************************************************************************
 */
-#define GUIDE_LEVEL_SIDE_VALUE_Y                        (127)
 #define GUIDE_LEVEL_SIDE_VALUE_COLOR                    (0xFFFFFF)
 
 #define GUIDE_LEVEL_SIDE_DIR_COLOR                      (0x999999)
 
-#define GUIDE_LEVEL_SIDE_TIP_H                          (63)
 #define GUIDE_LEVEL_SIDE_TIP_Y                          (PANLE_DISPLAY_H - GUIDE_LEVEL_SIDE_TIP_H - 8)
 #define GUIDE_LEVEL_SIDE_TIP_BASE_OPA                   (LV_OPA_70)
 

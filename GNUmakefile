@@ -309,7 +309,14 @@ endif
 ifneq ($(UI_OVERLAY_SUBDIR),)
 UI_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/ui/$(UI_OVERLAY_SUBDIR)
 UI_LANG_PACK_DIR := $(PROJECT_ROOT)/overlay/ui/lang_pack
-UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(shell find $(UI_OVERLAY_DIR) $(UI_LANG_PACK_DIR) -type d))
+UI_INC_DIRS := $(shell find $(UI_OVERLAY_DIR) $(UI_LANG_PACK_DIR) -type d)
+# 子页语言头按页命名（home_base_strings.h），依赖 -I 短引用；不要把 en/zh 同时放进搜索路径
+ifeq ($(PRODUCT_LANGUAGE),zh)
+UI_INC_DIRS := $(filter-out %/lang/en %/common/en,$(UI_INC_DIRS))
+else
+UI_INC_DIRS := $(filter-out %/lang/zh %/common/zh,$(UI_INC_DIRS))
+endif
+UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRS))
 UI_LCD_DIRECT_SRCS := $(call rwildcard,$(UI_OVERLAY_DIR)) $(call rwildcard,$(UI_LANG_PACK_DIR))
 UI_LCD_DIRECT_SRCS := $(filter-out %/lang_pack_factory_blob.c,$(UI_LCD_DIRECT_SRCS))
 ifeq ($(IS_SUPPORT_LANG_PACK),0)

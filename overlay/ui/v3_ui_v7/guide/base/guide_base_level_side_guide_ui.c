@@ -16,15 +16,10 @@
 
 #define GUIDE_LEVEL_SIDE_GUIDE_TEXT_COLOR                   (0xFFFFFF)
 
-#define GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_X                  (92)
-#define GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_Y                  (132)
 #define GUIDE_LEVEL_SIDE_GUIDE_LEFT_ICON_RES_ID             (BASE_RES_ID_GUIDE_LEFT_KEY_ICON)
 
-#define GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_X                 (206)
-#define GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_Y                 (132)
 #define GUIDE_LEVEL_SIDE_GUIDE_RIGHT_ICON_RES_ID            (BASE_RES_ID_GUIDE_RIGHT_KEY_ICON)
 
-#define GUIDE_LEVEL_SIDE_GUIDE_TIP_H                        (63)
 #define GUIDE_LEVEL_SIDE_GUIDE_TIP_Y                        (PANLE_DISPLAY_H - GUIDE_LEVEL_SIDE_GUIDE_TIP_H - 8)
 #define GUIDE_LEVEL_SIDE_GUIDE_TIP_BASE_OPA                 (LV_OPA_70)
 

@@ -26,12 +26,10 @@
 #define GUIDE_SPEED_ARC_ROTATION \
     (90 + (GUIDE_SPEED_ARC_BOTTOM_GAP_DEG / 2))
 
-#define GUIDE_SPEED_VALUE_Y                             (127)
 #define GUIDE_SPEED_VALUE_COLOR                         (0xFFFFFF)
 
 #define GUIDE_SPEED_LABEL_COLOR                         (0x999999)
 
-#define GUIDE_SPEED_TIP_H                               (63)
 #define GUIDE_SPEED_TIP_Y                               (PANLE_DISPLAY_H - GUIDE_SPEED_TIP_H - 8)
 #define GUIDE_SPEED_TIP_BASE_OPA                        (LV_OPA_70)
 

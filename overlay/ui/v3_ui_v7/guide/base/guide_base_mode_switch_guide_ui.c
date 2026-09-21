@@ -20,7 +20,6 @@
 
 #define GUIDE_MODE_SWITCH_GUIDE_ICON_RES_ID                     (BASE_RES_ID_GUIDE_KNOB_KEY_ICON)
 
-#define GUIDE_MODE_SWITCH_GUIDE_TIP_H                           (63)
 #define GUIDE_MODE_SWITCH_GUIDE_TIP_Y                           (PANLE_DISPLAY_H - GUIDE_MODE_SWITCH_GUIDE_TIP_H - 8)
 #define GUIDE_MODE_SWITCH_GUIDE_TIP_BASE_OPA                    (LV_OPA_70)
 

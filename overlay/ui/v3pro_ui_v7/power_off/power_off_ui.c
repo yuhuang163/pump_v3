@@ -19,8 +19,6 @@
 #define PROGRESS_ARC_ANGLE_SPAN                 (90)   /* 25% of 360 */
 #define PROGRESS_ARC_TEXT_COLOR                 (0xFFFFFF)    /* 圆弧颜色：粉色 */
 
-#define PROGRESS_ARC_Y                          (121)
-
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************

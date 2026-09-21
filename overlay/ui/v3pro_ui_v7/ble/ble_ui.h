@@ -12,16 +12,6 @@ extern "C" {
 #include "ui_manager_api.h" // IWYU pragma: keep
 #include "ble_manager_api.h" // IWYU pragma: keep
 
-#define BASE_BLE_UI_X                                      (150)
-#define BASE_BLE_UI_Y                                      (18)
-#define BASE_PUMP_HOME_BLE_UI_X                            (150)
-#define BASE_PUMP_HOME_BLE_UI_Y                            (18)
-
-#define CUSTOM_BLE_UI_X                                    (150)
-#define CUSTOM_BLE_UI_Y                                    (18)
-#define CUSTOM_PUMP_HOME_BLE_UI_X                          (150)
-#define CUSTOM_PUMP_HOME_BLE_UI_Y                          (18)
-
 #define BLE_UI_BLINK_PERIOD                                (500) /// 1Hz 闪烁半周期(ms).
 #define BLE_UI_CONNECT_PROMPT_TIMEOUT_MS                   (30000) /// 未连接提示闪烁时长(ms).
 #define BLE_UI_BLINK_VISIBLE(blink_time) \

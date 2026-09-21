@@ -283,7 +283,13 @@ endif
 ifneq ($(UI_OVERLAY_SUBDIR),)
 UI_OVERLAY_DIR := $(PROJECT_ROOT)/overlay/ui/$(UI_OVERLAY_SUBDIR)
 UI_LANG_PACK_DIR := $(PROJECT_ROOT)/overlay/ui/lang_pack
-UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(shell find $(UI_OVERLAY_DIR) $(UI_LANG_PACK_DIR) -type d))
+UI_INC_DIRS := $(shell find $(UI_OVERLAY_DIR) $(UI_LANG_PACK_DIR) -type d)
+ifeq ($(PRODUCT_LANGUAGE),zh)
+UI_INC_DIRS := $(filter-out %/lang/en %/common/en,$(UI_INC_DIRS))
+else
+UI_INC_DIRS := $(filter-out %/lang/zh %/common/zh,$(UI_INC_DIRS))
+endif
+UI_INC_DIRECT_FLAGS := $(patsubst %,-I%,$(UI_INC_DIRS))
 UI_LCD_DIRECT_SRCS := $(call rwildcard,$(UI_OVERLAY_DIR)) $(call rwildcard,$(UI_LANG_PACK_DIR))
 endif
 

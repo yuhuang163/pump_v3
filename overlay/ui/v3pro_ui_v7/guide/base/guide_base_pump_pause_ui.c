@@ -16,26 +16,14 @@
 
 #define GUIDE_PUMP_PAUSE_MODE_TITLE_COLOR           (0xFFFFFF)
 
-#define GUIDE_PUMP_PAUSE_WAVE_Y                     (190 - 46) /// 暂停态相对运行态上移
 #define GUIDE_PUMP_PAUSE_WAVE_OPA                   (LV_OPA_60)
 #define GUIDE_PUMP_PAUSE_WAVE_RES_ID                (BASE_RES_ID_STIMULATION_ANIM_START)
 
-#define GUIDE_PUMP_PAUSE_PLAY_ICON_Y               (136)
 #define GUIDE_PUMP_PAUSE_PLAY_ICON_RES_ID          (BASE_RES_ID_PLAY_ICON)
 
-#define GUIDE_PUMP_PAUSE_SPEED_GROUP_WIDTH          (47)
-#define GUIDE_PUMP_PAUSE_SPEED_ICON_Y               (265 + 4)
-#define GUIDE_PUMP_PAUSE_SPEED_VALUE_Y              (267 + 4)
 #define GUIDE_PUMP_PAUSE_SPEED_COLOR                (0xFFFFFF)
-#define GUIDE_PUMP_PAUSE_SPEED_ICON_VALUE_GAP       (6)
 #define GUIDE_PUMP_PAUSE_SPEED_VALUE                (0) /// 0 基，界面显示 1
 
-#define GUIDE_PUMP_PAUSE_LEFT_LEVEL_X               (68 + 4)
-#define GUIDE_PUMP_PAUSE_LEFT_LEVEL_Y               (267 + 4)
-#define GUIDE_PUMP_PAUSE_LEFT_LEVEL_W               (58)
-#define GUIDE_PUMP_PAUSE_RIGHT_LEVEL_X              (227 + 4)
-#define GUIDE_PUMP_PAUSE_RIGHT_LEVEL_Y              (GUIDE_PUMP_PAUSE_LEFT_LEVEL_Y)
-#define GUIDE_PUMP_PAUSE_RIGHT_LEVEL_W              (58)
 #define GUIDE_PUMP_PAUSE_LEVEL_COLOR                (0xFFFFFF)
 #define GUIDE_PUMP_PAUSE_LEFT_LEVEL                 (1)
 #define GUIDE_PUMP_PAUSE_RIGHT_LEVEL                (1)

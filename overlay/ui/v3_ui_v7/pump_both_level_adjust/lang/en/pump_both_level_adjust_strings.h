@@ -1,0 +1,11 @@
+#ifndef __UI_LANG_EN_PUMP_BOTH_LEVEL_ADJUST_STRINGS_H__
+#define __UI_LANG_EN_PUMP_BOTH_LEVEL_ADJUST_STRINGS_H__
+
+/* pump_both_level_adjust — 改这里后重新 pack，不要改页面 C */
+
+#define PUMP_BOTH_LEVEL_DIR_LEFT_TEXT                   UI_STR_SIDE_L
+#define PUMP_BOTH_LEVEL_DIR_RIGHT_TEXT                  UI_STR_SIDE_R
+#define PUMP_BOTH_LEVEL_OVER_LIMIT_TEXT                 UI_STR_LEVEL_OVER_LIMIT
+#define PUMP_BOTH_LEVEL_MODE_SWITCH_TEXT_FMT            UI_STR_SWITCH_TO_FMT
+
+#endif /* __UI_LANG_EN_PUMP_BOTH_LEVEL_ADJUST_STRINGS_H__ */

@@ -115,6 +115,8 @@ void pump_home_base_ui_prepare(ui_manager_context_t *thiz)
     ble_ui_init(thiz);
     battery_ui_init(thiz);
     pump_info->ui = thiz;
+    pump_info->theme_type = RES_THEME_TYPE_BASE;
+    pump_info->main_ops = &pump_home_base_main_page_ops;
     pump_info->force_update = true;
     pump_info->popup_ui_index = ID_POPUP_UI_NONE;
     ui_proc_pump_t *proc = (ui_proc_pump_t *)thiz->priv.play_info.user_data;
