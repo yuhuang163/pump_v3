@@ -56,7 +56,7 @@ extern "C" {
 /*******************************************************************************
  * Pump home / adjust
  ******************************************************************************/
-#define PUMP_HOME_MAIN_HINT_TEXT                        "按下旋钮恢复吸奶"
+#define PUMP_HOME_MAIN_HINT_TEXT                        "按下旋钮恢复吸乳"
 #define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT             "已切换到%s\n吸力和速度可能会变化"
 #define PUMP_LEVEL_DIR_LEFT_TEXT                        "左侧吸力"
 #define PUMP_LEVEL_DIR_RIGHT_TEXT                       "右侧吸力"
@@ -145,7 +145,7 @@ extern "C" {
 #define GUIDE_INTRO_TITLE_TEXT                          "开始你的吸乳之旅吧！"
 #define GUIDE_QRCODE_DESC_TEXT                          "扫码下载并连接 App\n智能吸奶，奶量记录，轻松遥\n控"
 #define GUIDE_FINISH_QRCODE_TEXT                        "https://support.momcozy.com/product/bpv-3"
-#define GUIDE_FINISH_DESC_TEXT                          "完成新手引导"
+#define GUIDE_FINISH_DESC_TEXT                          "完成新手引导\n可扫码查看操作视频"
 #define GUIDE_MODE_SWITCH_GUIDE_TITLE_TEXT              "转动旋钮\n查看更多选择"
 #define GUIDE_PUMP_START_GUIDE_TITLE_TEXT               "按下旋钮开始"
 #define GUIDE_PUMP_PAUSE_GUIDE_TITLE_TEXT               "按下旋钮暂停"

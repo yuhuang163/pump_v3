@@ -183,8 +183,8 @@ extern "C" {
 #define GUIDE_QRCODE_ALIGN_Y                            (62)
 #define GUIDE_QRCODE_DESC_Y                             (204)
 #define GUIDE_QRCODE_DESC_LINE_SPACE                    (8)
-#define GUIDE_FINISH_QRCODE_ALIGN_Y                     (83)
-#define GUIDE_FINISH_DESC_Y                             (225)
+#define GUIDE_FINISH_QRCODE_ALIGN_Y                     (67)
+#define GUIDE_FINISH_DESC_Y                             (206)
 #define GUIDE_FINISH_DESC_LINE_SPACE                    (8)
 #define GUIDE_MODE_HOME_MODE_TITLE_Y                    (62 + 4)
 
