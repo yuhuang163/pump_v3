@@ -66,7 +66,7 @@ static void charge_display_exit_cb(ui_proc_charge_t *proc)
         proc->wm->dispatch_new_window_args(proc->wm, &msg);
         return;
     }
-
+    
 #if IS_SUPPORT_NIGHT_LIGHT
     if (proc->led && proc->led->hook &&
         proc->led->hook->get_night_light_startup_switch &&
@@ -96,6 +96,15 @@ static void charge_display_exit_cb(ui_proc_charge_t *proc)
 #else
     if (proc->wm->is_window_guidance_deployed() == 0) {
         proc->wm->set_window_guidance_deployed_flag(true);
+    }
+#endif
+
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
+    if (proc->res && proc->res->get_sys_theme_type() == RES_THEME_TYPE_NONE) {
+        LOG_WM("goto none theme screen");
+        msg.union_body.extra.window_id = ID_WINDOW_THEME_GUIDE;
+        proc->wm->dispatch_new_window_args(proc->wm, &msg);
+        return;
     }
 #endif
 

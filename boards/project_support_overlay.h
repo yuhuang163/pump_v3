@@ -181,6 +181,8 @@ extern "C" {
 #ifndef IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
 #define IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD             (1)
 #endif
+/// 支持主题选择界面
+#define IS_SUPPORT_THEME_GUIDE_WINDOW                    (0)  
 
 #else
 /// 支持漏气提醒
@@ -207,6 +209,9 @@ extern "C" {
 #ifndef IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD
 #define IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD             (0)
 #endif
+
+/// 支持主题选择界面
+#define IS_SUPPORT_THEME_GUIDE_WINDOW                    (0)    
 #endif
 
 /// 支持LOGO界面背景颜色测试
@@ -223,8 +228,6 @@ extern "C" {
 #endif
 /// 支持引导界面
 #define IS_SUPPORT_GUIDE_WINDOW                          (1)    
-/// 支持主题选择界面
-#define IS_SUPPORT_THEME_GUIDE_WINDOW                    (0)    
 
 /// 支持触摸芯片固件升级
 #if (V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V3 || V3_HARDWARE_VERSION == V3_2710IMC_HARDWARE_V2)
