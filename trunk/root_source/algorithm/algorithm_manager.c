@@ -130,6 +130,25 @@ static bool get_algo_enabled(void)
     return algo_obj->priv.is_algo_enabled;
 }
 
+static algo_fusion_result_t *algo_get_latest_result(void)
+{
+    EXCEPTION_CHECK_POINT(algo_obj);
+    return &algo_obj->priv.latest_result;
+}
+
+static void algo_set_result_report_enabled(bool enabled)
+{
+    EXCEPTION_CHECK_VOID(algo_obj);
+    algo_obj->priv.result_report_enabled = enabled;
+    LOG_ALGO("algo result report enabled: %d", enabled);
+}
+
+static bool algo_get_result_report_enabled(void)
+{
+    EXCEPTION_CHECK_INT(algo_obj);
+    return algo_obj->priv.result_report_enabled;
+}
+
 /*
 * GLOBAL FUNCTION DEFINITIONS
 *****************************************************************************************
@@ -147,6 +166,9 @@ void *register_module_for_algo_fusion_new(list_head_t *list_head)
     ptr->remove_algo_result_listener = algo_remove_result_listener;
     ptr->set_algo_enabled = set_algo_enabled;
     ptr->get_algo_enabled = get_algo_enabled;
+    ptr->get_algo_fusion_result = algo_get_latest_result;
+    ptr->set_result_report_enabled = algo_set_result_report_enabled;
+    ptr->get_result_report_enabled = algo_get_result_report_enabled;
     algo_obj = ptr;
     return ADD_MODULE("algo", ID_MODULE_ALGO_HUB, on_perpare_algo_init, 
         on_post_algo_init, ptr, list_head, sizeof(algo_manager_context_t));
