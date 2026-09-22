@@ -5779,9 +5779,13 @@ const ui_widget_style_t g_ui_widget_default[UI_W_COUNT] = {
     },
     [UI_W_PUMP_HOME_CUSTOM_MAIN_WAVE] = {
         .kind = UI_WIDGET_KIND_TEXT,
-        .obj_align = 2,
+        .obj_align = 1,
         .x =
+#ifdef PUMP_HOME_CUSTOM_MAIN_WAVE_X
+            (int16_t)(PUMP_HOME_CUSTOM_MAIN_WAVE_X)
+#else
             0
+#endif
         ,
         .y =
 #ifdef PUMP_HOME_CUSTOM_MAIN_WAVE_Y
