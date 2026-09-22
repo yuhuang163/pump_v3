@@ -15,7 +15,7 @@
 #endif
 
 #ifndef DEBUG_HDR_TASK
-#define DEBUG_HDR_TASK (1)
+#define DEBUG_HDR_TASK (0)
 #endif
 
 #ifndef HDR_WM_QUEUE_SEND_RETRY_TIMEOUT_MS
