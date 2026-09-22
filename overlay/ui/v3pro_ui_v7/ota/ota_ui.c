@@ -396,15 +396,15 @@ static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, ui
 #if IS_SUPPORT_THEME_GUIDE_WINDOW
     const ota_text_info_t ota_custom_error_text_infos[OTA_DESC_TEXT_NUM] = {
         {OTA_UPGRADE_FAILED_TEXT,
-            UI_FONT_AEONIK_29, OTA_TITLE_TEXT_COLOR, OTA_CUSTOM_RESULT_TITLE_Y, 0},
+            UI_FONT_TITLE_MD, OTA_TITLE_TEXT_COLOR, OTA_CUSTOM_RESULT_TITLE_Y, 0},
         {"",
-            UI_FONT_AEONIK_29, 0, 0, 0}
+            UI_FONT_TITLE_MD, 0, 0, 0}
     };
     const ota_text_info_t ota_custom_success_text_infos[OTA_DESC_TEXT_NUM] = {
         {OTA_UPGRADE_COMPLETED_TEXT,
-            UI_FONT_AEONIK_29, OTA_TITLE_TEXT_COLOR, OTA_CUSTOM_RESULT_TITLE_Y, 0},
+            UI_FONT_TITLE_MD, OTA_TITLE_TEXT_COLOR, OTA_CUSTOM_RESULT_TITLE_Y, 0},
         {"",
-            UI_FONT_AEONIK_29, 0, 0, 0}
+            UI_FONT_TITLE_MD, 0, 0, 0}
     };
     bool use_custom_result = (ota_info->res_theme_type == RES_THEME_TYPE_CUSTOM);
 #endif

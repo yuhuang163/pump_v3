@@ -567,7 +567,7 @@ static void pump_home_main_hint_text_update(pump_home_base_ui_info_t *info, uint
     if (info->main.hint_text == NULL || !lv_obj_is_valid(info->main.hint_text)) {
         info->main.hint_text = lv_label_create(pump_home_page_parent_get(info));
         EXCEPTION_CHECK_VOID(info->main.hint_text);
-        lv_obj_set_style_text_font(info->main.hint_text, UI_FONT_AEONIK_19, 0);
+        lv_obj_set_style_text_font(info->main.hint_text, UI_FONT_HINT, 0);
         lv_obj_set_style_text_align(info->main.hint_text, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_letter_space(info->main.hint_text, 0, 0);
     }
@@ -601,7 +601,7 @@ static void pump_home_main_hint_mask_update(pump_home_base_ui_info_t *info, bool
         info->main.hint_shine.mask_tick_ms = get_timestamp();
     }
     ui_shine_prepare_from_text(&info->main.hint_shine, &style,
-        PUMP_HOME_MAIN_HINT_TEXT, UI_FONT_AEONIK_19, 0, 0);
+        PUMP_HOME_MAIN_HINT_TEXT, UI_FONT_HINT, 0, 0);
     ui_shine_update(&info->main.hint_shine, parent, &style, info->main.hint_text, 1);
     ui_shine_show(&info->main.hint_shine);
 }

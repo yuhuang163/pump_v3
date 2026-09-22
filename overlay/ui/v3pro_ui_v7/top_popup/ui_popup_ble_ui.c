@@ -59,15 +59,15 @@ void popup_window_ble_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_
 #if IS_SUPPORT_THEME_GUIDE_WINDOW
     const popup_window_text_info_t ble_custom_connect_infos[POPUP_WINDOW_TEXT_COUNT] = {
         {BLE_CONNECT_TEXT, 0, POPUP_WINDOW_BLE_CUSTOM_TEXT_Y,
-            UI_FONT_AEONIK_29, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
+            UI_FONT_TITLE_MD, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
     };
     const popup_window_text_info_t ble_custom_disconnect_infos[POPUP_WINDOW_TEXT_COUNT] = {
         {BLE_DISCONNECT_TEXT, 0, POPUP_WINDOW_BLE_CUSTOM_TEXT_Y,
-            UI_FONT_AEONIK_29, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
+            UI_FONT_TITLE_MD, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
     };
     const popup_window_text_info_t ble_custom_connecting_infos[POPUP_WINDOW_TEXT_COUNT] = {
         {BLE_CONNECTING_TEXT, 0, POPUP_WINDOW_BLE_CUSTOM_TEXT_Y,
-            UI_FONT_AEONIK_29, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
+            UI_FONT_TITLE_MD, LV_OPA_100, POPUP_WINDOW_BLE_TEXT_COLOR, 0},
     };
 #endif
 
