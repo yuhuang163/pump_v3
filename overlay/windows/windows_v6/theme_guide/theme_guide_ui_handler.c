@@ -26,38 +26,29 @@ static void theme_guide_display_completed_cb(hdr_post_args_t *args)
     }
 
     multi_func_msg_data_t msg = {0};
-    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
-        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
-        LOG_WM("vbus plug in, goto charge screen");
-        msg.union_body.extra.window_id = ID_WINDOW_CHARGE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-
-    if (proc->battery && proc->battery->is_low_battery()) {
-        LOG_WM("battery is low power, goto battery screen");
-        msg.union_body.extra.window_id = ID_WINDOW_BATTERY;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-
-#if IS_SUPPORT_GUIDE_WINDOW
-    if (is_need_show_guide_window(proc->wm)) {
-        LOG_WM("goto guide screen");
-        msg.union_body.extra.window_id = ID_WINDOW_GUIDE;
-        proc->wm->dispatch_new_window_args(proc->wm, &msg);
-        return;
-    }
-#else
-    if (proc->wm->is_window_guidance_deployed() == 0) {
-        proc->wm->set_window_guidance_deployed_flag(true);
-    }
-#endif
-
     LOG_WM("goto home window.");
     msg.union_body.extra.window_id = ID_WINDOW_HOME;
     msg.union_body.extra.arg1 = HOME_SUB_UI_TYPE_PUMP_MODE_UNSELECT;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
+}
+
+void theme_guide_confirm_selected_theme(ui_proc_theme_guide_t *proc)
+{
+    WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_THEME_GUIDE);
+    if (proc->window_run_state != WINDOW_RUN_STATE_RUNNING) {
+        LOG_WM("wm not running, ignore.");
+        return;
+    }
+    if (proc->current_ui_type == THEME_GUIDE_UI_TYPE_POWER_OFF_HOLD) {
+        return;
+    }
+    if (proc->confirm_pending) {
+        LOG_WM("theme confirm pending, ignore.");
+        return;
+    }
+    proc->confirm_pending = 1;
+    LOG_WM("confirm theme, selected: %u", proc->selected_index);
+    POST_WM_TASK_HANDLER_NO_DELAY(theme_guide_display_completed_cb, proc, THEME_GUIDE_DISPLAY_TASK_NAME);
 }
 
 static void theme_guide_popup_ui_finish_policy(ui_manager_context_t *ui, uint8_t popup_ui_index)
