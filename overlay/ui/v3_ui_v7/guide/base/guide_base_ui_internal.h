@@ -267,6 +267,10 @@ typedef struct {
 typedef struct {
     ui_progress_arc_info_t arc;
     lv_obj_t *value_label;
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    lv_obj_t *range_label;
+    uint8_t shown_level_max;
+#endif
     lv_obj_t *dir_label;
     lv_obj_t *tip_img;
     ui_shine_info_t tip_shine;

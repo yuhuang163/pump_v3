@@ -13,6 +13,18 @@
 *****************************************************************************************
 */
 #define GUIDE_LEVEL_SIDE_VALUE_COLOR                    (0xFFFFFF)
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+#define GUIDE_LEVEL_SIDE_VALUE_BOX_X                    (126)
+#define GUIDE_LEVEL_SIDE_VALUE_BOX_Y                    (100)
+#define GUIDE_LEVEL_SIDE_VALUE_BOX_W                    (65)
+#define GUIDE_LEVEL_SIDE_VALUE_BOX_H                    (69)
+#define GUIDE_LEVEL_SIDE_RANGE_BOX_X                    (195)
+#define GUIDE_LEVEL_SIDE_RANGE_BOX_Y                    (133)
+#define GUIDE_LEVEL_SIDE_RANGE_BOX_W                    (40)
+#define GUIDE_LEVEL_SIDE_RANGE_BOX_H                    (34)
+#define GUIDE_LEVEL_SIDE_RANGE_COLOR                    (0x999999)
+#define GUIDE_LEVEL_SIDE_RANGE_TEXT_FMT                 "/ %u"
+#endif
 
 #define GUIDE_LEVEL_SIDE_DIR_COLOR                      (0x999999)
 
@@ -107,11 +119,35 @@ static void guide_level_side_arc_update(guide_base_ui_info_t *info, ui_proc_guid
     page->level_max = level_max;
 }
 
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+static void guide_level_side_fixed_label_apply(lv_obj_t *label, lv_coord_t x, lv_coord_t y,
+    lv_coord_t w, lv_coord_t h, const lv_font_t *font, lv_text_align_t align)
+{
+    lv_coord_t line_h;
+    lv_coord_t pad_top = 0;
+
+    lv_obj_set_size(label, w, h);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
+    lv_obj_set_style_pad_all(label, 0, 0);
+    lv_obj_set_style_text_align(label, align, 0);
+    line_h = lv_font_get_line_height(font);
+    if (line_h > 0 && line_h < h) {
+        pad_top = (lv_coord_t)((h - line_h) / 2);
+    }
+    lv_obj_set_style_pad_top(label, pad_top, 0);
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, x, y);
+}
+#endif
+
 static void guide_level_side_value_update(guide_base_ui_info_t *info, ui_proc_guide_t *proc)
 {
     guide_base_level_side_info_t *page = &info->level_side;
     lv_obj_t *parent = guide_page_parent_get(info);
     char num_buf[8] = {0};
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    char range_buf[8] = {0};
+    uint8_t level_max = guide_level_side_level_max_get(proc);
+#endif
 
     EXCEPTION_CHECK_VOID(parent);
     if (page->value_label == NULL || !lv_obj_is_valid(page->value_label)) {
@@ -119,16 +155,43 @@ static void guide_level_side_value_update(guide_base_ui_info_t *info, ui_proc_gu
         EXCEPTION_CHECK_VOID(page->value_label);
         page->shown_level = 0xFF;
     }
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    if (page->range_label == NULL || !lv_obj_is_valid(page->range_label)) {
+        page->range_label = lv_label_create(parent);
+        EXCEPTION_CHECK_VOID(page->range_label);
+        page->shown_level_max = 0xFF;
+    }
+    if (info->force_update == false &&
+        page->shown_level == proc->level_value &&
+        page->shown_level_max == level_max) {
+        return;
+    }
+#else
     if (info->force_update == false && page->shown_level == proc->level_value) {
         return;
     }
+#endif
 
     snprintf(num_buf, sizeof(num_buf), "%u", proc->level_value);
     lv_label_set_text(page->value_label, num_buf);
     lv_obj_set_style_text_color(page->value_label, lv_color_hex(GUIDE_LEVEL_SIDE_VALUE_COLOR), 0);
     lv_obj_set_style_text_font(page->value_label, UI_FONT_NUM_LG, 0);
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    snprintf(range_buf, sizeof(range_buf), GUIDE_LEVEL_SIDE_RANGE_TEXT_FMT, level_max);
+    lv_label_set_text(page->range_label, range_buf);
+    lv_obj_set_style_text_color(page->range_label, lv_color_hex(GUIDE_LEVEL_SIDE_RANGE_COLOR), 0);
+    lv_obj_set_style_text_font(page->range_label, &lv_font_aeonik_soft_26_medium, 0);
+    guide_level_side_fixed_label_apply(page->value_label, GUIDE_LEVEL_SIDE_VALUE_BOX_X,
+        GUIDE_LEVEL_SIDE_VALUE_BOX_Y, GUIDE_LEVEL_SIDE_VALUE_BOX_W, GUIDE_LEVEL_SIDE_VALUE_BOX_H,
+        UI_FONT_NUM_LG, LV_TEXT_ALIGN_RIGHT);
+    guide_level_side_fixed_label_apply(page->range_label, GUIDE_LEVEL_SIDE_RANGE_BOX_X,
+        GUIDE_LEVEL_SIDE_RANGE_BOX_Y, GUIDE_LEVEL_SIDE_RANGE_BOX_W, GUIDE_LEVEL_SIDE_RANGE_BOX_H,
+        &lv_font_aeonik_soft_26_medium, LV_TEXT_ALIGN_LEFT);
+    page->shown_level_max = level_max;
+#else
     lv_obj_set_style_text_align(page->value_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(page->value_label, LV_ALIGN_TOP_MID, 0, GUIDE_LEVEL_SIDE_VALUE_Y);
+#endif
     page->shown_level = proc->level_value;
 }
 
@@ -277,6 +340,9 @@ void guide_level_side_ui_build(guide_base_ui_info_t *info)
     EXCEPTION_CHECK_VOID(info);
     memset(&info->level_side, 0, sizeof(info->level_side));
     info->level_side.shown_level = 0xFF;
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    info->level_side.shown_level_max = 0xFF;
+#endif
     info->level_side.shown_side = 0xFF;
     info->level_side.shown_over_limit = 0xFF;
     ui_progress_arc_reset(&info->level_side.arc);

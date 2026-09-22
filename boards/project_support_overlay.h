@@ -238,6 +238,10 @@ extern "C" {
 
 /// 支持力度调节闪烁
 #define IS_SUPPORT_PUMP_LEVEL_ADJUST_BLINK               (1)
+/// 单边力度调节：数字右侧显示范围（如 9 /15）；关闭保持原仅数字 UI
+#ifndef IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+#define IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT               (0)
+#endif
 
 /// 支持泵奶策略快速测试
 #define IS_SUPPORT_PUMP_MODE_FAST_TEST                   (0)
