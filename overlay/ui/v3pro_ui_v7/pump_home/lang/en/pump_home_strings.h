@@ -7,7 +7,7 @@
 #define PUMP_HOME_MAIN_HINT_TEXT                        "Press to resume"
 #define PUMP_HOME_MAIN_SEAL_CHECKING_TEXT               "Checking seal..."
 #define PUMP_HOME_MAIN_SEAL_RESULT_TEXT                 "Seal check passed"
-// #define PUMP_HOME_MAIN_SEAL_FAIL_TEXT                   "Air leak detected. Compensating\nsuction..."
+#define PUMP_HOME_MAIN_SEAL_FAIL_TEXT                   "Air leak, suction adjusting..."
 #define PUMP_HOME_MAIN_MODE_SWITCH_TEXT_FMT             "Switched to %s.\nLevel and speed may changed."
 
 /* custom */
