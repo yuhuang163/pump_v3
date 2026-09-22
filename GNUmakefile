@@ -150,7 +150,7 @@ ROOT_FONT_V3 ?= 0x03
 
 # 产品 UI 语言（编译期 SKU，一次只打进一种语言）
 # 用法: make PRODUCT_LANGUAGE=en  或  make PRODUCT_LANGUAGE=zh
-PRODUCT_LANGUAGE ?= zh
+PRODUCT_LANGUAGE ?= en
 ifeq ($(PRODUCT_LANGUAGE),en)
 PRODUCT_LANGUAGE_USED := 0x00
 else ifeq ($(PRODUCT_LANGUAGE),zh)
