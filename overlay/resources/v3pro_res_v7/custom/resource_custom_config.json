@@ -20,6 +20,17 @@
       "note": "file_index = resource_id - 11000"
     },
     {
+      "start_resource_id": "CUSTOM_RES_ID_EXPRESSION_ANIM_START",
+      "end_resource_id": "CUSTOM_RES_ID_EXPRESSION_ANIM_END",
+      "description": "吸吮动画",
+      "file_template": "animation/expression/baj/Exp_{file_index:05d}_160x180_a8_q99_422.baj",
+      "start_file_index": 0,
+      "id_to_file_offset": -11100,
+      "x_offset": 0,
+      "y_offset": 0,
+      "note": "file_index = resource_id - 11100"
+    },
+    {
       "start_resource_id": "CUSTOM_RES_ID_CHECKING_SEAL_ANIM_START",
       "end_resource_id": "CUSTOM_RES_ID_CHECKING_SEAL_ANIM_END",
       "description": "气密检测中动画",
@@ -172,21 +183,21 @@
     {
       "resource_id": "CUSTOM_RES_ID_PLAY_STIMULATION_ICON",
       "description": "播放刺激图标",
-      "file": "png/icon_play_stimulation.png",
+      "file": "baj/icon_play_stimulation_96x103_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "CUSTOM_RES_ID_PLAY_EXPRESSION_ICON",
       "description": "播放吸吮图标",
-      "file": "png/icon_play_expression.png",
+      "file": "baj/icon_play_expression_96x103_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "CUSTOM_RES_ID_PLAY_PROGRAM_ICON",
       "description": "播放韵律图标",
-      "file": "png/icon_play_program.png",
+      "file": "baj/icon_play_program_96x103_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
@@ -326,21 +337,21 @@
     {
       "resource_id": "CUSTOM_RES_ID_SUCCESS_IP_ICON",
       "description": "成功IP图标",
-      "file": "png/icon_success_ip.png",
+      "file": "baj/icon_success_ip_210x210_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "CUSTOM_RES_ID_WARNING_IP_ICON",
       "description": "警告IP图标",
-      "file": "png/icon_warning_ip.png",
+      "file": "baj/icon_warning_ip_242x210_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
     {
       "resource_id": "CUSTOM_RES_ID_CONNECTING_IP_ICON",
       "description": "连接中IP图标",
-      "file": "png/icon_connecting_ip.png",
+      "file": "baj/icon_connecting_ip_210x214_a8_q99_444.baj",
       "x_offset": 0,
       "y_offset": 0
     },
