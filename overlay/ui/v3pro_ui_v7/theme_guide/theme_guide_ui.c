@@ -116,7 +116,7 @@ static void theme_guide_title_update(void)
 {
     theme_guide_text_cfg_t title_cfg = {
         .text = THEME_GUIDE_TITLE_TEXT,
-        .font = &lv_font_aeonik_soft_26_medium,
+        .font = UI_FONT_TITLE,
         .color = THEME_GUIDE_TITLE_COLOR,
         .y = THEME_GUIDE_TITLE_Y,
         .line_space = 0,
@@ -132,7 +132,7 @@ static void theme_guide_desc_update(void)
 {
     theme_guide_text_cfg_t desc_cfg = {
         .text = THEME_GUIDE_DESC_SELECT_TEXT,
-        .font = &lv_font_aeonik_soft_19_medium,
+        .font = UI_FONT_HINT,
         .color = THEME_GUIDE_DESC_COLOR,
         .y = THEME_GUIDE_DESC_Y,
         .line_space = THEME_GUIDE_DESC_LINE_SPACE,
@@ -211,7 +211,7 @@ static void theme_guide_option_label_update(uint8_t index)
         };
 
         lv_label_set_text(theme_info->label[index], option_labels[index]);
-        lv_obj_set_style_text_font(theme_info->label[index], &lv_font_aeonik_soft_19_medium, 0);
+        lv_obj_set_style_text_font(theme_info->label[index], UI_FONT_HINT, 0);
         lv_obj_set_style_text_align(theme_info->label[index], LV_TEXT_ALIGN_LEFT, 0);
         lv_obj_set_style_text_color(theme_info->label[index], lv_color_hex(THEME_GUIDE_LABEL_COLOR), 0);
         lv_obj_align(theme_info->label[index], LV_ALIGN_TOP_LEFT,
