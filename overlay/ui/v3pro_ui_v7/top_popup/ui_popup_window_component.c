@@ -172,7 +172,8 @@ void popup_window_text_update(ui_manager_context_t *thiz, const popup_window_tex
     }
 }
 
-void popup_window_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint16_t y_offset)
+void popup_window_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint16_t y_offset,
+    res_theme_type_e theme_type)
 {
     popup_window_disp_info_t *info = popup_window_info_get();
 
@@ -187,7 +188,7 @@ void popup_window_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint1
     }
 
     ui_img_baj_theme_set_src(thiz, info->icon.obj, img_id,
-        RES_THEME_TYPE_BASE, UI_IMG_BAJ_DECODE_RGBA8888);
+        theme_type, UI_IMG_BAJ_DECODE_RGBA8888);
     lv_obj_align(info->icon.obj, LV_ALIGN_TOP_MID, 0, y_offset);
     lv_obj_clear_flag(info->icon.obj, LV_OBJ_FLAG_HIDDEN);
 }
@@ -342,20 +343,22 @@ void popup_window_num_update(ui_manager_context_t *thiz, int16_t x_offset, int16
 }
 
 void popup_window_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type,
-    const popup_window_text_info_t *text_info, uint16_t img_id, uint16_t icon_y)
+    const popup_window_text_info_t *text_info, uint16_t img_id, uint16_t icon_y,
+    res_theme_type_e theme_type)
 {
     popup_window_mask_layer_update(thiz);
     popup_window_text_update(thiz, text_info);
-    popup_window_icon_update(thiz, img_id, icon_y);
+    popup_window_icon_update(thiz, img_id, icon_y, theme_type);
     popup_window_display_complete(thiz, popup_type);
 }
 
 void popup_window_static_tip_ui_update(ui_manager_context_t *thiz,
-    const popup_window_text_info_t *text_info, uint16_t img_id, uint16_t icon_y)
+    const popup_window_text_info_t *text_info, uint16_t img_id, uint16_t icon_y,
+    res_theme_type_e theme_type)
 {
     popup_window_mask_layer_update(thiz);
     popup_window_text_update(thiz, text_info);
-    popup_window_icon_update(thiz, img_id, icon_y);
+    popup_window_icon_update(thiz, img_id, icon_y, theme_type);
 }
 
 void popup_window_arc_countdown_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type,
