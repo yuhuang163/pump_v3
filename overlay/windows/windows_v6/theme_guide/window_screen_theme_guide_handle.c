@@ -44,6 +44,19 @@ static int theme_guide_window_async_evt_handler_cb(struct window_event_data *evt
     return 0;
 }
 
+static void theme_guide_led_all_off(ui_proc_theme_guide_t *proc)
+{
+    if (proc == NULL || proc->led == NULL || proc->led->set_led_level == NULL) {
+        return;
+    }
+    if (proc->led->hook && proc->led->hook->set_key_backlight) {
+        proc->led->hook->set_key_backlight(proc->led, 0);
+    }
+    for (uint8_t i = 0; i < PUMP_LED_INDEX_MAX; i++) {
+        proc->led->set_led_level(i, 0);
+    }
+}
+
 static void theme_guide_knob_event_handler(ui_proc_theme_guide_t *proc, bool is_left)
 {
     proc->is_operated = 1;
@@ -66,13 +79,15 @@ static int on_theme_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uin
         return 0;
     }
 
-    if (keytype == KEY_EVENT_LONG_2S &&
-        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+    if (keycode == KEY_CODE_START) {
+        return 0;
+    }
+
+    if (keytype == KEY_EVENT_LONG_2S && keycode == KEY_CODE_POWER) {
         theme_guide_power_off_hold_key_long_2s_handler(proc);
         return 0;
     }
-    if (keytype == KEY_EVENT_UP &&
-        (keycode == KEY_CODE_POWER || keycode == KEY_CODE_START)) {
+    if (keytype == KEY_EVENT_UP && keycode == KEY_CODE_POWER) {
         theme_guide_power_off_hold_key_up_handler(proc);
         return 0;
     }
@@ -87,11 +102,9 @@ static int on_theme_guide_ui_keyevent_hdr(void *user_data, uint16_t keycode, uin
         theme_guide_knob_event_handler(proc, true);
     } else if (keycode == KEY_CODE_KNOB_RIGHT) {
         theme_guide_knob_event_handler(proc, false);
-    } else if (keycode == KEY_CODE_START) {
-        if (proc->popup_ui_type == ID_POPUP_UI_THEME_RESELECT) {
-            return 0;
-        }
-        proc->popup_ui_type = ID_POPUP_UI_THEME_RESELECT;
+    } else if (keycode == KEY_CODE_POWER) {
+        theme_guide_led_all_off(proc);
+        theme_guide_confirm_selected_theme(proc);
     }
     return 0;
 }
@@ -125,12 +138,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         proc->window_run_state = WINDOW_RUN_STATE_RUNNING;
     } else if (new_state == ID_SCR_STATE_ON_CREATE) {
         LOG_WM("==>%s window on create", PAGE_NAME_STR);
-        if (proc->led) {
-            if (proc->led->hook && proc->led->hook->set_key_backlight) {
-                proc->led->hook->set_key_backlight(proc->led, 0);
-            }
-            proc->led->set_led_level(PUMP_START_BL, LED_LEVEL_MAX);
-        }
+        theme_guide_led_all_off(proc);
         start_theme_guide_ui_animation(proc);
     }
     return 0;
