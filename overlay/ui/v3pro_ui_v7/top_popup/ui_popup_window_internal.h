@@ -104,16 +104,19 @@ void popup_window_comp_bg_update(ui_manager_context_t *thiz);
 #endif
 void popup_window_components_hide_all(void);
 void popup_window_text_update(ui_manager_context_t *thiz, const popup_window_text_info_t *text_info);
-void popup_window_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint16_t y_offset);
+void popup_window_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint16_t y_offset,
+    res_theme_type_e theme_type);
 void popup_window_combo_key_icons_update(ui_manager_context_t *thiz);
 void popup_window_mask_layer_update(ui_manager_context_t *thiz);
 void popup_window_mask_layer_opaque_update(ui_manager_context_t *thiz);
 void popup_window_arc_update(ui_manager_context_t *thiz);
 void popup_window_num_update(ui_manager_context_t *thiz, int16_t x_offset, int16_t y_offset);
 void popup_window_tip_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type,
-    const popup_window_text_info_t *text_info, uint16_t img_id, uint16_t icon_y);
+    const popup_window_text_info_t *text_info, uint16_t img_id, uint16_t icon_y,
+    res_theme_type_e theme_type);
 void popup_window_static_tip_ui_update(ui_manager_context_t *thiz,
-    const popup_window_text_info_t *text_info, uint16_t img_id, uint16_t icon_y);
+    const popup_window_text_info_t *text_info, uint16_t img_id, uint16_t icon_y,
+    res_theme_type_e theme_type);
 void popup_window_arc_countdown_ui_update(ui_manager_context_t *thiz, popup_ui_id_e popup_type,
     const popup_window_text_info_t *text_info, int16_t x_offset, int16_t y_offset);
 void popup_window_progress_arc_countdown_ui_update(ui_manager_context_t *thiz,

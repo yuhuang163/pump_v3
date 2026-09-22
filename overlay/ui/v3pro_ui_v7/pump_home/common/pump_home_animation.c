@@ -38,15 +38,31 @@ static bool pump_home_animation_res_get(const pump_home_base_ui_info_t *info, ui
     uint8_t mode_type, uint16_t *start_id, uint16_t *end_id, pump_home_base_anim_res_type_e *res_type)
 {
     if (PUMP_HOME_UI_IS_CUSTOM_THEME(info)) {
-        (void)mode_index;
-        (void)mode_type;
-        /* custom 其它模式动画暂缺，统一播刺激动画 */
-        *start_id = CUSTOM_RES_ID_STIMULATION_ANIM_START;
-        *end_id = CUSTOM_RES_ID_STIMULATION_ANIM_END;
-        *res_type = PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
-        return true;
+        switch (mode_type) {
+            case PUMP_MODE_STIMULATION:
+                *start_id = CUSTOM_RES_ID_STIMULATION_ANIM_START;
+                *end_id = CUSTOM_RES_ID_STIMULATION_ANIM_END;
+                *res_type = PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
+                return true;
+            case PUMP_MODE_LACTATION:
+                *start_id = CUSTOM_RES_ID_EXPRESSION_ANIM_START;
+                *end_id = CUSTOM_RES_ID_EXPRESSION_ANIM_END;
+                *res_type = PUMP_HOME_BASE_ANIM_EXPRESSION_WAVE;
+                return true;
+            case PUMP_MODE_MIX:
+                *start_id = CUSTOM_RES_ID_STIMULATION_ANIM_START;
+                *end_id = CUSTOM_RES_ID_STIMULATION_ANIM_END;
+                *res_type = PUMP_HOME_BASE_ANIM_MIX_WAVE;
+                return true;
+            case PUMP_MODE_IDLE:
+                *start_id = CUSTOM_RES_ID_STIMULATION_ANIM_START;
+                *end_id = CUSTOM_RES_ID_STIMULATION_ANIM_END;
+                *res_type = PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
+                return true;
+            default:
+                return false;
+        }
     }
-
     switch (mode_type) {
         case PUMP_MODE_STIMULATION:
             if (PUMP_IS_COMMON_MODE(mode_index)) {

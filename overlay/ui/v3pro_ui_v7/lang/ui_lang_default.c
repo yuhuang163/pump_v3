@@ -8290,6 +8290,331 @@ const ui_widget_style_t g_ui_widget_default[UI_W_COUNT] = {
         .color_rgb = 0,
         .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
     },
+    [UI_W_PUMP_HOME_CUSTOM_MAIN_PAUSE_SPEED_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_CUSTOM_MAIN_PAUSE_SPEED_ICON_Y
+            (int16_t)(PUMP_HOME_CUSTOM_MAIN_PAUSE_SPEED_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_CUSTOM_MAIN_PAUSE_SPEED_VALUE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_CUSTOM_MAIN_PAUSE_SPEED_VALUE_Y
+            (int16_t)(PUMP_HOME_CUSTOM_MAIN_PAUSE_SPEED_VALUE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_CUSTOM_MAIN_PAUSE_LEFT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_CUSTOM_MAIN_PAUSE_LEFT_LEVEL_Y
+            (int16_t)(PUMP_HOME_CUSTOM_MAIN_PAUSE_LEFT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_PUMP_HOME_CUSTOM_MAIN_PAUSE_RIGHT_LEVEL] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_CUSTOM_MAIN_PAUSE_RIGHT_LEVEL_Y
+            (int16_t)(PUMP_HOME_CUSTOM_MAIN_PAUSE_RIGHT_LEVEL_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_SETTINGS_SUCCESS_CUSTOM_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef SETTINGS_SUCCESS_CUSTOM_ICON_Y
+            (int16_t)(SETTINGS_SUCCESS_CUSTOM_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_SETTINGS_SUCCESS_CUSTOM_TITLE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef SETTINGS_SUCCESS_CUSTOM_TITLE_Y
+            (int16_t)(SETTINGS_SUCCESS_CUSTOM_TITLE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_SETTINGS_SUCCESS_CUSTOM_PROGRAM_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef SETTINGS_SUCCESS_CUSTOM_PROGRAM_ICON_Y
+            (int16_t)(SETTINGS_SUCCESS_CUSTOM_PROGRAM_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_SETTINGS_SUCCESS_CUSTOM_PROGRAM_TITLE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef SETTINGS_SUCCESS_CUSTOM_PROGRAM_TITLE_Y
+            (int16_t)(SETTINGS_SUCCESS_CUSTOM_PROGRAM_TITLE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_SETTINGS_SUCCESS_CUSTOM_PROGRAM_SUBTITLE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef SETTINGS_SUCCESS_CUSTOM_PROGRAM_SUBTITLE_Y
+            (int16_t)(SETTINGS_SUCCESS_CUSTOM_PROGRAM_SUBTITLE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_POPUP_WINDOW_BLE_CUSTOM_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef POPUP_WINDOW_BLE_CUSTOM_ICON_Y
+            (int16_t)(POPUP_WINDOW_BLE_CUSTOM_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_POPUP_WINDOW_BLE_CUSTOM_TEXT] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef POPUP_WINDOW_BLE_CUSTOM_TEXT_Y
+            (int16_t)(POPUP_WINDOW_BLE_CUSTOM_TEXT_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_OTA_CUSTOM_RESULT_ICON] = {
+        .kind = UI_WIDGET_KIND_ICON,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef OTA_CUSTOM_RESULT_ICON_Y
+            (int16_t)(OTA_CUSTOM_RESULT_ICON_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 0,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
+    [UI_W_OTA_CUSTOM_RESULT_TITLE] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef OTA_CUSTOM_RESULT_TITLE_Y
+            (int16_t)(OTA_CUSTOM_RESULT_TITLE_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
 };
 
 const int16_t g_ui_layout_default[UI_LAY_COUNT] = {

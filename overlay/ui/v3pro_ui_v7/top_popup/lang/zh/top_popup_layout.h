@@ -10,6 +10,8 @@
 #define POPUP_WINDOW_BLE_DISCONNECT_LINE_SPACE          (8)
 #define POPUP_WINDOW_BLE_CONNECTING_ICON_Y              (109)
 #define POPUP_WINDOW_BLE_CONNECTING_TEXT_Y              (215)
+#define POPUP_WINDOW_BLE_CUSTOM_ICON_Y                  (42)
+#define POPUP_WINDOW_BLE_CUSTOM_TEXT_Y                  (262)
 #define TRAVEL_LOCK_TITLE_Y                             (129)
 #define TRAVEL_LOCK_TITLE_LINE_SPACE                    (4)
 #define TRAVEL_LOCK_STIM_KEY_ICON_X                     AIRPLANE_MODE_STIM_KEY_ICON_X

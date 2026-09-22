@@ -39,6 +39,7 @@ typedef struct {
     lv_obj_t * ota_percent;
     lv_obj_t * ota_size;
     lv_obj_t * icon;
+    lv_draw_buf_t *icon_buf;
     res_theme_type_e res_theme_type;
     uint16_t shown_icon_id;
     uint16_t anim_to_sweep;
@@ -238,7 +239,21 @@ static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t progr
     ota_info->progress = progress;
 }
 
-static void ui_ota_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint16_t y_offset, bool is_show)
+static void ui_ota_icon_buf_release(void)
+{
+    if (ota_info->icon_buf != NULL) {
+        if (ota_info->icon != NULL && lv_obj_is_valid(ota_info->icon)) {
+            lv_image_set_src(ota_info->icon, NULL);
+        }
+        lv_draw_buf_destroy(ota_info->icon_buf);
+        ota_info->icon_buf = NULL;
+        return;
+    }
+    ui_img_baj_release_decoded_buf(ota_info->icon);
+}
+
+static void ui_ota_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint16_t y_offset,
+    res_theme_type_e theme_type, bool predecode, bool is_show)
 {
     if (ota_info->force_update == false) {
         return;
@@ -257,8 +272,17 @@ static void ui_ota_icon_update(ui_manager_context_t *thiz, uint16_t img_id, uint
 
     lv_obj_clear_flag(ota_info->icon, LV_OBJ_FLAG_HIDDEN);
     if (ota_info->shown_icon_id != img_id) {
-        ui_img_baj_theme_set_src(thiz, ota_info->icon, img_id,
-            ota_info->res_theme_type, UI_IMG_BAJ_DECODE_RGBA8888);
+        ui_ota_icon_buf_release();
+        if (predecode) {
+            ota_info->icon_buf = ui_img_baj_theme_decode_draw_buf(thiz, img_id,
+                theme_type, UI_IMG_BAJ_DECODE_RGBA8888);
+            if (ota_info->icon_buf != NULL) {
+                lv_image_set_src(ota_info->icon, ota_info->icon_buf);
+            }
+        } else {
+            ui_img_baj_theme_set_src(thiz, ota_info->icon, img_id,
+                theme_type, UI_IMG_BAJ_DECODE_RGBA8888);
+        }
         ota_info->shown_icon_id = img_id;
     }
     lv_obj_align(ota_info->icon, LV_ALIGN_TOP_MID, 0, y_offset);
@@ -369,6 +393,21 @@ static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, ui
         {"",
             UI_FONT_TITLE_LG, 0, 0, 0}
     };
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
+    const ota_text_info_t ota_custom_error_text_infos[OTA_DESC_TEXT_NUM] = {
+        {OTA_UPGRADE_FAILED_TEXT,
+            UI_FONT_AEONIK_29, OTA_TITLE_TEXT_COLOR, OTA_CUSTOM_RESULT_TITLE_Y, 0},
+        {"",
+            UI_FONT_AEONIK_29, 0, 0, 0}
+    };
+    const ota_text_info_t ota_custom_success_text_infos[OTA_DESC_TEXT_NUM] = {
+        {OTA_UPGRADE_COMPLETED_TEXT,
+            UI_FONT_AEONIK_29, OTA_TITLE_TEXT_COLOR, OTA_CUSTOM_RESULT_TITLE_Y, 0},
+        {"",
+            UI_FONT_AEONIK_29, 0, 0, 0}
+    };
+    bool use_custom_result = (ota_info->res_theme_type == RES_THEME_TYPE_CUSTOM);
+#endif
 
     if (ota_info->status != ota_status || ota_info->object != info.object) {
         ota_info->status = ota_status;
@@ -379,7 +418,8 @@ static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, ui
     switch (ota_status) {
         default:
         case OTA_UI_STATUS_DOWNLOADING:
-            ui_ota_icon_update(thiz, BASE_RES_ID_DOWNLOAD_ICON, OTA_DOWNLOAD_ICON_Y, true);
+            ui_ota_icon_update(thiz, BASE_RES_ID_DOWNLOAD_ICON, OTA_DOWNLOAD_ICON_Y,
+                RES_THEME_TYPE_BASE, false, true);
             if (info.object == OTA_OBJECT_MAIN_FIRMWARE) {
                 ui_ota_desc_update(thiz, ota_app_downloading_text_infos);
             } else if (info.object == OTA_OBJECT_IMAGE_RESOURCE ||
@@ -392,13 +432,35 @@ static void ui_ota_status_update(ui_manager_context_t *thiz, ota_info_t info, ui
             ui_ota_size_update(thiz, info.total_size, info.recv_size, true);
             break;
         case OTA_UI_STATUS_ERROR:
-            ui_ota_icon_update(thiz, BASE_RES_ID_ERROR_ICON, OTA_ERROR_ICON_Y, true);
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
+            if (use_custom_result) {
+                ui_ota_icon_update(thiz, CUSTOM_RES_ID_WARNING_IP_ICON, OTA_CUSTOM_RESULT_ICON_Y,
+                    RES_THEME_TYPE_CUSTOM, true, true);
+                ui_ota_desc_update(thiz, ota_custom_error_text_infos);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, false);
+                ui_ota_progress_arc_update(thiz, info.progress, info.recv_size, info.total_size, false);
+                break;
+            }
+#endif
+            ui_ota_icon_update(thiz, BASE_RES_ID_ERROR_ICON, OTA_ERROR_ICON_Y,
+                RES_THEME_TYPE_BASE, false, true);
             ui_ota_desc_update(thiz, ota_error_text_infos);
             ui_ota_size_update(thiz, info.total_size, info.recv_size, false);
             ui_ota_progress_arc_update(thiz, info.progress, info.recv_size, info.total_size, false);
             break;
         case OTA_UI_STATUS_COMPLETE:
-            ui_ota_icon_update(thiz, BASE_RES_ID_SUCCESS_ICON, OTA_SUCCESS_ICON_Y, true);
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
+            if (use_custom_result) {
+                ui_ota_icon_update(thiz, CUSTOM_RES_ID_SUCCESS_IP_ICON, OTA_CUSTOM_RESULT_ICON_Y,
+                    RES_THEME_TYPE_CUSTOM, true, true);
+                ui_ota_desc_update(thiz, ota_custom_success_text_infos);
+                ui_ota_size_update(thiz, info.total_size, info.recv_size, false);
+                ui_ota_progress_arc_update(thiz, info.progress, info.recv_size, info.total_size, false);
+                break;
+            }
+#endif
+            ui_ota_icon_update(thiz, BASE_RES_ID_SUCCESS_ICON, OTA_SUCCESS_ICON_Y,
+                RES_THEME_TYPE_BASE, false, true);
             ui_ota_desc_update(thiz, ota_suceess_text_infos);
             ui_ota_size_update(thiz, info.total_size, info.recv_size, false);
             ui_ota_progress_arc_update(thiz, info.progress, info.recv_size, info.total_size, false);
@@ -455,6 +517,7 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
     ota_info->shown_percent = 0xFF;
     ota_info->anim_last_tick = get_timestamp();
     ota_info->shown_icon_id = 0;
+    ota_info->icon_buf = NULL;
 #if IS_SUPPORT_OTA_TEST
     ota_info->res_theme_type = RES_THEME_TYPE_BASE;
 #else
@@ -465,16 +528,18 @@ void ui_display_ota_prepare(ui_manager_context_t *thiz)
         ota_info->last_recv_size = ota_dev_info.recv_size;
     }
     ota_info->res_theme_type = RES_THEME_TYPE_BASE;
+#if IS_SUPPORT_THEME_GUIDE_WINDOW
     if (thiz && thiz->priv.res) {
         ota_info->res_theme_type = thiz->priv.res->get_sys_theme_type();
     }
+#endif
 #endif
 }
 
 void ui_display_ota_remove(ui_manager_context_t *thiz)
 {
     EXCEPTION_CHECK_VOID(thiz && ota_info && ota_info->root);
-    ui_img_baj_release_decoded_buf(ota_info->icon);
+    ui_ota_icon_buf_release();
     LVGL_OBJ_DELETE(ota_info->root);
     u_free(ota_info);
     ota_info = NULL;

@@ -13,5 +13,7 @@
 #define OTA_ERROR_ICON_Y                                (107)
 #define OTA_ERROR_TITLE_Y                               (212)
 #define OTA_ERROR_LINE_SPACE                            (8)
+#define OTA_CUSTOM_RESULT_ICON_Y                        (42)
+#define OTA_CUSTOM_RESULT_TITLE_Y                       (262)
 
 #endif /* __UI_LANG_ZH_OTA_LAYOUT_H__ */

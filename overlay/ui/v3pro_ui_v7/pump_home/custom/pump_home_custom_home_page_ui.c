@@ -6,7 +6,7 @@
 #include "window_screen_pump.h" // IWYU pragma: keep
 #include "ui_custom_mode_name.h" // IWYU pragma: keep
 #include "ui_img_jpg_decode.h" // IWYU pragma: keep
-#include "ui_img_png_decode.h" // IWYU pragma: keep
+#include "ui_img_baj_decode.h" // IWYU pragma: keep
 
 /*
 * DEFINES
@@ -511,7 +511,7 @@ static void pump_home_main_play_icon_detach(pump_home_base_ui_info_t *info)
     if (info->main.play_icon == NULL || !lv_obj_is_valid(info->main.play_icon)) {
         return;
     }
-    ui_img_png_release_decoded_buf(info->main.play_icon);
+    ui_img_baj_release_decoded_buf(info->main.play_icon);
     info->main.shown_play_icon_id = 0;
 }
 
@@ -531,8 +531,8 @@ static void pump_home_main_play_icon_update(pump_home_base_ui_info_t *info, bool
         info->main.shown_play_icon_id = 0;
     }
     if (info->main.shown_play_icon_id != res_id) {
-        ui_img_png_theme_set_src(info->ui, info->main.play_icon, res_id,
-            RES_THEME_TYPE_CUSTOM, UI_IMG_PNG_DECODE_RGBA8888);
+        ui_img_baj_theme_set_src(info->ui, info->main.play_icon, res_id,
+            RES_THEME_TYPE_CUSTOM, UI_IMG_BAJ_DECODE_RGBA8888);
         info->main.shown_play_icon_id = res_id;
     }
     lv_obj_align(info->main.play_icon, LV_ALIGN_TOP_MID, 0, PUMP_HOME_CUSTOM_MAIN_PLAY_ICON_Y);
@@ -824,13 +824,17 @@ static void pump_home_main_seal_check_update(pump_home_base_ui_info_t *info, ui_
     info->main.shown_seal_check = show ? 1 : 0;
 }
 
-static void pump_home_main_speed_update(pump_home_base_ui_info_t *info, uint8_t speed)
+static void pump_home_main_speed_update(pump_home_base_ui_info_t *info, uint8_t speed, bool paused)
 {
     char speed_text[8] = {0};
     lv_coord_t icon_w = 0;
     lv_coord_t value_w = 0;
     lv_coord_t total_w;
     lv_coord_t start_x;
+    const lv_coord_t icon_y = paused ?
+        PUMP_HOME_CUSTOM_MAIN_PAUSE_SPEED_ICON_Y : PUMP_HOME_CUSTOM_MAIN_SPEED_ICON_Y;
+    const lv_coord_t value_y = paused ?
+        PUMP_HOME_CUSTOM_MAIN_PAUSE_SPEED_VALUE_Y : PUMP_HOME_CUSTOM_MAIN_SPEED_VALUE_Y;
 
     if (info->main.speed_icon == NULL || !lv_obj_is_valid(info->main.speed_icon)) {
         info->main.speed_icon = lv_image_create(pump_home_page_parent_get(info));
@@ -845,7 +849,8 @@ static void pump_home_main_speed_update(pump_home_base_ui_info_t *info, uint8_t 
         lv_obj_set_style_text_font(info->main.speed_value, UI_FONT_AEONIK, 0);
     }
 
-    if (info->main.shown_speed == speed && info->force_update == false) {
+    if (info->main.shown_speed == speed && info->force_update == false &&
+        info->main.shown_paused == (paused ? 1 : 0)) {
         return;
     }
 
@@ -861,9 +866,9 @@ static void pump_home_main_speed_update(pump_home_base_ui_info_t *info, uint8_t 
         total_w = PUMP_HOME_MAIN_SPEED_GROUP_WIDTH;
     }
     start_x = (PUMP_HOME_MAIN_SCREEN_W - total_w) / 2;
-    lv_obj_align(info->main.speed_icon, LV_ALIGN_TOP_LEFT, start_x, PUMP_HOME_CUSTOM_MAIN_SPEED_ICON_Y);
+    lv_obj_align(info->main.speed_icon, LV_ALIGN_TOP_LEFT, start_x, icon_y);
     lv_obj_align(info->main.speed_value, LV_ALIGN_TOP_LEFT,
-        start_x + icon_w + PUMP_HOME_MAIN_SPEED_ICON_VALUE_GAP, PUMP_HOME_CUSTOM_MAIN_SPEED_VALUE_Y);
+        start_x + icon_w + PUMP_HOME_MAIN_SPEED_ICON_VALUE_GAP, value_y);
     info->main.shown_speed = speed;
 }
 
@@ -1021,15 +1026,17 @@ void pump_home_custom_main_page_ui_update(pump_home_base_ui_info_t *info, ui_pro
     pump_home_main_play_icon_update(info, paused);
     pump_home_main_hint_update(info, mode, paused);
     pump_home_main_hint_shine_anim_update(info, paused);
-    pump_home_main_speed_update(info, speed);
+    pump_home_main_speed_update(info, speed, paused);
     pump_home_main_level_label_update(&info->main.left_level, pump_home_page_parent_get(info), "L",
-        left_level, PUMP_HOME_MAIN_LEFT_LEVEL_X, PUMP_HOME_CUSTOM_MAIN_LEFT_LEVEL_Y,
+        left_level, PUMP_HOME_MAIN_LEFT_LEVEL_X,
+        paused ? PUMP_HOME_CUSTOM_MAIN_PAUSE_LEFT_LEVEL_Y : PUMP_HOME_CUSTOM_MAIN_LEFT_LEVEL_Y,
         PUMP_HOME_MAIN_LEFT_LEVEL_W, LV_TEXT_ALIGN_RIGHT, &info->main.shown_left_level,
-        info->force_update != 0);
+        info->force_update != 0 || info->main.shown_paused != (paused ? 1 : 0));
     pump_home_main_level_label_update(&info->main.right_level, pump_home_page_parent_get(info), "R",
-        right_level, PUMP_HOME_MAIN_RIGHT_LEVEL_X, PUMP_HOME_CUSTOM_MAIN_RIGHT_LEVEL_Y,
+        right_level, PUMP_HOME_MAIN_RIGHT_LEVEL_X,
+        paused ? PUMP_HOME_CUSTOM_MAIN_PAUSE_RIGHT_LEVEL_Y : PUMP_HOME_CUSTOM_MAIN_RIGHT_LEVEL_Y,
         PUMP_HOME_MAIN_RIGHT_LEVEL_W, LV_TEXT_ALIGN_LEFT, &info->main.shown_right_level,
-        info->force_update != 0);
+        info->force_update != 0 || info->main.shown_paused != (paused ? 1 : 0));
 #if IS_SUPPORT_PUMP_SEAL_RESULT_TIP
     pump_home_main_wear_result_update(info, proc);
 #endif

@@ -28,12 +28,12 @@
 #define HOME_MAIN_RIGHT_LEVEL_X                         (227 + 4)
 
 /* custom */
-#define HOME_CUSTOM_MAIN_MODE_TITLE_Y                   (HOME_MAIN_MODE_TITLE_Y - 14)
-#define HOME_CUSTOM_MAIN_HINT_Y                         (HOME_MAIN_HINT_Y + 83)
-#define HOME_CUSTOM_MAIN_STATUS_Y                       (HOME_MAIN_STATUS_Y - 16)
-#define HOME_CUSTOM_MAIN_SPEED_ICON_Y                   (HOME_MAIN_SPEED_ICON_Y - 18)
-#define HOME_CUSTOM_MAIN_SPEED_VALUE_Y                  (HOME_MAIN_SPEED_VALUE_Y - 18)
-#define HOME_CUSTOM_MAIN_LEFT_LEVEL_Y                   (HOME_MAIN_LEFT_LEVEL_Y - 18)
+#define HOME_CUSTOM_MAIN_MODE_TITLE_Y                   (52)
+#define HOME_CUSTOM_MAIN_HINT_Y                         (293)
+#define HOME_CUSTOM_MAIN_STATUS_Y                       (18)
+#define HOME_CUSTOM_MAIN_SPEED_ICON_Y                   (251)
+#define HOME_CUSTOM_MAIN_SPEED_VALUE_Y                  (253)
+#define HOME_CUSTOM_MAIN_LEFT_LEVEL_Y                   (253)
 #define HOME_CUSTOM_MAIN_RIGHT_LEVEL_Y                  (HOME_CUSTOM_MAIN_LEFT_LEVEL_Y)
 
 /* common */
