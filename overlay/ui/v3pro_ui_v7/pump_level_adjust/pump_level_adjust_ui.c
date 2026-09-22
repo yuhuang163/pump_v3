@@ -29,6 +29,18 @@
 
 #define PUMP_LEVEL_VALUE_Y                          (127)
 #define PUMP_LEVEL_VALUE_COLOR                      (0xFFFFFF)
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+#define PUMP_LEVEL_VALUE_BOX_X                      (126)
+#define PUMP_LEVEL_VALUE_BOX_Y                      (100)
+#define PUMP_LEVEL_VALUE_BOX_W                      (65)
+#define PUMP_LEVEL_VALUE_BOX_H                      (69)
+#define PUMP_LEVEL_RANGE_BOX_X                      (195)
+#define PUMP_LEVEL_RANGE_BOX_Y                      (133)
+#define PUMP_LEVEL_RANGE_BOX_W                      (40)
+#define PUMP_LEVEL_RANGE_BOX_H                      (34)
+#define PUMP_LEVEL_RANGE_COLOR                      (0x999999)
+#define PUMP_LEVEL_RANGE_TEXT_FMT                   "/ %u"
+#endif
 
 #define PUMP_LEVEL_DIR_COLOR                        (0x999999)
 
@@ -63,6 +75,10 @@ typedef struct {
     ui_manager_context_t *ui;
     ui_progress_arc_info_t arc;
     lv_obj_t *value_label;
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    lv_obj_t *range_label;
+    uint8_t shown_level_max;
+#endif
     lv_obj_t *dir_label;
     lv_obj_t *time_label;
     lv_obj_t *status_icon;
@@ -226,26 +242,77 @@ static void pump_level_arc_update(ui_proc_pump_t *proc, uint8_t level_max,
     ui_progress_arc_update(&level_info->arc, level_info->root, &style,
         done_sweep, level_info->force_update || snap);
 }
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+static void pump_level_fixed_label_apply(lv_obj_t *label, lv_coord_t x, lv_coord_t y,
+    lv_coord_t w, lv_coord_t h, const lv_font_t *font, lv_text_align_t align)
+{
+    lv_coord_t line_h;
+    lv_coord_t pad_top = 0;
+
+    lv_obj_set_size(label, w, h);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
+    lv_obj_set_style_pad_all(label, 0, 0);
+    lv_obj_set_style_text_align(label, align, 0);
+    line_h = lv_font_get_line_height(font);
+    if (line_h > 0 && line_h < h) {
+        pad_top = (lv_coord_t)((h - line_h) / 2);
+    }
+    lv_obj_set_style_pad_top(label, pad_top, 0);
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, x, y);
+}
+#endif
+
 static void pump_level_value_update(ui_proc_pump_t *proc)
 {
     char num_buf[8] = {0};
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    char range_buf[8] = {0};
+#endif
 
     if (level_info->value_label == NULL || !lv_obj_is_valid(level_info->value_label)) {
         level_info->value_label = lv_label_create(level_info->root);
         EXCEPTION_CHECK_VOID(level_info->value_label);
         level_info->shown_level = 0xFF;
     }
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    if (level_info->range_label == NULL || !lv_obj_is_valid(level_info->range_label)) {
+        level_info->range_label = lv_label_create(level_info->root);
+        EXCEPTION_CHECK_VOID(level_info->range_label);
+        level_info->shown_level_max = 0xFF;
+    }
+    if (level_info->force_update == false &&
+        level_info->shown_level == proc->level_value &&
+        level_info->shown_level_max == level_info->level_max) {
+        return;
+    }
+#else
     if (level_info->force_update == false && level_info->shown_level == proc->level_value) {
         return;
     }
+#endif
 
     snprintf(num_buf, sizeof(num_buf), "%u", proc->level_value);
     lv_label_set_text(level_info->value_label, num_buf);
     lv_obj_set_style_text_color(level_info->value_label,
         lv_color_hex(PUMP_LEVEL_VALUE_COLOR), 0);
     lv_obj_set_style_text_font(level_info->value_label, UI_FONT_NUM_LG, 0);
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    snprintf(range_buf, sizeof(range_buf), PUMP_LEVEL_RANGE_TEXT_FMT, level_info->level_max);
+    lv_label_set_text(level_info->range_label, range_buf);
+    lv_obj_set_style_text_color(level_info->range_label,
+        lv_color_hex(PUMP_LEVEL_RANGE_COLOR), 0);
+    lv_obj_set_style_text_font(level_info->range_label, &lv_font_aeonik_soft_26_medium, 0);
+    pump_level_fixed_label_apply(level_info->value_label, PUMP_LEVEL_VALUE_BOX_X,
+        PUMP_LEVEL_VALUE_BOX_Y, PUMP_LEVEL_VALUE_BOX_W, PUMP_LEVEL_VALUE_BOX_H, UI_FONT_NUM_LG,
+        LV_TEXT_ALIGN_RIGHT);
+    pump_level_fixed_label_apply(level_info->range_label, PUMP_LEVEL_RANGE_BOX_X,
+        PUMP_LEVEL_RANGE_BOX_Y, PUMP_LEVEL_RANGE_BOX_W, PUMP_LEVEL_RANGE_BOX_H,
+        &lv_font_aeonik_soft_26_medium, LV_TEXT_ALIGN_LEFT);
+    level_info->shown_level_max = level_info->level_max;
+#else
     lv_obj_set_style_text_align(level_info->value_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(level_info->value_label, LV_ALIGN_TOP_MID, 0, PUMP_LEVEL_VALUE_Y);
+#endif
     level_info->shown_level = proc->level_value;
 }
 
@@ -666,6 +733,9 @@ void ui_display_pump_level_adjust_prepare(ui_manager_context_t *thiz)
     level_info->ui = thiz;
     level_info->force_update = true;
     level_info->shown_level = 0xFF;
+#if IS_SUPPORT_LEVEL_ADJUST_RANGE_TEXT
+    level_info->shown_level_max = 0xFF;
+#endif
     level_info->shown_side = 0xFF;
     level_info->shown_over_limit = 0xFF;
     level_info->shown_mode_switch = 0xFF;
