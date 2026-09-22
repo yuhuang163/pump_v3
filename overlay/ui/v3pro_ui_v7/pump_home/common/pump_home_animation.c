@@ -40,8 +40,8 @@ static bool pump_home_animation_res_get(const pump_home_base_ui_info_t *info, ui
     if (PUMP_HOME_UI_IS_CUSTOM_THEME(info)) {
         switch (mode_type) {
             case PUMP_MODE_STIMULATION:
-                *start_id = CUSTOM_RES_ID_STIMULATION_ANIM_START;
-                *end_id = CUSTOM_RES_ID_STIMULATION_ANIM_END;
+                *start_id = CUSTOM_RES_ID_EXPRESSION_ANIM_START;
+                *end_id = CUSTOM_RES_ID_EXPRESSION_ANIM_END;
                 *res_type = PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
                 return true;
             case PUMP_MODE_LACTATION:
@@ -50,13 +50,13 @@ static bool pump_home_animation_res_get(const pump_home_base_ui_info_t *info, ui
                 *res_type = PUMP_HOME_BASE_ANIM_EXPRESSION_WAVE;
                 return true;
             case PUMP_MODE_MIX:
-                *start_id = CUSTOM_RES_ID_STIMULATION_ANIM_START;
-                *end_id = CUSTOM_RES_ID_STIMULATION_ANIM_END;
+                *start_id = CUSTOM_RES_ID_EXPRESSION_ANIM_START;
+                *end_id = CUSTOM_RES_ID_EXPRESSION_ANIM_END;
                 *res_type = PUMP_HOME_BASE_ANIM_MIX_WAVE;
                 return true;
             case PUMP_MODE_IDLE:
-                *start_id = CUSTOM_RES_ID_STIMULATION_ANIM_START;
-                *end_id = CUSTOM_RES_ID_STIMULATION_ANIM_END;
+                *start_id = CUSTOM_RES_ID_EXPRESSION_ANIM_START;
+                *end_id = CUSTOM_RES_ID_EXPRESSION_ANIM_END;
                 *res_type = PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
                 return true;
             default:
@@ -163,8 +163,9 @@ static bool pump_home_animation_target_get(const pump_home_base_ui_info_t *info,
 
 static void pump_home_animation_wave_align(pump_home_base_ui_info_t *info)
 {
-    const lv_coord_t wave_y = PUMP_HOME_UI_IS_CUSTOM_THEME(info) ?
-        PUMP_HOME_CUSTOM_MAIN_WAVE_Y : PUMP_HOME_MAIN_WAVE_Y;
+    const bool custom = PUMP_HOME_UI_IS_CUSTOM_THEME(info);
+    const lv_coord_t wave_y = custom ? PUMP_HOME_CUSTOM_MAIN_WAVE_Y : PUMP_HOME_MAIN_WAVE_Y;
+    lv_coord_t x = 0;
     lv_coord_t y = wave_y;
     lv_opa_t opa = LV_OPA_COVER;
 
@@ -173,11 +174,13 @@ static void pump_home_animation_wave_align(pump_home_base_ui_info_t *info)
     }
     if (pump_home_animation_is_seal(&info->animation)) {
         y = PUMP_HOME_SEAL_ANIM_Y;
-    } else if (info->animation.anim_play_state != 0 && !PUMP_HOME_UI_IS_CUSTOM_THEME(info)) {
+    } else if (custom) {
+        x = PUMP_HOME_CUSTOM_MAIN_WAVE_X;
+    } else if (info->animation.anim_play_state != 0) {
         y = (lv_coord_t)(wave_y - PUMP_HOME_WAVE_PAUSE_OFFSET_Y);
         opa = LV_OPA_60;
     }
-    lv_obj_align(info->animation.wave, LV_ALIGN_TOP_MID, 0, y);
+    lv_obj_align(info->animation.wave, LV_ALIGN_TOP_MID, x, y);
     lv_obj_set_style_opa(info->animation.wave, opa, 0);
 }
 
