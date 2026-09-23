@@ -23,12 +23,15 @@
 #define CHANNEL_NUM			(2)		/* 2 channels - left and right */
 #define CHANNEL_0			(0)		/* 0: left */
 #define CHANNEL_1			(1)		/* 1: right */
+#define TEMPLATEWAVE_NUM	(4)
 
 /* define modes */
 #define MODE_STIMULATION	(0)
 #define MODE_EXPRESSION		(1)
 #define MODE_MIXED			(2)
 
+#define PUMP_WAVE_NUM       (6)
+#define PUMP_WAVE_LEN       (40)
 
 #define INVALID_TARGET_PRESSURE_REF    (-255.0f) /* 无效的目标压力参考值 */
 #define RAW_PUMP_POST_TAIL_POINTS 3 /* 每段结束后多采的原始压力点数（含 active->inactive 当前点） */
@@ -273,11 +276,25 @@ typedef struct _FEATURE_INFO_
 	float			fFilteredSegMinPressure; /* 与 fRawSegMinPressure 同泵段、同拍滤波的段内最小 */
 	float			fFilteredSegRunningMin; /* 段内滤波最小（内部） */
 
+	unsigned char   uPump1delay;
 	unsigned short	uPump1LastTime;
 	float           fRawValleyDownBase;
 	float           fRawValleyUpBase;
 	float           fRawWearValleyBase;
 	float			fRawValleyBuff[11];         /* 泵周期 raw 段最小，左移 6 槽，不复用 fMinDataBuff */
+
+	unsigned char   uPumpWaveLastIndex;
+	unsigned char   uPumpWaveIndex;
+	unsigned char   uPumpWaveNumber;
+	unsigned char   uPumpWaveWidth;
+	int 			iPwmPumWaveBase;              	/* 累计补偿量 */
+	int 			iPwmPumWaveFix;              	/* 累计补偿量 */
+	unsigned char   uPumpFiltWidth[PUMP_WAVE_NUM];
+
+	unsigned char   fPumpFiltDownCount;
+	float           fPumpFiltChange;
+	float           fPumpFiltWave[PUMP_WAVE_NUM][PUMP_WAVE_LEN + 1];
+	float           fPumpFiltWaveFeature[3][PUMP_WAVE_LEN + 1];
 
 	unsigned char	uLeakValleyCount;           /* 0~6 */
 	unsigned char	uLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
