@@ -2412,36 +2412,33 @@ void GetWearDetectionResult(unsigned char* uWearStatus, unsigned char* uLeakStat
 */
 void GetCompensationStatus(unsigned char* uCompsStatus, int* iDelta_pwm)
 {
-	uCompsStatus[0] = tFeatureInfo[0].uCompsStatus;
-	uCompsStatus[1] = tFeatureInfo[1].uCompsStatus;
-
 	/* 对于大漏气以上，不反馈补偿 */
-	/*
-	if (tFeatureInfo[0].uLeakStatus == 3 || tFeatureInfo[0].uLeakStatus == 0)
+	for (unsigned char i = 0; i < CHANNEL_NUM; i ++)
 	{
-		iDelta_pwm[0] = 0;
+		if ((tFeatureInfo[i].uPumpState == SUCTION_STATUS_GENERATE) ||
+			(tFeatureInfo[i].uPumpState == SUCTION_STATUS_HOLD))
+		{
+			iDelta_pwm[i] = tFeatureInfo[i].iPwmPumWaveFix;
+			if (tFeatureInfo[i].iPwmPumWaveFix < 0)
+			{
+				tFeatureInfo[i].uCompsStatus = 2;
+			}
+			else if (tFeatureInfo[i].iPwmPumWaveFix > 0)
+			{
+				tFeatureInfo[i].uCompsStatus = 1;
+			}
+			else
+			{
+				tFeatureInfo[i].uCompsStatus = 0;
+			}
+		}
+		else
+		{
+			tFeatureInfo[i].uCompsStatus = 0;
+			iDelta_pwm[i] = 0;
+		}
+		uCompsStatus[i] = tFeatureInfo[i].uCompsStatus;
 	}
-	else
-	*/
-	if ((tFeatureInfo[0].uPumpState == SUCTION_STATUS_GENERATE) ||
-		(tFeatureInfo[0].uPumpState == SUCTION_STATUS_HOLD))
-		iDelta_pwm[0] = tFeatureInfo[0].iPwmPumWaveFix;
-	else
-		iDelta_pwm[0] = 0;
-
-	/*
-	if (tFeatureInfo[1].uLeakStatus == 3 || tFeatureInfo[1].uLeakStatus == 0)
-	{
-		iDelta_pwm[1] = 0;
-	}
-	else 
-	*/
-
-	if ((tFeatureInfo[1].uPumpState == SUCTION_STATUS_GENERATE) ||
-		(tFeatureInfo[1].uPumpState == SUCTION_STATUS_HOLD))
-		iDelta_pwm[1] = tFeatureInfo[1].iPwmPumWaveFix;
-	else
-		iDelta_pwm[1] = 0;
 }
 
 
