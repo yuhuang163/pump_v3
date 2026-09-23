@@ -866,6 +866,9 @@ static void breast_pump_work_thread(const void *args)
     CREATE_TIMER(&ctx->priv.breast_pump_work_timer, "breast_pump_work", ctx,
          OS_TIMER_PERIODIC, breast_pump_work_timer_cb);
     START_TIMER(ctx->priv.breast_pump_work_timer, PUMP_IDLE_STEP_TIME_MS);
+    if (ctx->priv.motor) {
+        ctx->priv.motor->change_motor_mode(m_info->mode, false);
+    }
     do {
         MSG_QUEUE_RECV(thd->msg_id, &msg, OS_WAIT_FOREVER);
         if (m_info->do_work == 1) {
