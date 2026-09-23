@@ -228,6 +228,10 @@ static void charge_power_control(bool enable)
         LOGE("charge no ready, ignore");
         return;
     }
+
+    if (enable == false) {
+        s_charging_current = 0; 
+    }
     GPIO_PIN_CTRL(CHARGE_POWER_PIN, enable ? 0 : 1);
     is_charging = enable;
     LOG_PBUS("charge_power_control: %d", enable);
@@ -258,6 +262,39 @@ static int charge_device_is_ready(void)
     return BSP_ERROR;
 }
 
+
+static int charge_ibat_config_impl(uint16_t current, bool force)
+{
+    uint8_t reg_data = current / BATT_CURRENT_LIMIT_SCALE;
+    uint8_t read_reg_data = 0;
+    int ret = 0;
+    ret = charge_read_nbyte(CHARGE_IBAT_CHG_REG, &read_reg_data, 1);
+    if (ret != BSP_OK) {
+        LOGE("read ibat config failed, ret: %d", ret);
+        goto SET_IBAT;
+    }
+
+    if (!force && read_reg_data == reg_data && s_charging_current == current) {
+        LOG_PBUS("set ibat: %dmA, config: %d/%d, same as current, ignore",
+             current, reg_data, read_reg_data);
+        return BSP_OK;
+    }
+
+SET_IBAT:    
+    ret = charge_write_nbyte(CHARGE_IBAT_CHG_REG, &reg_data, 1);
+    if (ret == BSP_OK) {
+        s_charging_current = current;
+    }
+    LOG_PBUS("set ibat: %dmA, config: %d/%d, ret: %d", current, reg_data, read_reg_data, ret);
+
+    return ret;
+}
+
+static int charge_ibat_config(uint16_t current)
+{
+    return charge_ibat_config_impl(current, false);
+}
+
 static int charge_vbat_config(void)
 {
     uint8_t reg_data = 0;
@@ -268,40 +305,16 @@ static int charge_vbat_config(void)
     }
     /// 设置充电电流限制
 #if IS_SUPPORT_CHARGE_CURRENT_ADJUST
-    s_charging_current = BATT_INPUT_CURRENT_LIMIT;
+    charge_ibat_config_impl(BATT_INPUT_CURRENT_LIMIT, true);
 #else
-    s_charging_current = 1500;
+    charge_ibat_config_impl(1500, true);
 #endif
-    reg_data = s_charging_current / BATT_CURRENT_LIMIT_SCALE; /// 1000mA
-    if (charge_write_nbyte(CHARGE_IBAT_CHG_REG, &reg_data, 1) != BSP_OK) {
-        return BSP_ERROR;
-    }
-    LOG_PBUS("charge_vbat_config: %dmA", s_charging_current);
     /// 设置放电电流限制
     reg_data = BATT_OUTPUT_CURRENT_LIMIT / BATT_CURRENT_LIMIT_SCALE; /// 3000mA
     if (charge_write_nbyte(CHARGE_IBAT_DCHG_REG, &reg_data, 1) != BSP_OK) {
         return BSP_ERROR;
     }
     return BSP_OK;
-}
-
-static int charge_ibat_config_impl(uint16_t current, bool force)
-{
-    uint8_t reg_data = current / BATT_CURRENT_LIMIT_SCALE;
-    if (!force && s_charging_current == current) {
-        return BSP_OK;
-    }
-    int ret = charge_write_nbyte(CHARGE_IBAT_CHG_REG, &reg_data, 1);
-    if (ret == BSP_OK) {
-        s_charging_current = current;
-    }
-    LOG_PBUS("charge_ibat_config: %dmA, ret: %d", current, ret);
-    return ret;
-}
-
-static int charge_ibat_config(uint16_t current)
-{
-    return charge_ibat_config_impl(current, false);
 }
 
 static int charge_vin_config(void)
@@ -412,6 +425,12 @@ static int charge_status_poll(charge_chip_status_t *status)
     data_ptr += 2;
     status->ntc_resistance  = CHARGE_GET_10BIT_DATA(data_ptr) * NTC_VOLTAGE_SCALE / NTC_CURRENT_COEFF;
     status->status = ((reg_data[10] & 0xFFFF) << 8) | reg_data[11];
+    ret = charge_read_nbyte(CHARGE_IBAT_CHG_REG, &status->ibat_config, 1);
+    if (ret != BSP_OK) {
+        LOGE("charge ibat config poll failed, ret: %d", ret);
+        return ret;
+    }
+    status->charge_control = hal_gpio_pin_get_val(CHARGE_POWER_PIN) == 0 ? true : false;
     // BSP_LOG_HEX("charge status", reg_data, 12);
     return BSP_OK;
 }
@@ -707,11 +726,12 @@ static void charge_device_thread(void *arg)
 #endif
         if (get_timestamp_ms(log_timer) > 2000) {
             log_timer = get_timestamp();
-            BSP_LOG("charge chip", "vbus:%dmV, ibus:%dmA, vbat:%d(%d/%d)mV, ibat:%dmA, ntc:%.2fKOhm, temp:%.1f(%.1f)%d, status:0x%04X, pd:%d",
+            BSP_LOG("charge chip", "vbus:%dmV, ibus:%dmA, vbat:%d/%dmV, ibat:%dmA, ntc:%.2fKOhm, temp:%.1f(%.1f)%d, status:%04X, pd:%d, cfg:%d/%d",
                     s_charge_status.vbus, s_charge_status.ibus, 
-                    s_charge_status.vbat, s_charge_status.vbat_raw, s_charge_status.vbat_comp, s_charge_status.ibat,
+                    s_charge_status.vbat, s_charge_status.vbat_raw, s_charge_status.ibat,
                     s_charge_status.ntc_resistance, s_charge_status.temp, s_charge_status.temp_raw, s_charge_temp_status,
-                    s_charge_status.status, get_charge_pd_version());
+                    s_charge_status.status, get_charge_pd_version(), 
+                    s_charge_status.charge_control, s_charge_status.ibat_config);
         }
 #endif
     }
@@ -939,7 +959,7 @@ void charge_current_adjust(uint16_t current)
         return;
     }
 #if IS_SUPPORT_DEVICE_CHARGE 
-    charge_ibat_config(current);
+    charge_ibat_config_impl(current, true);
 #endif
 }
 

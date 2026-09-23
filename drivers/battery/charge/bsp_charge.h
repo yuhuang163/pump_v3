@@ -724,10 +724,12 @@ typedef struct {
     uint16_t ibat; /// 电池电流 mA
     uint16_t status; /// 状态寄存器
     float ntc_resistance; /// ntc电阻值 KΩ
-    uint8_t charge_full; /// 满电状态
-    uint8_t plug_in; /// 插拔状态
     float temp; /// 温度℃（滑动平均值）
     float temp_raw; /// 温度实时值℃（未滤波）
+    uint8_t charge_full; /// 满电状态
+    uint8_t plug_in; /// 插拔状态
+    uint8_t ibat_config; /// 电池电流配置
+    uint8_t charge_control; /// 充电控制
 } charge_chip_status_t;
 
 /// 输入电流限制（IBUS_SCALE_2=12.5mA, IBUS_SCALE_1=6.25mA）
