@@ -32,7 +32,7 @@ typedef enum {
 *****************************************************************************************
 */
 static bool s_charge_pd_onoff = false;
-static bool s_charge_pd_isready = false;
+static bool s_charge_pd_is_ready = false;
 static uint16_t s_charge_pd_version = 0;
 static uint16_t s_charge_pd_abnormal_count = 0;
 
@@ -73,7 +73,7 @@ static int charge_pd_write_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 
     s_charge_pd_abnormal_count++;
     if (s_charge_pd_abnormal_count > CHARGE_PD_ABNORMAL_MAX_COUNT) {
-        s_charge_pd_isready = false;
+        s_charge_pd_is_ready = false;
     } else {
         LOG_PBUS("charge pd i2c write abnormal count: %d", s_charge_pd_abnormal_count);
     }
@@ -109,7 +109,7 @@ static int charge_pd_read_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
 
     s_charge_pd_abnormal_count++;
     if (s_charge_pd_abnormal_count > CHARGE_PD_ABNORMAL_MAX_COUNT) {
-        s_charge_pd_isready = false;
+        s_charge_pd_is_ready = false;
     } else {
         LOG_PBUS("charge pd i2c read abnormal count: %d", s_charge_pd_abnormal_count);
     }
@@ -117,18 +117,12 @@ static int charge_pd_read_nbyte(uint8_t reg_addr, uint8_t *data, uint16_t len)
     return BSP_ERROR;
 }
 
-static int charge_pd_device_is_ready(void)
+static bool charge_pd_status_get(uint8_t *status)
 {
-    uint8_t status = 0;
-    if (charge_pd_read_nbyte(CHARGE_PD_STATUS_REG, &status, 1) != BSP_OK) {
-        return BSP_ERROR;
+    if (charge_pd_read_nbyte(CHARGE_PD_STATUS_REG, status, 1) != BSP_OK) {
+        return false;
     }
-
-    if (status != 0) {
-        return BSP_OK;
-    }
-
-    return BSP_ERROR;
+    return true;    
 }
 
 static int charge_pd_voltage_config(charge_pd_voltage_e voltage)
@@ -153,11 +147,8 @@ static int charge_pd_version_get(void)
 
 static bool charge_pd_power_is_ready(void)
 {
-    if (charge_pd_device_is_ready() != BSP_OK) {
-        // LOG_PBUS("charge pd device not ready");
-        return false;
-    }
     int version = charge_pd_version_get();
+    /// version 小于 2 不支持
     if (version < CHARGE_PD_VERSION_2) {
         // LOG_PBUS("charge pd version too low, version: %d", version);
         return false;
@@ -189,31 +180,42 @@ int bsp_charge_pd_is_ready(void)
     if (!s_charge_pd_onoff) {
         return true;
     }
-    return s_charge_pd_isready;
+    return s_charge_pd_is_ready;
 }
 
 void charge_pd_status_poll(bool plug_in_debounce)
 {
     static uint8_t debounce_count = 0;
     if (hal_gpio_pin_get_val(CHARGE_PD_INT_PIN) == 0) {
+        /// 适配器未插入
         if (s_charge_pd_onoff == false) {
             bsp_i2c_init(CHARGE_PD_I2C_ID);
             s_charge_pd_onoff = true;
-            s_charge_pd_isready = true;
+            s_charge_pd_is_ready = false;
             s_charge_pd_abnormal_count = 0;
+            s_charge_pd_version = 0;
             debounce_count = 0;
             LOG_PBUS("%s", "charge pd plug in");
             return;
         }
 
-        if (charge_pd_power_is_ready()) {
-            charge_event_internal_cb(CHARGE_EVENT_PLUG_IN);
-        } else {
+        /// 适配器未准备好
+        uint8_t status = 0;
+        s_charge_pd_is_ready = charge_pd_status_get(&status);
+        if (s_charge_pd_is_ready == false) {
             if (debounce_count < CHARGE_PD_ABNORMAL_MAX_COUNT && plug_in_debounce) {
                 debounce_count++;
-            } else{
+            } else {
                 charge_event_internal_cb(CHARGE_EVENT_ADAPTER_MISMATCH);
             }
+            return;
+        }
+
+        /// status 为 0 未激活
+        if (status != 0 && charge_pd_power_is_ready()) {
+            charge_event_internal_cb(CHARGE_EVENT_PLUG_IN); /// 适配器准备好
+        } else {
+            charge_event_internal_cb(CHARGE_EVENT_ADAPTER_MISMATCH); /// 适配器不匹配
         }
     } else {
         if (s_charge_pd_onoff == true) {
@@ -221,8 +223,9 @@ void charge_pd_status_poll(bool plug_in_debounce)
             charge_event_internal_cb(CHARGE_EVENT_PLUG_OUT);
             charge_pd_gpio_init();
             s_charge_pd_onoff = false;
-            s_charge_pd_isready = false;
+            s_charge_pd_is_ready = false;
             s_charge_pd_abnormal_count = 0;
+            s_charge_pd_version = 0;
             LOG_PBUS("%s", "charge pd plug out");
         }
     }
