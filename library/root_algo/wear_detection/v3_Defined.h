@@ -15,7 +15,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.2.0"
+#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.2.4"
 
 /* hardware parameters */
 #define SAMPLE_RATE			(50)
@@ -291,7 +291,8 @@ typedef struct _FEATURE_INFO_
 	int 			iPwmPumWaveFix;              	/* 累计补偿量 */
 	unsigned char   uPumpFiltWidth[PUMP_WAVE_NUM];
 
-	unsigned char   fPumpFiltDownCount;
+	unsigned char   uPumpFiltUpCount;
+	unsigned char   uPumpFiltDownCount;
 	float           fPumpFiltChange;
 	float           fPumpFiltWave[PUMP_WAVE_NUM][PUMP_WAVE_LEN + 1];
 	float           fPumpFiltWaveFeature[3][PUMP_WAVE_LEN + 1];
