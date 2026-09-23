@@ -23,6 +23,9 @@ extern "C" {
 
 /// 长按开机引导页静默超时后直接关机
 #define POWER_ON_GUIDE_HOLD_IDLE_TIMEOUT_MS         (5000)
+/// PD检查重试次数.
+#define POWER_ON_GUIDE_PD_CHECK_RETRY_MAX           (3)
+#define POWER_ON_GUIDE_PD_CHECK_RETRY_DELAY_MS      (500)
 
 /// 开机引导 UI动作枚举
 typedef enum {
@@ -64,6 +67,7 @@ typedef struct {
     uint32_t last_progress_ani_time; /// 上次动画进度时间.
     uint16_t current_ui_type; /// 当前UI类型. power_on_guide_ui_type_e
     uint8_t power_on_hold_holding; /// 长按开机引导：电源键按下中.
+    uint8_t pd_check_retry_count; /// PD检查重试次数.
     uint8_t rsv[7];
 } ui_proc_power_on_guide_t;
 

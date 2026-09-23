@@ -33,6 +33,7 @@ static void power_on_guide_hold_direct_power_off(void)
         return;
     }
     LOG_WM("==========POWER_ON_HOLD IDLE POWER_OFF==========");
+    msleep(50);
     for (uint8_t i = 0; i < 3; i++) {
         power_dev->ioctl(power_dev, OP_CODE_POWER_CONTROL, (void *)arg1);
         msleep(200);
@@ -48,31 +49,6 @@ static void power_on_hold_goto_power_off_charge_screen(ui_proc_power_on_guide_t 
     msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
     msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
     proc->wm->dispatch_new_window_args(proc->wm, &msg);
-}
-
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-static bool power_on_guide_hold_is_charging(ui_proc_power_on_guide_t *proc)
-{
-    return proc->battery && BATTERY_IS_CHARGING(proc->battery->get_charge_status());
-}
-#endif
-
-static int power_on_hold_exit_by_charge_state(ui_proc_power_on_guide_t *proc)
-{
-#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
-    if (power_on_guide_hold_is_charging(proc)) {
-        LOG_WM("charging, goto power off charge screen");
-        power_on_hold_goto_power_off_charge_screen(proc);
-        return 1;
-    }
-#endif
-    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
-        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
-        LOG_WM("adapter mismatch, goto power off charge screen");
-        power_on_hold_goto_power_off_charge_screen(proc);
-        return 1;
-    }
-    return 0;
 }
 
 static void power_on_hold_complete_cb(hdr_post_args_t *args)
@@ -98,16 +74,46 @@ static void power_on_hold_idle_power_off_cb(hdr_post_args_t *args)
         LOG_WM("wm not running, ignore idle power off.");
         return;
     }
+
     if (proc->current_ui_type != POWER_ON_GUIDE_UI_TYPE_POWER_ON_HOLD) {
         return;
     }
+
     if (proc->power_on_hold_holding) {
         LOG_WM("holding power on, ignore idle power off.");
         return;
     }
-    if (power_on_hold_exit_by_charge_state(proc)) {
+
+#if (ROOT_PRODUCT_ID == ROOT_PRODUCT_V3PRO_ID)
+    if (proc->battery && BATTERY_IS_CHARGING(proc->battery->get_charge_status())) {
+        LOG_WM("charging, goto power off charge screen");
+        power_on_hold_goto_power_off_charge_screen(proc);
         return;
     }
+
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
+        LOG_WM("adapter mismatch, goto power off charge screen");
+        power_on_hold_goto_power_off_charge_screen(proc);
+        return;
+    }
+
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 && 
+        proc->pd_check_retry_count < POWER_ON_GUIDE_PD_CHECK_RETRY_MAX) {
+        proc->pd_check_retry_count++;
+        LOG_WM("pd check retry:%d, charge status:%d", proc->pd_check_retry_count, proc->battery->get_charge_status());
+        POST_WM_TASK_HANDLER_DELAYED_ARG1(power_on_hold_idle_power_off_cb, POWER_ON_GUIDE_PD_CHECK_RETRY_DELAY_MS,
+            proc, POWER_ON_HOLD_IDLE_TASK_NAME);
+        return;
+    }
+#else
+    if (proc->battery && proc->battery->is_vbus_plug_in() > 0 &&
+        proc->battery->get_charge_status() == CHARGE_STATE_ERROR) {
+        LOG_WM("adapter mismatch, goto power off charge screen");
+        power_on_hold_goto_power_off_charge_screen(proc);
+        return ;
+    }
+#endif
     LOG_WM("power on hold idle timeout, direct power off.");
     power_on_guide_hold_direct_power_off();
 }
@@ -197,6 +203,7 @@ void show_power_on_guide_power_on_hold_ui(ui_proc_power_on_guide_t *proc)
     ui->hook->ui_animation_play_init(ui, play_info);
     proc->current_ui_type = POWER_ON_GUIDE_UI_TYPE_POWER_ON_HOLD;
     proc->power_on_hold_holding = 0;
+    proc->pd_check_retry_count = 0;
     if (proc->led && proc->led->hook && proc->led->hook->set_ui_backlight_level_rate) {
         proc->led->hook->set_ui_backlight_level_rate(proc->led, IDLE_BRIGHTNESS_MAX_VALUE);
     }

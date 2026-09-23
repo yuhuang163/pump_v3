@@ -12,7 +12,7 @@
 */
 #define POWER_OFF_DELAY_TIME                    (1000 * 1)
 #define POWER_OFF_TASK_NAME                     "power_off_wm_task"
-#define POWER_OFF_VBUS_CHECK_RETRY_MAX          (3)
+#define POWER_OFF_VBUS_CHECK_RETRY_MAX          (5)
 #define POWER_OFF_VBUS_CHECK_DELAY_MS           (100)
 
 /*
