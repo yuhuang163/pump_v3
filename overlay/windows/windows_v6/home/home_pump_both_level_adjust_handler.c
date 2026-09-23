@@ -191,6 +191,19 @@ void show_home_both_level_adjust_ui(ui_proc_home_t *proc)
     ui->hook->ui_animation_play_init(ui, play_info);
 }
 
+static void home_pump_both_level_adjust_bury_report(ui_proc_home_t *proc, const pump_setting_t *before)
+{
+    data_bury_trigger_manual_adjust_t bury_adj = {
+        .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+        .evt_type = DATA_BURY_ADJUST_SUCTION_LEVEL,
+        .adjust_from_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(before->level[0], before->level[1]),
+        .adjust_to_desktop = DATA_BURY_PACK_SUCTION_LEVEL_DESKTOP(proc->setting.level[0], proc->setting.level[1]),
+    };
+    if (bury_adj.adjust_from_desktop != bury_adj.adjust_to_desktop) {
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
+    }
+}
+
 int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
 {
     uint8_t level_max;
@@ -199,6 +212,7 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
     uint8_t next_r;
     bool changed = false;
     int time_index;
+    pump_setting_t setting_before;
 
     EXCEPTION_CHECK_INT(proc && proc->pump);
     if (proc->current_ui_type != HOME_UI_TYPE_BOTH_LEVEL_ADJUST) {
@@ -208,6 +222,7 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
     home_sub_mode_switch_clear(proc);
     time_index = proc->sub_mode_time_index;
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    setting_before = proc->setting;
     level_max = home_level_adjust_max_get(proc->sub_mode_type);
     proc->level_adjust_time = get_timestamp();
 
@@ -225,6 +240,7 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         }
         if (changed) {
             WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+            home_pump_both_level_adjust_bury_report(proc, &setting_before);
         }
 #if HOME_LEVEL_OVER_LIMIT_ENABLE
         proc->both_level_inc_steps = 0;
@@ -279,6 +295,7 @@ int home_pump_both_level_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         proc->setting.level[0] = next_l;
         proc->setting.level[1] = next_r;
         WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
+        home_pump_both_level_adjust_bury_report(proc, &setting_before);
 #if HOME_LEVEL_OVER_LIMIT_ENABLE
         proc->both_level_inc_steps++;
 #endif

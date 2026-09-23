@@ -122,8 +122,20 @@ void home_mode_page_index_clamp(ui_proc_home_t *proc)
 int home_mode_set_handler(ui_proc_home_t *proc, uint8_t mode_index)
 {
     char *mode_name = "unknow";
+    int work_mode = 0;
+
     EXCEPTION_CHECK_INT(proc && proc->pump);
-    WRITE_PUMP_WORK_MODE(proc->pump, mode_index, true, 1);
+    READ_PUMP_WORK_MODE(proc->pump, work_mode);
+    if (work_mode != mode_index) {
+        data_bury_trigger_manual_adjust_t bury_adj = {
+            .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+            .evt_type = DATA_BURY_ADJUST_PUMP_MODE,
+            .adjust_from = work_mode,
+            .adjust_to = mode_index,
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
+        WRITE_PUMP_WORK_MODE(proc->pump, mode_index, true, 1);
+    }
     READ_PUMP_MODE_NAME(proc->pump, mode_index, &mode_name);
     LOG_UI("home set %s mode:%d", mode_name, mode_index);
     return 0;
