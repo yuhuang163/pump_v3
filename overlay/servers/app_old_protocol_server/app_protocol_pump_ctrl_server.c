@@ -1296,9 +1296,9 @@ static bool app_old_comm_check_if_guide_block_abnormal(void)
         return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);
     }
     ///漏气/未佩戴安全 UI 显示期间：阻断 App 控制
-    if (app_old_comm_check_if_seal_leak_block_abnormal()) {
-        return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);;
-    }
+    //if (app_old_comm_check_if_seal_leak_block_abnormal()) {
+    //    return app_old_comm_report_start_block_abnormal(OLD_PUBLISH_ABNORMAL_GUIDE_WINDOW);;
+    //}
     return false;
 }
 

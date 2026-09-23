@@ -134,6 +134,7 @@ void show_home_speed_adjust_ui(ui_proc_home_t *proc)
 int home_pump_speed_adjust_handler(ui_proc_home_t *proc, bool is_increase)
 {
     int time_index;
+    uint8_t speed_before;
 
     EXCEPTION_CHECK_INT(proc && proc->pump);
     if (proc->current_ui_type != HOME_UI_TYPE_SPEED_ADJUST) {
@@ -143,6 +144,7 @@ int home_pump_speed_adjust_handler(ui_proc_home_t *proc, bool is_increase)
     home_sub_mode_switch_clear(proc);
     time_index = proc->sub_mode_time_index;
     READ_PUMP_SETTING_INFO(proc->pump, time_index, proc->setting);
+    speed_before = proc->setting.speed;
     proc->level_adjust_time = get_timestamp();
     if (is_increase) {
         if (proc->setting.speed < (BREAST_PUMP_SPEED_MAX - 1)) {
@@ -152,6 +154,15 @@ int home_pump_speed_adjust_handler(ui_proc_home_t *proc, bool is_increase)
         if (proc->setting.speed > BREAST_PUMP_SPEED_LOW) {
             proc->setting.speed--;
         }
+    }
+    if (proc->setting.speed != speed_before) {
+        data_bury_trigger_manual_adjust_t bury_adj = {
+            .evt_source = DATA_BURY_EVT_SOURCE_LOCAL,
+            .evt_type = DATA_BURY_ADJUST_FREQUENCY,
+            .adjust_from = speed_before,
+            .adjust_to = proc->setting.speed,
+        };
+        DATA_BURY_EVENT_TRIGGER_VAL(DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST, 0, 0, &bury_adj);
     }
     WRITE_PUMP_SETTING_INFO(proc->pump, time_index, true, proc->setting);
     LOG_WM("home speed adjust -> %d time=%d", proc->setting.speed, time_index);
