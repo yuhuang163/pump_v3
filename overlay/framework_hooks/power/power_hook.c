@@ -64,6 +64,7 @@ static bool is_reboot_reason_need_bury(int reason)
         case SOFT_BOOT_TEST_SIGNALINGMODE:
         case SOFT_BOOT_TEST_NOSIGNALINGMODE:
         case SOFT_BOOT_CDC_OR_TEST_NORMAL:
+        case SOFT_BOOT_REBOOT:
             return false;
         default:
             return reason != CORE_BOOT_CAUSE_NULL;
