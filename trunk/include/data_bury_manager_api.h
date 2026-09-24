@@ -144,6 +144,9 @@ typedef struct {
 #define DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG            1
 #define DATA_BURY_BAT_CHARGE_END_REASON_ADAPTER_MISMATCH  2
 
+/** BAT_CHARGE_END trigger arg2：1=直接写离线环(cache)，0=走正常上报 */
+#define DATA_BURY_BAT_CHARGE_END_CACHE_IMMEDIATE          1
+
 #define DATA_BURY_FIRMWARE_UPDATE_RESULT_SUCCESS  0x00u
 #define DATA_BURY_FIRMWARE_UPDATE_RESULT_FAILURE  0x01u
 
@@ -166,7 +169,7 @@ typedef struct {
  *   arg2=RSSI(int8，低 8 位有效；0/0xFF 时埋点层自动采样)
  * DATA_BURY_TRIGGER_EVT_BLE_DISCONNECT：arg1=HCI 断开原因，arg2=保留
  * DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START：arg1/arg2 保留
- * DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END：arg1=结束原因（DATA_BURY_BAT_CHARGE_END_REASON_*），arg2 保留
+ * DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END：arg1=结束原因（DATA_BURY_BAT_CHARGE_END_REASON_*），arg2=1 直接写离线环(cache)
  * DATA_BURY_TRIGGER_EVT_PUMP_MODE_SWITCH：arg1=adjust_from，arg2=adjust_to，val=uint16_t* duration_sec(秒)
  * DATA_BURY_TRIGGER_EVT_PUMP_MANUAL_ADJUST：val=data_bury_trigger_manual_adjust_t*
  * DATA_BURY_TRIGGER_EVT_PUMP_USER_EVENT：val=data_bury_trigger_user_evt_t*

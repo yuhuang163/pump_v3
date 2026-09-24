@@ -90,6 +90,8 @@ static uint8_t data_bury_event_publish_id_to_cmd(servers_publish_data_id_e id)
         return APP_BURY_CMD_PUMP_SESSION_START;
     case SERVERS_PUBLISH_DATA_DATA_BURY_PUMP_SESSION_END:
         return APP_BURY_CMD_PUMP_SESSION_END;
+    case SERVERS_PUBLISH_DATA_DATA_BURY_BAT_CHARGE_END:
+        return APP_BURY_CMD_BAT_CHARGE_END;
     default:
         return 0u;
     }
@@ -710,7 +712,8 @@ static void data_bury_event_publish_charge_start(data_bury_manager_context_t *ct
                                     &evt, (uint16_t)sizeof(evt), 0u);
 }
 
-static void data_bury_event_publish_charge_end(data_bury_manager_context_t *ctx, int8_t end_reason)
+static void data_bury_event_publish_charge_end(data_bury_manager_context_t *ctx, int8_t end_reason,
+                                               uint8_t cache_immediate)
 {
     data_bury_evt_bat_charge_end_t evt = {0};
     data_bury_battery_charge_metrics_t metrics = data_bury_event_sample_battery_charge_metrics();
@@ -727,8 +730,13 @@ static void data_bury_event_publish_charge_end(data_bury_manager_context_t *ctx,
              (unsigned)evt.evt_timestamp, (unsigned)evt.end_battery_percent,
              (unsigned)evt.end_battery_voltage, (int)evt.end_battery_current,
              (int)evt.end_battery_temp, (int)evt.end_reason);
-    (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BAT_CHARGE_END,
-                                    &evt, (uint16_t)sizeof(evt), 0u);
+    if (cache_immediate) {
+        (void)data_bury_event_cache_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BAT_CHARGE_END,
+                                            &evt, (uint16_t)sizeof(evt));
+    } else {
+        (void)data_bury_event_publish(ctx, SERVERS_PUBLISH_DATA_DATA_BURY_BAT_CHARGE_END,
+                                      &evt, (uint16_t)sizeof(evt), 0u);
+    }
 }
 
 static void data_bury_event_ota_session_reset(void)
@@ -1001,11 +1009,15 @@ int data_bury_event_process_bat_charge_end(data_bury_manager_context_t *ctx,
                                                   const data_bury_trigger_args_t *args)
 {
     int8_t end_reason = DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG;
+    uint8_t cache_immediate = 0u;
 
     if (args && args->arg1 >= 0) {
         end_reason = (int8_t)args->arg1;
     }
-    data_bury_event_publish_charge_end(ctx, end_reason);
+    if (args && args->arg2 == DATA_BURY_BAT_CHARGE_END_CACHE_IMMEDIATE) {
+        cache_immediate = 1u;
+    }
+    data_bury_event_publish_charge_end(ctx, end_reason, cache_immediate);
     return 0;
 }
 

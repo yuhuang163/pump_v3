@@ -59,8 +59,8 @@ extern "C" {
 #define FACTORY_UART_THREAD_STACKSIZE                  (TASK_SIZE_DEFAULT * 2 + 0)
 /// 按键设备线程深度
 #define KEY_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 2 + 0)
-/// 充电设备线程深度
-#define CHARGE_DEVICE_THREAD_STACKSIZE                 (TASK_SIZE_DEFAULT * 2 + 0)
+/// 充电设备线程深度（charge_event_callback 内同步采样电量+写埋点环，需更大栈）
+#define CHARGE_DEVICE_THREAD_STACKSIZE                 (TASK_SIZE_DEFAULT * 4 + 0)
 /// led设备线程深度
 #define LED_DEVICE_THREAD_STACKSIZE                    (TASK_SIZE_DEFAULT * 2 + 0)
 /// lcd线程深度
