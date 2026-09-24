@@ -352,7 +352,7 @@ static int entry_event_cb(window_lift_cycle_e new_state,
         } else if (proc->extra.arg1 == PM_POWER_OFF_TYPE_AUTO) {
             DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_AUTO_SLEEP, 0); /// 自动休眠关机
         } else {
-            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_ABNORMAL, 0); /// 异常关机
+            ///DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_OFF, DATA_BURY_SHUTDOWN_ABNORMAL, 0); /// 异常关机
         }
         power_off_select_entry_ui(proc);
         set_app_power_on_flag(false);
