@@ -207,7 +207,7 @@ static int factory_reset(factory_reset_type_e is_reboot)
     time_system_t *ts = (time_system_t *)find_module(ID_MODULE_TIME);
     LOG_STORE("reset db data.");
     thiz->user_database_reset();
-    ts->sync_utc_time(PRODUCT_BUILD_TIMESTAMP); /// 重置系统时间 
+    // ts->sync_utc_time(PRODUCT_BUILD_TIMESTAMP); /// 重置系统时间 
     if (is_reboot == RESET_NOT_REBOOT) {
         LOG_STORE("reset done,but not reboot.");
         return 1;
