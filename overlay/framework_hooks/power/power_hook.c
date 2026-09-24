@@ -160,7 +160,7 @@ static void system_power_event_cb(hdr_post_args_t *args)
                     SEND_BROADCAST_ARGS1(ID_BROADCAST_SYS_STATE_CHANGE, SYSTEM_BROADCAST_POWER_ON);
                     DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_POWER_ON, 0, 0);
                     msg.union_body.extra.window_id = ID_WINDOW_POWER_OFF;
-                    msg.union_body.extra.arg1 = 0;
+                    msg.union_body.extra.arg1 = PM_POWER_OFF_TYPE_CHARGE;
                     LOG_PM("goto power off charge screen");
                     dispatch_window_when_wm_ready(wm, &msg);
                     return;
