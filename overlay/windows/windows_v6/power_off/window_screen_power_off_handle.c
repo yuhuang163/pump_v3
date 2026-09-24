@@ -121,15 +121,8 @@ static void power_off_ui_common_cb(hdr_post_args_t *args)
             break;
 #endif
         case POWER_OFF_HDR_DISCHARGE_POWER_OFF: 
-            LOG_WM("%s", args->name);
-#if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
-            if (proc->st && proc->st->hook && proc->st->hook->on_power_off_force_save_route) {
-                proc->st->flash_protect(false); /// 禁止flash读写操作. 
-                proc->st->hook->on_power_off_force_save_route(proc->st);
-                proc->st->flash_protect(true); /// 禁止flash读写操作.
-                msleep(100); /// 等待100ms，确保数据写入完成
-            }
-#endif
+            LOG_WM("goto power off, delay 100ms, %s", args->name);
+            msleep(100);
             power_off_handle(proc);
             break;
 #if IS_SUPPORT_POWER_OFF_WHEN_CHARGING
