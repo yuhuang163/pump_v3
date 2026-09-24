@@ -200,7 +200,16 @@ static void polling_charge_status(void *user_data)
             pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_OUT);
         }
         thiz->priv.is_vbus_plug_in = plug_status;
+        /// 插拔后刷新电池状态并派发（充电开始/结束埋点已在 charge_event_callback 内触发）
+        polling_battery_status(user_data);
     }
+}
+
+static void charge_event_callback(charge_event_e event)
+{
+    misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
+    EXCEPTION_CHECK_VOID(misc);
+    /// 充电事件（插/拔）即时检测充电状态变化并触发充电开始/结束埋点
     uint8_t charge_status = local_get_charge_status();
     if (thiz->priv.charge_status != charge_status) {
         uint8_t prev_status = thiz->priv.charge_status;
@@ -221,16 +230,10 @@ static void polling_charge_status(void *user_data)
             } else {
                 end_reason = DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG;
             }
-            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END, end_reason, 0);
+            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END, end_reason,
+                                    DATA_BURY_BAT_CHARGE_END_CACHE_IMMEDIATE);
         }
-        polling_battery_status(user_data);
     }
-}
-
-static void charge_event_callback(charge_event_e event)
-{
-    misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
-    EXCEPTION_CHECK_VOID(misc);
     misc->trigger_misc_work(MISC_WORK_MSG_ID_CHARGE_INTERRUPT);
 }
 
