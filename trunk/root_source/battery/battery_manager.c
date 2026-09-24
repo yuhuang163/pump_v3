@@ -102,6 +102,36 @@ static uint8_t local_get_battery_state(void)
     return thiz->priv.battery_state;
 }
 
+static void battery_charge_status_change_check(uint8_t charge_status)
+{
+    EXCEPTION_CHECK_VOID(thiz);
+    uint8_t prev_status = thiz->priv.charge_status;
+    if (prev_status == charge_status) {
+        return;
+    }
+    thiz->priv.charge_status = charge_status;
+    LOG_MISC("charge status change:%d", charge_status);
+
+    uint8_t prev_charging = BATTERY_IS_CHARGING(prev_status) ? 1u : 0u;
+    uint8_t now_charging = BATTERY_IS_CHARGING(charge_status) ? 1u : 0u;
+    if (!prev_charging && now_charging) {
+        /// 进入充电（UNCHARGE/ERROR -> CHARGING/FULL），触发充电开始埋点
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START, 0, 0);
+    } else if (prev_charging && !now_charging) {
+        /// 离开充电（CHARGING/FULL -> UNCHARGE/ERROR），触发充电结束埋点
+        int end_reason;
+        if (charge_status == CHARGE_STATE_ERROR) {
+            end_reason = DATA_BURY_BAT_CHARGE_END_REASON_ADAPTER_MISMATCH;
+        } else if (prev_status == CHARGE_STATE_FULL) {
+            end_reason = DATA_BURY_BAT_CHARGE_END_REASON_FULL;
+        } else {
+            end_reason = DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG;
+        }
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END, end_reason,
+                                DATA_BURY_BAT_CHARGE_END_CACHE_IMMEDIATE);
+    }
+}
+
 static void dispatch_battery_state_client(battery_manager_context_t *obj, battery_state_info_t *info)
 {
     list_head_t *head = &obj->priv.client_list;
@@ -169,6 +199,10 @@ static void polling_battery_status(void *user_data)
         }
     }
     info.charge_status = local_get_charge_status();
+    /// 充电开始/结束埋点统一在此按状态变化触发（单写者，仅 misc 轮询路径）：
+    /// 充电芯片只在插/拔时产生事件，is_charging 爬升/回落无事件；充电开机时
+    /// PLUG_IN 又早于回调注册。改由轮询可靠检测，同时避免 event 回调与轮询并发重复触发。
+    battery_charge_status_change_check(info.charge_status);
     info.battery_state = get_battery_state(info.battery_percent, info.charge_status);
     LOG_MISC("#now bat percent:%d, state:%d/%d, charging:%d/%d",
         info.battery_percent, thiz->priv.battery_state, info.battery_state,
@@ -210,30 +244,7 @@ static void charge_event_callback(charge_event_e event)
     misc_manager_context_t *misc = (misc_manager_context_t *)find_module(ID_MODULE_MISC);
     EXCEPTION_CHECK_VOID(misc);
     /// 充电事件（插/拔）即时检测充电状态变化并触发充电开始/结束埋点
-    uint8_t charge_status = local_get_charge_status();
-    if (thiz->priv.charge_status != charge_status) {
-        uint8_t prev_status = thiz->priv.charge_status;
-        uint8_t prev_charging = BATTERY_IS_CHARGING(prev_status) ? 1u : 0u;
-        uint8_t now_charging = BATTERY_IS_CHARGING(charge_status) ? 1u : 0u;
-
-        thiz->priv.charge_status = charge_status;
-        LOG_MISC("charge status change:%d", charge_status);
-        if (!prev_charging && now_charging) {
-            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_START, 0, 0);
-        } else if (prev_charging && !now_charging) {
-            int end_reason;
-
-            if (charge_status == CHARGE_STATE_ERROR) {
-                end_reason = DATA_BURY_BAT_CHARGE_END_REASON_ADAPTER_MISMATCH;
-            } else if (prev_status == CHARGE_STATE_FULL) {
-                end_reason = DATA_BURY_BAT_CHARGE_END_REASON_FULL;
-            } else {
-                end_reason = DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG;
-            }
-            DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END, end_reason,
-                                    DATA_BURY_BAT_CHARGE_END_CACHE_IMMEDIATE);
-        }
-    }
+    battery_charge_status_change_check(local_get_charge_status());
     misc->trigger_misc_work(MISC_WORK_MSG_ID_CHARGE_INTERRUPT);
 }
 
