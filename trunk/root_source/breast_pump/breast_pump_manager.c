@@ -813,16 +813,18 @@ static void make_progress(breast_pump_manager_context_t *ctx)
 
     switch (notify_id) {
     case RESULT_PUMP_FINISH:
+        /// 先采集结束埋点再置 FINISH：WRITE_PUMP_WORK_STATUS(FINISH) 会经 stop_motor(MOTOR_POLICY_FINISH)
+        /// 把电机策略索引 reset 到 0（按摩步），导致结束事件读到按摩档位而非吸乳档位。
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
         WRITE_PUMP_WORK_STATUS(ctx, BREAST_PUMP_FINISH, 1);
         send_throttled_pump_broadcast(ctx, &ctx->priv.completed_notify_time,
             PUMP_NOTIFY_THROTTLE_MS, BREAST_PUMP_BROADCAST_COMPLETED);
-        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
         break;
     case RESULT_PUMP_TIMEOUT:
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
         WRITE_PUMP_WORK_STATUS(ctx, BREAST_PUMP_FINISH, 1);
         send_throttled_pump_broadcast(ctx, &ctx->priv.completed_notify_time,
             PUMP_NOTIFY_THROTTLE_MS, BREAST_PUMP_BROADCAST_TIMEOUT);
-        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_AUTO_COMPLETE, 0);
         break;
     case RESULT_PUMP_WILL_FINISH:
         /// 整个会话只提醒一次；已提醒后暂停/恢复不再重复广播
