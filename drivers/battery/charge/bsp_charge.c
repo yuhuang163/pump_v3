@@ -361,7 +361,15 @@ static int charge_interrupt_config(void)
 POSSIBLY_UNUSED static int charge_ctrl0_config(void)
 {
     uint8_t reg_data = 0;
-    reg_data = PWM_FREQ_DEFAULT | EN_DITHER_ENABLE;
+    uint8_t read_reg_data = 0;
+    int ret = 0;
+    ret = charge_read_nbyte(CHARGE_CTRL0_REG, &read_reg_data, 1);
+    if (ret != BSP_OK) {
+        LOGE("charge ctrl0 read failed, ret: %d", ret);
+        return ret;
+    }
+    reg_data = PWM_FREQ_500KHZ | EN_DITHER_ENABLE | (read_reg_data & 0x01);
+    LOG_PBUS("charge ctrl0 write:%x, read:%x", reg_data, read_reg_data);
     return charge_write_nbyte(CHARGE_CTRL0_REG, &reg_data, 1);
 }
 
@@ -506,7 +514,7 @@ static int charge_chip_init(void)
         return ret;
     }
 
-#if 0 /// for test     
+#if 1    
     ret = charge_ctrl0_config();
     if (ret != BSP_OK) {
         LOGE("charge ctrl0 config failed, ret: %d", ret);
