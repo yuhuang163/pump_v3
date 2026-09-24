@@ -795,6 +795,13 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 	float minPress = 0.0, maxPress = 0.0, meanPress = 0.0, adjustPress = 0.0;
 	float eachBasePress = 0.0, fixRatio = 0.0;
 
+#ifdef _DEBUG
+	if (0 == g_DebugSide)
+	{
+		return;
+	}
+#endif
+
 	if (0 == uMode)
 	{
 		eachBasePress = -0.25;
@@ -856,10 +863,10 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 			}
 
 			// 最后的点
-			if (j + 2 > tFeatureInfoTemp->uPumpWaveWidth && meanPress < tFeatureInfoTemp->fLoadedThreshold + 2
-				&& fPressure2 < meanPress + 1 && uLevel >= LEVEL_4)
+			if (j + 2 > tFeatureInfoTemp->uPumpWaveWidth && meanPress < tFeatureInfoTemp->fLoadedThreshold
+				&& fPressure2 < meanPress && uLevel >= LEVEL_4)
 			{
-				adjustPress = (tFeatureInfoTemp->fLoadedThreshold + 2 - meanPress) * 1000;
+				adjustPress = (tFeatureInfoTemp->fLoadedThreshold - meanPress) * 1000;
 				if (500 < adjustPress)
 				{
 					adjustPress = 500;
@@ -1530,11 +1537,12 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				else if (uLevel >= LEVEL_4 && (float)tFeatureInfoTemp->uWaveSpikes > 1
 					&& (tFeatureInfoTemp->fThreshold + 0.25) < (tFeatureInfoTemp->fFilteredSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 				{
-					if (uLevel > LEVEL_4)
+					/*if (uLevel > LEVEL_4)
 					{
 						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
-					else if (tFeatureInfoTemp->fRawSegMinPressure > tFeatureInfoTemp->fRawValleyDownBase + 8)
+					else */
+					if (tFeatureInfoTemp->fRawSegMinPressure > tFeatureInfoTemp->fRawValleyDownBase + 8)
 					{
 						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
@@ -1919,7 +1927,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			}
 			else if (tFeatureInfoTemp->iPwmOffset == 0)
 			{
-				tFeatureInfoTemp->uLeakStatus = 3;
+				tFeatureInfoTemp->uLeakStatus = 2;
 				uOffDetect = 1;
 			}
 			
