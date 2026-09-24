@@ -873,7 +873,7 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 			if (0 > tFeatureInfoTemp->fPumpFiltChange)
 			{
 				tFeatureInfoTemp->uPumpFiltDownCount++;
-				if (8 <= tFeatureInfoTemp->uPumpFiltDownCount)
+				if (j + 2 >= tFeatureInfoTemp->uPumpWaveWidth)
 				{
 					if (tFeatureInfoTemp->fPumpFiltWave[tFeatureInfoTemp->uPumpWaveLastIndex][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + 0.5)
 					{
@@ -885,12 +885,7 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 					}
 					else 
 					{
-						// 如果平均值高于前一个
-						if (-100 > tFeatureInfoTemp->iPwmPumWaveFix
-							&& tFeatureInfoTemp->fPumpFiltWave[tFeatureInfoTemp->uPumpWaveLastIndex][PUMP_WAVE_LEN] < tFeatureInfoTemp->fPumpFiltWaveFeature[2][PUMP_WAVE_LEN])
-						{
-							tFeatureInfoTemp->iPwmPumWaveFix += 50;
-						}
+						fixRatio = 50;
 					}
 					adjustPress = tFeatureInfoTemp->fPumpFiltChange * fixRatio;
 					if (-200 > adjustPress)
@@ -1098,24 +1093,19 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 				{
 					tFeatureInfoTemp->iPwmPumWaveBase += 10;
 				}
-				else if (tFeatureInfoTemp->fPumpFiltWaveFeature[2][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + 0.5 + eachBasePress)
-				{
-					tFeatureInfoTemp->iPwmPumWaveBase -= 10;
+				else if (tFeatureInfoTemp->fPumpFiltWaveFeature[2][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + eachBasePress)
+				{					
 					// 加快前期
-					if (tFeatureInfoTemp->fPumpFiltWaveFeature[1][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + 1 + eachBasePress)
+					if (tFeatureInfoTemp->fPumpFiltWaveFeature[1][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold - 5 + eachBasePress)
 					{
-						meanPress = tFeatureInfoTemp->fLoadedThreshold + 1 + eachBasePress - tFeatureInfoTemp->fPumpFiltWaveFeature[1][PUMP_WAVE_LEN];
+						meanPress = tFeatureInfoTemp->fLoadedThreshold - 5 + eachBasePress - tFeatureInfoTemp->fPumpFiltWaveFeature[1][PUMP_WAVE_LEN];
 						tFeatureInfoTemp->iPwmPumWaveBase -= 100 * meanPress;
 					}
-					if (tFeatureInfoTemp->fPumpFiltWaveFeature[0][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + eachBasePress)
+					if (tFeatureInfoTemp->fPumpFiltWaveFeature[2][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold - 4 + eachBasePress)
 					{
-						meanPress = tFeatureInfoTemp->fLoadedThreshold + eachBasePress - tFeatureInfoTemp->fPumpFiltWaveFeature[0][PUMP_WAVE_LEN];
+						meanPress = tFeatureInfoTemp->fLoadedThreshold - 4 + eachBasePress - tFeatureInfoTemp->fPumpFiltWaveFeature[0][PUMP_WAVE_LEN];
 						tFeatureInfoTemp->iPwmPumWaveBase -= 100 * meanPress;
 					}
-				}
-				else if (0 < tFeatureInfoTemp->iPwmPumWaveBase)
-				{
-					tFeatureInfoTemp->iPwmPumWaveBase -= 5;
 				}
 
 				// 宽度计算

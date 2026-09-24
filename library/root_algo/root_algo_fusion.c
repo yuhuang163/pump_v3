@@ -73,7 +73,7 @@ static void wear_detection_process_data(void)
         GetWearDetectionDebugInfoAlg(uWaveSpikes, fMinData, uNormalWaveform, uNoiseLevel, 
             fThreshold, fFilteredData, raw_pressure_max, threshold_at_min_pressure, 
             fFilteredSegMinPressure, uWearDetSegMinCommitted, uWearDetectTime, uLeakDetectTime, uDataBaselineCnt);
-        
+        /*
         ALGO_LOG_INFO("time_stamp3: %d, air pressure: p1: %f, p2: %f", get_timestamp_ms(0), s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
         ALGO_LOG_INFO("pump state: %d, %d, do_work: %d, detect_time: %d, %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state, s_air_pressure_data.do_work, uWearDetectTime[0], uWearDetectTime[1]);
         ALGO_LOG_INFO("compensation status_0: %d/%d, delta_pwm_0: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
@@ -85,6 +85,7 @@ static void wear_detection_process_data(void)
         ALGO_LOG_INFO("fthreshold1: %f, fthreshold2: %f", fThreshold[0], fThreshold[1]);
         ALGO_LOG_INFO("raw_pressure_max1: %f, raw_pressure_max2: %f", raw_pressure_max[0], raw_pressure_max[1]);
         ALGO_LOG_INFO("threshold_at_min_pressure1: %f, threshold_at_min_pressure2: %f", threshold_at_min_pressure[0], threshold_at_min_pressure[1]);
+        */
         
     }
 }
