@@ -789,11 +789,28 @@ void PressureDataFeature(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
-void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpState, unsigned char uMode, unsigned char uLevel, float fPressure1, float fPressure2)
+void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpState, unsigned char uMode, unsigned char uLevel, unsigned char uPumpDuty, float fPressure1, float fPressure2)
 {
-	unsigned char j = 0, k = 0;
+	unsigned char j = 0, k = 0, tempValue = uPumpDuty;
 	float minPress = 0.0, maxPress = 0.0, meanPress = 0.0, adjustPress = 0.0;
 	float eachBasePress = 0.0, fixRatio = 0.0;
+	int iMaxPWM = 0, iMinPWM = 0;
+
+
+	if (tempValue > 100)
+	{
+		tempValue = 90;
+	}
+	iMaxPWM = (100 - tempValue)*100;
+	iMinPWM = -(tempValue * 45);
+
+
+#ifdef _DEBUG
+	if (0 == g_DebugSide)
+	{
+		return;
+	}
+#endif
 
 	if (0 == uMode)
 	{
@@ -856,10 +873,10 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 			}
 
 			// 最后的点
-			if (j + 2 > tFeatureInfoTemp->uPumpWaveWidth && meanPress < tFeatureInfoTemp->fLoadedThreshold + 2
-				&& fPressure2 < meanPress + 1 && uLevel >= LEVEL_4)
+			if (j + 2 > tFeatureInfoTemp->uPumpWaveWidth && meanPress < tFeatureInfoTemp->fLoadedThreshold
+				&& fPressure2 < meanPress && uLevel >= LEVEL_4)
 			{
-				adjustPress = (tFeatureInfoTemp->fLoadedThreshold + 2 - meanPress) * 1000;
+				adjustPress = (tFeatureInfoTemp->fLoadedThreshold - meanPress) * 1000;
 				if (500 < adjustPress)
 				{
 					adjustPress = 500;
@@ -873,7 +890,7 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 			if (0 > tFeatureInfoTemp->fPumpFiltChange)
 			{
 				tFeatureInfoTemp->uPumpFiltDownCount++;
-				if (8 <= tFeatureInfoTemp->uPumpFiltDownCount)
+				if (j + 2 >= tFeatureInfoTemp->uPumpWaveWidth)
 				{
 					if (tFeatureInfoTemp->fPumpFiltWave[tFeatureInfoTemp->uPumpWaveLastIndex][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + 0.5)
 					{
@@ -885,12 +902,7 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 					}
 					else 
 					{
-						// 如果平均值高于前一个
-						if (-100 > tFeatureInfoTemp->iPwmPumWaveFix
-							&& tFeatureInfoTemp->fPumpFiltWave[tFeatureInfoTemp->uPumpWaveLastIndex][PUMP_WAVE_LEN] < tFeatureInfoTemp->fPumpFiltWaveFeature[2][PUMP_WAVE_LEN])
-						{
-							tFeatureInfoTemp->iPwmPumWaveFix += 50;
-						}
+						fixRatio = 50;
 					}
 					adjustPress = tFeatureInfoTemp->fPumpFiltChange * fixRatio;
 					if (-200 > adjustPress)
@@ -977,7 +989,7 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 		tFeatureInfoTemp->uPump1delay = 5;
 
 		// 阈值
-		tFeatureInfoTemp->iPwmPumWaveFix = CLAMP(tFeatureInfoTemp->iPwmPumWaveFix, -5000, 5000);
+		tFeatureInfoTemp->iPwmPumWaveFix = CLAMP(tFeatureInfoTemp->iPwmPumWaveFix, iMinPWM, iMaxPWM);
 	}
 	else
 	{
@@ -1098,24 +1110,19 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 				{
 					tFeatureInfoTemp->iPwmPumWaveBase += 10;
 				}
-				else if (tFeatureInfoTemp->fPumpFiltWaveFeature[2][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + 0.5 + eachBasePress)
-				{
-					tFeatureInfoTemp->iPwmPumWaveBase -= 10;
+				else if (tFeatureInfoTemp->fPumpFiltWaveFeature[2][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + eachBasePress)
+				{					
 					// 加快前期
-					if (tFeatureInfoTemp->fPumpFiltWaveFeature[1][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + 1 + eachBasePress)
+					if (tFeatureInfoTemp->fPumpFiltWaveFeature[1][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold - 5 + eachBasePress)
 					{
-						meanPress = tFeatureInfoTemp->fLoadedThreshold + 1 + eachBasePress - tFeatureInfoTemp->fPumpFiltWaveFeature[1][PUMP_WAVE_LEN];
+						meanPress = tFeatureInfoTemp->fLoadedThreshold - 5 + eachBasePress - tFeatureInfoTemp->fPumpFiltWaveFeature[1][PUMP_WAVE_LEN];
 						tFeatureInfoTemp->iPwmPumWaveBase -= 100 * meanPress;
 					}
-					if (tFeatureInfoTemp->fPumpFiltWaveFeature[0][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold + eachBasePress)
+					if (tFeatureInfoTemp->fPumpFiltWaveFeature[2][PUMP_WAVE_LEN] < tFeatureInfoTemp->fLoadedThreshold - 4 + eachBasePress)
 					{
-						meanPress = tFeatureInfoTemp->fLoadedThreshold + eachBasePress - tFeatureInfoTemp->fPumpFiltWaveFeature[0][PUMP_WAVE_LEN];
+						meanPress = tFeatureInfoTemp->fLoadedThreshold - 4 + eachBasePress - tFeatureInfoTemp->fPumpFiltWaveFeature[0][PUMP_WAVE_LEN];
 						tFeatureInfoTemp->iPwmPumWaveBase -= 100 * meanPress;
 					}
-				}
-				else if (0 < tFeatureInfoTemp->iPwmPumWaveBase)
-				{
-					tFeatureInfoTemp->iPwmPumWaveBase -= 5;
 				}
 
 				// 宽度计算
@@ -1540,11 +1547,12 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 				else if (uLevel >= LEVEL_4 && (float)tFeatureInfoTemp->uWaveSpikes > 1
 					&& (tFeatureInfoTemp->fThreshold + 0.25) < (tFeatureInfoTemp->fFilteredSegMinPressure + ((float)tFeatureInfoTemp->uWaveSpikes - 1.5) * 3))
 				{
-					if (uLevel > LEVEL_4)
+					/*if (uLevel > LEVEL_4)
 					{
 						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
-					else if (tFeatureInfoTemp->fRawSegMinPressure > tFeatureInfoTemp->fRawValleyDownBase + 8)
+					else */
+					if (tFeatureInfoTemp->fRawSegMinPressure > tFeatureInfoTemp->fRawValleyDownBase + 8)
 					{
 						uCandidateWearStatus = WEAR_STATE_OFF;
 					}
@@ -1929,7 +1937,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			}
 			else if (tFeatureInfoTemp->iPwmOffset == 0)
 			{
-				tFeatureInfoTemp->uLeakStatus = 3;
+				tFeatureInfoTemp->uLeakStatus = 2;
 				uOffDetect = 1;
 			}
 			
@@ -2308,6 +2316,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		tFeatureInfoTemp->uLeakStatus = 3;
 		uOffDetect = 1;
 	}
+
 	/* 大漏情况下，不补偿 */
 	if (1 == uOffDetect)
 	{
@@ -2357,6 +2366,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 	{
 		tDeviceInfo[i].uTargetPressure = sPressureData.pump_state[i].target_pressure;
 		tDeviceInfo[i].uTargetPumpTime = sPressureData.pump_state[i].target_pump_time;
+		tDeviceInfo[i].uPumpDuty = sPressureData.pump_state[i].pump_duty;
 	}
 
 	// 循环遍历
@@ -2405,11 +2415,11 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			(sPressureData.pump_state[i].state == SUCTION_STATUS_HOLD))
 		{
 			tFeatureInfo[i].pumping_time += 1;
-			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, sPressureData.air_pressure[i], fFilteredNow);
+			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, tDeviceInfo[i].uPumpDuty, sPressureData.air_pressure[i], fFilteredNow);
 		}
 		else
 		{
-			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, sPressureData.air_pressure[i], fFilteredNow);
+			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, tDeviceInfo[i].uPumpDuty, sPressureData.air_pressure[i], fFilteredNow);
 			/* 如果不在泵奶期间，则不进行算法处理 */
 			tFeatureInfo[i].uCompsStatus = 0;
 			tFeatureInfo[i].iDelta_pwm = 0;

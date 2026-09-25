@@ -521,21 +521,24 @@ int bsp_motor_pump_parameter_set(void *args)
                 /// 计算目标脉冲宽度 ，防止溢出
                 int32_t target_pulse_width_raw =
                     (int32_t)pump_status[pump_id].setting_pulse_width - (int32_t)pump_para->pulse_width;
+                //PWM翻转后目标值 占空比值不能小于500 主要看泵最大能承载多大pwm周期，暂定500
+                int32_t target_pulse_width = target_pulse_width_raw;
+                if (target_pulse_width < 500 ) {
+                    target_pulse_width = 500;
+                    LOGE("pump %d level adjust limited, pulse_width:%d", pump_id, pump_para->pulse_width);
+                } 
+                
                 if (target_pulse_width_raw <= 0) {
                     LOGW("pump %d level adjust ignored, pulse_width:%d", pump_id, pump_para->pulse_width);
-                    return 0;
+                    //return 0;
                 }
                 if (target_pulse_width_raw > MOTOR_PUMP_PULSE_WIDTH_MAX) {
                     LOGW("pump %d level adjust ignored(high), pulse_width:%d, target:%d",
                         pump_id, pump_para->pulse_width, target_pulse_width_raw);
                     return 0;
                 }
-                uint16_t target_pulse_width = (uint16_t)target_pulse_width_raw;
-                //PWM翻转后目标值 占空比值不能小于500 主要看泵最大能承载多大pwm周期，暂定500
-                if (target_pulse_width < 500) {
-                    target_pulse_width = 500;
-                    LOGE("pump %d level adjust error, pulse_width:%d", pump_id, pump_para->pulse_width);
-                } 
+                
+
                 if (pump_status[pump_id].target_pulse_width != target_pulse_width) {
 #if IS_SUPPORT_PUMP_DEBUG_LOG
                     LOG_PBUS("pump %d level adjust:%d/%d", pump_id, pump_para->pulse_width, target_pulse_width);

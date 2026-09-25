@@ -15,7 +15,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.2.4"
+#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.2.6"
 
 /* hardware parameters */
 #define SAMPLE_RATE			(50)
@@ -173,6 +173,7 @@ typedef struct _DEVICE_INFO
 {
 	unsigned short	uMode;
 	unsigned short	uLevel;
+	unsigned short  uPumpDuty;
 	unsigned short	run_time;			// 运行时间，单位ms
 	unsigned char	uTargetPressure;	// 正值
 	unsigned short  uTargetPumpTime;	/* 吸力保持时间，单位ms */
