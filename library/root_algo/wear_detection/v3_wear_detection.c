@@ -789,11 +789,21 @@ void PressureDataFeature(SPV_INFO* tPVInfoTemp, SWAVE_INFO* tWaveInfoTemp, SDATA
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
-void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpState, unsigned char uMode, unsigned char uLevel, float fPressure1, float fPressure2)
+void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpState, unsigned char uMode, unsigned char uLevel, unsigned char uPumpDuty, float fPressure1, float fPressure2)
 {
-	unsigned char j = 0, k = 0;
+	unsigned char j = 0, k = 0, tempValue = uPumpDuty;
 	float minPress = 0.0, maxPress = 0.0, meanPress = 0.0, adjustPress = 0.0;
 	float eachBasePress = 0.0, fixRatio = 0.0;
+	int iMaxPWM = 0, iMinPWM = 0;
+
+
+	if (tempValue > 100)
+	{
+		tempValue = 90;
+	}
+	iMaxPWM = (100 - tempValue)*100;
+	iMinPWM = -(tempValue * 45);
+
 
 #ifdef _DEBUG
 	if (0 == g_DebugSide)
@@ -979,7 +989,7 @@ void PumpState4Analysis(SFEATURE_INFO* tFeatureInfoTemp, unsigned char uPumpStat
 		tFeatureInfoTemp->uPump1delay = 5;
 
 		// 阈值
-		tFeatureInfoTemp->iPwmPumWaveFix = CLAMP(tFeatureInfoTemp->iPwmPumWaveFix, -5000, 5000);
+		tFeatureInfoTemp->iPwmPumWaveFix = CLAMP(tFeatureInfoTemp->iPwmPumWaveFix, iMinPWM, iMaxPWM);
 	}
 	else
 	{
@@ -2306,6 +2316,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		tFeatureInfoTemp->uLeakStatus = 3;
 		uOffDetect = 1;
 	}
+
 	/* 大漏情况下，不补偿 */
 	if (1 == uOffDetect)
 	{
@@ -2355,6 +2366,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 	{
 		tDeviceInfo[i].uTargetPressure = sPressureData.pump_state[i].target_pressure;
 		tDeviceInfo[i].uTargetPumpTime = sPressureData.pump_state[i].target_pump_time;
+		tDeviceInfo[i].uPumpDuty = sPressureData.pump_state[i].pump_duty;
 	}
 
 	// 循环遍历
@@ -2403,11 +2415,11 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 			(sPressureData.pump_state[i].state == SUCTION_STATUS_HOLD))
 		{
 			tFeatureInfo[i].pumping_time += 1;
-			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, sPressureData.air_pressure[i], fFilteredNow);
+			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, tDeviceInfo[i].uPumpDuty, sPressureData.air_pressure[i], fFilteredNow);
 		}
 		else
 		{
-			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, sPressureData.air_pressure[i], fFilteredNow);
+			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, tDeviceInfo[i].uPumpDuty, sPressureData.air_pressure[i], fFilteredNow);
 			/* 如果不在泵奶期间，则不进行算法处理 */
 			tFeatureInfo[i].uCompsStatus = 0;
 			tFeatureInfo[i].iDelta_pwm = 0;
