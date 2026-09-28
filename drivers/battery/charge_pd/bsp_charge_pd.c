@@ -185,7 +185,7 @@ int bsp_charge_pd_is_ready(void)
 
 void charge_pd_status_poll(bool plug_in_debounce)
 {
-    static uint8_t debounce_count = 0;
+    static uint8_t debounce_count = 0, active_count = 0;
     if (hal_gpio_pin_get_val(CHARGE_PD_INT_PIN) == 0) {
         /// 适配器未插入
         if (s_charge_pd_onoff == false) {
@@ -195,6 +195,7 @@ void charge_pd_status_poll(bool plug_in_debounce)
             s_charge_pd_abnormal_count = 0;
             s_charge_pd_version = 0;
             debounce_count = 0;
+            active_count = 0;
             LOG_PBUS("%s", "charge pd plug in");
             return;
         }
@@ -215,7 +216,11 @@ void charge_pd_status_poll(bool plug_in_debounce)
         if (status != 0 && charge_pd_power_is_ready()) {
             charge_event_internal_cb(CHARGE_EVENT_PLUG_IN); /// 适配器准备好
         } else {
-            charge_event_internal_cb(CHARGE_EVENT_ADAPTER_MISMATCH); /// 适配器不匹配
+            if (active_count < 3) {
+                active_count++;
+            } else {
+                charge_event_internal_cb(CHARGE_EVENT_ADAPTER_MISMATCH);
+            }
         }
     } else {
         if (s_charge_pd_onoff == true) {
@@ -226,6 +231,7 @@ void charge_pd_status_poll(bool plug_in_debounce)
             s_charge_pd_is_ready = false;
             s_charge_pd_abnormal_count = 0;
             s_charge_pd_version = 0;
+            active_count = 0;
             LOG_PBUS("%s", "charge pd plug out");
         }
     }
