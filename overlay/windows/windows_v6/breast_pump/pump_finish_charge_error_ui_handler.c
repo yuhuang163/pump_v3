@@ -24,6 +24,8 @@ static void pump_finish_charge_error_complete_cb(hdr_post_args_t *args)
         return;
     }
     LOG_WM("pump finish charge error complete, goto home pump result.");
+    /// 适配器异常自动结束会话：补发泵奶结束埋点（会话开始会在结束埋点内一并提交）
+    DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_PUMP_SESSION_END, DATA_BURY_END_REASON_ERROR, 0);
     pump_complete_event_handler(proc);
 }
 
