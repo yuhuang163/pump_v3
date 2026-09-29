@@ -78,6 +78,7 @@ static void wear_detection_process_data(void)
         ALGO_LOG_INFO("compensation status_0: %d/%d, delta_pwm_0: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
         ALGO_LOG_INFO("wear state: %d, %d, leak state: %d, %d", s_result.weared_status[0], s_result.weared_status[1], s_result.leakage_status[0], s_result.leakage_status[1]);
         ALGO_LOG_INFO("mode: %u/%u: level: %u/%u", s_air_pressure_data.pump_state[0].mode, s_air_pressure_data.pump_state[1].mode, s_air_pressure_data.pump_state[0].level, s_air_pressure_data.pump_state[1].level);
+        ALGO_LOG_INFO("log_bury_state:%d/%d", s_result.sDebugInfo[0].uGetResultFlag, s_result.sDebugInfo[1].uGetResultFlag);
         /*ALGO_LOG_INFO("target pressure: %d, %d", s_air_pressure_data.pump_state[0].target_pressure, s_air_pressure_data.pump_state[1].target_pressure);
         ALGO_LOG_INFO("target pump time: %d, %d", s_air_pressure_data.pump_state[0].target_pump_time, s_air_pressure_data.pump_state[1].target_pump_time);
         ALGO_LOG_INFO("fmin_data1: %f, fmin_data2: %f", fMinData[0], fMinData[1]);
@@ -184,7 +185,7 @@ int algo_fusion_lib_init(algo_fusion_sensor_attr_type_e sensor_flag, algo_fusion
         // just for initialization - not the final parameters
         
         //v3_pressure_algo_get_version();
-        LOG_PASS("v 3.0.2.6");
+        LOG_PASS("v 3.0.2.7");
         V3WearDetectionInit(1, 1, 0, 0);
     }
     return ALGO_FUSION_INIT_SUCCESS;
