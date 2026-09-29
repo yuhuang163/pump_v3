@@ -1935,11 +1935,6 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 			{
 				tFeatureInfoTemp->uLeakStatus = 2;
 			}
-			else if (tFeatureInfoTemp->iPwmOffset == 0)
-			{
-				tFeatureInfoTemp->uLeakStatus = 2;
-				uOffDetect = 1;
-			}
 			
 			tFeatureInfoTemp->uDataBaselineCnt[2] = 0;
 		}
@@ -2326,6 +2321,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 		tFeatureInfoTemp->fCompPrevErr = 0.0f;
 		tFeatureInfoTemp->uCompsStatus = 0;
 		tFeatureInfoTemp->iPwmPumWaveFix = 0;
+		tFeatureInfoTemp->iPwmPumWaveBase = 0;
 	}
 }
 
@@ -2426,6 +2422,7 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 				tFeatureInfo[i].fCompPrevErr = 0.0f;
 				tFeatureInfo[i].uCompsStatus = 0;
 				tFeatureInfo[i].iPwmPumWaveFix = 0;
+				tFeatureInfo[i].iPwmPumWaveBase = 0;
 			}
 		}
 		else
