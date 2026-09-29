@@ -2318,13 +2318,14 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	}
 
 	/* 大漏情况下，不补偿 */
-	if (1 == uOffDetect)
+	if (3 == tFeatureInfoTemp->uLeakStatus)
 	{
 		tFeatureInfoTemp->iPwmOffset = 0;
 		tFeatureInfoTemp->iDelta_pwm = 0;
 		tFeatureInfoTemp->fCompErrSum = 0.0f;
 		tFeatureInfoTemp->fCompPrevErr = 0.0f;
 		tFeatureInfoTemp->uCompsStatus = 0;
+		tFeatureInfoTemp->iPwmPumWaveFix = 0;
 	}
 }
 
