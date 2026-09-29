@@ -66,10 +66,11 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
         algo_manager_dispatch_to_clients(ctx);
         return;
     }
-    /// 仅当任一侧处于微小漏气(2)/强漏气(3)时才上报异常，且状态发生变化才触发
-    if ((algo_result->leakage_status[0] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK ||
-         algo_result->leakage_status[1] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK) &&
-        (algo_result->leakage_status[0] != old_leakage[0] ||
+    /// 仅当任一侧「新进入」微小漏气(2)/强漏气(3)时才上报异常：变化侧必须自身进入漏气态，
+    /// 避免另一侧在非漏气态之间爬坡(0→1)时被误判为“状态变化”而重复上报。
+    if ((algo_result->leakage_status[0] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK &&
+         algo_result->leakage_status[0] != old_leakage[0]) ||
+        (algo_result->leakage_status[1] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK &&
          algo_result->leakage_status[1] != old_leakage[1])) {
         ///增加算法输出
         LOG_ALGO("bury leakage:%d/%d",algo_result->leakage_status[0], algo_result->leakage_status[1]); 
