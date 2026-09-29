@@ -71,6 +71,8 @@ static void algo_out_result_cb(algo_fusion_result_t *algo_result)
          algo_result->leakage_status[1] >= ALGO_WEAR_DETECTION_RESULT_SMALL_LEAK) &&
         (algo_result->leakage_status[0] != old_leakage[0] ||
          algo_result->leakage_status[1] != old_leakage[1])) {
+        ///增加算法输出
+        LOG_ALGO("bury leakage:%d/%d",algo_result->leakage_status[0], algo_result->leakage_status[1]); 
         /// 漏气异常上报 EVT_011：error_code=AIR_LEAKAGE(0x24)，error_data 低8位左/次8位右
         DATA_BURY_EVENT_TRIGGER_EXCEPTION(DATA_BURY_ERROR_AIR_LEAKAGE,
             DATA_BURY_PACK_WEAR_DETECTION_DATA(algo_result->leakage_status[0],
