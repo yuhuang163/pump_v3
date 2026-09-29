@@ -2318,7 +2318,7 @@ void WearDetectionDetermination(SFEATURE_INFO* tFeatureInfoTemp, SDEVICE_INFO* t
 	}
 
 	/* 大漏情况下，不补偿 */
-	if (3 == tFeatureInfoTemp->uLeakStatus)
+	if (0 == tFeatureInfoTemp->uLeakStatus || 3 == tFeatureInfoTemp->uLeakStatus || 1 == uOffDetect || WEAR_STATE_OFF == tFeatureInfoTemp->uWearStatus)
 	{
 		tFeatureInfoTemp->iPwmOffset = 0;
 		tFeatureInfoTemp->iDelta_pwm = 0;
@@ -2417,6 +2417,16 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 		{
 			tFeatureInfo[i].pumping_time += 1;
 			PumpState4Analysis(&tFeatureInfo[i], sPressureData.pump_state[i].state, tDeviceInfo[i].uMode, tDeviceInfo[i].uLevel, tDeviceInfo[i].uPumpDuty, sPressureData.air_pressure[i], fFilteredNow);
+			/* 大漏不补偿 */
+			if (0 == tFeatureInfo[i].uLeakStatus || 3 == tFeatureInfo[i].uLeakStatus || WEAR_STATE_OFF == tFeatureInfo[i].uWearStatus)
+			{
+				tFeatureInfo[i].iPwmOffset = 0;
+				tFeatureInfo[i].iDelta_pwm = 0;
+				tFeatureInfo[i].fCompErrSum = 0.0f;
+				tFeatureInfo[i].fCompPrevErr = 0.0f;
+				tFeatureInfo[i].uCompsStatus = 0;
+				tFeatureInfo[i].iPwmPumWaveFix = 0;
+			}
 		}
 		else
 		{
