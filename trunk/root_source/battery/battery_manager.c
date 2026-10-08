@@ -228,7 +228,7 @@ static void polling_charge_status(void *user_data)
     uint8_t plug_status = local_is_vbus_plug_in();
     if (plug_status != thiz->priv.is_vbus_plug_in) {
         LOG_MISC("charge plug status change: %d -> %d", thiz->priv.is_vbus_plug_in, plug_status);
-        if (thiz->priv.is_vbus_plug_in) {
+        if (plug_status) {
             pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_IN);
         } else {
             pm->pm_wakeup(PM_WAKEUP_REASON_CHARGE_PLUG_OUT);
