@@ -63,7 +63,6 @@ static void wear_detection_process_data(void)
         float fMinData[2] = { 0.0f };
         float fThreshold[2] = { 0.0f };
         float fFilteredData[2] = { 0.0f };
-        unsigned short uWearDetectTime[2] = { 0 };
         unsigned short uLeakDetectTime[2] = { 0 };
         float fFilteredSegMinPressure[2] = { 0.0f };
         unsigned char uWearDetSegMinCommitted[2] = { 0 };
@@ -71,14 +70,16 @@ static void wear_detection_process_data(void)
         
         GetWearDetectionDebugInfoAlg(uWaveSpikes, fMinData, uNormalWaveform, uNoiseLevel, 
             fThreshold, fFilteredData, raw_pressure_max, threshold_at_min_pressure, 
-            fFilteredSegMinPressure, uWearDetSegMinCommitted, uWearDetectTime, uLeakDetectTime, uDataBaselineCnt);
+            fFilteredSegMinPressure, uWearDetSegMinCommitted, uLeakDetectTime, uDataBaselineCnt);
         
         ALGO_LOG_INFO("time_stamp3: %d, air pressure: p1: %f, p2: %f", get_timestamp_ms(0), s_air_pressure_data.air_pressure[0], s_air_pressure_data.air_pressure[1]);
-        ALGO_LOG_INFO("pump state: %d, %d, do_work: %d, detect_time: %d, %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state, s_air_pressure_data.do_work, uWearDetectTime[0], uWearDetectTime[1]);
+        ALGO_LOG_INFO("pump state: %d, %d, do_work: %d", s_air_pressure_data.pump_state[0].state, s_air_pressure_data.pump_state[1].state, s_air_pressure_data.do_work);
         ALGO_LOG_INFO("compensation status_0: %d/%d, delta_pwm_0: %d, %d", s_result.compensation_status[0], s_result.compensation_status[1], s_result.compensation_delta_pwm[0], s_result.compensation_delta_pwm[1]);
         ALGO_LOG_INFO("wear state: %d, %d, leak state: %d, %d", s_result.weared_status[0], s_result.weared_status[1], s_result.leakage_status[0], s_result.leakage_status[1]);
         ALGO_LOG_INFO("mode: %u/%u: level: %u/%u", s_air_pressure_data.pump_state[0].mode, s_air_pressure_data.pump_state[1].mode, s_air_pressure_data.pump_state[0].level, s_air_pressure_data.pump_state[1].level);
         ALGO_LOG_INFO("log_bury_state:%d/%d", s_result.sDebugInfo[0].uGetResultFlag, s_result.sDebugInfo[1].uGetResultFlag);
+        ALGO_LOG_INFO("do_work:%d/%d", s_result.sDebugInfo[0].uGetResultFlag, s_result.sDebugInfo[1].uGetResultFlag);
+        
         /*ALGO_LOG_INFO("target pressure: %d, %d", s_air_pressure_data.pump_state[0].target_pressure, s_air_pressure_data.pump_state[1].target_pressure);
         ALGO_LOG_INFO("target pump time: %d, %d", s_air_pressure_data.pump_state[0].target_pump_time, s_air_pressure_data.pump_state[1].target_pump_time);
         ALGO_LOG_INFO("fmin_data1: %f, fmin_data2: %f", fMinData[0], fMinData[1]);
