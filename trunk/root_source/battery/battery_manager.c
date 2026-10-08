@@ -127,8 +127,13 @@ static void battery_charge_status_change_check(uint8_t charge_status)
         } else {
             end_reason = DATA_BURY_BAT_CHARGE_END_REASON_UNPLUG;
         }
-        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END, end_reason,
-                                DATA_BURY_BAT_CHARGE_END_CACHE_IMMEDIATE);
+        /// 走正常上报：BLE 已连接则立即发送，未连接才回落离线环缓存
+        uint8_t cache_immediate = 1;
+        ble_manager_context_t *ble = (ble_manager_context_t *)find_module(ID_MODULE_BLE);
+        if (ble && ble->ble_is_connected()) {
+            cache_immediate = 0;
+        }
+        DATA_BURY_EVENT_TRIGGER(DATA_BURY_TRIGGER_EVT_BAT_CHARGE_END, end_reason, cache_immediate);
     }
 }
 
