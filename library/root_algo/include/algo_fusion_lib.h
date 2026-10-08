@@ -94,6 +94,7 @@ typedef enum {
 typedef struct {
     uint8_t level;       /// 0-15
     uint8_t mode;        /// 0:刺激模式 1:吸乳模式 2:混合模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式
+    uint8_t submode;     ///按摩 吸乳 混合，休息
     uint8_t state;       /// 吸力状态 suction_status_e
     uint8_t pump_duty;        /// 泵奶力度
     uint8_t valve_duty;       /// 吸乳器电磁阀门力度

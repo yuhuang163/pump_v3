@@ -152,6 +152,8 @@ void algo_fusion_lib_input(algo_fusion_input_data_t *input)
             s_air_pressure_data.air_pressure[1] = ((algo_air_pressure_data_t*)input->sensor_data)->air_pressure[1];
             s_air_pressure_data.pump_state[0].level = ((algo_air_pressure_data_t*)input->sensor_data)->pump_state[0].level;
             s_air_pressure_data.pump_state[1].level = ((algo_air_pressure_data_t*)input->sensor_data)->pump_state[1].level;
+            s_air_pressure_data.pump_state[0].submode = ((algo_air_pressure_data_t*)input->sensor_data)->pump_state[0].submode;
+            s_air_pressure_data.pump_state[1].submode = ((algo_air_pressure_data_t*)input->sensor_data)->pump_state[1].submode;
             s_air_pressure_data.pump_state[0].mode = ((algo_air_pressure_data_t*)input->sensor_data)->pump_state[0].mode;
             s_air_pressure_data.pump_state[1].mode = ((algo_air_pressure_data_t*)input->sensor_data)->pump_state[1].mode;
             s_air_pressure_data.pump_state[0].state = ((algo_air_pressure_data_t*)input->sensor_data)->pump_state[0].state;
