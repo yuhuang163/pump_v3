@@ -104,26 +104,44 @@ static void ui_ota_root_init(void)
     lv_obj_clear_flag(ota_info->root, LV_OBJ_FLAG_SCROLLABLE);
 }
 
+static uint16_t ui_ota_progress_arc_split_track(void)
+{
+    return (uint16_t)(UI_PROGRESS_ARC_TRACK_DEG - UI_PROGRESS_ARC_SEG_GAP_DEG);
+}
+
 static uint16_t ui_ota_progress_arc_target_sweep_get(uint32_t recv_size, uint32_t total_size,
     uint8_t progress)
 {
+    uint16_t split_track = ui_ota_progress_arc_split_track();
+    uint16_t sweep;
+
     if (total_size > 0) {
-        return ui_progress_arc_sweep_from_progress(recv_size, total_size);
+        if (recv_size >= total_size) {
+            return split_track;
+        }
+        sweep = ui_progress_arc_sweep_from_progress(recv_size, total_size);
+    } else {
+        if (progress >= 100) {
+            return split_track;
+        }
+        sweep = ui_progress_arc_sweep_from_progress(progress, 100);
     }
-    if (progress > 100) {
-        progress = 100;
-    }
-    return ui_progress_arc_sweep_from_progress(progress, 100);
+    return (sweep > split_track) ? split_track : sweep;
 }
 
-static uint8_t ui_ota_progress_percent_from_sweep(uint16_t done_sweep)
+static uint8_t ui_ota_progress_percent_from_data(uint32_t recv_size, uint32_t total_size,
+    uint8_t progress)
 {
-    uint16_t split_track = UI_PROGRESS_ARC_TRACK_DEG - UI_PROGRESS_ARC_SEG_GAP_DEG;
+    uint32_t percent;
 
-    if (done_sweep >= UI_PROGRESS_ARC_TRACK_DEG || split_track == 0) {
-        return 100;
+    if (total_size > 0) {
+        if (recv_size >= total_size) {
+            return 100;
+        }
+        percent = (uint32_t)(((uint64_t)recv_size * 100U) / total_size);
+        return (percent > 100U) ? 100 : (uint8_t)percent;
     }
-    return (uint8_t)(((uint32_t)done_sweep * 100U) / split_track);
+    return (progress > 100) ? 100 : progress;
 }
 
 static void ui_ota_progress_arc_anim_sync(uint32_t recv_size, uint32_t total_size,
@@ -145,6 +163,15 @@ static uint16_t ui_ota_progress_arc_visual_sweep_advance(void)
     uint32_t elapsed;
     uint16_t step;
     uint16_t remain;
+
+    uint16_t split_track = ui_ota_progress_arc_split_track();
+
+    if (target > split_track) {
+        target = split_track;
+    }
+    if (visual != 0xFFFF && visual > split_track) {
+        visual = split_track;
+    }
 
     if (visual == 0xFFFF) {
         ota_info->anim_last_tick = get_timestamp();
@@ -227,7 +254,7 @@ static void ui_ota_progress_arc_update(ui_manager_context_t *thiz, uint8_t progr
         ota_info->anim_visual_sweep = done_sweep;
     }
 
-    show_percent = ui_ota_progress_percent_from_sweep(done_sweep);
+    show_percent = ui_ota_progress_percent_from_data(recv_size, total_size, progress);
     if (ota_info->force_update || ota_info->shown_percent != show_percent) {
         char ota_percent[8] = {0};
         snprintf(ota_percent, sizeof(ota_percent), "%d%%", show_percent);
