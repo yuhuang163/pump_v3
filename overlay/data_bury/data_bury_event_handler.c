@@ -588,9 +588,11 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
         return;
     }
 
-    session_duration_ms = get_timestamp_ms(s_event_rt.pending_pump_session_start_ms);
+    /// 用有效泵奶时长（不含暂停）做最短时长校验，暂停时间不计入
+    READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
+    session_duration_ms = result_info ? result_info->work_valid_time : 0u;
     if (session_duration_ms < (DATA_BURY_PUMP_SESSION_MIN_DURATION_SEC * 1000u)) {
-        LOG_BURY("pump session end: duration=%u ms < %u s, discard",
+        LOG_BURY("pump session end: work_valid_time=%u ms < %u s, discard",
                  (unsigned)session_duration_ms, (unsigned)DATA_BURY_PUMP_SESSION_MIN_DURATION_SEC);
         data_bury_pump_session_pending_discard(ctx);
         return;
@@ -612,7 +614,6 @@ static void data_bury_event_commit_pump_session_end(data_bury_manager_context_t 
         session_id = ctx->data_bury_get_current_pump_session_id();
     }
 
-    READ_PUMP_RESULT_INFO(pump, BREAST_PUMP_RESULT_PUMPING, &result_info);
     if (result_info != NULL) {
         mode = (int)result_info->mode;
     } else {
