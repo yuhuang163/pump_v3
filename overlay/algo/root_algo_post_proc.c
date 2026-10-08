@@ -38,6 +38,8 @@ void algo_fusion_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_le
     READ_PUMP_MODE_STEP_INDEX(ctx->priv.pump, time_index);
     READ_PUMP_SETTING_INFO(ctx->priv.pump, time_index, current_setting);
     uint8_t time_policy_mode =  ctx->priv.motor->get_runtime_mode_type(0);
+    int pump_mode = 0;
+    READ_PUMP_WORK_MODE(ctx->priv.pump, pump_mode);
 
     algo_data.timestamp = get_timestamp_ms(0);
     /// 气压数据
@@ -62,7 +64,8 @@ void algo_fusion_data_cb(algo_manager_context_t *ctx, uint8_t *data, int data_le
             break;
         }
         algo_data.pump_state[i].level = current_setting.level[i];
-        algo_data.pump_state[i].mode = time_policy_mode;
+        algo_data.pump_state[i].submode = time_policy_mode; //时间策略
+        algo_data.pump_state[i].mode = (uint8_t)pump_mode; //泵奶模式
         algo_data.pump_state[i].state = info[i].state.status;
         algo_data.pump_state[i].pump_duty = info[i].state.pump_duty;
         algo_data.pump_state[i].valve_duty = info[i].state.valve_duty;
