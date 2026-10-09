@@ -30,7 +30,7 @@
 #ifndef NIGHT_LIGHT_CLIMB_END_BLEND_THRESHOLD
 #define NIGHT_LIGHT_CLIMB_END_BLEND_THRESHOLD     4u  /// 距 target 剩余档位数
 #endif
-#define NIGHT_LIGHT_LOG_DEBUG                     (1)
+#define NIGHT_LIGHT_LOG_DEBUG                     (0)
 
 typedef struct {
     HWTIMER_ID time_id;
@@ -178,10 +178,12 @@ static void bsp_night_light_timer_handler(void *param)
             time_info.pulse_width =
                 (pwm_table[time_info.current_duty] + pwm_table[next_duty]) / 2;
             time_info.duty_update_flag = 1;
+            #if NIGHT_LIGHT_LOG_DEBUG
             LOG_PBUS("nl dim blend: %u -> %u, tgt=%u",
                 (unsigned)time_info.current_duty,
                 (unsigned)next_duty,
                 (unsigned)time_info.target_duty);
+            #endif
             bsp_night_light_climb_schedule();
             return;
         }
@@ -218,10 +220,12 @@ static void bsp_night_light_timer_handler(void *param)
             time_info.pulse_width =
                 (pwm_table[time_info.current_duty] + pwm_table[next_duty]) / 2;
             time_info.duty_update_flag = 1;
+            #if NIGHT_LIGHT_LOG_DEBUG
             LOG_PBUS("nl bright blend: %u -> %u, tgt=%u",
                 (unsigned)time_info.current_duty,
                 (unsigned)next_duty,
                 (unsigned)time_info.target_duty);
+            #endif
             bsp_night_light_climb_schedule();
             return;
         }
