@@ -138,9 +138,15 @@ static uint32_t pump_home_main_hint_color_get(uint8_t mode)
 
 static bool pump_home_main_seal_check_showing(const ui_proc_pump_t *proc, bool paused)
 {
+    /// 漏气检测功能开关关闭时，不显示漏气检测文案
+    if (!proc->seal_leak_enabled) {
+        return false;
+    }
+
     if (paused || proc == NULL) {
         return false;
     }
+    
     if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK ||
         proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         return false;

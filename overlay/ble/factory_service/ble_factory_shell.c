@@ -40,6 +40,7 @@
 #define BLE_CUSTOM_MODE_CLEAR_CMD              "#customClear"
 #define BLE_TRIPLE_WRITE_SHELL_CMD             "#tripleWrite"
 #define BLE_TRIPLE_WRITE_PROD_SHELL_CMD        "#tripleWriteProd"
+#define BLE_SEAL_LEAK_ENABLED_SHELL_CMD        "#sealLeakEnabled"
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -74,6 +75,7 @@ static void ble_shell_custom_mode_step_info_clear(const uint8_t *param, uint16_t
 static void ble_shell_triple_write(const uint8_t *param, uint16_t len);
 static void ble_shell_triple_write_prod(const uint8_t *param, uint16_t len);
 static void ble_shell_triple_set_field(uint8_t *dst, uint8_t *dst_len, uint16_t max_len, const char *src);
+static void ble_shell_seal_leak_enabled(const uint8_t *param, uint16_t len);
 static const ble_factory_shell_t shell_list[] = {
     /// 较长命令放前面，避免前缀误匹配（匹配逻辑也会校验命令边界）
     {BLE_PUMP_LEVEL_SHELL_CMD,    ble_shell_pump_level},
@@ -104,6 +106,7 @@ static const ble_factory_shell_t shell_list[] = {
     {BLE_CUSTOM_MODE_CLEAR_CMD, ble_shell_custom_mode_step_info_clear},
     {BLE_TRIPLE_WRITE_PROD_SHELL_CMD, ble_shell_triple_write_prod},///量产版三元组
     {BLE_TRIPLE_WRITE_SHELL_CMD, ble_shell_triple_write},///测试版三元组
+    {BLE_SEAL_LEAK_ENABLED_SHELL_CMD, ble_shell_seal_leak_enabled},
 };
 
 /// 工厂三元组预设（productKey / deviceName / deviceSecret / sn，mac 仅作日志参考）
@@ -735,6 +738,16 @@ static void ble_shell_triple_write_prod(const uint8_t *param, uint16_t len)
     LOG_BLE("shell triple prod write idx=%d mac=%s ret=%d", index, preset->mac, ret);
     LOG_BLE("shell triple prod pk=%s dn=%s ds=%s sn=%s",
             preset->product_key, preset->device_name, preset->device_secret, preset->sn);
+}
+
+static void ble_shell_seal_leak_enabled(const uint8_t *param, uint16_t len)
+{
+    int enabled = 0;
+    sscanf((const char *)param, "%d", &enabled);
+    LOG_BLE("shell seal leak enabled %d", enabled);
+    storage_manager_context_t *storage = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    EXCEPTION_CHECK_VOID(storage);
+    storage->put_store_ram_val(STORE_ID_SYS_SEAL_LEAK_ENABLED, enabled, 0, NULL);
 }
 
 /*

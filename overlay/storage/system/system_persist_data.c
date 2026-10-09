@@ -120,6 +120,7 @@ void reset_sys_state_info(storage_manager_context_t *ctx, sys_state_info_t *sys_
     sys_state->night_light_gear = 2;
     sys_state->back_light_level = 80;
     sys_state->night_light_startup_on = 1;
+    sys_state->seal_leak_enabled = 1;
     store_func_args_t args = {
         .ctx = ctx,
         .arg1 = 0,
@@ -497,6 +498,15 @@ int write_log_filter_to_ram(store_func_args_t args)
     return 0;
 }
 
+int write_seal_leak_enabled_to_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
+    sys_state->seal_leak_enabled = (uint8_t)args.arg1;
+    LOG_STORE_WRAP("write seal leak enabled: %d", args.arg1);
+    return 0;
+}
+
 int read_sys_time_zone_from_ram(store_func_args_t args)
 {   
     EXCEPTION_CHECK_INT(args.ctx);
@@ -657,6 +667,16 @@ int read_log_filter_from_ram(store_func_args_t args)
     int *tmp = (int *)args.val;
     EXCEPTION_CHECK_INT(tmp);
     *tmp = sys_state->log_filter;
+    return 0;
+}
+
+int read_seal_leak_enabled_from_ram(store_func_args_t args)
+{
+    EXCEPTION_CHECK_INT(args.ctx);
+    sys_state_info_t *sys_state = &args.ctx->priv.sys_info.state;
+    int *tmp = (int *)args.val;
+    EXCEPTION_CHECK_INT(tmp);
+    *tmp = sys_state->seal_leak_enabled;
     return 0;
 }
 

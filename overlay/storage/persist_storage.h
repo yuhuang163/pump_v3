@@ -1,6 +1,7 @@
 #ifndef __PERSIST_STORAGE_H__
 #define __PERSIST_STORAGE_H__
 
+#include "stdint.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -328,7 +329,8 @@ typedef struct {
     uint8_t night_light_gear;                   /// 夜灯档位
     uint8_t back_light_level;                   /// 全局屏/键背光亮度 20~100
     uint8_t night_light_startup_on;             /// 夜灯开机自动开：0-关 1-开
-    uint8_t rsv[27];              /// 保留
+    uint8_t seal_leak_enabled;                  /// 漏气检测功能开关
+    uint8_t rsv[26];              /// 保留
 } sys_state_info_t;
 
 typedef struct {

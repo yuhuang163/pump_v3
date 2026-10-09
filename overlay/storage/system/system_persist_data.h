@@ -89,7 +89,9 @@ int read_bind_status_from_ram(store_func_args_t args);
 /// 电池电量
 int write_battery_percent_to_ram(store_func_args_t args);
 int read_battery_percent_from_ram(store_func_args_t args);
-
+/// 漏气检测功能开关
+int write_seal_leak_enabled_to_ram(store_func_args_t args);
+int read_seal_leak_enabled_from_ram(store_func_args_t args);
 #ifdef __cplusplus
 }
 #endif

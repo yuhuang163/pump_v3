@@ -116,6 +116,7 @@ const static put_store_ram_val_handle_t put_store_ram_val_list[] = {
     {STORE_ID_LANG_PACK_OTA_INFO, write_lang_pack_ota_info_to_ram},
 #endif
     {STORE_ID_SYS_BATTERY_PERCENT, write_battery_percent_to_ram},
+    {STORE_ID_SYS_SEAL_LEAK_ENABLED, write_seal_leak_enabled_to_ram},
 };
 
 const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
@@ -168,6 +169,7 @@ const static get_store_ram_val_handle_t get_store_ram_val_list[] = {
     {STORE_ID_LANG_PACK_OTA_INFO, read_lang_pack_ota_info_from_ram},
 #endif
     {STORE_ID_SYS_BATTERY_PERCENT, read_battery_percent_from_ram},
+    {STORE_ID_SYS_SEAL_LEAK_ENABLED, read_seal_leak_enabled_from_ram},
 };
 
 static storage_manager_context_t *thiz = NULL;

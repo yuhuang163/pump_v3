@@ -1017,6 +1017,18 @@ static int entry_event_cb(window_lift_cycle_e new_state,
             proc->led->set_led_level(PUMP_BREASTFEEDING_BL, 0);
             #endif
         }
+
+        /// 初始化漏气检测功能开关（RAM 项，走 get_store_ram_val）
+        storage_manager_context_t *ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+        if (ctx && ctx->get_store_ram_val) {
+            int seal_leak_enabled = 0;
+            ctx->get_store_ram_val(STORE_ID_SYS_SEAL_LEAK_ENABLED, 0, 0, &seal_leak_enabled);
+            proc->seal_leak_enabled = seal_leak_enabled > 0 ? true : false;
+            LOG_WM("seal leak enabled: %d", seal_leak_enabled);
+        } else {
+            proc->seal_leak_enabled = true;
+        }
+
         /// home 模式确认进入：先 Success 1.5s，再回泵奶首页
         if (proc->extra.arg1 == PUMP_SUB_UI_TYPE_SETTINGS_SUCCESS) {
             pump_start_pump_keep_ui(proc);

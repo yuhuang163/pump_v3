@@ -128,6 +128,14 @@ void switch_pump_status_ui(ui_proc_pump_t *proc)
     EXCEPTION_CHECK_VOID(proc && proc->pump);
     int pump_status = 0;
     READ_PUMP_WORK_STATUS(proc->pump, pump_status);
+    storage_manager_context_t *ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
+    if (ctx && ctx->get_store_ram_val) {
+        int seal_leak_enabled = 0;
+        ctx->get_store_ram_val(STORE_ID_SYS_SEAL_LEAK_ENABLED, 0, 0, &seal_leak_enabled);
+        proc->seal_leak_enabled = seal_leak_enabled > 0 ? true : false;
+        LOG_WM("seal leak enabled: %d", seal_leak_enabled);
+    }
+    
     if (pump_status == BREAST_PUMP_PAUSE || pump_status == BREAST_PUMP_IDLE || pump_status == BREAST_PUMP_FINISH) {
         int next_status = (pump_status == BREAST_PUMP_PAUSE) ? BREAST_PUMP_CONTINUE : BREAST_PUMP_START;
         /// 如果是开机首次启动或者结算后的首次启动，则触发泵奶启动埋点事件
