@@ -14,4 +14,6 @@
 #define PUMP_HOME_CUSTOM_TIME_H_TEXT                    ":"
 #define PUMP_HOME_CUSTOM_TIME_M_TEXT                    ":"
 
+#define PUMP_HOME_MAIN_SEAL_INCREASING_TEXT             "Increasing suction..."
+
 #endif /* __UI_LANG_EN_PUMP_HOME_STRINGS_H__ */

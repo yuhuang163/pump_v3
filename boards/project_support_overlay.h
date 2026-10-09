@@ -280,6 +280,10 @@ extern "C" {
 #ifndef IS_SUPPORT_PUMP_SEAL_SLIGHT_AS_PASS
 #define IS_SUPPORT_PUMP_SEAL_SLIGHT_AS_PASS              (0)
 #endif
+/// 双边力度均为 0 时跳过漏气检测过程：1 跳过；0 仍检测
+#ifndef IS_SUPPORT_PUMP_SEAL_SKIP_BOTH_LEVEL_ZERO
+#define IS_SUPPORT_PUMP_SEAL_SKIP_BOTH_LEVEL_ZERO        (1)
+#endif
 /// 未佩戴弹窗：进入泵奶窗口至退出仅触发一次（同 seal_leak_shown）
 #ifndef IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE
 #define IS_SUPPORT_PUMP_FIT_NOT_DETECTED_ONCE            (1)

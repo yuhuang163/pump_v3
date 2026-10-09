@@ -112,6 +112,10 @@ static bool pump_home_animation_should_hide(const pump_home_base_ui_info_t *info
 {
     const pump_home_base_animation_info_t *anim = &info->animation;
 
+    /// Increasing suction...：停帧并隐藏波形，保留计时
+    if (info->main.shown_seal_keep_time != 0) {
+        return true;
+    }
     if (anim->hidden_by_mode_switch && !pump_home_animation_is_seal(anim)) {
         return true;
     }
