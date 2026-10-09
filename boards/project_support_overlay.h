@@ -182,7 +182,7 @@ extern "C" {
 #define IS_SUPPORT_SYS_ABNORMAL_RESTART_HOLD             (1)
 #endif
 /// 支持主题选择界面
-#define IS_SUPPORT_THEME_GUIDE_WINDOW                    (0)  
+#define IS_SUPPORT_THEME_GUIDE_WINDOW                    (1)  
 
 #else
 /// 支持漏气提醒
@@ -247,7 +247,7 @@ extern "C" {
 #define IS_SUPPORT_PUMP_MODE_FAST_TEST                   (0)
 
 /// 支持主题切换
-#define IS_SUPPORT_THEME_SWITCH                          (0)
+#define IS_SUPPORT_THEME_SWITCH                          (1)
 
 /// 使用新的Spectra兼容吸力曲线参数表 // 0 不使用 1 使用
 #if (ROOT_UI_VERSION == ROOT_UI_V7)
