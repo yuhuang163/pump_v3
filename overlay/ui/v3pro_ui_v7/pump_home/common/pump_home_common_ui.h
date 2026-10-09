@@ -169,6 +169,7 @@ typedef struct {
     uint8_t shown_paused;
     uint8_t shown_mode_switch;
     uint8_t shown_seal_check;
+    uint8_t shown_seal_keep_time;
     uint32_t shown_seal_color;
     uint8_t tracked_mode_type;
     uint8_t tracked_pump_mode;

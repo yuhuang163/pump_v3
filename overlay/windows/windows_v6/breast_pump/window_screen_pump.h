@@ -404,6 +404,8 @@ bool pump_adjust_exit_if_rest_mode(ui_proc_pump_t *proc);
 /// 漏气检测：每次启动展示检测中，由算法结果切换文案 / 跳转
 void pump_seal_check_start(ui_proc_pump_t *proc);
 void pump_seal_check_stop(ui_proc_pump_t *proc);
+/// 当前步双边力度均为 0（IS_SUPPORT_PUMP_SEAL_SKIP_BOTH_LEVEL_ZERO 关闭时恒为 false）
+bool pump_seal_check_both_level_zero(const ui_proc_pump_t *proc);
 /// mock：暂停再启动切下一步（无 mock 时为空）
 void pump_seal_leak_mock_on_check_start(ui_proc_pump_t *proc);
 

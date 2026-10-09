@@ -533,9 +533,34 @@ void pump_sub_mode_state_init(ui_proc_pump_t *proc, uint8_t clamp_level)
     }
 }
 
+bool pump_seal_check_both_level_zero(const ui_proc_pump_t *proc)
+{
+#if IS_SUPPORT_PUMP_SEAL_SKIP_BOTH_LEVEL_ZERO
+    pump_setting_t setting;
+    int time_index = 0;
+
+    if (proc == NULL || proc->pump == NULL) {
+        return false;
+    }
+    READ_PUMP_MODE_STEP_INDEX(proc->pump, time_index);
+    READ_PUMP_SETTING_INFO(proc->pump, time_index, setting);
+    return (setting.level[0] == 0 && setting.level[1] == 0);
+#else
+    (void)proc;
+    return false;
+#endif
+}
+
 void pump_seal_check_start(ui_proc_pump_t *proc)
 {
     EXCEPTION_CHECK_VOID(proc);
+#if IS_SUPPORT_PUMP_SEAL_SKIP_BOTH_LEVEL_ZERO
+    if (pump_seal_check_both_level_zero(proc)) {
+        LOG_WM("seal check skip, both levels 0.");
+        pump_seal_check_stop(proc);
+        return;
+    }
+#endif
 #if IS_SUPPORT_DEVICE_AIR_PRESSURE
     REMOVE_TASK_HANDLER_DIRECTLY(PUMP_SEAL_RESULT_TIP_TASK_NAME);
     proc->seal_check_time = get_timestamp();

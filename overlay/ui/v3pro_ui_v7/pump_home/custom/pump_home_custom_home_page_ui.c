@@ -60,6 +60,7 @@
 /// 漏气检测文案：与 home 首页 hint 字号/颜色/位置对齐
 #define PUMP_HOME_MAIN_SEAL_CHECK_MASK_W                (PUMP_HOME_BASE_MAIN_HINT_SHINE_W)
 #define PUMP_HOME_MAIN_SEAL_CHECK_MASK_Y                (PUMP_HOME_MAIN_SEAL_CHECK_Y)
+#define PUMP_HOME_MAIN_SEAL_INCREASING_MS               (5000)
 
 /*
 * LOCAL VARIABLE DEFINITIONS
@@ -132,31 +133,54 @@ static uint32_t pump_home_main_hint_color_get(uint8_t mode)
 #endif
 }
 
-static bool pump_home_main_seal_check_showing(const ui_proc_pump_t *proc, bool paused)
+static bool pump_home_main_seal_overlay_allowed(const ui_proc_pump_t *proc, bool paused)
 {
     /// 漏气检测功能开关关闭时，不显示漏气检测文案
-    if (!proc->seal_leak_enabled) {
+    if (proc == NULL || !proc->seal_leak_enabled || paused) {
         return false;
     }
 
-    if (paused || proc == NULL) {
-        return false;
-    }
-    
     if (proc->current_ui_type == PUMP_UI_TYPE_SEAL_LEAK ||
         proc->current_ui_type == PUMP_UI_TYPE_FIT_NOT_DETECTED) {
         return false;
     }
-    
+#if IS_SUPPORT_PUMP_SEAL_SKIP_BOTH_LEVEL_ZERO
+    /// 双边力度均为 0 时无吸力，不展示检测过程
+    if (pump_seal_check_both_level_zero(proc)) {
+        return false;
+    }
+#endif
+    return true;
+}
+
+static bool pump_home_main_seal_increasing_showing(const ui_proc_pump_t *proc, bool paused)
+{
+    if (!pump_home_main_seal_overlay_allowed(proc, paused)) {
+        return false;
+    }
+    if (proc->seal_tip != PUMP_SEAL_TIP_CHECKING || proc->seal_check_time == 0) {
+        return false;
+    }
+    return get_timestamp_ms(proc->seal_check_time) < PUMP_HOME_MAIN_SEAL_INCREASING_MS;
+}
+
+static bool pump_home_main_seal_check_showing(const ui_proc_pump_t *proc, bool paused)
+{
+    if (!pump_home_main_seal_overlay_allowed(proc, paused)) {
+        return false;
+    }
     return proc->seal_tip == PUMP_SEAL_TIP_CHECKING ||
         proc->seal_tip == PUMP_SEAL_TIP_RESULT ||
         proc->seal_tip == PUMP_SEAL_TIP_RESULT_FAIL;
 }
 
-static const char *pump_home_main_seal_check_text_get(const ui_proc_pump_t *proc)
+static const char *pump_home_main_seal_check_text_get(const ui_proc_pump_t *proc, bool paused)
 {
     if (proc == NULL) {
         return NULL;
+    }
+    if (pump_home_main_seal_increasing_showing(proc, paused)) {
+        return PUMP_HOME_MAIN_SEAL_INCREASING_TEXT;
     }
     if (proc->seal_tip == PUMP_SEAL_TIP_CHECKING) {
         return PUMP_HOME_MAIN_SEAL_CHECKING_TEXT;
@@ -184,7 +208,15 @@ static void pump_home_main_obj_flag_set(lv_obj_t *obj, bool visible)
 
 static lv_coord_t pump_home_main_time_y_offset_get(const pump_home_base_ui_info_t *info)
 {
-    return info->main.shown_mode_switch ? PUMP_HOME_MAIN_TIME_MODE_SWITCH_SHIFT_Y : 0;
+    lv_coord_t offset = 0;
+
+    if (info->main.shown_mode_switch) {
+        offset += PUMP_HOME_MAIN_TIME_MODE_SWITCH_SHIFT_Y;
+    }
+    if (info->main.shown_seal_keep_time) {
+        offset += PUMP_HOME_CUSTOM_TIME_SEAL_INCREASING_SHIFT_Y;
+    }
+    return offset;
 }
 
 static lv_coord_t pump_home_main_time_sep_y_get(const pump_home_base_ui_info_t *info,
@@ -495,7 +527,8 @@ static void pump_home_main_time_update(pump_home_base_ui_info_t *info, uint8_t h
     uint8_t minutes, uint8_t seconds, bool paused)
 {
     const uint8_t digit_size = (hours == 0) ? PUMP_HOME_MAIN_TIME_2SEG : PUMP_HOME_MAIN_TIME_3SEG;
-    const bool time_visible = !paused && (info->main.shown_seal_check == 0);
+    const bool time_visible = !paused &&
+        (info->main.shown_seal_check == 0 || info->main.shown_seal_keep_time != 0);
     const uint32_t color = pump_home_main_time_color_get(info->mode.new_index);
 
     if (info->main.shown_time_color != color) {
@@ -779,7 +812,8 @@ static void pump_home_main_seal_check_update(pump_home_base_ui_info_t *info, ui_
     uint8_t mode, bool paused)
 {
     const bool show = pump_home_main_seal_check_showing(proc, paused);
-    const char *text = show ? pump_home_main_seal_check_text_get(proc) : NULL;
+    const bool keep_time = pump_home_main_seal_increasing_showing(proc, paused);
+    const char *text = show ? pump_home_main_seal_check_text_get(proc, paused) : NULL;
     const uint32_t color = pump_home_main_hint_color_get(mode);
     const int32_t line_space = pump_home_main_seal_check_line_space_get(proc);
     bool state_changed;
@@ -811,7 +845,8 @@ static void pump_home_main_seal_check_update(pump_home_base_ui_info_t *info, ui_
             lv_obj_set_style_text_color(info->main.seal_check_label, lv_color_hex(color), 0);
             lv_obj_set_style_text_line_space(info->main.seal_check_label, line_space, 0);
             lv_label_set_text(info->main.seal_check_label, text);
-            lv_obj_align(info->main.seal_check_label, LV_ALIGN_TOP_MID, 0, PUMP_HOME_MAIN_SEAL_CHECK_Y);
+            lv_obj_align(info->main.seal_check_label, LV_ALIGN_TOP_MID, 0,
+                keep_time ? PUMP_HOME_MAIN_SEAL_INCREASING_Y : PUMP_HOME_MAIN_SEAL_CHECK_Y);
             lv_obj_update_layout(info->main.seal_check_label);
             pump_home_main_obj_flag_set(info->main.seal_check_label, true);
             strncpy(info->main.shown_seal_text, text, sizeof(info->main.shown_seal_text) - 1);
@@ -826,9 +861,14 @@ static void pump_home_main_seal_check_update(pump_home_base_ui_info_t *info, ui_
         }
     }
 
-    info->animation.seal_tip = show ? proc->seal_tip : PUMP_SEAL_TIP_NONE;
+    info->animation.seal_tip = (show && !keep_time) ? proc->seal_tip : PUMP_SEAL_TIP_NONE;
     pump_home_main_seal_check_mask_update(info, show, text, line_space);
     info->main.shown_seal_check = show ? 1 : 0;
+    if (info->main.shown_seal_keep_time != (keep_time ? 1 : 0) &&
+        PUMP_HOME_CUSTOM_TIME_SEAL_INCREASING_SHIFT_Y != 0) {
+        pump_home_main_time_layout_invalidate(info);
+    }
+    info->main.shown_seal_keep_time = keep_time ? 1 : 0;
 }
 
 static void pump_home_main_speed_update(pump_home_base_ui_info_t *info, uint8_t speed, bool paused)
@@ -959,6 +999,7 @@ void pump_home_custom_main_page_ui_build(pump_home_base_ui_info_t *info)
     info->main.shown_paused = 0xFF;
     info->main.shown_mode_switch = 0;
     info->main.shown_seal_check = 0;
+    info->main.shown_seal_keep_time = 0;
     info->main.shown_seal_color = 0xFFFFFFFFU;
     info->main.shown_seal_text[0] = '\0';
     info->main.tracked_mode_type = 0xFF;

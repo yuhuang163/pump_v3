@@ -470,6 +470,9 @@ const char *const g_ui_str_default[UI_STR_ID_COUNT] = {
 #ifdef UI_STR_MODE_PROGRAM
     [UI_STR_ID_MODE_PROGRAM] = UI_STR_MODE_PROGRAM,
 #endif
+#ifdef PUMP_HOME_MAIN_SEAL_INCREASING_TEXT
+    [UI_STR_ID_PUMP_HOME_MAIN_SEAL_INCREASING_TEXT] = PUMP_HOME_MAIN_SEAL_INCREASING_TEXT,
+#endif
 };
 
 const ui_widget_style_t g_ui_widget_default[UI_W_COUNT] = {
@@ -8619,6 +8622,31 @@ const ui_widget_style_t g_ui_widget_default[UI_W_COUNT] = {
         .color_rgb = 0,
         .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
     },
+    [UI_W_PUMP_HOME_MAIN_SEAL_INCREASING] = {
+        .kind = UI_WIDGET_KIND_TEXT,
+        .obj_align = 2,
+        .x =
+            0
+        ,
+        .y =
+#ifdef PUMP_HOME_MAIN_SEAL_INCREASING_Y
+            (int16_t)(PUMP_HOME_MAIN_SEAL_INCREASING_Y)
+#else
+            0
+#endif
+        ,
+        .opa = 255,
+        .text_align = 2,
+        .line_space =
+            0
+        ,
+        .font_role = 0xFF,
+        .max_w =
+            0
+        ,
+        .color_rgb = 0,
+        .flags = UI_STYLE_F_COLOR_INHERIT | UI_STYLE_F_OPA_INHERIT,
+    },
 };
 
 const int16_t g_ui_layout_default[UI_LAY_COUNT] = {
@@ -8876,6 +8904,12 @@ const int16_t g_ui_layout_default[UI_LAY_COUNT] = {
 #endif
 #ifdef BATTERY_CAP_Y_OFFSET
     [UI_LAY_BATTERY_CAP_Y_OFFSET] = (int16_t)(BATTERY_CAP_Y_OFFSET),
+#endif
+#ifdef PUMP_HOME_MAIN_TIME_SEAL_INCREASING_SHIFT_Y
+    [UI_LAY_PUMP_HOME_MAIN_TIME_SEAL_INCREASING_SHIFT_Y] = (int16_t)(PUMP_HOME_MAIN_TIME_SEAL_INCREASING_SHIFT_Y),
+#endif
+#ifdef PUMP_HOME_CUSTOM_TIME_SEAL_INCREASING_SHIFT_Y
+    [UI_LAY_PUMP_HOME_CUSTOM_TIME_SEAL_INCREASING_SHIFT_Y] = (int16_t)(PUMP_HOME_CUSTOM_TIME_SEAL_INCREASING_SHIFT_Y),
 #endif
 };
 
