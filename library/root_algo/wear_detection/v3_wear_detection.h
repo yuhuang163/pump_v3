@@ -42,7 +42,7 @@ typedef struct _deubg_info
 
 /* interface */
 // 初始化
-void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight);
+void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight, unsigned char uMainModeLeft, unsigned char uMainModeRight);
 
 // 逐点计算主函数
 void V3WearDetectionMain(algo_air_pressure_data_t sPressureData);
