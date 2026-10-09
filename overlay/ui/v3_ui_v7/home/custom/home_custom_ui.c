@@ -16,7 +16,6 @@
 #define IS_SUPPORT_HOME_UI_TEST                     (0)
 #endif
 
-#if IS_SUPPORT_THEME_SWITCH
 /*
 * LOCAL VARIABLE DEFINITIONS
 *****************************************************************************************
@@ -26,8 +25,6 @@ static PSRAM_NC_DATA_LOC uint8_t home_bg_data[] = {
     #include "comparison_png2txt/home_custom_31_360x360.txt"
 };
 #endif
-
-static home_custom_ui_info_t *home_info;
 
 /*
 * GLOBAL VARIABLE DEFINITIONS
@@ -56,4 +53,3 @@ int home_custom_ui_process(ui_manager_context_t *thiz)
 {
 
 }
-#endif

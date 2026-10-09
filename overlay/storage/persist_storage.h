@@ -1,7 +1,6 @@
 #ifndef __PERSIST_STORAGE_H__
 #define __PERSIST_STORAGE_H__
 
-#include "stdint.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
