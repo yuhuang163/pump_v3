@@ -18,7 +18,7 @@
 #endif
 
 /* define pressure algorithm version */
-#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.2.7"
+#define V3_PRESSURE_ALGO_VERSION_STR    "3.0.2.8"
 
 /* hardware parameters */
 #define SAMPLE_RATE			(50)
@@ -121,6 +121,7 @@ typedef struct _PUMP_STATE
 {
 	unsigned char		level;       /* 0-15 */
 	unsigned char		mode;        /* 0:刺激模式 1:吸乳模式 2:混合模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式 */
+	unsigned char 		submode;		
 	unsigned char		state;       /* 吸力状态 suction_status_e */
 	unsigned char		pump_duty;        /* 泵奶力度 */
 	unsigned char		valve_duty;       /* 吸乳器电磁阀门力度 */
@@ -181,8 +182,8 @@ typedef struct _GLOBAL_INFO
 typedef struct _DEVICE_INFO
 {
 	unsigned char	uTargetPressure;	// 正值
-	unsigned short	uMode;				// 0:刺激模式 1:吸乳模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式
-	unsigned short  uSubMode;			// 0: 刺激模式 1: 吸乳模式
+	unsigned short	uMainMode;				// 0:刺激模式 1:吸乳模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式
+	unsigned short  uMode;			// 0: 刺激模式 1: 吸乳模式
 	unsigned short	uLevel;
 	unsigned short	run_time;			// 运行时间，单位ms	
 	unsigned short  uTargetPumpTime;	/* 吸力保持时间，单位ms */

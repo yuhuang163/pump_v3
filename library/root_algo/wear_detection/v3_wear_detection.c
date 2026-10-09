@@ -53,7 +53,7 @@ const char* v3_pressure_algo_get_version(void)
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
-void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigned int uChannelIdx)
+void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigned char uMainMode, unsigned int uChannelIdx)
 {
 	// 更改初始化
 	memset(&tPVInfo[uChannelIdx], 0, sizeof(SPV_INFO));
@@ -67,6 +67,7 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 
 	/* Device info */
 	tDeviceInfo[uChannelIdx].uMode = uMode;
+	tDeviceInfo[uChannelIdx].uMainMode = uMainMode;
 	tDeviceInfo[uChannelIdx].uLevel = uLevel - 1;
 
 	switch (uMode)
@@ -106,10 +107,10 @@ void V3WearDetectionModeReset(unsigned char uLevel, unsigned char uMode, unsigne
 * 返 回 值：无
 *************************************************************************************************************************************************
 */
-void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight)
+void V3WearDetectionInit(unsigned char uLevelLeft, unsigned char ulevelRight, unsigned char uModeLeft, unsigned char uModeRight, unsigned char uMainModeLeft, unsigned char uMainModeRight)
 {
-	V3WearDetectionModeReset(uLevelLeft, uModeLeft, CHANNEL_0);
-	V3WearDetectionModeReset(ulevelRight, uModeRight, CHANNEL_1);
+	V3WearDetectionModeReset(uLevelLeft, uModeLeft, uMainModeLeft, CHANNEL_0);
+	V3WearDetectionModeReset(ulevelRight, uModeRight, uMainModeRight, CHANNEL_1);
 
 #ifdef FOR_PC_DISPLAY
 	memset(&gDebugInfo, 0, sizeof(gDebugInfo));
@@ -2441,22 +2442,27 @@ void V3WearDetectionMain(algo_air_pressure_data_t sPressureData)
 {
 	unsigned char uLevelLeft = sPressureData.pump_state[CHANNEL_0].level;
 	unsigned char uLevelRight = sPressureData.pump_state[CHANNEL_1].level;
-	unsigned char uModeLeft = sPressureData.pump_state[CHANNEL_0].mode;
-	unsigned char uModeRight = sPressureData.pump_state[CHANNEL_1].mode;
+	unsigned char uModeLeft = sPressureData.pump_state[CHANNEL_0].submode;			// 子模式
+	unsigned char uModeRight = sPressureData.pump_state[CHANNEL_1].submode;	
+	unsigned char uMainModeLeft = sPressureData.pump_state[CHANNEL_0].mode;			// 主模式
+	unsigned char uMainModeRight = sPressureData.pump_state[CHANNEL_1].mode;
+
 
 	/* reset if mode or level changed */
 	if ((uLevelLeft - 1 != tDeviceInfo[CHANNEL_0].uLevel)
 		|| (uModeLeft != tDeviceInfo[CHANNEL_0].uMode)
+		|| (uMainModeLeft != tDeviceInfo[CHANNEL_0].uMainMode)
 		|| 0 == sPressureData.do_work)
 	{
-		V3WearDetectionModeReset(uLevelLeft, uModeLeft, CHANNEL_0);
+		V3WearDetectionModeReset(uLevelLeft, uModeLeft, uMainModeLeft, CHANNEL_0);
 	}
 
 	if ((uLevelRight - 1 != tDeviceInfo[CHANNEL_1].uLevel)
 		|| (uModeRight != tDeviceInfo[CHANNEL_1].uMode)
+		|| (uMainModeRight != tDeviceInfo[CHANNEL_1].uMainMode)
 		|| 0 == sPressureData.do_work)
 	{
-		V3WearDetectionModeReset(uLevelRight, uModeRight, CHANNEL_1);
+		V3WearDetectionModeReset(uLevelRight, uModeRight, uMainModeRight, CHANNEL_1);
 	}
 
 	/* update device target parameters every cycle */
