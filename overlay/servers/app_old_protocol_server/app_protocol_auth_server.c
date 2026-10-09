@@ -37,6 +37,14 @@ void app_old_comm_handle_get_triple_req(void)
     storage_manager_context_t *ctx = (storage_manager_context_t *)find_module(ID_MODULE_STORAGE);
     EXCEPTION_CHECK_VOID(ctx);
     ctx->get_store_val(STORE_ID_FACTORY_DEV_INFO, 0, 0, &factory_dev_info);
+    /// 产测完成标识若未置位，重新置位，防止产测漏掉，后续app连上后会自动清掉
+    factory_flag_info_t flag_info = {0};
+    ctx->get_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info);
+    if (flag_info.deploy_flag == 0) {
+        flag_info.deploy_flag = 1;
+        ctx->put_store_val(STORE_ID_FACTORY_FLAG_INFO, 0, 0, &flag_info);
+        LOG_SRV("factory complete flag re-set");
+    }
 #if 0
 	uint8_t product_id[] = "x77MDK";
 
