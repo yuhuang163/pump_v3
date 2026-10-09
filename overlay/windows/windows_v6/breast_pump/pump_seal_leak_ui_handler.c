@@ -552,8 +552,10 @@ void pump_seal_leak_mock_on_check_start(ui_proc_pump_t *proc)
 static void pump_seal_leak_callback(void *user_data, algo_breast_pump_data_t *result)
 {
     ui_proc_pump_t *proc = (ui_proc_pump_t *)user_data;
-
     WINDOW_ID_GUARD_VOID(proc, ID_WINDOW_PUMP);
+    if (!proc->seal_leak_enabled) {
+        return;
+    }
 #if PUMP_SEAL_LEAK_MOCK_ENABLE
     (void)result;
     return;

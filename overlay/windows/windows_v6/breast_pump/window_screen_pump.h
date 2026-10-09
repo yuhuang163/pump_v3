@@ -343,6 +343,7 @@ typedef struct {
 
     /// 漏气检测提示（泵奶首页，pump_seal_tip_e）
     uint8_t seal_tip;
+    uint8_t seal_leak_enabled; /// 漏气检测功能开关
     /// 本轮检测窗口内最新结果 pump_seal_result_e
     uint8_t seal_result;
     uint8_t leak_channel[AIR_PRESSURE_NUM]; /// 1: 该侧重度漏气（左/右）；跳转漏气页时锁存
