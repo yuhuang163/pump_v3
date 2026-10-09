@@ -1,6 +1,9 @@
 #ifndef __V3_DEFINED_H__
 #define __V3_DEFINED_H__
+
+#ifndef FOR_PC_DISPLAY
 #include "algo_fusion_lib.h"
+#endif
 
 #ifndef abs
 #define abs(x)			((x) < 0 ? -(x) : (x))
@@ -23,7 +26,6 @@
 #define CHANNEL_NUM			(2)		/* 2 channels - left and right */
 #define CHANNEL_0			(0)		/* 0: left */
 #define CHANNEL_1			(1)		/* 1: right */
-#define TEMPLATEWAVE_NUM	(4)
 
 /* define modes */
 #define MODE_STIMULATION	(0)
@@ -32,6 +34,9 @@
 
 #define PUMP_WAVE_NUM       (6)
 #define PUMP_WAVE_LEN       (40)
+
+#define CHECK_WEAR_TIME     (12 * SAMPLE_RATE)                 // 定义初始检测的时间
+#define LEAK_DELAY_TIME     (3 * SAMPLE_RATE)                  // 定义漏气延迟报警的时间
 
 #define INVALID_TARGET_PRESSURE_REF    (-255.0f) /* 无效的目标压力参考值 */
 #define RAW_PUMP_POST_TAIL_POINTS 3 /* 每段结束后多采的原始压力点数（含 active->inactive 当前点） */
@@ -110,29 +115,33 @@ typedef enum {
 	SUCTION_STATUS_UPDATE_POLICY,      /// 更新策略
 } suction_status_e;
 
-//typedef struct _PUMP_STATE
-//{
-//	unsigned char		level;       /* 0-15 */
-//	unsigned char		mode;        /* 0:刺激模式 1:吸乳模式 2:混合模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式 */
-//	unsigned char		state;       /* 吸力状态 suction_status_e */
-//	unsigned char		pump_duty;        /* 泵奶力度 */
-//	unsigned char		valve_duty;       /* 吸乳器电磁阀门力度 */
-//	unsigned char		target_pressure;  /* 目标压力 */
-//	unsigned short 		target_pump_time; /// 泵工作目标时间，单位ms
-//	unsigned short		run_time;         /* 运行时间，单位ms */
-//}algo_pump_state_t;
+#ifdef FOR_PC_DISPLAY
 
+typedef struct _PUMP_STATE
+{
+	unsigned char		level;       /* 0-15 */
+	unsigned char		mode;        /* 0:刺激模式 1:吸乳模式 2:混合模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式 */
+	unsigned char		state;       /* 吸力状态 suction_status_e */
+	unsigned char		pump_duty;        /* 泵奶力度 */
+	unsigned char		valve_duty;       /* 吸乳器电磁阀门力度 */
+	unsigned char		target_pressure;  /* 目标压力 */
+	unsigned short 		target_pump_time;       /// 泵工作目标时间，单位ms
+	unsigned short		run_time;        /* 运行时间，单位ms */
+}algo_pump_state_t;
 
 
 /* 气压数据 */
-//typedef struct _AIR_PRESSURE
-//{
-//	unsigned char		do_work;     /* 是否正在泵奶 */
-//	unsigned int		timestamp;
-//	float				air_pressure[CHANNEL_NUM];
-//	algo_pump_state_t	pump_state[CHANNEL_NUM];
-//}algo_air_pressure_data_t;
+typedef struct _AIR_PRESSURE
+{
+	unsigned char		do_work;     /* 是否正在泵奶 */
+	unsigned int		timestamp;
+	float				air_pressure[CHANNEL_NUM];
+	algo_pump_state_t	pump_state[CHANNEL_NUM];
+}algo_air_pressure_data_t;
 /* ---------------------------------------------------------------- */
+
+#endif
+
 
 
 /* for algorithm */
@@ -171,12 +180,13 @@ typedef struct _GLOBAL_INFO
 
 typedef struct _DEVICE_INFO
 {
-	unsigned short	uMode;
-	unsigned short	uLevel;
-	unsigned short  uPumpDuty;
-	unsigned short	run_time;			// 运行时间，单位ms
 	unsigned char	uTargetPressure;	// 正值
+	unsigned short	uMode;				// 0:刺激模式 1:吸乳模式 3:个性化模式 4:PP追奶模式 5:2+8奶量提升模式 6:开奶模式
+	unsigned short  uSubMode;			// 0: 刺激模式 1: 吸乳模式
+	unsigned short	uLevel;
+	unsigned short	run_time;			// 运行时间，单位ms	
 	unsigned short  uTargetPumpTime;	/* 吸力保持时间，单位ms */
+	unsigned short  uPumpDuty;
 }SDEVICE_INFO;
 
 
@@ -189,9 +199,9 @@ typedef struct _DATA_BUFF_
 typedef struct _PUMP_FEATURE_INFO
 {
 	unsigned char	uState;				/* 吸力状态 */
+	unsigned char	uCompsStatus;		/* 输出的补偿结果 */
 	unsigned short	pumping_time;		/* 泵开始工作后，开始计时 */
 	unsigned short	remain_time;		/* 距离结束泵奶时间 */
-	unsigned char	uCompsStatus;		/* 输出的补偿结果 */
 	float			fSlope;
 	float			fIntercept;
 	int				iDelta_pwm;			/* 返回delta_pwm -10000~10000 */
@@ -205,7 +215,7 @@ typedef struct _TARGET_CURVE_ITEM
 	float			target_pump_pressure;
 	float			target_load_pressure;
 	unsigned short	curve_len;
-	const float*	p1_curve;
+	const float* p1_curve;
 } STARGET_CURVE_ITEM;
 
 /* tightness_detection */
@@ -239,6 +249,13 @@ typedef struct _FEATURE_INFO_
 	unsigned int	uWaveSpikes;
 	unsigned int	uNoiseLevel;
 	unsigned int	uNormalWaveform;
+
+	unsigned int	uWaveSpikesCumu;
+	unsigned int	uNoiseLevelCumu;
+	unsigned int	uPumpWorkTimeCumu;
+	int             iWaveSpikesTrend;
+	int             iNoiseLevelTrend;
+
 	float			fThreshold;
 	float			fLoadedThreshold;
 
@@ -253,9 +270,10 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uPumpStateLast;
 	unsigned char	uCompsStatus;
 
-	unsigned char	uWearStatus;		/* result */
-	unsigned char   uWearStatusOutput;	/* 对外输出 */
-	unsigned char	uDetectOverTime;	/* 检测超时 */
+	unsigned char	uWearStatus;		        /* result */
+	unsigned char   uWearStatusOutput;	        /* 对外输出 */
+	unsigned char   uLeakStatusOutput;	        /* 对外输出 */
+	unsigned char	uDetectOverTime;	        /* 检测超时 */
 
 	int				iDelta_pwm;
 	int 			iPwmOffset;              	/* 累计补偿量 */
@@ -264,7 +282,7 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uWearOnCount;
 	unsigned char	uWearOffCount;
 	unsigned char	uPrevWearStatus;
-	
+
 	unsigned char	uPrevPumpState;
 	unsigned char	uPrevActive;
 	unsigned char	uCurrActive;
@@ -301,17 +319,21 @@ typedef struct _FEATURE_INFO_
 	unsigned char	uLeakValleyCount;           /* 0~6 */
 	unsigned char	uLeakStatus;                /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
 	unsigned char	uPrevLeakStatus;            /* 0 未佩戴；1 已佩戴无漏；2 小漏；3 大漏 */
-	unsigned short  uWearDetectTime;			/* 检测佩戴状态的时长 */
 	
+	unsigned short  uLeakTimeCtr;			    /* 切换状态时长 */
+	unsigned short  uLeakUnwearCumu;			/* 切换状态时长 */
 	unsigned short  uLeakSwitchTime;			/* 切换状态时长 */
 	unsigned short  uLeakAdjustTime;			/* 切换状态时长 */
 	unsigned short  uLeakSwitchDelayTime;	    /* 切换状态时长 */
+	unsigned short  uLeakAdjustDelayTime;	    /* 切换状态时长 */
 
 	unsigned short	uDataBaselineCnt[3];		/* 休眠状态下, 基线平台>1200Pa (大漏), >700Pa (小漏), <100Pa (正常) 计数 */
 	unsigned short  uMinPressureCnt;			/* 最小负压低于目标负压 */
 	float			fPumpState4Pressure[11];	/* 分析泵休眠期趋势 其中：[0]为当前循环，[9]为前10个循环，[10]为当前循环的最小负压 */
-	unsigned short	uNoiseLevelBuff[11] ;			/* 分析噪声水平突变 其中：[0]为当前循环，[9]为前10个循环，[10]为当前循环的最小负压 */
+	unsigned short	uNoiseLevelBuff[11];	    /* 分析噪声水平突变 其中：[0]为当前循环，[9]为前10个循环，[10]为当前循环的最小负压 */
+	unsigned short	UWaveSpikesBuff[11];	    /* 分析噪声水平突变 其中：[0]为当前循环，[9]为前10个循环，[10]为当前循环的最小负压 */
 	unsigned short  uUnloadedINcmpstStatusCnt;	/* 持续出现大漏特征的计时 --- 在补偿阶段，可能会出现大漏/脱落的情况，这个时候需要判断 */
+
 }SFEATURE_INFO;
 
 typedef struct _DATA_BUFFER_

@@ -12,7 +12,6 @@ void GetWearDetectionDebugInfoAlg(unsigned int* uWaveSpikes,
     float* fRawSegThresholdAtMinPressure,
     float* fFilteredSegMinPressure,
     unsigned char* uWearDetSegMinCommitted, 
-    unsigned short* uWearDetectTime,
     unsigned short* uLeakDetectTime, 
     unsigned short* uDataBaselineCnt);
 
