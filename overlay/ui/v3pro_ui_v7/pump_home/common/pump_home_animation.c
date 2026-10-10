@@ -55,9 +55,10 @@ static bool pump_home_animation_res_get(const pump_home_base_ui_info_t *info, ui
                 *res_type = PUMP_HOME_BASE_ANIM_MIX_WAVE;
                 return true;
             case PUMP_MODE_IDLE:
-                *start_id = CUSTOM_RES_ID_EXPRESSION_ANIM_START;
-                *end_id = CUSTOM_RES_ID_EXPRESSION_ANIM_END;
-                *res_type = PUMP_HOME_BASE_ANIM_STIMULATION_WAVE;
+                /// 休息模式：仅展示刺激首帧静态图，不循环播放
+                *start_id = CUSTOM_RES_ID_STIMULATION_ANIM_START;
+                *end_id = CUSTOM_RES_ID_STIMULATION_ANIM_START;
+                *res_type = PUMP_HOME_BASE_ANIM_PROGRAM_RELAX_WAVE;
                 return true;
             default:
                 return false;
@@ -161,8 +162,14 @@ static bool pump_home_animation_target_get(const pump_home_base_ui_info_t *info,
 #endif
         return true;
     }
-    return pump_home_animation_res_get(info, info->mode.new_index, info->mode.new_mode_type,
-        start_id, end_id, res_type);
+    if (pump_home_animation_res_get(info, info->mode.new_index, info->mode.new_mode_type,
+        start_id, end_id, res_type) == false) {
+        return false;
+    }
+    if (custom && info->mode.new_mode_type == PUMP_MODE_IDLE) {
+        *loop = 0;
+    }
+    return true;
 }
 
 static void pump_home_animation_wave_align(pump_home_base_ui_info_t *info)
@@ -343,6 +350,10 @@ void pump_home_base_animation_ui_update(pump_home_base_ui_info_t *info)
     }
 
     if (anim->anim_play_state != 0 || anim->paused_by_transition != 0) {
+        return;
+    }
+
+    if (anim->current_anim_start == anim->frame_end_res_id) {
         return;
     }
 

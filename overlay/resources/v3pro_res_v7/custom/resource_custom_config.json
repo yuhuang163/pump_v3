@@ -574,6 +574,13 @@
       "file": "png/icon_check_tubing_right.png",
       "x_offset": 0,
       "y_offset": 0
+    },
+    {
+      "resource_id": "CUSTOM_RES_ID_STIMULATION_ANIM_START",
+      "description": "刺激动画-开始",
+      "file": "animation/stimulation/baj/Sti_00000_142x160_a8_q99_422.baj",
+      "x_offset": 0,
+      "y_offset": 0
     }
   ]
 }
